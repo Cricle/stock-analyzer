@@ -46,8 +46,14 @@ mod tests {
 
     #[test]
     fn env_flag_existing_var() {
-        std::env::set_var("TEST_ENV_FLAG_XYZ", "true");
+        // SAFETY: test-only env var manipulation with a unique name.
+        unsafe {
+            std::env::set_var("TEST_ENV_FLAG_XYZ", "true");
+        }
         assert!(env_flag("TEST_ENV_FLAG_XYZ"));
-        std::env::remove_var("TEST_ENV_FLAG_XYZ");
+        // SAFETY: cleaning up the test-only env var.
+        unsafe {
+            std::env::remove_var("TEST_ENV_FLAG_XYZ");
+        }
     }
 }

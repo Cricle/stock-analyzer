@@ -10,11 +10,6 @@ local-rag-embeddings = ["fastembed"]
 redis-cache = ["redis"]
 
 [dependencies]
-# Internal (will be removed after code merge)
-sa-types = { path = "../sa-types" }
-sa-models = { path = "../sa-models" }
-sa-data = { path = "../sa-data" }
-
 # Core
 adk-graph = { version = "0.8.0" }
 akshare = "0.1"

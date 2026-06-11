@@ -4,8 +4,9 @@
 //! The model is lazily loaded on first use and cached for the process lifetime.
 
 #[cfg(feature = "local-rag-embeddings")]
-use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use std::sync::OnceLock;
+#[cfg(feature = "local-rag-embeddings")]
+use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 
 #[cfg(feature = "local-rag-embeddings")]
 static EMBEDDER: OnceLock<Option<TextEmbedding>> = OnceLock::new();

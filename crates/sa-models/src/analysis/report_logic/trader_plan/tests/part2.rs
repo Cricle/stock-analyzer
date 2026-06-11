@@ -153,7 +153,7 @@
             .missing_evidence_ladder
             .blocking_gaps
             .iter()
-            .any(|item| item.contains("美股 场景关键证据缺失")));
+            .any(|item| item.contains("scenario_minimum_incomplete")));
     }
 
     #[test]
@@ -300,5 +300,5 @@
             .report
             .portfolio_decision
             .executive_summary
-            .contains("美股 场景关键证据缺失"));
+            .contains("scenario_minimum_incomplete"));
     }

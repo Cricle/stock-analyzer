@@ -261,7 +261,7 @@ mod tests {
         let profile = crate::scoring::CalibrationProfile::default();
         let calibrated = crate::scoring::calibrate_recommendation_with_profile(
             "Hold",
-            22,
+            16,
             70,
             65,
             true,

@@ -249,26 +249,19 @@ pub fn calibrate_recommendation_with_profile(
         || effective_action_score < profile.min_action_score
     {
         0
+    } else if !execution_boundary_complete {
+        // Missing execution boundary forces Hold regardless of other scores.
+        0
     } else if confidence_score >= (profile.min_confidence_score + 25).min(85)
         && effective_action_score >= (profile.min_action_score + 30).min(85)
         && direction_score.abs() >= strong_direction_abs
     {
-        if execution_boundary_complete {
-            evidence_score
-        } else {
-            // Strong direction but execution incomplete — allow moderate upgrade
-            evidence_score.signum()
-        }
+        evidence_score
     } else if confidence_score >= (profile.min_confidence_score + 3)
         && effective_action_score >= (profile.min_action_score + 10)
         && direction_score.abs() >= direction_floor_abs
     {
-        if execution_boundary_complete {
-            evidence_score.signum()
-        } else {
-            // Direction is clear but execution boundary incomplete — allow mild upgrade
-            evidence_score.signum()
-        }
+        evidence_score.signum()
     } else {
         0
     };

@@ -194,8 +194,7 @@ pub(super) fn has_meaningful_us_company_event_signal(item: &NewsItem) -> bool {
 
 pub(super) fn normalize_company_query_name(company_name: &str) -> String {
     let trimmed = company_name
-        .replace(',', " ")
-        .replace('.', " ")
+        .replace([',', '.'], " ")
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ");

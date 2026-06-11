@@ -110,7 +110,7 @@ fn hk_query_allowed_terms(value: &str) -> Vec<String> {
     let tokens: Vec<&str> = value.split_whitespace().collect();
     let mut kept = Vec::new();
     for token in tokens {
-        if token.chars().any(|ch| is_cjk(ch)) {
+        if token.chars().any(is_cjk) {
             kept.push(token.to_string());
             continue;
         }

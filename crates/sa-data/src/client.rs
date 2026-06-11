@@ -216,16 +216,16 @@ impl MarketDataClient {
             if let Some(data_error) = cause.downcast_ref::<DataError>() {
                 return data_error.kind.as_str();
             }
-            if let Some(reqwest_error) = cause.downcast_ref::<reqwest::Error>() {
-                if let Some(status) = reqwest_error.status() {
-                    return match status {
-                        reqwest::StatusCode::FORBIDDEN | reqwest::StatusCode::UNAUTHORIZED => {
-                            DataErrorKind::Restricted.as_str()
-                        }
-                        reqwest::StatusCode::NOT_FOUND => DataErrorKind::NotFound.as_str(),
-                        _ => DataErrorKind::Upstream.as_str(),
-                    };
-                }
+            if let Some(reqwest_error) = cause.downcast_ref::<reqwest::Error>()
+                && let Some(status) = reqwest_error.status()
+            {
+                return match status {
+                    reqwest::StatusCode::FORBIDDEN | reqwest::StatusCode::UNAUTHORIZED => {
+                        DataErrorKind::Restricted.as_str()
+                    }
+                    reqwest::StatusCode::NOT_FOUND => DataErrorKind::NotFound.as_str(),
+                    _ => DataErrorKind::Upstream.as_str(),
+                };
             }
         }
         DataErrorKind::Upstream.as_str()
@@ -840,7 +840,7 @@ impl MarketDataClient {
         let span = tracing::info_span!("market_data.fetch", data_type = "capital_flow", symbol);
         async {
             let start = std::time::Instant::now();
-            let result = if self.normalize_a_share_symbol(symbol).is_some() {
+            if self.normalize_a_share_symbol(symbol).is_some() {
                 let market = self.detect_market(symbol);
                 let normalized_symbol = self.cache_symbol(symbol, market);
                 let cache_key =
@@ -892,8 +892,7 @@ impl MarketDataClient {
                     format!("capital flow is unsupported for symbol {symbol}"),
                 )
                 .into())
-            };
-            result
+            }
         }.instrument(span).await
     }
 
@@ -985,7 +984,7 @@ impl MarketDataClient {
         let span = tracing::info_span!("market_data.fetch", data_type = "announcements", symbol);
         async {
             let start = std::time::Instant::now();
-            let result = if let Some(ts_code) = self.normalize_a_share_symbol(symbol) {
+            if let Some(ts_code) = self.normalize_a_share_symbol(symbol) {
                 let cache_key = format!(
                     "{MARKET_DATA_CACHE_PREFIX}:announcements:{}:{}",
                     ts_code, limit
@@ -1037,8 +1036,7 @@ impl MarketDataClient {
                     format!("announcements are unsupported for symbol {symbol}"),
                 )
                 .into())
-            };
-            result
+            }
         }.instrument(span).await
     }
 

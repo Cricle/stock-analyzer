@@ -39,16 +39,16 @@ impl MarketDataClient {
         if let Some(cached) = self
             .cache_get_json_exact::<SearxngNewsQueryCacheEntry>(&stale_key)
             .await
+            && cached.cached_error.is_none()
+            && !cached.items.is_empty()
         {
-            if cached.cached_error.is_none() && !cached.items.is_empty() {
-                tracing::info!(
-                    key = %cache_key,
-                    stale_key = %stale_key,
-                    scope = %scope.as_str(),
-                    "market data stale cache hit"
-                );
-                return Ok(cached.items);
-            }
+            tracing::info!(
+                key = %cache_key,
+                stale_key = %stale_key,
+                scope = %scope.as_str(),
+                "market data stale cache hit"
+            );
+            return Ok(cached.items);
         }
 
         let rewritten_query = provider.rewrite_query(query, language);
@@ -696,12 +696,12 @@ fn extract_baidu_source(html: &str) -> Option<(String, String)> {
             let text = decode_html_entities(&text);
             if !text.trim().is_empty() {
                 // Try to split "source time" patterns
-                let parts: Vec<&str> = text.trim().split_whitespace().collect();
-                if let Some(last) = parts.last().filter(|_| parts.len() >= 2) {
-                    if last.contains('-') || last.contains(':') {
-                        let source = parts[..parts.len() - 1].join(" ");
-                        return Some((source, last.to_string()));
-                    }
+                let parts: Vec<&str> = text.split_whitespace().collect();
+                if let Some(last) = parts.last().filter(|_| parts.len() >= 2)
+                    && (last.contains('-') || last.contains(':'))
+                {
+                    let source = parts[..parts.len() - 1].join(" ");
+                    return Some((source, last.to_string()));
                 }
                 return Some((text.trim().to_string(), String::new()));
             }
@@ -842,29 +842,29 @@ impl MarketDataClient {
                     self.http.get(&rss_url).send(),
                 )
                 .await;
-                if let Ok(Ok(response)) = response {
-                    if let Ok(body) = response.text().await {
-                        for item_xml in body.split("<item>").skip(1) {
-                            let end = item_xml.find("</item>").unwrap_or(item_xml.len());
-                            let xml = &item_xml[..end];
-                            let title = extract_rss_tag(xml, "title")
-                                .filter(|t| !t.contains("必应") && !t.contains("Bing"));
-                            let link = extract_rss_tag(xml, "link");
-                            let desc = extract_rss_tag(xml, "description");
-                            let date = extract_rss_tag(xml, "pubDate")
-                                .map(|d| normalize_rss_date(&d))
-                                .unwrap_or_default();
-                            if let (Some(title), Some(url)) = (title, link) {
-                                if dedup.insert(url.clone()) {
-                                    merged.push(NewsItem {
-                                        published_at: date,
-                                        title,
-                                        summary: desc.unwrap_or_default(),
-                                        source: "bing_rss".to_string(),
-                                        url: Some(url),
-                                    });
-                                }
-                            }
+                if let Ok(Ok(response)) = response
+                    && let Ok(body) = response.text().await
+                {
+                    for item_xml in body.split("<item>").skip(1) {
+                        let end = item_xml.find("</item>").unwrap_or(item_xml.len());
+                        let xml = &item_xml[..end];
+                        let title = extract_rss_tag(xml, "title")
+                            .filter(|t| !t.contains("必应") && !t.contains("Bing"));
+                        let link = extract_rss_tag(xml, "link");
+                        let desc = extract_rss_tag(xml, "description");
+                        let date = extract_rss_tag(xml, "pubDate")
+                            .map(|d| normalize_rss_date(&d))
+                            .unwrap_or_default();
+                        if let (Some(title), Some(url)) = (title, link)
+                            && dedup.insert(url.clone())
+                        {
+                            merged.push(NewsItem {
+                                published_at: date,
+                                title,
+                                summary: desc.unwrap_or_default(),
+                                source: "bing_rss".to_string(),
+                                url: Some(url),
+                            });
                         }
                     }
                 }
@@ -881,32 +881,31 @@ impl MarketDataClient {
                         self.http.get(&gnews_url).send(),
                     )
                     .await;
-                    if let Ok(Ok(response)) = response {
-                        if let Ok(body) = response.text().await {
-                            for item_xml in body.split("<item>").skip(1) {
-                                let end = item_xml.find("</item>").unwrap_or(item_xml.len());
-                                let xml = &item_xml[..end];
-                                let title = extract_rss_tag(xml, "title");
-                                let link = extract_rss_tag(xml, "link");
-                                let desc = extract_rss_tag(xml, "description");
-                                let date = extract_rss_tag(xml, "pubDate")
-                                    .map(|d| normalize_rss_date(&d))
-                                    .unwrap_or_default();
-                                if let (Some(title), Some(url)) = (title, link) {
-                                    if dedup.insert(url.clone()) {
-                                        merged.push(NewsItem {
-                                            published_at: date,
-                                            title,
-                                            summary: desc.unwrap_or_default(),
-                                            source: "google_news_rss".to_string(),
-                                            url: Some(url),
-                                        });
-                                    }
-                                }
+                    if let Ok(Ok(response)) = response
+                        && let Ok(body) = response.text().await
+                    {
+                        for item_xml in body.split("<item>").skip(1) {
+                            let end = item_xml.find("</item>").unwrap_or(item_xml.len());
+                            let xml = &item_xml[..end];
+                            let title = extract_rss_tag(xml, "title");
+                            let link = extract_rss_tag(xml, "link");
+                            let desc = extract_rss_tag(xml, "description");
+                            let date = extract_rss_tag(xml, "pubDate")
+                                .map(|d| normalize_rss_date(&d))
+                                .unwrap_or_default();
+                            if let (Some(title), Some(url)) = (title, link)
+                                && dedup.insert(url.clone())
+                            {
+                                merged.push(NewsItem {
+                                    published_at: date,
+                                    title,
+                                    summary: desc.unwrap_or_default(),
+                                    source: "google_news_rss".to_string(),
+                                    url: Some(url),
+                                });
                             }
                         }
                     }
-                }
             }
             // Sogou news RSS fallback (works from China without proxy)
             if merged.is_empty() {
@@ -920,9 +919,10 @@ impl MarketDataClient {
                         self.http.get(&sogou_url).send(),
                     )
                     .await;
-                    if let Ok(Ok(response)) = response {
-                        if let Ok(body) = response.text().await {
-                            // Sogou returns HTML, extract links and titles from h3/a tags
+                    if let Ok(Ok(response)) = response
+                        && let Ok(body) = response.text().await
+                    {
+                        // Sogou returns HTML, extract links and titles from h3/a tags
                             let mut remaining = body.as_str();
                             while let Some(pos) = remaining.find("<h3") {
                                 let chunk = &remaining[pos..];
@@ -947,22 +947,21 @@ impl MarketDataClient {
                                         if let (Some(title), true) = (
                                             title,
                                             !url.is_empty() && url.starts_with("http"),
-                                        ) {
-                                            if !title.is_empty() && dedup.insert(url.clone()) {
-                                                merged.push(NewsItem {
-                                                    published_at: String::new(),
-                                                    title,
-                                                    summary: String::new(),
-                                                    source: "sogou_news".to_string(),
-                                                    url: Some(url),
-                                                });
-                                            }
+                                        ) && !title.is_empty()
+                                            && dedup.insert(url.clone())
+                                        {
+                                            merged.push(NewsItem {
+                                                published_at: String::new(),
+                                                title,
+                                                summary: String::new(),
+                                                source: "sogou_news".to_string(),
+                                                url: Some(url),
+                                            });
                                         }
                                     }
                                 }
                                 remaining = &remaining[pos + 3..];
                             }
-                        }
                     }
                 }
             }
@@ -1179,6 +1178,7 @@ impl MarketDataClient {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) async fn fetch_search_evidence_with_query_locales_and_scope_mix_strategy(
         &self,
         queries: &[String],

@@ -58,6 +58,7 @@ impl DataFetchDiagnosis {
 }
 
 /// A named provider that can attempt to fetch data.
+#[allow(clippy::type_complexity)]
 pub struct NamedProvider<T> {
     pub name: String,
     pub fetcher: Box<dyn Fn() -> Pin<Box<dyn Future<Output = anyhow::Result<T>> + Send>> + Send + Sync>,

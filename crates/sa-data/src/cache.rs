@@ -387,11 +387,11 @@ pub struct SingleflightGuard<'a> {
 
 impl Drop for SingleflightGuard<'_> {
     fn drop(&mut self) {
-        if let Ok(mut map) = self.singleflight.in_flight.lock() {
-            if let Some(notify) = map.remove(&self.key) {
-                drop(map);
-                notify.notify_waiters();
-            }
+        if let Ok(mut map) = self.singleflight.in_flight.lock()
+            && let Some(notify) = map.remove(&self.key)
+        {
+            drop(map);
+            notify.notify_waiters();
         }
     }
 }

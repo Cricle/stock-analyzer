@@ -37,13 +37,13 @@ impl MarketDataClient {
             bail!("unexpected tencent HK quote field count");
         }
         let trade_date = normalize_hk_trade_date(fields.get(30).copied())?;
-        Ok(QuoteResponseBuilder::new(symbol.to_uppercase(), trade_date)
+        QuoteResponseBuilder::new(symbol.to_uppercase(), trade_date)
             .open(fields.get(5).copied())
             .close(fields.get(3).copied())
             .high(fields.get(33).copied())
             .low(fields.get(34).copied())
             .volume(fields.get(6).copied())
-            .build()?)
+            .build()
     }
 
     pub(crate) async fn fetch_hk_tencent_candles(

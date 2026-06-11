@@ -290,51 +290,50 @@ impl MarketDataClient {
             company_facts.facts.us_gaap.as_ref().and_then(|facts| {
                 facts.annual_capital_expenditure_aligned(annual_snapshot.as_ref())
             });
-        if let (Some(revenue), Some(gross_profit)) = (revenues_usd, gross_profit_usd) {
-            if gross_profit > revenue {
-                tracing::warn!(
-                    symbol = %symbol,
-                    revenue,
-                    gross_profit,
-                    "rejecting gross profit because it exceeds revenue for aligned annual period"
-                );
-                gross_profit_usd = None;
-            }
+        if let (Some(revenue), Some(gross_profit)) = (revenues_usd, gross_profit_usd)
+            && gross_profit > revenue
+        {
+            tracing::warn!(
+                symbol = %symbol,
+                revenue,
+                gross_profit,
+                "rejecting gross profit because it exceeds revenue for aligned annual period"
+            );
+            gross_profit_usd = None;
         }
         if let (Some(gross_profit), Some(operating_income)) =
             (gross_profit_usd, operating_income_usd)
+            && operating_income > gross_profit
         {
-            if operating_income > gross_profit {
-                tracing::warn!(
-                    symbol = %symbol,
-                    gross_profit,
-                    operating_income,
-                    "rejecting operating income because it exceeds gross profit for aligned annual period"
-                );
-                operating_income_usd = None;
-            }
+            tracing::warn!(
+                symbol = %symbol,
+                gross_profit,
+                operating_income,
+                "rejecting operating income because it exceeds gross profit for aligned annual period"
+            );
+            operating_income_usd = None;
         }
-        if let (Some(revenue), Some(operating_expenses)) = (revenues_usd, operating_expenses_usd) {
-            if operating_expenses > revenue {
-                tracing::warn!(
-                    symbol = %symbol,
-                    revenue,
-                    operating_expenses,
-                    "rejecting operating expenses because they exceed revenue for aligned annual period"
-                );
-                operating_expenses_usd = None;
-            }
+        if let (Some(revenue), Some(operating_expenses)) = (revenues_usd, operating_expenses_usd)
+            && operating_expenses > revenue
+        {
+            tracing::warn!(
+                symbol = %symbol,
+                revenue,
+                operating_expenses,
+                "rejecting operating expenses because they exceed revenue for aligned annual period"
+            );
+            operating_expenses_usd = None;
         }
-        if let (Some(revenue), Some(capex)) = (revenues_usd, capital_expenditure_usd) {
-            if capex > revenue {
-                tracing::warn!(
-                    symbol = %symbol,
-                    revenue,
-                    capex,
-                    "rejecting capital expenditure because it exceeds revenue for aligned annual period"
-                );
-                capital_expenditure_usd = None;
-            }
+        if let (Some(revenue), Some(capex)) = (revenues_usd, capital_expenditure_usd)
+            && capex > revenue
+        {
+            tracing::warn!(
+                symbol = %symbol,
+                revenue,
+                capex,
+                "rejecting capital expenditure because it exceeds revenue for aligned annual period"
+            );
+            capital_expenditure_usd = None;
         }
         let free_cash_flow_usd = match (operating_cash_flow_usd, capital_expenditure_usd) {
             (Some(ocf), Some(capex)) => Some(ocf - capex),
@@ -576,7 +575,7 @@ impl MarketDataClient {
             let existing_titles: std::collections::HashSet<String> =
                 items.iter().map(|i| i.title.to_lowercase()).collect();
             let mut bing_added = 0usize;
-            let bing_queries = vec![
+            let bing_queries = [
                 format!("{} stock news", symbol),
                 format!("{} stock", company_name),
             ];
@@ -590,41 +589,40 @@ impl MarketDataClient {
                     self.http.get(&rss_url).send(),
                 )
                 .await
+                    && let Ok(body) = response.text().await
                 {
-                    if let Ok(body) = response.text().await {
-                        for item_xml in body.split("<item>").skip(1) {
-                            let end = item_xml.find("</item>").unwrap_or(item_xml.len());
-                            let xml = &item_xml[..end];
-                            let title = xml
-                                .split_once("<title>")
-                                .and_then(|(_, rest)| rest.split_once("</title>"))
-                                .map(|(s, _)| s.trim().to_string())
-                                .filter(|t| !t.contains("必应") && !t.contains("Bing"));
-                            let link = xml
-                                .split_once("<link>")
-                                .and_then(|(_, rest)| rest.split_once("</link>"))
-                                .map(|(s, _)| s.trim().to_string());
-                            let desc = xml
-                                .split_once("<description>")
-                                .and_then(|(_, rest)| rest.split_once("</description>"))
-                                .map(|(s, _)| s.trim().to_string());
-                            let date = xml
-                                .split_once("<pubDate>")
-                                .and_then(|(_, rest)| rest.split_once("</pubDate>"))
-                                .map(|(s, _)| s.trim().to_string())
-                                .unwrap_or_default();
-                            if let (Some(title), Some(url)) = (title, link) {
-                                if !existing_titles.contains(&title.to_lowercase()) {
-                                    items.push(super::NewsItem {
-                                        published_at: date,
-                                        title: title.clone(),
-                                        summary: desc.unwrap_or_default(),
-                                        source: "bing_rss".to_string(),
-                                        url: Some(url),
-                                    });
-                                    bing_added += 1;
-                                }
-                            }
+                    for item_xml in body.split("<item>").skip(1) {
+                        let end = item_xml.find("</item>").unwrap_or(item_xml.len());
+                        let xml = &item_xml[..end];
+                        let title = xml
+                            .split_once("<title>")
+                            .and_then(|(_, rest)| rest.split_once("</title>"))
+                            .map(|(s, _)| s.trim().to_string())
+                            .filter(|t| !t.contains("必应") && !t.contains("Bing"));
+                        let link = xml
+                            .split_once("<link>")
+                            .and_then(|(_, rest)| rest.split_once("</link>"))
+                            .map(|(s, _)| s.trim().to_string());
+                        let desc = xml
+                            .split_once("<description>")
+                            .and_then(|(_, rest)| rest.split_once("</description>"))
+                            .map(|(s, _)| s.trim().to_string());
+                        let date = xml
+                            .split_once("<pubDate>")
+                            .and_then(|(_, rest)| rest.split_once("</pubDate>"))
+                            .map(|(s, _)| s.trim().to_string())
+                            .unwrap_or_default();
+                        if let (Some(title), Some(url)) = (title, link)
+                            && !existing_titles.contains(&title.to_lowercase())
+                        {
+                            items.push(super::NewsItem {
+                                published_at: date,
+                                title: title.clone(),
+                                summary: desc.unwrap_or_default(),
+                                source: "bing_rss".to_string(),
+                                url: Some(url),
+                            });
+                            bing_added += 1;
                         }
                     }
                 }

@@ -55,7 +55,7 @@ fn is_uniform_distribution(up: &Value, down: &Value, sideways: &Value) -> bool {
 
 fn is_zero_value(value: &Value) -> bool {
     match value {
-        Value::Number(n) => n.as_f64().map_or(false, |f| f.abs() < f64::EPSILON),
+        Value::Number(n) => n.as_f64().is_some_and(|f| f.abs() < f64::EPSILON),
         Value::String(s) => s.trim() == "0" || s.trim() == "0.0",
         _ => false,
     }

@@ -172,7 +172,4 @@ impl TradingMemoryLog {
         Self::hash_embed_text(text, self.embedding.dimension)
     }
 
-    pub(super) fn vector_size(&self) -> usize {
-        self.embedding.dimension
-    }
 }

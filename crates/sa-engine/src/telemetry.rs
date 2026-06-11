@@ -29,6 +29,12 @@ pub struct TelemetryState {
     pub llm_errors_total: Counter<u64>,
 }
 
+impl Default for TelemetryState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TelemetryState {
     /// Create a new `TelemetryState` with default OTel meters.
     pub fn new() -> Self {

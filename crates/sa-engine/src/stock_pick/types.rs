@@ -186,12 +186,11 @@ impl GeneratedStockPickResponse {
 pub(crate) fn parse_generated_stock_pick(content: &str) -> anyhow::Result<GeneratedStockPickResponse> {
     let trimmed = content.trim();
     let mut candidates = vec![trimmed.to_string()];
-    if let Some(start) = trimmed.find('{') {
-        if let Some(end) = trimmed.rfind('}') {
-            if start < end {
-                candidates.push(trimmed[start..=end].trim().to_string());
-            }
-        }
+    if let Some(start) = trimmed.find('{')
+        && let Some(end) = trimmed.rfind('}')
+        && start < end
+    {
+        candidates.push(trimmed[start..=end].trim().to_string());
     }
 
     let mut last_error = None;

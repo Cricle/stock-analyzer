@@ -66,6 +66,7 @@ pub(crate) struct StockPickHistoryPayload {
 }
 
 impl StockPickHistoryStore {
+    #[allow(dead_code)]
     pub(crate) fn new(
         cache: std::sync::Arc<dyn sa_models::CacheStore>,
         vector_store: std::sync::Arc<dyn sa_models::VectorStore>,

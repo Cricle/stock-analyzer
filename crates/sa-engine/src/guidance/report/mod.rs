@@ -59,6 +59,7 @@ impl DailyGuidanceGenerator {
     }
 
     /// Build a DailyGuidanceReport from its component parts.
+    #[allow(clippy::too_many_arguments)]
     fn build_report(
         date: &str,
         market: &str,
@@ -121,6 +122,7 @@ impl DailyGuidanceGenerator {
     }
 
     /// Cache report in Redis and store embeddings in Qdrant.
+    #[allow(clippy::type_complexity)]
     async fn persist_report(&self, report: &DailyGuidanceReport, date: &str, market: &str) {
         self.store.cache_report(report).await;
 
@@ -177,15 +179,15 @@ impl DailyGuidanceGenerator {
         let force_refresh = request.refresh.unwrap_or(false);
 
         // Check Redis cache first (unless force refresh)
-        if !force_refresh {
-            if let Some(cached) = self.store.get_cached_report(&date, market.as_str()).await {
-                tracing::info!(
-                    date = %date,
-                    market = %market.as_str(),
-                    "daily guidance cache hit"
-                );
-                return Ok(cached);
-            }
+        if !force_refresh
+            && let Some(cached) = self.store.get_cached_report(&date, market.as_str()).await
+        {
+            tracing::info!(
+                date = %date,
+                market = %market.as_str(),
+                "daily guidance cache hit"
+            );
+            return Ok(cached);
         }
 
         // (Redundant second cache check removed — get_cached_report already checks both

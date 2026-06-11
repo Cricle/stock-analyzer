@@ -93,8 +93,8 @@ pub fn market_ttl(market: &str, base_ttl: std::time::Duration) -> std::time::Dur
     let minutes_of_day = hour * 60 + minute;
 
     let is_market_hours = match market {
-        "a_share" | "hong_kong" => minutes_of_day >= 75 && minutes_of_day < 420,
-        "us_equity" => minutes_of_day >= 870 && minutes_of_day < 1260,
+        "a_share" | "hong_kong" => (75..420).contains(&minutes_of_day),
+        "us_equity" => (870..1260).contains(&minutes_of_day),
         _ => false,
     };
 

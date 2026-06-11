@@ -54,6 +54,7 @@ impl TaskManager {
         Ok(task_id)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_task_with_id(
         &self,
         owner_username: &str,

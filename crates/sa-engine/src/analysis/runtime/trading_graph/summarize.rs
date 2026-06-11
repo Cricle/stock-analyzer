@@ -280,31 +280,31 @@ pub(super) fn format_fundamental_metrics(sd: &sa_models::AnalysisScenarioData) -
             lines.push("PE Ratio: N/A (negative earnings)".to_string());
         }
     }
-    if let (Some(mc), Some(eq)) = (f.market_cap, f.stockholders_equity_usd) {
-        if eq.abs() > Decimal::ZERO {
-            lines.push(format!("PB Ratio: {:.2}", (mc / eq).to_f64().unwrap_or_default()));
-        }
+    if let (Some(mc), Some(eq)) = (f.market_cap, f.stockholders_equity_usd)
+        && eq.abs() > Decimal::ZERO
+    {
+        lines.push(format!("PB Ratio: {:.2}", (mc / eq).to_f64().unwrap_or_default()));
     }
-    if let (Some(gp), Some(rev)) = (f.gross_profit_usd, f.revenues_usd) {
-        if rev.abs() > Decimal::ZERO {
-            lines.push(format!("Gross Margin: {:.1}%", (gp / rev * hundred).to_f64().unwrap_or_default()));
-        }
+    if let (Some(gp), Some(rev)) = (f.gross_profit_usd, f.revenues_usd)
+        && rev.abs() > Decimal::ZERO
+    {
+        lines.push(format!("Gross Margin: {:.1}%", (gp / rev * hundred).to_f64().unwrap_or_default()));
     }
-    if let (Some(ni), Some(rev)) = (f.net_income_usd, f.revenues_usd) {
-        if rev.abs() > Decimal::ZERO {
-            lines.push(format!("Net Margin: {:.1}%", (ni / rev * hundred).to_f64().unwrap_or_default()));
-        }
+    if let (Some(ni), Some(rev)) = (f.net_income_usd, f.revenues_usd)
+        && rev.abs() > Decimal::ZERO
+    {
+        lines.push(format!("Net Margin: {:.1}%", (ni / rev * hundred).to_f64().unwrap_or_default()));
     }
-    if let (Some(oi), Some(rev)) = (f.operating_income_usd, f.revenues_usd) {
-        if rev.abs() > Decimal::ZERO {
-            lines.push(format!("Operating Margin: {:.1}%", (oi / rev * hundred).to_f64().unwrap_or_default()));
-        }
+    if let (Some(oi), Some(rev)) = (f.operating_income_usd, f.revenues_usd)
+        && rev.abs() > Decimal::ZERO
+    {
+        lines.push(format!("Operating Margin: {:.1}%", (oi / rev * hundred).to_f64().unwrap_or_default()));
     }
-    if let (Some(mc), Some(shares)) = (f.market_cap, f.shares_outstanding) {
-        if shares > 0 {
-            lines.push(format!("Market Cap: {:.0}", mc.to_f64().unwrap_or_default()));
-            lines.push(format!("Shares Outstanding: {}", shares));
-        }
+    if let (Some(mc), Some(shares)) = (f.market_cap, f.shares_outstanding)
+        && shares > 0
+    {
+        lines.push(format!("Market Cap: {:.0}", mc.to_f64().unwrap_or_default()));
+        lines.push(format!("Shares Outstanding: {}", shares));
     }
     if lines.is_empty() {
         String::new()

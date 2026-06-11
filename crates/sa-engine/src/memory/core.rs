@@ -147,6 +147,7 @@ impl TradingMemoryLog {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn store_decision(
         &self,
         ticker: &str,
@@ -730,7 +731,7 @@ impl TradingMemoryLog {
             .iter()
             .map(|item| Self::entry_id(&item.ticker, &item.trade_date))
             .collect::<HashSet<_>>();
-        for entry in self.load_entries().await?.into_iter() {
+        for entry in self.load_entries().await? {
             if pending_ids.remove(&Self::entry_id(&entry.ticker, &entry.trade_date)) {
                 self.qdrant_upsert_entry(&entry).await?;
             }

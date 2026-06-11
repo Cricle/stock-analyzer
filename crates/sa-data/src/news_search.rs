@@ -906,6 +906,7 @@ impl MarketDataClient {
                             }
                         }
                     }
+                }
             }
             // Sogou news RSS fallback (works from China without proxy)
             if merged.is_empty() {

@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)]
+
 mod graph_builder;
 mod nodes;
 mod routing;

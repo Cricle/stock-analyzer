@@ -21,18 +21,18 @@ impl GuidanceStore {
         market: &str,
     ) -> Option<DailyGuidanceReport> {
         let key = Self::cache_key(date, market);
-        if let Ok(Some(raw)) = self.cache.get(&key).await {
-            if let Ok(mut report) = serde_json::from_slice::<DailyGuidanceReport>(&raw) {
-                report.metadata.cache_hit = true;
-                return Some(report);
-            }
+        if let Ok(Some(raw)) = self.cache.get(&key).await
+            && let Ok(mut report) = serde_json::from_slice::<DailyGuidanceReport>(&raw)
+        {
+            report.metadata.cache_hit = true;
+            return Some(report);
         }
         let stale = Self::stale_key(date, market);
-        if let Ok(Some(raw)) = self.cache.get(&stale).await {
-            if let Ok(mut report) = serde_json::from_slice::<DailyGuidanceReport>(&raw) {
-                report.metadata.cache_hit = true;
-                return Some(report);
-            }
+        if let Ok(Some(raw)) = self.cache.get(&stale).await
+            && let Ok(mut report) = serde_json::from_slice::<DailyGuidanceReport>(&raw)
+        {
+            report.metadata.cache_hit = true;
+            return Some(report);
         }
         None
     }

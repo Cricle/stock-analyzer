@@ -332,17 +332,17 @@ impl TaskManager {
                     let payload = r.get("payload").unwrap_or(r);
                     let sector = payload
                         .get("sector_name")
-                        .and_then(|v| v.as_str())
+                        .and_then(serde_json::Value::as_str)
                         .unwrap_or("");
                     let direction = payload
                         .get("direction")
-                        .and_then(|v| v.as_str())
+                        .and_then(serde_json::Value::as_str)
                         .unwrap_or("");
                     let driver = payload
                         .get("key_driver")
-                        .and_then(|v| v.as_str())
+                        .and_then(serde_json::Value::as_str)
                         .unwrap_or("");
-                    let date = payload.get("date").and_then(|v| v.as_str()).unwrap_or("");
+                    let date = payload.get("date").and_then(serde_json::Value::as_str).unwrap_or("");
                     lines.push(format!(
                         "- [{}] {} {} -- {}",
                         date, sector, direction, driver
@@ -362,19 +362,19 @@ impl TaskManager {
                     let payload = r.get("payload").unwrap_or(r);
                     let label = payload
                         .get("sentiment_label")
-                        .and_then(|v| v.as_str())
+                        .and_then(serde_json::Value::as_str)
                         .unwrap_or("");
                     let score = payload
                         .get("sentiment_score")
-                        .and_then(|v| v.as_f64())
+                        .and_then(serde_json::Value::as_f64)
                         .unwrap_or(0.0);
-                    let date = payload.get("date").and_then(|v| v.as_str()).unwrap_or("");
+                    let date = payload.get("date").and_then(serde_json::Value::as_str).unwrap_or("");
                     let drivers = payload
                         .get("drivers")
-                        .and_then(|v| v.as_array())
+                        .and_then(serde_json::Value::as_array)
                         .map(|arr| {
                             arr.iter()
-                                .filter_map(|v| v.as_str())
+                                .filter_map(serde_json::Value::as_str)
                                 .collect::<Vec<_>>()
                                 .join(", ")
                         })

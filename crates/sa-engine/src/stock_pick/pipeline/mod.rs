@@ -172,7 +172,7 @@ pub async fn run(
                 .news
                 .iter()
                 .cloned()
-                .chain(search_items.into_iter())
+                .chain(search_items)
                 .collect(),
         );
         candidate.evidence_records = deduped_records;
@@ -841,7 +841,7 @@ async fn pre_rank_a_share_candidates(
     candidates: Vec<CandidateContext>,
     candidate_limit: usize,
 ) -> Vec<CandidateContext> {
-    let mut ranked = stream::iter(candidates.into_iter())
+    let mut ranked = stream::iter(candidates)
         .map(|candidate| {
             let market_data = market_data.clone();
             async move {

@@ -37,12 +37,11 @@ impl DailyGuidanceGenerator {
                     guidance.price_change_pct = Some(((close - open) / open) * 100.0);
                 }
             }
-            if guidance.stock_name.is_empty() {
-                if let Some(fund) = fund_map.get(guidance.symbol.as_str()) {
-                    if !fund.company_name.is_empty() {
-                        guidance.stock_name = fund.company_name.clone();
-                    }
-                }
+            if guidance.stock_name.is_empty()
+                && let Some(fund) = fund_map.get(guidance.symbol.as_str())
+                && !fund.company_name.is_empty()
+            {
+                guidance.stock_name = fund.company_name.clone();
             }
         }
     }

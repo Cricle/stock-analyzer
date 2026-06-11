@@ -67,7 +67,6 @@ impl TrackingConfig {
 
 /// Refresh alpha returns for all pending tracking records.
 /// Called by the scheduler or manually via API.
-
 /// Update alpha_return in Qdrant stock_pick_history points.
 async fn update_qdrant_alpha_return(
     symbol: &str,

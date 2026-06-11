@@ -138,17 +138,15 @@ impl TaskManager {
     ) -> Vec<String> {
         let mut tags = Vec::new();
 
-        if let Some(quote) = quote {
-            if quote.close > Decimal::ZERO {
-                let hundred = Decimal::from(100);
-                let intraday_change = ((quote.close - quote.open) / quote.close.abs()) * hundred;
-                let intraday_range = ((quote.high - quote.low) / quote.close.abs()) * hundred;
-                if intraday_change >= Decimal::from(2) || (quote.close > quote.open && intraday_range >= Decimal::from_str("3.5").unwrap()) {
-                    tags.push("trend_confirmed".to_string());
-                }
-                if intraday_range >= Decimal::from_str("4.5").unwrap() {
-                    tags.push("event_driven".to_string());
-                }
+        if let Some(quote) = quote && quote.close > Decimal::ZERO {
+            let hundred = Decimal::from(100);
+            let intraday_change = ((quote.close - quote.open) / quote.close.abs()) * hundred;
+            let intraday_range = ((quote.high - quote.low) / quote.close.abs()) * hundred;
+            if intraday_change >= Decimal::from(2) || (quote.close > quote.open && intraday_range >= Decimal::from_str("3.5").unwrap()) {
+                tags.push("trend_confirmed".to_string());
+            }
+            if intraday_range >= Decimal::from_str("4.5").unwrap() {
+                tags.push("event_driven".to_string());
             }
         }
 

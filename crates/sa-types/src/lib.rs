@@ -24,7 +24,7 @@ pub enum MarketKind {
 
 /// A point-in-time snapshot of a security's latest quote.
 ///
-/// Captures the essential OHLCV (open-high-low-close-volume) data for a
+/// Captures the essential OHLCV (open-high-close-low-volume) data for a
 /// single trading session, identified by symbol and date string.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuoteSnapshot {
@@ -221,4 +221,228 @@ pub struct CapitalFlowPoint {
     pub close: Decimal,
     /// Percentage price change from the previous close.
     pub change_pct: f64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_decimal_macros::dec;
+
+    #[test]
+    fn market_kind_debug() {
+        assert_eq!(format!("{:?}", MarketKind::AShare), "AShare");
+        assert_eq!(format!("{:?}", MarketKind::HongKong), "HongKong");
+        assert_eq!(format!("{:?}", MarketKind::UsEquity), "UsEquity");
+    }
+
+    #[test]
+    fn market_kind_clone_copy() {
+        let m = MarketKind::AShare;
+        let m2 = m;
+        assert_eq!(m, m2);
+    }
+
+    #[test]
+    fn market_kind_eq() {
+        assert_eq!(MarketKind::AShare, MarketKind::AShare);
+        assert_ne!(MarketKind::AShare, MarketKind::UsEquity);
+    }
+
+    #[test]
+    fn quote_snapshot_serialization_roundtrip() {
+        let q = QuoteSnapshot {
+            symbol: "AAPL".into(),
+            date: "2025-01-15".into(),
+            open: dec!(150.0),
+            high: dec!(155.0),
+            low: dec!(149.0),
+            close: dec!(153.0),
+            volume: 1_000_000,
+        };
+        let json = serde_json::to_string(&q).unwrap();
+        let q2: QuoteSnapshot = serde_json::from_str(&json).unwrap();
+        assert_eq!(q.symbol, q2.symbol);
+        assert_eq!(q.close, q2.close);
+        assert_eq!(q.volume, q2.volume);
+    }
+
+    #[test]
+    fn fundamentals_snapshot_optional_fields() {
+        let f = FundamentalsSnapshot {
+            symbol: "TEST".into(),
+            company_name: "Test Corp".into(),
+            cik: "0001234567".into(),
+            industry: Some("Technology".into()),
+            currency: "USD".into(),
+            fiscal_year_end: Some("12-31".into()),
+            shares_outstanding: Some(1_000_000),
+            market_cap: Some(dec!(100_000_000)),
+            net_income_usd: Some(dec!(10_000_000)),
+            revenues_usd: Some(dec!(50_000_000)),
+            assets_usd: Some(dec!(200_000_000)),
+            liabilities_usd: Some(dec!(80_000_000)),
+            stockholders_equity_usd: Some(dec!(120_000_000)),
+            cash_and_equivalents_usd: Some(dec!(30_000_000)),
+            gross_profit_usd: Some(dec!(25_000_000)),
+            operating_income_usd: Some(dec!(15_000_000)),
+            operating_expenses_usd: Some(dec!(10_000_000)),
+            operating_cash_flow_usd: Some(dec!(12_000_000)),
+            capital_expenditure_usd: Some(dec!(2_000_000)),
+            free_cash_flow_usd: Some(dec!(10_000_000)),
+            long_term_debt_usd: Some(dec!(50_000_000)),
+            current_debt_usd: Some(dec!(10_000_000)),
+            total_debt_usd: Some(dec!(60_000_000)),
+            diluted_shares_outstanding: Some(1_100_000),
+        };
+        assert_eq!(f.industry.as_deref(), Some("Technology"));
+        assert_eq!(f.shares_outstanding, Some(1_000_000));
+    }
+
+    #[test]
+    fn news_item_serialization() {
+        let n = NewsItem {
+            published_at: "2025-01-15T10:00:00Z".into(),
+            title: "Test News".into(),
+            summary: "A test article".into(),
+            source: "Reuters".into(),
+            url: Some("https://example.com".into()),
+        };
+        let json = serde_json::to_string(&n).unwrap();
+        let n2: NewsItem = serde_json::from_str(&json).unwrap();
+        assert_eq!(n.title, n2.title);
+        assert_eq!(n.url, n2.url);
+    }
+
+    #[test]
+    fn news_item_no_url() {
+        let n = NewsItem {
+            published_at: "2025-01-15T10:00:00Z".into(),
+            title: "Test".into(),
+            summary: "Summary".into(),
+            source: "Source".into(),
+            url: None,
+        };
+        let json = serde_json::to_string(&n).unwrap();
+        let n2: NewsItem = serde_json::from_str(&json).unwrap();
+        assert!(n2.url.is_none());
+    }
+
+    #[test]
+    fn news_fetch_attempt_default() {
+        let a = NewsFetchAttempt::default();
+        assert!(!a.success);
+        assert_eq!(a.item_count, 0);
+        assert!(a.error.is_none());
+        assert!(a.query.is_none());
+    }
+
+    #[test]
+    fn news_fetch_attempt_with_error() {
+        let a = NewsFetchAttempt {
+            source: "test".into(),
+            query: Some("AAPL".into()),
+            success: false,
+            item_count: 0,
+            error: Some("timeout".into()),
+        };
+        let json = serde_json::to_string(&a).unwrap();
+        let a2: NewsFetchAttempt = serde_json::from_str(&json).unwrap();
+        assert!(!a2.success);
+        assert_eq!(a2.error.as_deref(), Some("timeout"));
+    }
+
+    #[test]
+    fn news_fetch_result_default() {
+        let r = NewsFetchResult::default();
+        assert!(r.items.is_empty());
+        assert!(r.attempts.is_empty());
+        assert!(!r.cacheable);
+    }
+
+    #[test]
+    fn news_fetch_result_with_items() {
+        let r = NewsFetchResult {
+            items: vec![NewsItem {
+                published_at: "2025-01-15".into(),
+                title: "Title".into(),
+                summary: "Summary".into(),
+                source: "Source".into(),
+                url: None,
+            }],
+            attempts: vec![],
+            cacheable: true,
+        };
+        let json = serde_json::to_string(&r).unwrap();
+        let r2: NewsFetchResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(r2.items.len(), 1);
+        assert!(r2.cacheable);
+    }
+
+    #[test]
+    fn candle_point_serialization() {
+        let c = CandlePoint {
+            trade_date: "2025-01-15".into(),
+            open: dec!(100.0),
+            close: dec!(105.0),
+            high: dec!(106.0),
+            low: dec!(99.0),
+            volume: 500_000,
+            amount: dec!(50000000.0),
+            amplitude_pct: 7.0,
+            change_pct: 5.0,
+            change_amount: dec!(5.0),
+            turnover_pct: 2.5,
+        };
+        let json = serde_json::to_string(&c).unwrap();
+        let c2: CandlePoint = serde_json::from_str(&json).unwrap();
+        assert_eq!(c.trade_date, c2.trade_date);
+        assert_eq!(c.close, c2.close);
+        assert!((c.change_pct - c2.change_pct).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn capital_flow_point_serialization() {
+        let cf = CapitalFlowPoint {
+            trade_date: "2025-01-15".into(),
+            main_net_inflow: dec!(1000000.0),
+            small_net_inflow: dec!(-200000.0),
+            medium_net_inflow: dec!(300000.0),
+            large_net_inflow: dec!(500000.0),
+            super_large_net_inflow: dec!(400000.0),
+            main_net_inflow_ratio_pct: 50.0,
+            small_net_inflow_ratio_pct: -10.0,
+            medium_net_inflow_ratio_pct: 15.0,
+            large_net_inflow_ratio_pct: 25.0,
+            super_large_net_inflow_ratio_pct: 20.0,
+            close: dec!(105.0),
+            change_pct: 5.0,
+        };
+        let json = serde_json::to_string(&cf).unwrap();
+        let cf2: CapitalFlowPoint = serde_json::from_str(&json).unwrap();
+        assert_eq!(cf.trade_date, cf2.trade_date);
+        assert_eq!(cf.main_net_inflow, cf2.main_net_inflow);
+        assert_eq!(cf.close, cf2.close);
+    }
+
+    #[test]
+    fn capital_flow_point_negative_flows() {
+        let cf = CapitalFlowPoint {
+            trade_date: "2025-01-15".into(),
+            main_net_inflow: dec!(-500000.0),
+            small_net_inflow: dec!(-100000.0),
+            medium_net_inflow: dec!(-50000.0),
+            large_net_inflow: dec!(-200000.0),
+            super_large_net_inflow: dec!(-150000.0),
+            main_net_inflow_ratio_pct: 50.0,
+            small_net_inflow_ratio_pct: 10.0,
+            medium_net_inflow_ratio_pct: 5.0,
+            large_net_inflow_ratio_pct: 20.0,
+            super_large_net_inflow_ratio_pct: 15.0,
+            close: dec!(100.0),
+            change_pct: -2.0,
+        };
+        let json = serde_json::to_string(&cf).unwrap();
+        let cf2: CapitalFlowPoint = serde_json::from_str(&json).unwrap();
+        assert!(cf2.main_net_inflow < Decimal::ZERO);
+    }
 }

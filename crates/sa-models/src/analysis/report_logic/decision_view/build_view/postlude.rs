@@ -23,6 +23,7 @@ impl std::fmt::Display for DecisionMode {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_decision_view(
     trader_plan: &StructuredTraderPlan,
     portfolio_decision: &StructuredPortfolioDecision,

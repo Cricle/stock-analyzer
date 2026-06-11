@@ -320,10 +320,10 @@ fn derive_review_checklist(
     }
 
     // Sort by priority and cap
-    daily.sort_by(|a, b| priority_rank(&a.priority).cmp(&priority_rank(&b.priority)));
+    daily.sort_by_key(|a| priority_rank(&a.priority));
     daily.truncate(8);
 
-    weekly.sort_by(|a, b| priority_rank(&a.priority).cmp(&priority_rank(&b.priority)));
+    weekly.sort_by_key(|a| priority_rank(&a.priority));
     weekly.truncate(8);
 
     ReviewChecklist { daily, weekly }

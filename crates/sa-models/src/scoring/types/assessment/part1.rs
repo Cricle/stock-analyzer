@@ -198,6 +198,7 @@ pub fn calibrate_recommendation(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn calibrate_recommendation_with_profile(
     raw_llm_recommendation: &str,
     direction_score: i32,

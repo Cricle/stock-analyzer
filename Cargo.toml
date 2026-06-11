@@ -1,0 +1,23 @@
+[workspace]
+members = ["crates/sa-types", "crates/sa-models", "crates/sa-data", "crates/sa-engine"]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+
+[profile.dev]
+debug = 0
+incremental = false
+codegen-units = 1
+
+[profile.test]
+debug = 0
+incremental = false
+codegen-units = 1
+
+[profile.ci]
+inherits = "test"
+debug = 0
+incremental = false
+codegen-units = 4

@@ -41,7 +41,7 @@ pub use telemetry::{SharedTelemetry, TelemetryState};
 pub use stock_pick::run as run_stock_pick;
 pub use score::scorer::score_stock_pick;
 pub use qlib_import::{run_import as import_qlib, run_init_from_env as import_qlib_from_env};
-pub use guidance::prewarm::generate_prewarm_tasks;
+pub use guidance::generate_prewarm_tasks;
 pub use guidance::embedding::{semantic_embed, hash_embed, EMBEDDING_DIMENSION};
 pub use telemetry::{init_telemetry, record_analysis_task_duration, record_llm_usage};
 pub use config::{env_flag, env_flag_value};

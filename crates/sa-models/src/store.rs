@@ -207,3 +207,98 @@ pub trait GuidanceStore: Send + Sync {
     /// Delete a guidance rule.
     async fn delete_rule(&self, rule_id: &str) -> anyhow::Result<()>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stored_analysis_summary_serialization() {
+        let s = StoredAnalysisSummary {
+            task_id: "t1".into(),
+            symbol: "AAPL".into(),
+            stock_name: "Apple".into(),
+            market_type: "us".into(),
+            status: "completed".into(),
+            created_at: "2025-01-15".into(),
+            updated_at: "2025-01-15".into(),
+        };
+        let json = serde_json::to_string(&s).unwrap();
+        let s2: StoredAnalysisSummary = serde_json::from_str(&json).unwrap();
+        assert_eq!(s.task_id, s2.task_id);
+        assert_eq!(s.symbol, s2.symbol);
+    }
+
+    #[test]
+    fn cache_entry_serialization() {
+        let e = CacheEntry {
+            key: "quote:AAPL:2025-01-15".into(),
+            created_at: "2025-01-15T10:00:00Z".into(),
+            expires_at: Some("2025-01-15T14:00:00Z".into()),
+            size_bytes: 1024,
+        };
+        let json = serde_json::to_string(&e).unwrap();
+        let e2: CacheEntry = serde_json::from_str(&json).unwrap();
+        assert_eq!(e.key, e2.key);
+        assert_eq!(e.size_bytes, e2.size_bytes);
+    }
+
+    #[test]
+    fn vector_search_hit_serialization() {
+        let h = VectorSearchHit {
+            id: "vec-1".into(),
+            score: 0.85,
+            payload: serde_json::json!({"ticker": "AAPL"}),
+        };
+        let json = serde_json::to_string(&h).unwrap();
+        let h2: VectorSearchHit = serde_json::from_str(&json).unwrap();
+        assert_eq!(h.id, h2.id);
+        assert!((h.score - h2.score).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn checkpoint_info_serialization() {
+        let c = CheckpointInfo {
+            task_id: "t1".into(),
+            checkpoint_id: "cp-1".into(),
+            created_at: "2025-01-15".into(),
+            step_name: "market_analysis".into(),
+        };
+        let json = serde_json::to_string(&c).unwrap();
+        let c2: CheckpointInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(c.step_name, c2.step_name);
+    }
+
+    #[test]
+    fn guidance_rule_serialization() {
+        let r = GuidanceRule {
+            id: "rule-1".into(),
+            market_type: "us".into(),
+            rule_type: "risk".into(),
+            content: "Max position 5%".into(),
+            priority: 10,
+            enabled: true,
+        };
+        let json = serde_json::to_string(&r).unwrap();
+        let r2: GuidanceRule = serde_json::from_str(&json).unwrap();
+        assert!(r2.enabled);
+        assert_eq!(r2.priority, 10);
+    }
+
+    #[test]
+    fn stored_checkpoint_serialization() {
+        let c = StoredCheckpoint {
+            task_id: "t1".into(),
+            step_name: "analysis".into(),
+            stage: "runtime".into(),
+            node: "market".into(),
+            step: 3,
+            data: serde_json::json!({"key": "value"}),
+            created_at: "2025-01-15".into(),
+        };
+        let json = serde_json::to_string(&c).unwrap();
+        let c2: StoredCheckpoint = serde_json::from_str(&json).unwrap();
+        assert_eq!(c.step, c2.step);
+        assert_eq!(c.data, c2.data);
+    }
+}

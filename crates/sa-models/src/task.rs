@@ -1,3 +1,5 @@
+//! Task lifecycle types: status, events, steps, and persisted task records.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 

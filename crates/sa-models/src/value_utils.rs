@@ -1,3 +1,5 @@
+//! Utility functions for normalizing JSON values in analysis results.
+
 use serde_json::Value;
 
 pub fn normalize_probability(value: &Value) -> f64 {

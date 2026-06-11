@@ -116,3 +116,50 @@ pub fn mark_span_task(task_id: &str, symbol: &str, market_type: &str) {
     span.record("symbol", field::display(symbol));
     span.record("market_type", field::display(market_type));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn init_telemetry_returns_shared() {
+        let t = init_telemetry();
+        assert_eq!(Arc::strong_count(&t), 1);
+    }
+
+    #[test]
+    fn telemetry_state_new() {
+        let t = TelemetryState::new();
+        let _ = t.meter();
+    }
+
+    #[test]
+    fn record_analysis_task_duration_no_error() {
+        let t = TelemetryState::new();
+        record_analysis_task_duration(&t, "success", "us", 1500.0, None);
+    }
+
+    #[test]
+    fn record_analysis_task_duration_with_error() {
+        let t = TelemetryState::new();
+        record_analysis_task_duration(&t, "error", "a_share", 500.0, Some("timeout"));
+    }
+
+    #[test]
+    fn record_llm_usage_success() {
+        let t = TelemetryState::new();
+        record_llm_usage(&t, "gpt-4", 100, 50, 150, 2000.0, true);
+    }
+
+    #[test]
+    fn record_llm_usage_failure() {
+        let t = TelemetryState::new();
+        record_llm_usage(&t, "gpt-4", 0, 0, 0, 100.0, false);
+    }
+
+    #[test]
+    fn mark_span_task_no_panic() {
+        let _guard = tracing_subscriber::fmt::try_init();
+        mark_span_task("task-1", "AAPL", "us");
+    }
+}

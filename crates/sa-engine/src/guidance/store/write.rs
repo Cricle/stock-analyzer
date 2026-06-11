@@ -47,6 +47,7 @@ impl GuidanceStore {
             .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn store_news_embedding(
         &self,
         date: &str,
@@ -79,6 +80,7 @@ impl GuidanceStore {
             .await
     }
 
+    #[allow(clippy::type_complexity)]
     pub async fn batch_store_news_embeddings(
         &self,
         date: &str,

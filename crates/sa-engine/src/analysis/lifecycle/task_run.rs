@@ -702,8 +702,6 @@ impl TaskManager {
             && result.artifacts.scenario_data.quote.is_some();
 
         let (quote, fundamentals, news_items, market_chart, news_start);
-        let params = params;
-
         let _hydration_span = tracing::info_span!(
             "analysis.market_data_hydration",
             task_id = %task.task_id,
@@ -1033,6 +1031,7 @@ impl TaskManager {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn update_task(
         &self,
         task_id: &str,

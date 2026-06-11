@@ -225,39 +225,39 @@ pub async fn run(
     let mut memory_context_parts = Vec::new();
     if let Some(ref mem) = memory_log {
         // Get cross-ticker lessons for this market
-        if let Ok(lessons) = mem.cross_ticker_lessons(&request.market, &[], 3).await {
-            if !lessons.is_empty() {
-                let lessons_text = lessons
-                    .iter()
-                    .map(|l| format!("- {} (rating: {})", l.summary, l.rating))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                memory_context_parts.push(format!("Cross-ticker lessons:\n{}", lessons_text));
-            }
+        if let Ok(lessons) = mem.cross_ticker_lessons(&request.market, &[], 3).await
+            && !lessons.is_empty()
+        {
+            let lessons_text = lessons
+                .iter()
+                .map(|l| format!("- {} (rating: {})", l.summary, l.rating))
+                .collect::<Vec<_>>()
+                .join("\n");
+            memory_context_parts.push(format!("Cross-ticker lessons:\n{}", lessons_text));
         }
 
         // For top candidates, get past context
         for candidate in preselected.iter().take(3) {
-            if let Ok(bundle) = mem.past_context_bundle_async(&candidate.symbol, 3, 2).await {
-                if bundle.same_ticker_count > 0 {
-                    let highlights_text = bundle
-                        .same_ticker_highlights
-                        .iter()
-                        .take(2)
-                        .map(|h| {
-                            format!(
-                                "{}: {}",
-                                h.ticker,
-                                h.summary.chars().take(80).collect::<String>()
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join("; ");
-                    memory_context_parts.push(format!(
-                        "Past analysis for {}: {} entries. {}",
-                        candidate.symbol, bundle.same_ticker_count, highlights_text
-                    ));
-                }
+            if let Ok(bundle) = mem.past_context_bundle_async(&candidate.symbol, 3, 2).await
+                && bundle.same_ticker_count > 0
+            {
+                let highlights_text = bundle
+                    .same_ticker_highlights
+                    .iter()
+                    .take(2)
+                    .map(|h| {
+                        format!(
+                            "{}: {}",
+                            h.ticker,
+                            h.summary.chars().take(80).collect::<String>()
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                memory_context_parts.push(format!(
+                    "Past analysis for {}: {} entries. {}",
+                    candidate.symbol, bundle.same_ticker_count, highlights_text
+                ));
             }
         }
     }

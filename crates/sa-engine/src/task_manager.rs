@@ -134,6 +134,7 @@ pub struct TaskManager {
 
 impl TaskManager {
     /// Create a new `TaskManager` with the provided configuration.
+    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         analysis_store: Arc<dyn sa_models::AnalysisStore>,
         cache_store: Arc<dyn sa_models::CacheStore>,

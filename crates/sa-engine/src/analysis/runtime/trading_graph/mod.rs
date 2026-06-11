@@ -50,14 +50,13 @@ fn analyst_already_completed(result: &AnalysisResult, analyst_key: &str) -> bool
         return false;
     }
     // Also verify report content is non-empty to handle stale checkpoint resume
-    let has_report = match analyst_key {
+    match analyst_key {
         "market" => !result.agent_state.market_report.trim().is_empty(),
         "sentiment" | "social" => !result.agent_state.sentiment_report.trim().is_empty(),
         "news" => !result.agent_state.news_report.trim().is_empty(),
         "fundamentals" => !result.agent_state.fundamentals_report.trim().is_empty(),
         _ => true,
-    };
-    has_report
+    }
 }
 
 fn analyst_node_name(analyst: &str) -> &'static str {

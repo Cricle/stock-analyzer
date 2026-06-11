@@ -67,9 +67,9 @@ impl TradingAgentsGraph {
 
     #[tracing::instrument(skip_all, fields(task_id, symbol, analysis_date))]
     pub(crate) async fn execute(&self, result: &mut AnalysisResult) -> anyhow::Result<()> {
-        tracing::Span::current().record("task_id", &tracing::field::display(&result.task_id));
-        tracing::Span::current().record("symbol", &tracing::field::display(&result.symbol));
-        tracing::Span::current().record("analysis_date", &tracing::field::display(&result.analysis_date));
+        tracing::Span::current().record("task_id", tracing::field::display(&result.task_id));
+        tracing::Span::current().record("symbol", tracing::field::display(&result.symbol));
+        tracing::Span::current().record("analysis_date", tracing::field::display(&result.analysis_date));
         let thread_id = crate::checkpoint::TaskCheckpointStore::thread_id(
             &result.task_id,
             &result.symbol,

@@ -8,7 +8,6 @@ use sa_engine::engine::guidance::{DailyGuidanceGenerator, DailyGuidanceRequest};
 use sa_engine::engine::stock_pick;
 use sa_engine::i18n::I18n;
 use sa_engine::models::StockPickRequest;
-use sa_engine::types::MarketKind;
 
 #[derive(Parser, Debug)]
 #[command(name = "sa-engine", version, about = "Stock analysis engine CLI")]
@@ -59,15 +58,6 @@ enum MarketArg {
 }
 
 impl MarketArg {
-    #[allow(dead_code)]
-    fn to_market_kind(self) -> MarketKind {
-        match self {
-            MarketArg::AShare => MarketKind::AShare,
-            MarketArg::Hk => MarketKind::HongKong,
-            MarketArg::Us => MarketKind::UsEquity,
-        }
-    }
-
     fn as_str(self) -> &'static str {
         match self {
             MarketArg::AShare => "a-share",

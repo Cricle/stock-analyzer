@@ -28,8 +28,6 @@ use crate::engine::stock_pick::EnrichedCandidate;
 struct IndustryAverages {
     pe_avg: f64,
     ps_avg: f64,
-    #[allow(dead_code)]
-    count: usize,
 }
 
 fn compute_industry_averages(
@@ -83,7 +81,6 @@ fn compute_industry_averages(
                 IndustryAverages {
                     pe_avg: pe,
                     ps_avg: ps,
-                    count,
                 },
             );
         }

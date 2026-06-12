@@ -3,7 +3,7 @@ use crate::models::{AnalysisResult, DiagnosisIssue, Rating};
 /// Severity of a consistency issue.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum IssueSeverity {
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Used via matches! macro
     Error,
     Warning,
     Info,

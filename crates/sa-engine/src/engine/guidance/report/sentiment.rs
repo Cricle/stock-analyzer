@@ -2,6 +2,26 @@
 
 use super::*;
 
+/// Truncate and join titles to fit within a character budget.
+fn truncate_titles(titles: &[&str], max_chars: usize) -> String {
+    let mut result = String::new();
+    for (i, title) in titles.iter().enumerate() {
+        if i > 0 {
+            result.push_str("; ");
+        }
+        let truncated = if title.len() > 40 {
+            format!("{}...", &title[..title.floor_char_boundary(40)])
+        } else {
+            title.to_string()
+        };
+        if result.len() + truncated.len() > max_chars {
+            break;
+        }
+        result.push_str(&truncated);
+    }
+    result
+}
+
 /// Compute sentiment score from positive/negative/total counts.
 ///
 /// Enforces a minimum sample threshold: with fewer than 3 news items the
@@ -41,12 +61,26 @@ impl DailyGuidanceGenerator {
         let score = sentiment_score(pos, neg, total);
         let label = sentiment_label(score);
 
+        // Extract specific events as drivers
         let mut drivers = Vec::new();
-        if pos > 0 {
-            drivers.push(format!("{} positive news items", pos));
+        let pos_events: Vec<&str> = news
+            .iter()
+            .filter(|n| n.impact == "positive")
+            .take(3)
+            .map(|n| n.title.as_str())
+            .collect();
+        let neg_events: Vec<&str> = news
+            .iter()
+            .filter(|n| n.impact == "negative")
+            .take(3)
+            .map(|n| n.title.as_str())
+            .collect();
+
+        if !pos_events.is_empty() {
+            drivers.push(format!("positive: {}", truncate_titles(&pos_events, 80)));
         }
-        if neg > 0 {
-            drivers.push(format!("{} negative news items", neg));
+        if !neg_events.is_empty() {
+            drivers.push(format!("negative: {}", truncate_titles(&neg_events, 80)));
         }
 
         MarketSentiment {
@@ -68,7 +102,6 @@ impl DailyGuidanceGenerator {
         &self,
         news: &[GuidanceNewsItem],
     ) -> Vec<SectorHighlight> {
-        let mut highlights = Vec::new();
         let sector_keywords = [
             (
                 "technology",
@@ -113,95 +146,107 @@ impl DailyGuidanceGenerator {
             ),
         ];
 
-        for (sector_name, keywords) in &sector_keywords {
-            let matching: Vec<&GuidanceNewsItem> = news
+        // Step 1: Assign each news item to its best-matching sector
+        let mut sector_news: std::collections::HashMap<&str, Vec<&GuidanceNewsItem>> =
+            std::collections::HashMap::new();
+
+        for item in news {
+            let text = format!("{} {}", item.title, item.summary).to_ascii_lowercase();
+            let mut best_sector = None;
+            let mut best_score = 0usize;
+
+            for (sector_name, keywords) in &sector_keywords {
+                let score = keywords.iter().filter(|kw| text.contains(*kw)).count();
+                if score > best_score {
+                    best_score = score;
+                    best_sector = Some(*sector_name);
+                }
+            }
+
+            if let Some(sector) = best_sector {
+                sector_news.entry(sector).or_default().push(item);
+            }
+        }
+
+        // Step 2: Build SectorHighlight for each sector with news
+        let mut highlights = Vec::new();
+        for (sector_name, matching) in &sector_news {
+            let pos = matching.iter().filter(|n| n.impact == "positive").count();
+            let neg = matching.iter().filter(|n| n.impact == "negative").count();
+            let direction = if pos > neg {
+                "positive"
+            } else if neg > pos {
+                "negative"
+            } else {
+                "mixed"
+            };
+
+            // Pick key_driver: prefer non-neutral news, then most recent
+            let key_driver = matching
                 .iter()
-                .filter(|n| {
-                    let text = format!("{} {}", n.title, n.summary).to_ascii_lowercase();
-                    keywords.iter().any(|kw| text.contains(kw))
-                })
-                .collect();
+                .filter(|n| n.impact != "neutral")
+                .map(|n| n.title.as_str())
+                .next()
+                .or_else(|| matching.first().map(|n| n.title.as_str()))
+                .unwrap_or("")
+                .to_string();
 
-            if !matching.is_empty() {
-                let pos = matching.iter().filter(|n| n.impact == "positive").count();
-                let neg = matching.iter().filter(|n| n.impact == "negative").count();
-                let direction = if pos > neg {
-                    "positive"
-                } else if neg > pos {
-                    "negative"
-                } else {
-                    "mixed"
-                };
-
-                // Pick key_driver: prefer non-neutral news, then most recent
-                let key_driver = matching
-                    .iter()
-                    .filter(|n| n.impact != "neutral")
-                    .map(|n| n.title.as_str())
-                    .next()
-                    .or_else(|| matching.first().map(|n| n.title.as_str()))
-                    .unwrap_or("")
-                    .to_string();
-
-                // Extract representative stock names from news titles
-                let mut stocks: Vec<String> = Vec::new();
-                for item in &matching {
-                    // First try affected_entities
-                    for entity in &item.affected_entities {
-                        if stocks.len() >= 3 {
-                            break;
-                        }
-                        let e = entity.trim().to_uppercase();
-                        if !e.is_empty() && !stocks.contains(&e) {
-                            stocks.push(e);
-                        }
-                    }
-                    // Also extract well-known stock names from title
-                    let title_lower = item.title.to_ascii_lowercase();
-                    let known_stocks: &[(&str, &str)] = match *sector_name {
-                        "technology" => &[
-                            ("nvidia", "NVDA"), ("apple", "AAPL"), ("microsoft", "MSFT"),
-                            ("google", "GOOGL"), ("tesla", "TSLA"), ("meta", "META"),
-                            ("英伟达", "NVDA"), ("苹果", "AAPL"), ("特斯拉", "TSLA"),
-                        ],
-                        "finance" => &[
-                            ("jpmorgan", "JPM"), ("goldman", "GS"), ("berkshire", "BRK"),
-                            ("汇丰", "00005.HK"), ("渣打", "2888.HK"), ("平安", "601318"),
-                        ],
-                        "energy" => &[
-                            ("exxon", "XOM"), ("chevron", "CVX"),
-                            ("宁德时代", "300750"), ("比亚迪", "002594"),
-                            ("中石油", "601857"), ("中石化", "600028"),
-                        ],
-                        "consumer" => &[
-                            ("walmart", "WMT"), ("costco", "COST"), ("lvmh", "MC"),
-                            ("茅台", "600519"), ("五粮液", "000858"),
-                        ],
-                        "healthcare" => &[
-                            ("pfizer", "PFE"), ("johnson", "JNJ"), ("unitedhealth", "UNH"),
-                        ],
-                        _ => &[],
-                    };
-                    for (pattern, ticker) in known_stocks {
-                        if stocks.len() >= 3 {
-                            break;
-                        }
-                        if title_lower.contains(pattern) && !stocks.contains(&ticker.to_string()) {
-                            stocks.push(ticker.to_string());
-                        }
-                    }
+            // Extract representative stock names
+            let mut stocks: Vec<String> = Vec::new();
+            for item in matching {
+                for entity in &item.affected_entities {
                     if stocks.len() >= 3 {
                         break;
                     }
+                    let e = entity.trim().to_uppercase();
+                    if !e.is_empty() && !stocks.contains(&e) {
+                        stocks.push(e);
+                    }
                 }
-
-                highlights.push(SectorHighlight {
-                    sector_name: sector_name.to_string(),
-                    direction: direction.to_string(),
-                    key_driver,
-                    representative_stocks: stocks,
-                });
+                let title_lower = item.title.to_ascii_lowercase();
+                let known_stocks: &[(&str, &str)] = match *sector_name {
+                    "technology" => &[
+                        ("nvidia", "NVDA"), ("apple", "AAPL"), ("microsoft", "MSFT"),
+                        ("google", "GOOGL"), ("tesla", "TSLA"), ("meta", "META"),
+                        ("英伟达", "NVDA"), ("苹果", "AAPL"), ("特斯拉", "TSLA"),
+                    ],
+                    "finance" => &[
+                        ("jpmorgan", "JPM"), ("goldman", "GS"), ("berkshire", "BRK"),
+                        ("汇丰", "00005.HK"), ("渣打", "2888.HK"), ("平安", "601318"),
+                    ],
+                    "energy" => &[
+                        ("exxon", "XOM"), ("chevron", "CVX"),
+                        ("宁德时代", "300750"), ("比亚迪", "002594"),
+                        ("中石油", "601857"), ("中石化", "600028"),
+                    ],
+                    "consumer" => &[
+                        ("walmart", "WMT"), ("costco", "COST"), ("lvmh", "MC"),
+                        ("茅台", "600519"), ("五粮液", "000858"),
+                    ],
+                    "healthcare" => &[
+                        ("pfizer", "PFE"), ("johnson", "JNJ"), ("unitedhealth", "UNH"),
+                    ],
+                    _ => &[],
+                };
+                for (pattern, ticker) in known_stocks {
+                    if stocks.len() >= 3 {
+                        break;
+                    }
+                    if title_lower.contains(pattern) && !stocks.contains(&ticker.to_string()) {
+                        stocks.push(ticker.to_string());
+                    }
+                }
+                if stocks.len() >= 3 {
+                    break;
+                }
             }
+
+            highlights.push(SectorHighlight {
+                sector_name: sector_name.to_string(),
+                direction: direction.to_string(),
+                key_driver,
+                representative_stocks: stocks,
+            });
         }
 
         highlights

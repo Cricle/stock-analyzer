@@ -25,39 +25,43 @@ impl DailyGuidanceGenerator {
             format!(" ({})", parts.join(", "))
         };
 
-        // Top positive and negative sectors
-        let bullish_sectors: Vec<&str> = sector_highlights
+        // Extract sector info with key drivers
+        let bullish_sectors: Vec<(&str, &str)> = sector_highlights
             .iter()
             .filter(|s| s.direction == "positive")
-            .map(|s| s.sector_name.as_str())
+            .map(|s| (s.sector_name.as_str(), s.key_driver.as_str()))
             .collect();
-        let bearish_sectors: Vec<&str> = sector_highlights
+        let bearish_sectors: Vec<(&str, &str)> = sector_highlights
             .iter()
             .filter(|s| s.direction == "negative")
-            .map(|s| s.sector_name.as_str())
+            .map(|s| (s.sector_name.as_str(), s.key_driver.as_str()))
             .collect();
+
+        // Build sector event summaries
+        let bullish_summary = build_sector_summary(&bullish_sectors);
+        let bearish_summary = build_sector_summary(&bearish_sectors);
 
         vec![
             UserProfileGuide {
                 profile: "conservative".to_string(),
                 summary: if has_high_risk {
                     format!(
-                        "High risk environment{}. Focus on capital preservation. Avoid: {}.",
+                        "High risk environment{}. Avoid: {}.",
                         index_context,
-                        if bearish_sectors.is_empty() {
+                        if bearish_summary.is_empty() {
                             "high-volatility sectors".to_string()
                         } else {
-                            bearish_sectors.join(", ")
+                            bearish_summary.clone()
                         }
                     )
                 } else if has_medium_risk {
                     format!(
-                        "Elevated risk. Maintain defensive positions{}. Watch: {}.",
+                        "Elevated risk{}. Watch: {}.",
                         index_context,
-                        if bullish_sectors.is_empty() {
+                        if bullish_summary.is_empty() {
                             "quality large-caps".to_string()
                         } else {
-                            bullish_sectors.join(", ")
+                            bullish_summary.clone()
                         }
                     )
                 } else {
@@ -93,19 +97,21 @@ impl DailyGuidanceGenerator {
                     .iter()
                     .filter(|g| g.key_risks.len() > 2)
                     .map(|g| g.symbol.clone())
-                    .chain(bearish_sectors.iter().map(|s| format!("{} sector", s)))
+                    .chain(bearish_sectors.iter().map(|(s, _)| format!("{} sector", s)))
                     .collect(),
             },
             UserProfileGuide {
                 profile: "balanced".to_string(),
                 summary: format!(
-                    "Sentiment: {}{}. Adjust allocations accordingly. {}",
+                    "Sentiment: {}{}. {}",
                     sentiment.label,
                     index_context,
-                    if !bullish_sectors.is_empty() {
-                        format!("Strong sectors: {}.", bullish_sectors.join(", "))
-                    } else if !bearish_sectors.is_empty() {
-                        format!("Weak sectors: {}.", bearish_sectors.join(", "))
+                    if !bullish_summary.is_empty() && !bearish_summary.is_empty() {
+                        format!("Strong: {}. Weak: {}.", bullish_summary, bearish_summary)
+                    } else if !bullish_summary.is_empty() {
+                        format!("Strong sectors: {}.", bullish_summary)
+                    } else if !bearish_summary.is_empty() {
+                        format!("Weak sectors: {}.", bearish_summary)
                     } else {
                         "No dominant sector trend.".to_string()
                     }
@@ -136,39 +142,39 @@ impl DailyGuidanceGenerator {
                     .collect(),
                 avoid_list: bearish_sectors
                     .iter()
-                    .map(|s| format!("{} sector", s))
+                    .map(|(s, _)| format!("{} sector", s))
                     .collect(),
             },
             UserProfileGuide {
                 profile: "aggressive".to_string(),
                 summary: if sentiment.score > 20 {
                     format!(
-                        "Favorable conditions for momentum plays{}. Focus on: {}.",
+                        "Favorable conditions{}. Focus on: {}.",
                         index_context,
-                        if bullish_sectors.is_empty() {
+                        if bullish_summary.is_empty() {
                             "breakout candidates".to_string()
                         } else {
-                            bullish_sectors.join(", ")
+                            bullish_summary.clone()
                         }
                     )
                 } else if sentiment.score < -20 {
                     format!(
-                        "Bearish environment{}. Consider short plays or hedging in: {}.",
+                        "Bearish environment{}. Consider hedging in: {}.",
                         index_context,
-                        if bearish_sectors.is_empty() {
+                        if bearish_summary.is_empty() {
                             "weak sectors".to_string()
                         } else {
-                            bearish_sectors.join(", ")
+                            bearish_summary.clone()
                         }
                     )
                 } else {
                     format!(
-                        "Mixed conditions{}. Be selective with entries. {}",
+                        "Mixed conditions{}. {}",
                         index_context,
-                        if !bullish_sectors.is_empty() {
-                            format!("Best opportunities in {}.", bullish_sectors.join(", "))
+                        if !bullish_summary.is_empty() {
+                            format!("Best opportunities in {}.", bullish_summary)
                         } else {
-                            "Wait for clearer signals.".to_string()
+                            "Be selective with entries.".to_string()
                         }
                     )
                 },
@@ -194,9 +200,27 @@ impl DailyGuidanceGenerator {
                 watch_list: stock_guidances.iter().map(|g| g.symbol.clone()).collect(),
                 avoid_list: bearish_sectors
                     .iter()
-                    .map(|s| format!("{} sector", s))
+                    .map(|(s, _)| format!("{} sector", s))
                     .collect(),
             },
         ]
     }
+}
+
+/// Build a concise summary of sector events for user guides.
+fn build_sector_summary(sectors: &[(&str, &str)]) -> String {
+    let mut parts = Vec::new();
+    for (name, driver) in sectors.iter().take(3) {
+        let short_driver = if driver.len() > 30 {
+            format!("{}...", &driver[..driver.floor_char_boundary(30)])
+        } else {
+            driver.to_string()
+        };
+        if short_driver.is_empty() {
+            parts.push(name.to_string());
+        } else {
+            parts.push(format!("{}({})", name, short_driver));
+        }
+    }
+    parts.join(", ")
 }

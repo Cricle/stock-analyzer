@@ -952,55 +952,124 @@ pub(crate) fn latest_preferred_metric(
 /// Rejects obvious noise but accepts any page with financial market content.
 /// Unlike `is_macro_research_evidence_page`, does NOT require matching source/URL markers.
 pub(crate) fn is_guidance_relevant_news(item: &NewsItem) -> bool {
-    let normalized_title = normalize_news_text(&item.title);
-    let normalized_summary = normalize_news_text(&item.summary);
-    let combined = format!("{normalized_title} {normalized_summary}");
+    let url = item.url.as_deref().unwrap_or_default();
+    let url_lower = url.to_ascii_lowercase();
 
-    // Reject reference/overview pages
-    if title_is_reference_or_overview_page(&normalized_title, &normalized_summary) {
-        return false;
-    }
-    if url_is_quote_or_overview_page(item.url.as_deref().unwrap_or_default()) {
-        return false;
-    }
+    // Extract domain from URL for domain-based filtering
+    let domain = extract_domain(url);
 
-    // Reject obvious non-financial noise
-    let noise_markers = [
-        "博物馆", "外交部", "百度百科", "baike.baidu", "人民共和国",
-        "gov.cn/", "fmprc.gov", "chnmuseum", "体育", "足球", "篮球",
-        "entertainment", "celebrity", "movie", "游戏", "小说",
-        "recipe", "cooking", "travel", "旅游", "美食",
+    // Reject known non-news domains (dictionaries, portals, reference sites)
+    let rejected_domains = [
+        // Dictionary/translation sites
+        "cambridge.org", "iciba.com", "youdao.com", "merriam-webster.com",
+        "oxfordlearnersdictionaries.com", "collinsdictionary.com",
+        "dictionary.com", "vocabulary.com", "wordreference.com",
+        // Portal homepages (not article pages)
+        "hkex.com.hk", "hkma.gov.hk", "sse.com.cn", "szse.cn",
+        "investopedia.com", "marketwatch.com",
+        // Reference/encyclopedia sites
+        "baike.baidu.com", "wikipedia.org", "wikimedia.org",
+        // Government sites
+        "gov.cn", "gov.hk", "gov.uk", "gov.au", "gov.in",
     ];
-    let url_lower = item.url.as_deref().unwrap_or_default().to_ascii_lowercase();
-    if noise_markers.iter().any(|m| {
-        combined.contains(&normalize_news_text(m)) || url_lower.contains(m)
-    }) {
+    if rejected_domains.iter().any(|d| domain.ends_with(d)) {
         return false;
     }
 
-    // Accept if content has any financial market keywords
-    let financial_keywords = [
-        "股", "市场", "行情", "涨", "跌", "资金", "板块", "指数",
-        "基金", "券商", "银行", "保险", "投资", "利好", "利空",
-        "stock", "market", "index", "fund", "trading", "invest",
-        "bull", "bear", "rally", "crash", "earnings", "revenue",
+    // Reject URLs that look like portal homepages (short paths)
+    if let Some(path) = extract_url_path(url) {
+        let path_lower = path.to_ascii_lowercase();
+        // Reject root paths or very short paths (likely homepages)
+        if path_lower == "/" || path_lower.is_empty() || path_lower.len() < 10 {
+            // But allow if it's clearly an article path
+            if !path_lower.contains("/article") && !path_lower.contains("/news")
+                && !path_lower.contains("/story") && !path_lower.contains("/post")
+            {
+                return false;
+            }
+        }
+    }
+
+    // Reject reference/overview pages by URL pattern
+    if url_is_quote_or_overview_page(url) {
+        return false;
+    }
+
+    // For Bing RSS items, apply stricter filtering
+    if item.source == "bing_rss" {
+        // Reject if URL contains dictionary/translation patterns
+        let dict_patterns = [
+            "/dictionary", "/translate", "/词汇", "/词典", "/翻译",
+            "/definition", "/meaning", "/用法", "/例句",
+        ];
+        if dict_patterns.iter().any(|p| url_lower.contains(p)) {
+            return false;
+        }
+
+        // Reject if URL contains portal/overview patterns
+        let portal_patterns = [
+            "/homepage", "/首页", "/index.html", "/main.html",
+            "/overview", "/概览", "/market-overview",
+        ];
+        if portal_patterns.iter().any(|p| url_lower.contains(p)) {
+            return false;
+        }
+    }
+
+    // Accept if source is a known financial news source
+    let trusted_sources = [
+        "CLS 财联社", "THS 同花顺", "Sina 新浪", "Futu 富途",
+        "reuters.com", "bloomberg.com", "wsj.com", "ft.com",
+        "cnbc.com", "seekingalpha.com", "finance.yahoo.com",
+        "eastmoney.com", "10jqka.com.cn", "stockstar.com",
     ];
-    financial_keywords
-        .iter()
-        .any(|kw| combined.contains(&normalize_news_text(kw)))
+    if trusted_sources.contains(&item.source.as_str()) {
+        return true;
+    }
+
+    // For other sources, check if URL looks like an article (has meaningful path)
+    if let Some(path) = extract_url_path(url) {
+        let path_lower = path.to_ascii_lowercase();
+        // Article URLs typically have longer paths with dates or IDs
+        if path_lower.len() > 20 && (path_lower.contains("2026") || path_lower.contains("2025")
+            || path_lower.contains("/article") || path_lower.contains("/news")
+            || path_lower.contains("/story") || path_lower.matches('/').count() >= 3)
+        {
+            return true;
+        }
+    }
+
+    // Default: reject (be conservative for non-trusted sources)
+    false
 }
 
-#[cfg(test)]
-#[allow(dead_code)]
-pub(crate) fn eastmoney_price(value: Option<f64>) -> anyhow::Result<f64> {
-    value.context("eastmoney price field missing")
+/// Extract domain from URL (e.g., "https://www.example.com/path" -> "example.com")
+fn extract_domain(url: &str) -> String {
+    let url = url.trim().to_ascii_lowercase();
+    // Remove protocol
+    let without_protocol = if let Some(pos) = url.find("://") {
+        &url[pos + 3..]
+    } else {
+        &url
+    };
+    // Remove path
+    let domain = if let Some(pos) = without_protocol.find('/') {
+        &without_protocol[..pos]
+    } else {
+        without_protocol
+    };
+    // Remove www. prefix
+    let domain = domain.strip_prefix("www.").unwrap_or(domain);
+    domain.to_string()
 }
 
-#[cfg(test)]
-#[allow(dead_code)]
-pub(crate) fn format_eastmoney_trade_date(value: Option<i64>) -> String {
-    value
-        .and_then(|timestamp| chrono::DateTime::from_timestamp(timestamp, 0))
-        .map(|datetime| datetime.format("%Y%m%d").to_string())
-        .unwrap_or_default()
+/// Extract path from URL
+fn extract_url_path(url: &str) -> Option<String> {
+    let url = url.trim();
+    let without_protocol = if let Some(pos) = url.find("://") {
+        &url[pos + 3..]
+    } else {
+        url
+    };
+    without_protocol.find('/').map(|pos| without_protocol[pos..].to_string())
 }

@@ -71,29 +71,22 @@ impl DailyGuidanceGenerator {
         (guidance_items, sources)
     }
 
-    /// Use LLM to batch-classify news sentiment for items still marked "neutral".
+    /// Use LLM to batch-classify news sentiment for all items.
     async fn enrich_sentiment_with_llm(
         &self,
         llm: &crate::engine::llm::LlmClient,
         items: &mut [GuidanceNewsItem],
     ) -> anyhow::Result<()> {
-        // Only re-classify items that the keyword classifier marked as neutral
-        let neutral_indices: Vec<usize> = items
-            .iter()
-            .enumerate()
-            .filter(|(_, n)| n.impact == "neutral")
-            .take(15)
-            .map(|(i, _)| i)
-            .collect();
-
-        if neutral_indices.is_empty() {
+        if items.is_empty() {
             return Ok(());
         }
 
-        let items_json: Vec<serde_json::Value> = neutral_indices
+        // Process all items (up to 20) to allow LLM to override keyword classification
+        let indices: Vec<usize> = (0..items.len()).take(20).collect();
+
+        let items_json: Vec<serde_json::Value> = indices
             .iter()
-            .enumerate()
-            .map(|(i, &idx)| {
+            .map(|&idx| {
                 let summary = if items[idx].summary.len() > 200 {
                     let end = items[idx].summary.floor_char_boundary(200);
                     &items[idx].summary[..end]
@@ -101,9 +94,10 @@ impl DailyGuidanceGenerator {
                     &items[idx].summary
                 };
                 serde_json::json!({
-                    "id": i,
+                    "id": idx,
                     "title": items[idx].title,
                     "summary": summary,
+                    "current_classification": items[idx].impact,
                 })
             })
             .collect();
@@ -139,15 +133,17 @@ News items:
         let parsed: Vec<serde_json::Value> = serde_json::from_str(json_str)
             .map_err(|e| anyhow::anyhow!("failed to parse LLM sentiment JSON: {e}"))?;
 
+        let mut changed = 0usize;
         for entry in &parsed {
             if let (Some(id), Some(impact)) = (
                 entry.get("id").and_then(|v| v.as_u64()),
                 entry.get("impact").and_then(|v| v.as_str()),
             ) {
-                let llm_idx = id as usize;
-                if let Some(&orig_idx) = neutral_indices.get(llm_idx) {
-                    if impact == "positive" || impact == "negative" {
-                        items[orig_idx].impact = impact.to_string();
+                let idx = id as usize;
+                if idx < items.len() && (impact == "positive" || impact == "negative" || impact == "neutral") {
+                    if items[idx].impact != impact {
+                        items[idx].impact = impact.to_string();
+                        changed += 1;
                     }
                     // Extract affected entities
                     if let Some(entities) = entry.get("entities").and_then(|v| v.as_array()) {
@@ -156,24 +152,16 @@ News items:
                             .filter_map(|v| v.as_str().map(String::from))
                             .collect();
                         if !entity_list.is_empty() {
-                            items[orig_idx].affected_entities = entity_list;
+                            items[idx].affected_entities = entity_list;
                         }
                     }
                 }
             }
         }
 
-        let reclassified = parsed
-            .iter()
-            .filter(|e| {
-                e.get("impact")
-                    .and_then(|v| v.as_str())
-                    .is_some_and(|i| i != "neutral")
-            })
-            .count();
         tracing::info!(
-            reclassified,
-            total_neutral = neutral_indices.len(),
+            changed,
+            total = indices.len(),
             "LLM sentiment enrichment applied"
         );
 

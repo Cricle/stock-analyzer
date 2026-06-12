@@ -21,35 +21,6 @@ impl MarketDataClient {
     const HK_COMPANY_SEARCH_GENERAL_QUERY_LIMIT: usize = 3;
     const HK_COMPANY_SEARCH_BATCH_SIZE: usize = 4;
 
-    fn hk_macro_reference_pages(curr_date: &str) -> Vec<NewsItem> {
-        vec![
-            NewsItem {
-                published_at: curr_date.to_string(),
-                title: "香港市场与上市公司披露 - HKEX".to_string(),
-                summary: "港股场景宏观参考页，覆盖市场公告、交易所披露与上市公司信息入口。"
-                    .to_string(),
-                source: "hkex.com.hk".to_string(),
-                url: Some("https://www.hkex.com.hk/?sc_lang=zh-HK".to_string()),
-            },
-            NewsItem {
-                published_at: curr_date.to_string(),
-                title: "香港金融管理局市场与货币资讯 - HKMA".to_string(),
-                summary: "港股场景宏观参考页，覆盖汇率、流动性与金融稳定信息。".to_string(),
-                source: "hkma.gov.hk".to_string(),
-                url: Some("https://www.hkma.gov.hk/chi/".to_string()),
-            },
-            NewsItem {
-                published_at: curr_date.to_string(),
-                title: "AASTOCKS 港股与恒生科技市场概览".to_string(),
-                summary: "港股场景市场参考页，覆盖指数、板块与市场新闻入口。".to_string(),
-                source: "aastocks.com".to_string(),
-                url: Some(
-                    "https://www.aastocks.com/tc/stocks/market/index/hk-index-con.aspx".to_string(),
-                ),
-            },
-        ]
-    }
-
     pub(super) fn hk_standard_code(&self, symbol: &str) -> anyhow::Result<String> {
         let normalized = self
             .normalize_hk_symbol(symbol)
@@ -1250,21 +1221,7 @@ impl MarketDataClient {
                 "人民币".to_string(),
             ],
         );
-        let (merged, attempts, cacheable) = if merged.is_empty() {
-            let fallback_items = Self::hk_macro_reference_pages(curr_date);
-            let mut attempts = attempts;
-            attempts.push(super::NewsFetchAttempt {
-                source: "HK Macro Reference".to_string(),
-                query: Some(curr_date.to_string()),
-                success: true,
-                item_count: fallback_items.len(),
-                error: None,
-            });
-            (fallback_items, attempts, false)
-        } else {
-            let cacheable = super::news_result_cacheable(&merged, &attempts);
-            (merged, attempts, cacheable)
-        };
+        let cacheable = super::news_result_cacheable(&merged, &attempts);
         Ok(super::NewsFetchResult {
             items: merged,
             attempts,

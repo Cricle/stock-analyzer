@@ -6,27 +6,11 @@ use rust_decimal::prelude::ToPrimitive;
 
 use super::{
     CandlePoint, FundamentalsSnapshot, MarketDataClient, NewsItem, QuoteSnapshot,
-    StockSearchResult, f64_to_dec, opt_f64_to_dec,
+    f64_to_dec, opt_f64_to_dec,
     akshare_conv, wire::AkshareIndividualInfo,
 };
 
 impl MarketDataClient {
-    /// Fallback search: try to look up a code directly via akshare a_share_search.
-    pub(super) async fn search_eastmoney_direct_lookup(
-        &self,
-        code: &str,
-    ) -> Option<StockSearchResult> {
-        let trimmed = code.trim();
-        if trimmed.is_empty() || !trimmed.chars().all(|c| c.is_ascii_digit()) {
-            return None;
-        }
-        self.ak
-            .a_share_search(trimmed, None, 1)
-            .await
-            .ok()
-            .and_then(|mut items| items.drain(..).next())
-    }
-
     pub(crate) async fn fetch_a_share_quote_from_tushare(
         &self,
         symbol: &str,
@@ -538,76 +522,16 @@ impl MarketDataClient {
             format!("{search_match} 调研"),
         ];
 
-        // Fetch eastmoney announcements first (fast, usually < 2s).
-        // Then attempt web search with a bounded timeout so slow providers
-        // don't block the entire pipeline.
+        // Fetch eastmoney announcements (web search removed).
         let eastmoney_result = self.fetch_a_share_eastmoney_news(ts_code, limit).await;
-        let has_eastmoney = eastmoney_result.as_ref().is_ok_and(|items| !items.is_empty());
-
-        let search_timeout_secs = if has_eastmoney { 6 } else { 12 };
-        let (google_items, google_attempts) = match tokio::time::timeout(
-            std::time::Duration::from_secs(search_timeout_secs),
-            self.fetch_news_search_queries_with_attempts(
-                &query_terms,
-                "zh-CN",
-                Some("month"),
-                None,
-                None,
-                super::GeneralSearchIntent::CompanyEvidence,
-            ),
-        )
-        .await
-        {
-            Ok(result) => result,
-            Err(_) => {
-                tracing::info!(
-                    symbol = %ts_code,
-                    timeout_secs = search_timeout_secs,
-                    "A-share web search timed out, using eastmoney results only"
-                );
-                (Vec::new(), Vec::new())
-            }
-        };
-        let mut result = Self::merge_a_share_news(
+        let result = Self::merge_a_share_news(
             ts_code,
             limit,
             eastmoney_result,
-            google_items,
-            google_attempts,
+            Vec::new(),
+            Vec::new(),
             query_terms,
         )?;
-
-        // If per-symbol news is sparse, fetch macro/industry context
-        if result.items.len() < 10 {
-            let company = &search_match;
-            let macro_queries = vec![
-                format!("{} 行业 政策", company),
-                "中国 宏观经济 货币政策".to_string(),
-                "A股 市场 资金面".to_string(),
-            ];
-            let existing_titles: std::collections::HashSet<String> =
-                result.items.iter().map(|i| i.title.to_lowercase()).collect();
-            if let Ok((macro_items, macro_attempts)) = tokio::time::timeout(
-                std::time::Duration::from_secs(8),
-                self.fetch_news_search_queries_with_attempts(
-                    &macro_queries,
-                    "zh-CN",
-                    Some("month"),
-                    None,
-                    None,
-                    super::GeneralSearchIntent::MacroEvidence,
-                ),
-            )
-            .await
-            {
-                for item in macro_items {
-                    if !existing_titles.contains(&item.title.to_lowercase()) {
-                        result.items.push(item);
-                    }
-                }
-                result.attempts.extend(macro_attempts);
-            }
-        }
 
         Ok(result)
     }
@@ -657,48 +581,22 @@ impl MarketDataClient {
             }
         }
 
-        let queries = vec![
-            "A股 市场 宏观".to_string(),
-            "中国 经济 政策".to_string(),
-            "A股 资金面".to_string(),
-            "A股 银行 券商 基金".to_string(),
-            "China stock market economy policy".to_string(),
-            "A股 央行 降息 利率".to_string(),
-            "中国 GDP PMI 经济数据".to_string(),
-            "沪深 北向资金 外资".to_string(),
-        ];
-        let (web_merged, web_attempts) = self
-            .fetch_news_search_queries_with_attempts(
-                &queries,
-                "zh-CN",
-                Some("month"),
-                None,
-                None,
-                super::GeneralSearchIntent::MacroEvidence,
-            )
-            .await;
-        attempts.extend(web_attempts);
-        let mut merged = akshare_items;
-        merged.extend(web_merged);
-        let original_merged = merged.clone();
+        let merged = akshare_items;
         let year = curr_date.get(0..4).unwrap_or_default();
-        let filtered_by_year = merged
-            .into_iter()
+        let filtered_by_year: Vec<_> = merged
+            .iter()
             .filter(|item| {
-            super::normalized_news_date(&item.published_at)
-                .is_some_and(|date| date.starts_with(year))
+                super::news_filter::normalized_news_date(&item.published_at)
+                    .is_some_and(|date| date.starts_with(year))
             })
-            .collect::<Vec<_>>();
+            .cloned()
+            .collect();
         let selected_items = if filtered_by_year.is_empty() {
-            tracing::info!(
-                curr_date = %curr_date,
-                "a-share global news year filter removed all searxng results; keeping unfiltered recent items"
-            );
-            original_merged
+            merged
         } else {
             filtered_by_year
         };
-        let merged = super::merge_ranked_news(
+        let merged = super::news_filter::merge_ranked_news(
             selected_items,
             limit.max(8),
             None,
@@ -779,7 +677,7 @@ impl MarketDataClient {
         }
 
         let target_limit = limit.max(8);
-        let ranked = super::merge_ranked_news(merged, target_limit, None, None, &keywords);
+        let ranked = super::news_filter::merge_ranked_news(merged, target_limit, None, None, &keywords);
         let has_official = ranked.iter().any(|item| item.source.contains("Eastmoney"));
         let web_quota = if has_official {
             ranked

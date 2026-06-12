@@ -252,7 +252,7 @@ impl crate::TaskManager {
         }
         self.refresh_structured_report_snapshot(result).await?;
         result.apply_calibrated_markdown();
-        result.artifacts.full_state_log_path = self.write_full_state_log(result)?;
+        result.artifacts.full_state_log_path = self.write_full_state_log(result).await?;
         result.sync_derived_fields();
         Ok(())
     }

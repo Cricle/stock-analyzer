@@ -42,7 +42,6 @@ pub struct DailyGuidanceGenerator {
     store: GuidanceStore,
     market_data: crate::data::MarketDataClient,
     memory: std::sync::Arc<dyn crate::engine::guidance::GuidanceMemory>,
-    http: reqwest::Client,
     llm: Option<crate::engine::llm::LlmClient>,
 }
 
@@ -52,7 +51,6 @@ impl Clone for DailyGuidanceGenerator {
             store: self.store.clone(),
             market_data: self.market_data.clone(),
             memory: self.memory.clone(),
-            http: self.http.clone(),
             llm: self.llm.clone(),
         }
     }
@@ -62,13 +60,11 @@ impl DailyGuidanceGenerator {
     pub fn new(
         market_data: crate::data::MarketDataClient,
         memory: std::sync::Arc<dyn crate::engine::guidance::GuidanceMemory>,
-        http: reqwest::Client,
     ) -> Self {
         Self {
             store: GuidanceStore::from_env(),
             market_data,
             memory,
-            http,
             llm: None,
         }
     }

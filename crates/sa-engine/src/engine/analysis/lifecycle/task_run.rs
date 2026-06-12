@@ -669,7 +669,6 @@ impl TaskManager {
             .get_task(&task_id)
             .await?
             .context("task missing after execution")?;
-        crate::engine::telemetry::mark_span_task(&task.task_id, &task.symbol, &task.market_type);
         tracing::info!(
             task_id = %task.task_id,
             symbol = %task.symbol,
@@ -962,13 +961,6 @@ impl TaskManager {
         })
         .await
         .with_context(|| format!("failed to publish completed status for task {task_id}"))?;
-        crate::engine::telemetry::record_analysis_task_duration(
-            &self.telemetry,
-            "completed",
-            &task.market_type,
-            task_started_at.elapsed().as_secs_f64() * 1000.0,
-            None,
-        );
         tracing::info!(
             task_id = %task.task_id,
             symbol = %task.symbol,
@@ -1018,13 +1010,6 @@ impl TaskManager {
             error_message: Some(error_message.clone()),
         })
         .await?;
-        crate::engine::telemetry::record_analysis_task_duration(
-            &self.telemetry,
-            "failed",
-            &market_type,
-            0.0,
-            Some(reason),
-        );
         tracing::error!(
             task_id = %task_id,
             market_type = %market_type,

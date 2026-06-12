@@ -53,7 +53,6 @@ impl LlmClient {
         &self,
         request: &ChatCompletionRequest,
     ) -> anyhow::Result<String> {
-        let start = std::time::Instant::now();
         let response = tokio::time::timeout(
             self.timeout,
             self.http
@@ -70,7 +69,6 @@ impl LlmClient {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            self.record_otel_metrics(request, 0, 0, start, "error");
             bail!("llm request failed with {status}: {body}");
         }
 
@@ -83,11 +81,6 @@ impl LlmClient {
             .first()
             .context("LLM response contained no choices")?;
         let content = first_choice.message.content_text();
-        let usage = payload
-            .usage
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| estimate_chat_completion_usage(request, &content));
         self.record_usage(
             payload.model.as_deref().unwrap_or(self.model.as_str()),
             payload.usage.as_ref(),
@@ -95,59 +88,12 @@ impl LlmClient {
             &content,
         )
         .await;
-        self.record_otel_metrics(
-            request,
-            usage.prompt_tokens,
-            usage.completion_tokens,
-            start,
-            "success",
-        );
         if !content.trim().is_empty() {
             return Ok(content);
         }
         let diagnostic = serde_json::to_string(&first_choice.message)
             .unwrap_or_else(|_| "<message serialization failed>".to_string());
         bail!("LLM response contained no content: {diagnostic}")
-    }
-
-    fn record_otel_metrics(
-        &self,
-        request: &ChatCompletionRequest,
-        prompt_tokens: i64,
-        completion_tokens: i64,
-        start: std::time::Instant,
-        outcome: &'static str,
-    ) {
-        use opentelemetry::KeyValue;
-        let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
-        let meter = opentelemetry::global::meter("tradingagents");
-        let llm_requests = meter.u64_counter("llm_requests_total").build();
-        let llm_duration = meter.f64_histogram("llm_request_duration_ms").build();
-        let llm_tokens_prompt = meter.u64_counter("llm_tokens_prompt_total").build();
-        let llm_tokens_completion = meter.u64_counter("llm_tokens_completion_total").build();
-        let llm_tokens_total = meter.u64_counter("llm_tokens_total").build();
-        let llm_errors = meter.u64_counter("llm_errors_total").build();
-
-        let attrs = [
-            KeyValue::new("llm.model", request.model.clone()),
-            KeyValue::new("llm.provider", self.provider_type.clone()),
-            KeyValue::new("llm.outcome", outcome),
-        ];
-        llm_requests.add(1, &attrs);
-        llm_duration.record(elapsed_ms, &attrs);
-        if prompt_tokens > 0 {
-            llm_tokens_prompt.add(prompt_tokens as u64, &attrs);
-        }
-        if completion_tokens > 0 {
-            llm_tokens_completion.add(completion_tokens as u64, &attrs);
-        }
-        let total = prompt_tokens + completion_tokens;
-        if total > 0 {
-            llm_tokens_total.add(total as u64, &attrs);
-        }
-        if outcome == "error" {
-            llm_errors.add(1, &attrs);
-        }
     }
 
     async fn record_usage(

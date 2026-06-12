@@ -2,7 +2,6 @@ pub(crate) mod a_share;
 pub(crate) mod hk;
 mod types;
 pub(crate) mod us;
-pub(crate) mod us_sina;
 
 use super::{
     CandlePoint, FundamentalsSnapshot, MarketDataClient, MarketKind, NewsItem, QuoteSnapshot,

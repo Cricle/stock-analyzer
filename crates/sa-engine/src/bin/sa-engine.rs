@@ -167,9 +167,8 @@ async fn main() {
                 .await
                 .unwrap_or_else(|e| error_exit("init_failed", &e.to_string()));
             let memory = bin_helpers::build_memory();
-            let http = reqwest::Client::new();
 
-            let generator = DailyGuidanceGenerator::new(market_data, memory, http);
+            let generator = DailyGuidanceGenerator::new(market_data, memory);
             let generator = match bin_helpers::build_llm_client() {
                 Ok(llm) => generator.with_llm(llm),
                 Err(e) => {
@@ -237,10 +236,9 @@ async fn main() {
             let llm = bin_helpers::build_llm_client()
                 .unwrap_or_else(|e| error_exit("init_failed", &e.to_string()));
             let memory = bin_helpers::build_memory();
-            let http = reqwest::Client::new();
 
             // Generate guidance as context, then run stock pick for the specific symbol
-            let generator = DailyGuidanceGenerator::new(market_data.clone(), memory, http)
+            let generator = DailyGuidanceGenerator::new(market_data.clone(), memory)
                 .with_llm(llm.clone());
             let guidance_req = DailyGuidanceRequest {
                 market: Some(market.as_str().to_string()),

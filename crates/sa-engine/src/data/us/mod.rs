@@ -1,533 +1,225 @@
-mod news_filter;
-mod yahoo_chart;
-
 use anyhow::{Context, bail};
 use chrono::NaiveDate;
-use reqwest::header::{ACCEPT, ACCEPT_LANGUAGE, HeaderMap, HeaderValue, REFERER};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
-use std::time::Duration;
-use tokio::sync::OnceCell;
-
-pub(crate) static TICKER_CACHE: OnceCell<SecTickerLookup> = OnceCell::const_new();
+use std::collections::HashMap;
 
 use super::{
-    FundamentalsSnapshot, MarketDataClient, NewsItem, QuoteSnapshot, SearchProviderKind,
-    akshare_rust::us_sina,
-    build_dated_news_query, f64_to_dec, latest_metric_value, merge_ranked_news, opt_f64_to_dec,
-    wire::{CompanyFactsResponse, CompanySubmissionsResponse, SecTickerEntry, SecTickerLookup},
-    within_date_window,
+    FundamentalsSnapshot, MarketDataClient, NewsItem,
+    f64_to_dec, opt_f64_to_dec,
 };
 use super::akshare_conv::news_item_from_akshare;
-use super::news_search::SearchEvidenceParams;
-use news_filter::{is_direct_company_news_match, normalize_company_query_name};
-use yahoo_chart::YahooChartResponse;
+use super::news_filter::within_date_window;
+
 impl MarketDataClient {
-    const US_SEC_SUBMISSIONS_TIMEOUT_SECS: u64 = 4;
-    const US_COMPANY_SEARCH_NEWS_QUERY_LIMIT: usize = 6;
-    const US_COMPANY_SEARCH_GENERAL_QUERY_LIMIT: usize = 2;
-    const US_COMPANY_SEARCH_BATCH_SIZE: usize = 4;
-
-    fn company_news_primary_queries(
-        symbol: &str,
-        company_name: &str,
-        start_date: Option<&str>,
-        end_date: Option<&str>,
-    ) -> Vec<String> {
-        vec![
-            build_dated_news_query(symbol, start_date, end_date),
-            build_dated_news_query(&format!("{symbol} earnings"), start_date, end_date),
-            build_dated_news_query(&format!("{company_name} {symbol}"), start_date, end_date),
-            build_dated_news_query(&format!("{company_name} earnings"), start_date, end_date),
-            build_dated_news_query(
-                &format!("{symbol} {company_name} revenue guidance Reuters"),
-                start_date,
-                end_date,
-            ),
-            build_dated_news_query(
-                &format!("{company_name} press release Reuters"),
-                start_date,
-                end_date,
-            ),
-            build_dated_news_query(
-                &format!("{company_name} investor relations BusinessWire PRNewswire"),
-                start_date,
-                end_date,
-            ),
-        ]
-    }
-
-    fn company_news_supplemental_queries(
-        symbol: &str,
-        company_name: &str,
-        start_date: Option<&str>,
-        end_date: Option<&str>,
-    ) -> Vec<String> {
-        vec![
-            build_dated_news_query(&format!("{symbol} guidance"), start_date, end_date),
-            build_dated_news_query(&format!("{company_name} guidance"), start_date, end_date),
-            build_dated_news_query(&format!("{symbol} analyst"), start_date, end_date),
-            build_dated_news_query(&format!("{company_name} filing"), start_date, end_date),
-            build_dated_news_query(
-                &format!("{symbol} Reuters Bloomberg CNBC"),
-                start_date,
-                end_date,
-            ),
-            build_dated_news_query(
-                &format!("{company_name} product launch supplier demand"),
-                start_date,
-                end_date,
-            ),
-            build_dated_news_query(
-                &format!("{company_name} revenue forecast services iphone"),
-                start_date,
-                end_date,
-            ),
-            build_dated_news_query(
-                &format!("{symbol} buyback tariff antitrust"),
-                start_date,
-                end_date,
-            ),
-        ]
-    }
-
-    fn us_global_news_primary_queries(start: &str, curr_date: &str) -> Vec<String> {
-        vec![
-            build_dated_news_query("stock market economy", Some(start), Some(curr_date)),
-            build_dated_news_query(
-                "Federal Reserve interest rates",
-                Some(start),
-                Some(curr_date),
-            ),
-            build_dated_news_query("inflation economic outlook", Some(start), Some(curr_date)),
-            build_dated_news_query("global markets trading", Some(start), Some(curr_date)),
-            build_dated_news_query(
-                "AI semiconductor megacap market outlook",
-                Some(start),
-                Some(curr_date),
-            ),
-        ]
-    }
-
-    fn us_global_news_supplemental_queries(start: &str, curr_date: &str) -> Vec<String> {
-        vec![
-            build_dated_news_query(
-                "Treasury yields dollar risk appetite",
-                Some(start),
-                Some(curr_date),
-            ),
-            build_dated_news_query(
-                "semiconductor demand export restrictions",
-                Some(start),
-                Some(curr_date),
-            ),
-            build_dated_news_query("cloud AI capex hyperscalers", Some(start), Some(curr_date)),
-        ]
-    }
-
     pub(super) async fn fetch_us_fundamentals(
         &self,
         symbol: &str,
     ) -> anyhow::Result<FundamentalsSnapshot> {
         let t0 = std::time::Instant::now();
-        let company = self.lookup_company(symbol).await?;
-        tracing::debug!("fetch_us_fundamentals: lookup_company for {symbol} took {}ms", t0.elapsed().as_millis());
 
-        let t1 = std::time::Instant::now();
-        let company_facts: CompanyFactsResponse = self
-            .http
-            .get(format!(
-                "https://data.sec.gov/api/xbrl/companyfacts/CIK{}.json",
-                company.cik
-            ))
-            .send()
+        // Fetch financial analysis indicators (annual)
+        let analysis: Vec<HashMap<String, serde_json::Value>> = self
+            .ak
+            .stock_financial_us_analysis_indicator_em(symbol, "年报")
             .await
-            .context("failed to fetch company facts from SEC")?
-            .error_for_status()
-            .context("SEC company facts request failed")?
-            .json()
-            .await
-            .context("failed to decode SEC company facts")?;
-        tracing::debug!("fetch_us_fundamentals: companyfacts for {symbol} took {}ms", t1.elapsed().as_millis());
+            .unwrap_or_default();
 
-        let t2 = std::time::Instant::now();
-        let submissions: CompanySubmissionsResponse = self
-            .http
-            .get(format!(
-                "https://data.sec.gov/submissions/CIK{}.json",
-                company.cik
-            ))
-            .send()
+        // Fetch income statement (annual)
+        let income: Vec<HashMap<String, serde_json::Value>> = self
+            .ak
+            .stock_financial_us_report_em(symbol, "综合损益表", "年报")
             .await
-            .context("failed to fetch SEC submissions")?
-            .error_for_status()
-            .context("SEC submissions request failed")?
-            .json()
-            .await
-            .context("failed to decode SEC submissions")?;
-        tracing::debug!("fetch_us_fundamentals: submissions for {symbol} took {}ms", t2.elapsed().as_millis());
-        let industry = submissions
-            .sic_description
-            .filter(|s| !s.is_empty());
+            .unwrap_or_default();
 
-        let fiscal_year_end = company_facts.fiscal_year_end.clone();
-        let shares_outstanding = company_facts
-            .facts
-            .dei
-            .as_ref()
-            .and_then(|dei| dei.entity_common_stock_shares_outstanding.as_ref())
-            .and_then(|metric| latest_metric_value(&metric.units))
-            .map(|value| value.round() as i64);
-        let annual_snapshot = company_facts
-            .facts
-            .us_gaap
-            .as_ref()
-            .and_then(super::wire::UsGaapFacts::latest_annual_snapshot);
-        let net_income_usd = company_facts
-            .facts
-            .us_gaap
-            .as_ref()
-            .and_then(|facts| facts.annual_net_income_aligned(annual_snapshot.as_ref()));
-        let revenues_usd = company_facts
-            .facts
-            .us_gaap
-            .as_ref()
-            .and_then(|facts| facts.annual_revenue_aligned(annual_snapshot.as_ref()));
-        let assets_usd = company_facts
-            .facts
-            .us_gaap
-            .as_ref()
-            .and_then(super::wire::UsGaapFacts::latest_assets);
-        let liabilities_usd = company_facts
-            .facts
-            .us_gaap
-            .as_ref()
-            .and_then(super::wire::UsGaapFacts::latest_liabilities);
-        let stockholders_equity_usd = company_facts
-            .facts
-            .us_gaap
-            .as_ref()
-            .and_then(super::wire::UsGaapFacts::latest_stockholders_equity);
-        let cash_and_equivalents_usd = company_facts
-            .facts
-            .us_gaap
-            .as_ref()
-            .and_then(super::wire::UsGaapFacts::latest_cash_and_equivalents);
-        let mut gross_profit_usd = company_facts
-            .facts
-            .us_gaap
-            .as_ref()
-            .and_then(|facts| facts.annual_gross_profit_aligned(annual_snapshot.as_ref()));
-        let mut operating_income_usd = company_facts
-            .facts
-            .us_gaap
-            .as_ref()
-            .and_then(|facts| facts.annual_operating_income_aligned(annual_snapshot.as_ref()));
-        let mut operating_expenses_usd =
-            company_facts.facts.us_gaap.as_ref().and_then(|facts| {
-                facts.annual_operating_expenses_aligned(annual_snapshot.as_ref())
-            });
-        let operating_cash_flow_usd =
-            company_facts.facts.us_gaap.as_ref().and_then(|facts| {
-                facts.annual_operating_cash_flow_aligned(annual_snapshot.as_ref())
-            });
-        let mut capital_expenditure_usd =
-            company_facts.facts.us_gaap.as_ref().and_then(|facts| {
-                facts.annual_capital_expenditure_aligned(annual_snapshot.as_ref())
-            });
-        if let (Some(revenue), Some(gross_profit)) = (revenues_usd, gross_profit_usd)
-            && gross_profit > revenue
-        {
-            tracing::warn!(
-                symbol = %symbol,
-                revenue,
-                gross_profit,
-                "rejecting gross profit because it exceeds revenue for aligned annual period"
-            );
-            gross_profit_usd = None;
-        }
-        if let (Some(gross_profit), Some(operating_income)) =
-            (gross_profit_usd, operating_income_usd)
-            && operating_income > gross_profit
-        {
-            tracing::warn!(
-                symbol = %symbol,
-                gross_profit,
-                operating_income,
-                "rejecting operating income because it exceeds gross profit for aligned annual period"
-            );
-            operating_income_usd = None;
-        }
-        if let (Some(revenue), Some(operating_expenses)) = (revenues_usd, operating_expenses_usd)
-            && operating_expenses > revenue
-        {
-            tracing::warn!(
-                symbol = %symbol,
-                revenue,
-                operating_expenses,
-                "rejecting operating expenses because they exceed revenue for aligned annual period"
-            );
-            operating_expenses_usd = None;
-        }
-        if let (Some(revenue), Some(capex)) = (revenues_usd, capital_expenditure_usd)
-            && capex > revenue
-        {
-            tracing::warn!(
-                symbol = %symbol,
-                revenue,
-                capex,
-                "rejecting capital expenditure because it exceeds revenue for aligned annual period"
-            );
-            capital_expenditure_usd = None;
-        }
-        let free_cash_flow_usd = match (operating_cash_flow_usd, capital_expenditure_usd) {
+        // Fetch balance sheet (annual)
+        let balance: Vec<HashMap<String, serde_json::Value>> = self
+            .ak
+            .stock_financial_us_report_em(symbol, "资产负债表", "年报")
+            .await
+            .unwrap_or_default();
+
+        // Fetch cash flow statement (annual)
+        let cashflow: Vec<HashMap<String, serde_json::Value>> = self
+            .ak
+            .stock_financial_us_report_em(symbol, "现金流量表", "年报")
+            .await
+            .unwrap_or_default();
+
+        tracing::debug!(
+            "fetch_us_fundamentals: akshare reports for {symbol} took {}ms",
+            t0.elapsed().as_millis()
+        );
+
+        // Extract company name from analysis data
+        let company_name = analysis
+            .first()
+            .and_then(|m| m.get("SECURITY_NAME_ABBR"))
+            .and_then(|v| v.as_str())
+            .unwrap_or(symbol)
+            .to_string();
+
+        // Extract key metrics from analysis indicators
+        let (net_income, revenue, shares_outstanding, diluted_shares) =
+            if let Some(first) = analysis.first() {
+                (
+                    first
+                        .get("PARENT_HOLDER_NETPROFIT")
+                        .and_then(serde_json::Value::as_f64),
+                    first
+                        .get("TOTAL_INCOME")
+                        .and_then(serde_json::Value::as_f64),
+                    first
+                        .get("TOTAL_SHARES")
+                        .and_then(serde_json::Value::as_f64)
+                        .map(|v| v as i64),
+                    first
+                        .get("DILUTED_SHARES")
+                        .and_then(serde_json::Value::as_f64)
+                        .map(|v| v as i64),
+                )
+            } else {
+                (None, None, None, None)
+            };
+
+        // Helper to find an amount by ITEM_NAME in report data
+        let find_amount =
+            |data: &[HashMap<String, serde_json::Value>], names: &[&str]| -> Option<f64> {
+                for name in names {
+                    for row in data {
+                        if let Some(item_name) = row.get("ITEM_NAME").and_then(|v| v.as_str())
+                            && item_name.contains(name) {
+                                return row.get("AMOUNT").and_then(serde_json::Value::as_f64);
+                            }
+                    }
+                }
+                None
+            };
+
+        // Extract balance sheet items
+        let assets = find_amount(&balance, &["资产总计", "总资产"]);
+        let liabilities = find_amount(&balance, &["负债合计", "总负债"]);
+        let stockholders_equity = find_amount(
+            &balance,
+            &["所有者权益合计", "股东权益合计", "归属母公司股东权益"],
+        );
+        let cash = find_amount(&balance, &["货币资金"]);
+        let long_term_debt = find_amount(&balance, &["长期借款"]);
+        let current_debt = find_amount(&balance, &["短期借款", "一年内到期的非流动负债"]);
+        let total_debt = find_amount(&balance, &["负债合计"]);
+
+        // Extract income statement items
+        let gross_profit = find_amount(&income, &["毛利", "营业毛利"]);
+        let operating_income = find_amount(&income, &["营业利润"]);
+        let operating_expenses = find_amount(&income, &["营业总成本", "营业成本"]);
+
+        // Extract cash flow items
+        let operating_cash_flow =
+            find_amount(&cashflow, &["经营活动产生的现金流量净额"]);
+        let capital_expenditure = find_amount(
+            &cashflow,
+            &["购建固定资产、无形资产和其他长期资产支付的现金"],
+        );
+
+        let free_cash_flow = match (operating_cash_flow, capital_expenditure) {
             (Some(ocf), Some(capex)) => Some(ocf - capex),
             _ => None,
         };
-        let long_term_debt_usd = company_facts
-            .facts
-            .us_gaap
-            .as_ref()
-            .and_then(super::wire::UsGaapFacts::latest_long_term_debt);
-        let current_debt_usd = company_facts
-            .facts
-            .us_gaap
-            .as_ref()
-            .and_then(super::wire::UsGaapFacts::latest_current_debt);
-        let total_debt_usd = company_facts
-            .facts
-            .us_gaap
-            .as_ref()
-            .and_then(super::wire::UsGaapFacts::latest_total_debt);
-        let diluted_shares_outstanding = company_facts
-            .facts
-            .us_gaap
-            .as_ref()
-            .and_then(super::wire::UsGaapFacts::latest_diluted_shares_outstanding);
+
+        // Get quote for market cap calculation
         let quote = self.fetch_quote(symbol).await.ok();
-        let market_cap = quote
-            .as_ref()
-            .and_then(|quote| shares_outstanding.map(|shares| quote.close * Decimal::from(shares)));
+        let market_cap = quote.as_ref().and_then(|q| {
+            shares_outstanding.map(|shares| q.close * Decimal::from(shares))
+        });
 
         Ok(FundamentalsSnapshot {
             symbol: symbol.to_uppercase(),
-            company_name: company.title,
-            cik: company.cik,
-            industry,
+            company_name,
+            cik: String::new(),
+            industry: None,
             currency: "USD".to_string(),
-            fiscal_year_end,
+            fiscal_year_end: None,
             shares_outstanding,
             market_cap,
-            net_income_usd: opt_f64_to_dec(net_income_usd),
-            revenues_usd: opt_f64_to_dec(revenues_usd),
-            assets_usd: opt_f64_to_dec(assets_usd),
-            liabilities_usd: opt_f64_to_dec(liabilities_usd),
-            stockholders_equity_usd: opt_f64_to_dec(stockholders_equity_usd),
-            cash_and_equivalents_usd: opt_f64_to_dec(cash_and_equivalents_usd),
-            gross_profit_usd: opt_f64_to_dec(gross_profit_usd),
-            operating_income_usd: opt_f64_to_dec(operating_income_usd),
-            operating_expenses_usd: opt_f64_to_dec(operating_expenses_usd),
-            operating_cash_flow_usd: opt_f64_to_dec(operating_cash_flow_usd),
-            capital_expenditure_usd: opt_f64_to_dec(capital_expenditure_usd),
-            free_cash_flow_usd: opt_f64_to_dec(free_cash_flow_usd),
-            long_term_debt_usd: opt_f64_to_dec(long_term_debt_usd),
-            current_debt_usd: opt_f64_to_dec(current_debt_usd),
-            total_debt_usd: opt_f64_to_dec(total_debt_usd),
-            diluted_shares_outstanding,
+            net_income_usd: opt_f64_to_dec(net_income),
+            revenues_usd: opt_f64_to_dec(revenue),
+            assets_usd: opt_f64_to_dec(assets),
+            liabilities_usd: opt_f64_to_dec(liabilities),
+            stockholders_equity_usd: opt_f64_to_dec(stockholders_equity),
+            cash_and_equivalents_usd: opt_f64_to_dec(cash),
+            gross_profit_usd: opt_f64_to_dec(gross_profit),
+            operating_income_usd: opt_f64_to_dec(operating_income),
+            operating_expenses_usd: opt_f64_to_dec(operating_expenses),
+            operating_cash_flow_usd: opt_f64_to_dec(operating_cash_flow),
+            capital_expenditure_usd: opt_f64_to_dec(capital_expenditure),
+            free_cash_flow_usd: opt_f64_to_dec(free_cash_flow),
+            long_term_debt_usd: opt_f64_to_dec(long_term_debt),
+            current_debt_usd: opt_f64_to_dec(current_debt),
+            total_debt_usd: opt_f64_to_dec(total_debt),
+            diluted_shares_outstanding: diluted_shares,
         })
     }
-}
-impl MarketDataClient {
 
-    pub(super) async fn fetch_us_news_diagnostics(
+    pub(super) async fn fetch_us_news(
         &self,
         symbol: &str,
         limit: usize,
         start_date: Option<&str>,
         end_date: Option<&str>,
     ) -> anyhow::Result<super::NewsFetchResult> {
-        let company = self.lookup_company(symbol).await?;
         let mut attempts = Vec::new();
-        let company_name = normalize_company_query_name(&company.title);
-        let company_queries =
-            Self::company_news_primary_queries(symbol, &company_name, start_date, end_date);
-        let (search_items, mut search_attempts) = self
-            .fetch_search_evidence_with_query_locales_and_scope_mix_strategy(SearchEvidenceParams {
-                queries: &company_queries,
-                time_range: Some("month"),
-                start_date,
-                end_date,
-                general_intent: super::GeneralSearchIntent::CompanyEvidence,
-                proactive_general_query_limit: Self::US_COMPANY_SEARCH_GENERAL_QUERY_LIMIT,
-                provider_kind_filter: Some(SearchProviderKind::Uapis),
-                news_query_limit_per_provider: Some(Self::US_COMPANY_SEARCH_NEWS_QUERY_LIMIT),
-                general_query_limit_per_provider: Some(Self::US_COMPANY_SEARCH_GENERAL_QUERY_LIMIT),
-                batch_size: Self::US_COMPANY_SEARCH_BATCH_SIZE,
-            })
-            .await;
-        let mut items = search_items;
-        attempts.append(&mut search_attempts);
+        let mut items: Vec<NewsItem> = Vec::new();
 
-        let sec_items = match tokio::time::timeout(
-            Duration::from_secs(Self::US_SEC_SUBMISSIONS_TIMEOUT_SECS),
-            self.fetch_us_sec_filing_news_items(&company, limit, start_date, end_date),
-        )
-        .await
-        {
-            Ok(Ok(items)) => {
+        // Primary source: Eastmoney US stock news
+        match self.ak.stock_news_em_us(symbol).await {
+            Ok(ak_news) => {
+                let count = ak_news.len();
+                let converted: Vec<NewsItem> = ak_news
+                    .into_iter()
+                    .map(|n| NewsItem {
+                        published_at: n.publish_time,
+                        title: n.title,
+                        summary: n.content.unwrap_or_default(),
+                        source: n.source.unwrap_or_else(|| "Eastmoney".to_string()),
+                        url: n.url,
+                    })
+                    .filter(|item| within_date_window(&item.published_at, start_date, end_date))
+                    .collect();
                 attempts.push(super::NewsFetchAttempt {
-                    source: "SEC EDGAR".to_string(),
-                    query: Some(company.cik.clone()),
-                    success: !items.is_empty(),
-                    item_count: items.len(),
-                    error: items.is_empty().then_some(
-                        "SEC submissions contained no in-range filing items".to_string(),
-                    ),
+                    source: "eastmoney_us".to_string(),
+                    query: Some(symbol.to_string()),
+                    success: true,
+                    item_count: count,
+                    error: None,
                 });
-                items
+                items.extend(converted);
             }
-            Ok(Err(error)) => {
+            Err(error) => {
                 attempts.push(super::NewsFetchAttempt {
-                    source: "SEC EDGAR".to_string(),
-                    query: Some(company.cik.clone()),
+                    source: "eastmoney_us".to_string(),
+                    query: Some(symbol.to_string()),
                     success: false,
                     item_count: 0,
                     error: Some(error.to_string()),
                 });
-                Vec::new()
             }
-            Err(_) => {
-                attempts.push(super::NewsFetchAttempt {
-                    source: "SEC EDGAR".to_string(),
-                    query: Some(company.cik.clone()),
-                    success: false,
-                    item_count: 0,
-                    error: Some(format!(
-                        "SEC submissions timed out after {}s",
-                        Self::US_SEC_SUBMISSIONS_TIMEOUT_SECS
-                    )),
-                });
-                Vec::new()
-            }
-        };
-        items.extend(sec_items);
-        let keywords = vec![
-            symbol.to_string(),
-            company_name.clone(),
-            company.title.clone(),
-            "earnings".to_string(),
-            "guidance".to_string(),
-            "filing".to_string(),
-            "analyst".to_string(),
-        ];
-        let items = merge_ranked_news(items, limit.max(8) * 3, start_date, end_date, &keywords)
-            .into_iter()
-            .filter(|item| {
-                is_direct_company_news_match(item, symbol, &company_name, &company.title)
-            })
-            .collect::<Vec<_>>();
-        let distinct_sources = items
-            .iter()
-            .map(|item| item.source.trim().to_string())
-            .filter(|value| !value.is_empty())
-            .collect::<std::collections::HashSet<_>>()
-            .len();
-        let mostly_sec_only = distinct_sources <= 1
-            && items
-                .iter()
-                .all(|item| item.source.eq_ignore_ascii_case("SEC EDGAR"));
-        let should_retry_with_supplemental = items.len() < limit.min(4) || mostly_sec_only;
-        let items = if should_retry_with_supplemental {
-            let supplemental_queries = Self::company_news_supplemental_queries(
-                symbol,
-                &company_name,
-                start_date,
-                end_date,
-            );
-            let (supplemental_items, mut supplemental_attempts) = self
-                .fetch_search_evidence_with_query_locales_and_scope_mix_strategy(SearchEvidenceParams {
-                    queries: &supplemental_queries,
-                    time_range: Some("month"),
-                    start_date,
-                    end_date,
-                    general_intent: super::GeneralSearchIntent::CompanyEvidence,
-                    proactive_general_query_limit: 2,
-                    provider_kind_filter: Some(SearchProviderKind::Uapis),
-                    news_query_limit_per_provider: Some(6),
-                    general_query_limit_per_provider: Some(2),
-                    batch_size: Self::US_COMPANY_SEARCH_BATCH_SIZE,
-                })
-                .await;
-            attempts.append(&mut supplemental_attempts);
-            merge_ranked_news(
-                items
-                    .into_iter()
-                    .chain(supplemental_items)
-                    .collect::<Vec<_>>(),
-                limit.max(8) * 3,
-                start_date,
-                end_date,
-                &keywords,
-            )
-            .into_iter()
-            .filter(|item| {
-                is_direct_company_news_match(item, symbol, &company_name, &company.title)
-            })
-            .collect::<Vec<_>>()
-        } else {
-            items
-        };
-        // If per-symbol news is sparse, fetch macro/industry context
-        let mut items = if items.len() < 10 {
-            let macro_queries = vec![
-                format!("{} industry policy", company_name),
-                "US market macro economy".to_string(),
-                "Fed interest rate".to_string(),
-            ];
-            let existing_titles: std::collections::HashSet<String> =
-                items.iter().map(|i| i.title.to_lowercase()).collect();
-            let mut items = items;
-            if let Ok((macro_items, macro_attempts)) = tokio::time::timeout(
-                Duration::from_secs(8),
-                self.fetch_search_evidence_with_query_locales_and_scope_mix_strategy(SearchEvidenceParams {
-                    queries: &macro_queries,
-                    time_range: Some("month"),
-                    start_date,
-                    end_date,
-                    general_intent: super::GeneralSearchIntent::MacroEvidence,
-                    proactive_general_query_limit: Self::US_COMPANY_SEARCH_GENERAL_QUERY_LIMIT,
-                    provider_kind_filter: Some(SearchProviderKind::Uapis),
-                    news_query_limit_per_provider: Some(Self::US_COMPANY_SEARCH_NEWS_QUERY_LIMIT),
-                    general_query_limit_per_provider: Some(Self::US_COMPANY_SEARCH_GENERAL_QUERY_LIMIT),
-                    batch_size: Self::US_COMPANY_SEARCH_BATCH_SIZE,
-                }),
-            )
-            .await
-            {
-                for item in macro_items {
-                    if !existing_titles.contains(&item.title.to_lowercase()) {
-                        items.push(item);
-                    }
-                }
-                attempts.extend(macro_attempts);
-            }
-            items
-        } else {
-            items
-        };
-        // Bing RSS fallback when search providers are unavailable
+        }
+
+        // Fallback: Bing RSS news search
         if items.len() < limit.min(4) {
+            let queries = [
+                format!("{} stock news", symbol),
+                format!("{} earnings", symbol),
+            ];
             let existing_titles: std::collections::HashSet<String> =
                 items.iter().map(|i| i.title.to_lowercase()).collect();
             let mut bing_added = 0usize;
-            let bing_queries = [
-                format!("{} stock news", symbol),
-                format!("{} stock", company_name),
-            ];
-            for query in bing_queries.iter().take(2) {
+            for query in &queries {
                 if let Ok(rss_items) = self.ak.bing_news_rss(query, 10).await {
                     for item in rss_items.into_iter().map(news_item_from_akshare) {
-                        if !existing_titles.contains(&item.title.to_lowercase()) {
+                        if within_date_window(&item.published_at, start_date, end_date)
+                            && !existing_titles.contains(&item.title.to_lowercase())
+                        {
                             bing_added += 1;
                             items.push(item);
                         }
@@ -536,7 +228,7 @@ impl MarketDataClient {
             }
             if bing_added > 0 {
                 attempts.push(super::NewsFetchAttempt {
-                    source: "bing_rss_fallback".to_string(),
+                    source: "bing_rss".to_string(),
                     query: None,
                     success: true,
                     item_count: bing_added,
@@ -544,9 +236,12 @@ impl MarketDataClient {
                 });
             }
         }
+
         if items.is_empty() {
             bail!("no US company news available from current upstreams");
         }
+
+        items.truncate(limit.max(8));
         let cacheable = super::news_result_cacheable(&items, &attempts);
         Ok(super::NewsFetchResult {
             items,
@@ -555,61 +250,7 @@ impl MarketDataClient {
         })
     }
 
-    async fn fetch_us_sec_filing_news_items(
-        &self,
-        company: &SecTickerEntry,
-        limit: usize,
-        start_date: Option<&str>,
-        end_date: Option<&str>,
-    ) -> anyhow::Result<Vec<NewsItem>> {
-        let filings: CompanySubmissionsResponse = self
-            .http
-            .get(format!(
-                "https://data.sec.gov/submissions/CIK{}.json",
-                company.cik
-            ))
-            .send()
-            .await
-            .context("failed to fetch SEC submissions")?
-            .error_for_status()
-            .context("SEC submissions request failed")?
-            .json()
-            .await
-            .context("failed to decode SEC submissions")?;
-
-        let recent = filings.filings.recent;
-        let total = recent
-            .filing_date
-            .len()
-            .min(recent.form.len())
-            .min(recent.accession_number.len())
-            .min(recent.primary_document.len());
-        let mut items = Vec::new();
-        for index in 0..total.min(limit) {
-            let filing_date = &recent.filing_date[index];
-            if !within_date_window(filing_date, start_date, end_date) {
-                continue;
-            }
-            items.push(NewsItem {
-                published_at: filing_date.clone(),
-                title: format!(
-                    "SEC {} filing {}",
-                    recent.form[index], recent.accession_number[index]
-                ),
-                summary: format!("Primary document: {}", recent.primary_document[index]),
-                source: "SEC EDGAR".to_string(),
-                url: Some(format!(
-                    "https://www.sec.gov/Archives/edgar/data/{}/{}/{}",
-                    company.cik.trim_start_matches('0'),
-                    recent.accession_number[index].replace('-', ""),
-                    recent.primary_document[index]
-                )),
-            });
-        }
-        Ok(items)
-    }
-
-    pub(super) async fn fetch_us_global_news_diagnostics(
+    pub(super) async fn fetch_us_global_news(
         &self,
         curr_date: &str,
         look_back_days: usize,
@@ -619,81 +260,48 @@ impl MarketDataClient {
             .context("invalid curr_date for global news")?;
         let start = end - chrono::Days::new(look_back_days as u64);
         let start_text = start.to_string();
-        let queries = Self::us_global_news_primary_queries(&start_text, curr_date);
-        let (items, attempts) = self
-            .fetch_news_search_queries_with_attempts(
-                &queries,
-                "en-US",
-                Some("month"),
-                Some(&start_text),
-                Some(curr_date),
-                super::GeneralSearchIntent::MacroEvidence,
-            )
-            .await;
-        let mut merged = merge_ranked_news(
-            items,
-            limit,
-            Some(&start_text),
-            Some(curr_date),
-            &[
-                "stock market".to_string(),
-                "Federal Reserve".to_string(),
-                "inflation".to_string(),
-                "economy".to_string(),
-                "AI".to_string(),
-                "semiconductor".to_string(),
-            ],
-        );
-        if merged.len() < limit.min(3) {
-            let supplemental_queries =
-                Self::us_global_news_supplemental_queries(&start_text, curr_date);
-            let (supplemental_items, mut supplemental_attempts) = self
-                .fetch_news_search_queries_with_attempts(
-                    &supplemental_queries,
-                    "en-US",
-                    Some("month"),
-                    Some(&start_text),
-                    Some(curr_date),
-                    super::GeneralSearchIntent::MacroEvidence,
-                )
-                .await;
-            let mut attempts = attempts;
-            attempts.append(&mut supplemental_attempts);
-            merged = merge_ranked_news(
-                merged
-                    .into_iter()
-                    .chain(supplemental_items)
-                    .collect::<Vec<_>>(),
-                limit,
-                Some(&start_text),
-                Some(curr_date),
-                &[
-                    "stock market".to_string(),
-                    "Federal Reserve".to_string(),
-                    "inflation".to_string(),
-                    "economy".to_string(),
-                    "AI".to_string(),
-                    "semiconductor".to_string(),
-                    "Treasury".to_string(),
-                    "cloud".to_string(),
-                ],
-            );
-            if merged.is_empty() {
-                bail!("no US global/macro news available from current upstreams");
+
+        let queries = [
+            "stock market economy",
+            "Federal Reserve interest rates",
+            "inflation economic outlook",
+            "global markets trading",
+            "AI semiconductor megacap market outlook",
+        ];
+
+        let mut attempts = Vec::new();
+        let mut items: Vec<NewsItem> = Vec::new();
+        let existing_titles: std::collections::HashSet<String> =
+            items.iter().map(|i| i.title.to_lowercase()).collect();
+
+        for query in &queries {
+            if let Ok(rss_items) = self.ak.bing_news_rss(query, 10).await {
+                let count = rss_items.len();
+                for item in rss_items.into_iter().map(news_item_from_akshare) {
+                    if within_date_window(&item.published_at, Some(&start_text), Some(curr_date))
+                        && !existing_titles.contains(&item.title.to_lowercase())
+                    {
+                        items.push(item);
+                    }
+                }
+                attempts.push(super::NewsFetchAttempt {
+                    source: "bing_rss".to_string(),
+                    query: Some(query.to_string()),
+                    success: true,
+                    item_count: count,
+                    error: None,
+                });
             }
-            let cacheable = super::news_result_cacheable(&merged, &attempts);
-            return Ok(super::NewsFetchResult {
-                items: merged,
-                attempts,
-                cacheable,
-            });
         }
-        if merged.is_empty() {
+
+        if items.is_empty() {
             bail!("no US global/macro news available from current upstreams");
         }
-        let cacheable = super::news_result_cacheable(&merged, &attempts);
+
+        items.truncate(limit.max(8));
+        let cacheable = super::news_result_cacheable(&items, &attempts);
         Ok(super::NewsFetchResult {
-            items: merged,
+            items,
             attempts,
             cacheable,
         })
@@ -701,407 +309,9 @@ impl MarketDataClient {
 
     pub(super) async fn fetch_us_insider_transactions(
         &self,
-        symbol: &str,
+        _symbol: &str,
     ) -> anyhow::Result<Vec<NewsItem>> {
-        let company = self.lookup_company(symbol).await?;
-        let filings: CompanySubmissionsResponse = self
-            .http
-            .get(format!(
-                "https://data.sec.gov/submissions/CIK{}.json",
-                company.cik
-            ))
-            .send()
-            .await
-            .context("failed to fetch SEC submissions for insider transactions")?
-            .error_for_status()
-            .context("SEC submissions request failed for insider transactions")?
-            .json()
-            .await
-            .context("failed to decode SEC submissions for insider transactions")?;
-
-        let recent = filings.filings.recent;
-        let total = recent
-            .filing_date
-            .len()
-            .min(recent.form.len())
-            .min(recent.accession_number.len())
-            .min(recent.primary_document.len());
-        let mut items = Vec::new();
-        for index in 0..total {
-            let form = &recent.form[index];
-            if !matches!(form.as_str(), "3" | "4" | "5" | "SC 13D" | "SC 13G") {
-                continue;
-            }
-            items.push(NewsItem {
-                published_at: recent.filing_date[index].clone(),
-                title: format!("SEC insider-related filing {form}"),
-                summary: format!(
-                    "Accession {} | primary document {}",
-                    recent.accession_number[index], recent.primary_document[index]
-                ),
-                source: "SEC EDGAR".to_string(),
-                url: Some(format!(
-                    "https://www.sec.gov/Archives/edgar/data/{}/{}/{}",
-                    company.cik.trim_start_matches('0'),
-                    recent.accession_number[index].replace('-', ""),
-                    recent.primary_document[index]
-                )),
-            });
-        }
-        if items.is_empty() {
-            bail!(
-                "no insider transaction filings available from SEC for {}",
-                symbol
-            );
-        }
-        Ok(items)
-    }
-}
-impl MarketDataClient {
-
-    pub(crate) async fn fetch_us_quote_from_eastmoney(&self, symbol: &str) -> anyhow::Result<QuoteSnapshot> {
-        let secid = self.eastmoney_us_secid(symbol).await?;
-        let response = self
-            .http
-            .get("https://72.push2.eastmoney.com/api/qt/clist/get")
-            .query(&[
-                ("pn", "1"),
-                ("pz", "200"),
-                ("po", "1"),
-                ("np", "1"),
-                ("ut", "bd1d9ddb04089700cf9c27f6f7426281"),
-                ("fltt", "2"),
-                ("invt", "2"),
-                ("fid", "f12"),
-                ("fs", secid.as_str()),
-                (
-                    "fields",
-                    "f2,f3,f4,f5,f6,f7,f8,f12,f13,f14,f15,f16,f17,f18,f20,f115",
-                ),
-            ])
-            .send()
-            .await
-            .context("failed to fetch US quote from Eastmoney")?
-            .error_for_status()
-            .context("eastmoney US quote request failed")?;
-
-        let payload: serde_json::Value = response
-            .json()
-            .await
-            .context("failed to decode eastmoney US quote response")?;
-        let data = payload
-            .get("data")
-            .and_then(|value| value.get("diff"))
-            .and_then(|value| value.as_array())
-            .and_then(|items| items.first())
-            .context("eastmoney US quote response missing diff item")?;
-        let price = Self::eastmoney_quote_price(data.get("f2").and_then(|value| value.as_f64()))?;
-        let high = Self::eastmoney_quote_price(data.get("f15").and_then(|value| value.as_f64()))?;
-        let low = Self::eastmoney_quote_price(data.get("f16").and_then(|value| value.as_f64()))?;
-        let open = Self::eastmoney_quote_price(data.get("f17").and_then(|value| value.as_f64()))?;
-        let volume = data
-            .get("f5")
-            .and_then(|value| value.as_f64())
-            .unwrap_or_default()
-            .round() as i64;
-        Ok(QuoteSnapshot {
-            symbol: data
-                .get("f12")
-                .and_then(|value| value.as_str())
-                .unwrap_or(symbol)
-                .trim()
-                .to_uppercase(),
-            date: chrono::Utc::now().format("%Y%m%d").to_string(),
-            open: f64_to_dec(open),
-            high: f64_to_dec(high),
-            low: f64_to_dec(low),
-            close: f64_to_dec(price),
-            volume,
-        })
-    }
-
-    pub(crate) async fn fetch_us_candles_from_eastmoney(
-        &self,
-        symbol: &str,
-        limit: usize,
-    ) -> anyhow::Result<Vec<super::CandlePoint>> {
-        let secid = self.eastmoney_us_secid(symbol).await?;
-        let response = self
-            .http
-            .get("https://63.push2his.eastmoney.com/api/qt/stock/kline/get")
-            .query(&[
-                ("secid", secid.as_str()),
-                ("ut", "fa5fd1943c7b386f172d6893dbfba10b"),
-                ("klt", "101"),
-                ("fqt", "1"),
-                ("lmt", &limit.max(5).to_string()),
-                ("end", "20500000"),
-                ("fields1", "f1,f2,f3,f4,f5,f6"),
-                ("fields2", "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61"),
-            ])
-            .send()
-            .await
-            .context("failed to fetch US candles from Eastmoney")?
-            .error_for_status()
-            .context("eastmoney US candle request failed")?;
-
-        let payload: super::wire::EastmoneyKlineEnvelope = response
-            .json()
-            .await
-            .context("failed to decode eastmoney US candle response")?;
-        let data = payload
-            .data
-            .context("eastmoney US candle response missing data")?;
-        let klines = data
-            .klines
-            .context("eastmoney US candle response missing klines")?;
-        let mut items = klines
-            .into_iter()
-            .map(|line| Self::parse_eastmoney_us_candle_line(&line))
-            .collect::<anyhow::Result<Vec<_>>>()?;
-        if items.is_empty() {
-            bail!("eastmoney US candle response returned no rows");
-        }
-        items.sort_by(|left, right| left.trade_date.cmp(&right.trade_date));
-        if items.len() > limit {
-            let start = items.len() - limit;
-            items = items[start..].to_vec();
-        }
-        Ok(items)
-    }
-
-    pub(crate) async fn fetch_us_stooq_quote(&self, symbol: &str) -> anyhow::Result<QuoteSnapshot> {
-        let stooq_symbol = format!("{}.us", symbol.to_lowercase());
-        let response = self
-            .http
-            .get("https://stooq.com/q/l/")
-            .query(&[("s", stooq_symbol.as_str()), ("i", "d")])
-            .send()
-            .await
-            .context("failed to fetch quote from stooq")?;
-
-        if !response.status().is_success() {
-            bail!("quote request failed with {}", response.status());
-        }
-
-        let csv = response
-            .text()
-            .await
-            .context("failed to read stooq response")?;
-        Self::parse_quote_csv(symbol, &csv)
-    }
-
-    fn parse_eastmoney_us_candle_line(line: &str) -> anyhow::Result<super::CandlePoint> {
-        let fields = line.split(',').collect::<Vec<_>>();
-        if fields.len() < 11 {
-            bail!("unexpected eastmoney US candle format: {}", line);
-        }
-        Ok(super::CandlePoint {
-            trade_date: fields[0].to_string(),
-            open: fields[1]
-                .parse()
-                .context("invalid eastmoney US candle open")?,
-            close: fields[2]
-                .parse()
-                .context("invalid eastmoney US candle close")?,
-            high: fields[3]
-                .parse()
-                .context("invalid eastmoney US candle high")?,
-            low: fields[4]
-                .parse()
-                .context("invalid eastmoney US candle low")?,
-            volume: fields[5].parse::<f64>().unwrap_or_default().round() as i64,
-            amount: fields[6].parse().unwrap_or_default(),
-            amplitude_pct: fields[7].parse().unwrap_or_default(),
-            change_pct: fields[8].parse().unwrap_or_default(),
-            change_amount: fields[9].parse().unwrap_or_default(),
-            turnover_pct: fields[10].parse().unwrap_or_default(),
-        })
-    }
-
-    fn eastmoney_quote_price(value: Option<f64>) -> anyhow::Result<f64> {
-        value.context("eastmoney quote price field missing")
-    }
-
-    pub(super) async fn fetch_us_chart_candles(
-        &self,
-        symbol: &str,
-        start: NaiveDate,
-        end: NaiveDate,
-    ) -> anyhow::Result<Vec<super::CandlePoint>> {
-        let period1 = start
-            .and_hms_opt(0, 0, 0)
-            .context("invalid Yahoo Finance chart start datetime")?
-            .and_utc()
-            .timestamp();
-        let period2 = end
-            .and_hms_opt(0, 0, 0)
-            .context("invalid Yahoo Finance chart end datetime")?
-            .and_utc()
-            .timestamp();
-        let response = self
-            .http
-            .get(format!(
-                "https://query1.finance.yahoo.com/v8/finance/chart/{}",
-                symbol.to_uppercase()
-            ))
-            .headers(Self::yahoo_chart_headers(symbol))
-            .query(&[
-                ("period1", period1.to_string()),
-                ("period2", period2.to_string()),
-                ("interval", "1d".to_string()),
-                ("includePrePost", "false".to_string()),
-                ("events", "div,splits".to_string()),
-            ])
-            .send()
-            .await
-            .context("failed to fetch historical quote from Yahoo Finance chart")?;
-
-        if !response.status().is_success() {
-            bail!(
-                "Yahoo Finance chart historical quote request failed with {}",
-                response.status()
-            );
-        }
-
-        let payload: YahooChartResponse = response
-            .json()
-            .await
-            .context("failed to decode Yahoo Finance chart response")?;
-        let result = payload
-            .chart
-            .result
-            .and_then(|mut items| items.drain(..).next())
-            .context("Yahoo Finance chart response missing result")?;
-        let quote = result
-            .indicators
-            .quote
-            .and_then(|mut items| items.drain(..).next())
-            .context("Yahoo Finance chart response missing quote series")?;
-        let timestamps = result.timestamp.unwrap_or_default();
-
-        let opens = quote.open.unwrap_or_default();
-        let highs = quote.high.unwrap_or_default();
-        let lows = quote.low.unwrap_or_default();
-        let closes = quote.close.unwrap_or_default();
-        let volumes = quote.volume.unwrap_or_default();
-
-        let total = timestamps
-            .len()
-            .min(opens.len())
-            .min(highs.len())
-            .min(lows.len())
-            .min(closes.len())
-            .min(volumes.len());
-        let mut items = Vec::new();
-        for index in 0..total {
-            let (Some(open), Some(high), Some(low), Some(close), Some(volume)) = (
-                opens[index],
-                highs[index],
-                lows[index],
-                closes[index],
-                volumes[index],
-            ) else {
-                continue;
-            };
-            let trade_date = chrono::DateTime::from_timestamp(timestamps[index], 0)
-                .context("invalid Yahoo Finance chart timestamp")?
-                .date_naive()
-                .format("%Y-%m-%d")
-                .to_string();
-            items.push(super::CandlePoint {
-                trade_date,
-                open: f64_to_dec(open),
-                close: f64_to_dec(close),
-                high: f64_to_dec(high),
-                low: f64_to_dec(low),
-                volume,
-                amount: Decimal::ZERO,
-                amplitude_pct: if low > 0.0 {
-                    ((high - low) / low) * 100.0
-                } else {
-                    0.0
-                },
-                change_pct: 0.0,
-                change_amount: Decimal::ZERO,
-                turnover_pct: 0.0,
-            });
-        }
-
-        items.sort_by_key(|item| NaiveDate::parse_from_str(&item.trade_date, "%Y-%m-%d").ok());
-
-        for index in 1..items.len() {
-            let previous_close = items[index - 1].close;
-            if previous_close > Decimal::ZERO {
-                items[index].change_amount = items[index].close - previous_close;
-                items[index].change_pct = (items[index].change_amount / previous_close * Decimal::from(100)).to_f64().unwrap_or_default();
-            }
-        }
-
-        Ok(items)
-    }
-}
-impl MarketDataClient {
-
-    pub(crate) async fn fetch_us_stooq_candles(
-        &self,
-        symbol: &str,
-        limit: usize,
-    ) -> anyhow::Result<Vec<super::CandlePoint>> {
-        let stooq_symbol = format!("{}.us", symbol.to_lowercase());
-        let ak_candles = self.ak.stooq_candles(&stooq_symbol, limit).await?;
-        Ok(ak_candles.into_iter().map(super::akshare_conv::candle_from_akshare).collect())
-    }
-
-    fn yahoo_chart_headers(symbol: &str) -> HeaderMap {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            ACCEPT,
-            HeaderValue::from_static("application/json,text/plain,*/*"),
-        );
-        headers.insert(ACCEPT_LANGUAGE, HeaderValue::from_static("en-US,en;q=0.9"));
-        headers.insert(
-            REFERER,
-            HeaderValue::from_static("https://finance.yahoo.com/"),
-        );
-        if let Ok(value) = HeaderValue::from_str(&format!(
-            "https://finance.yahoo.com/quote/{}",
-            symbol.to_uppercase()
-        )) {
-            headers.insert("x-referer-symbol", value);
-        }
-        headers
-    }
-
-    async fn lookup_company(&self, symbol: &str) -> anyhow::Result<SecTickerEntry> {
-        let entries = TICKER_CACHE
-            .get_or_try_init(|| async {
-                tracing::info!("fetching SEC ticker map (one-time cache miss)");
-                let map: SecTickerLookup = self
-                    .http
-                    .get("https://www.sec.gov/files/company_tickers.json")
-                    .send()
-                    .await
-                    .context("failed to fetch SEC ticker map")?
-                    .error_for_status()
-                    .context("SEC ticker map request failed")?
-                    .json()
-                    .await
-                    .context("failed to decode SEC ticker map")?;
-                tracing::info!("SEC ticker map cached: {} entries", map.len());
-                Ok::<_, anyhow::Error>(map)
-            })
-            .await?;
-
-        let normalized = symbol.trim().to_uppercase();
-        entries
-            .values()
-            .find(|entry| entry.ticker.eq_ignore_ascii_case(&normalized))
-            .map(|entry| SecTickerEntry {
-                cik: format!("{:0>10}", entry.cik_str),
-                title: entry.title.clone(),
-            })
-            .context("symbol not found in SEC ticker map")
+        bail!("US insider transactions require SEC EDGAR access which is no longer available");
     }
 
     pub(super) async fn fetch_us_return_since(
@@ -1113,56 +323,18 @@ impl MarketDataClient {
         NaiveDate::parse_from_str(start_date, "%Y-%m-%d")
             .with_context(|| format!("invalid start_date for return_since: {start_date}"))?;
         let limit = holding_days + 15;
-        let mut items = match us_sina::fetch_candles(self, symbol, limit).await {
-            Ok(items) => items,
-            Err(error) => {
-                tracing::info!(
-                    symbol = %symbol,
-                    error = ?error,
-                    "Sina US candles failed, falling back to Eastmoney"
-                );
-                match self.fetch_us_candles_from_eastmoney(symbol, limit).await {
-                    Ok(items) => items,
-                    Err(error) => {
-                        tracing::info!(
-                            symbol = %symbol,
-                            error = ?error,
-                            "Eastmoney US candles failed, falling back to Yahoo Finance chart"
-                        );
-                        let end = chrono::Utc::now().date_naive() + chrono::Days::new(1);
-                        let start = end - chrono::Days::new((limit.max(260) + 30) as u64);
-                        match self.fetch_us_chart_candles(symbol, start, end).await {
-                            Ok(items) => items,
-                            Err(error) => {
-                                tracing::info!(
-                                    symbol = %symbol,
-                                    error = ?error,
-                                    "Yahoo Finance chart candles failed, falling back to Stooq daily history"
-                                );
-                                self.fetch_us_stooq_candles(symbol, limit)
-                                    .await
-                                    .with_context(|| {
-                                        format!(
-                                            "failed to fetch US candles for {symbol} from Yahoo Finance and Stooq fallback"
-                                        )
-                                    })?
-                            }
-                        }
-                    }
-                }
-            }
-        };
-        if items.is_empty() {
+        let ak_candles = self
+            .ak
+            .us_candles(symbol, limit)
+            .await
+            .with_context(|| format!("failed to fetch US candles for {symbol}"))?;
+        if ak_candles.is_empty() {
             bail!("historical quote request returned no rows for {}", symbol);
         }
-        if items.len() > limit {
-            let start = items.len() - limit;
-            items = items[start..].to_vec();
-        }
-        let items = items
+        let items: Vec<(String, Decimal)> = ak_candles
             .into_iter()
-            .map(|item| (item.trade_date, item.close))
-            .collect::<Vec<_>>();
+            .map(|c| (c.trade_date, f64_to_dec(c.close)))
+            .collect();
         let Some(start_index) = items.iter().position(|(date, _)| date == start_date) else {
             return Ok(None);
         };
@@ -1175,126 +347,10 @@ impl MarketDataClient {
         if start_price <= Decimal::ZERO {
             return Ok(None);
         }
-        Ok(Some(((end_price - start_price) / start_price).to_f64().unwrap_or_default()))
-    }
-
-    async fn eastmoney_us_secid(&self, symbol: &str) -> anyhow::Result<String> {
-        self.fetch_eastmoney_us_quote_id(symbol.trim()).await
-    }
-
-    async fn fetch_eastmoney_us_quote_id(&self, symbol: &str) -> anyhow::Result<String> {
-        let response = self
-            .http
-            .get("https://searchapi.eastmoney.com/api/suggest/get")
-            .query(&[
-                ("input", symbol),
-                ("type", "14"),
-                ("token", "D43BF722C8E33BDC906FB84D85E326E8"),
-                ("count", "8"),
-            ])
-            .send()
-            .await
-            .context("failed to fetch eastmoney US quote id search")?
-            .error_for_status()
-            .context("eastmoney US quote id search request failed")?;
-        let payload: serde_json::Value = response
-            .json()
-            .await
-            .context("failed to decode eastmoney US quote id search response")?;
-        let items = payload
-            .get("QuotationCodeTable")
-            .and_then(|value| value.get("Data"))
-            .and_then(|value| value.as_array())
-            .context("eastmoney US quote id search response missing data")?;
-        let quote_id = items.iter().find_map(|item| {
-            let code = item.get("Code")?.as_str()?;
-            if !code.eq_ignore_ascii_case(symbol) {
-                return None;
-            }
-            item.get("QuoteID")
-                .and_then(|value| value.as_str())
-                .map(str::to_string)
-        });
-        quote_id.context("eastmoney US quote id not found")
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::news_filter::{
-        has_meaningful_us_company_event_signal, is_direct_company_news_match,
-        normalize_company_query_name,
-    };
-    use crate::data::{NewsItem, build_dated_news_query, within_date_window};
-
-    #[test]
-    fn normalizes_company_query_name_for_search() {
-        assert_eq!(
-            normalize_company_query_name("Example Holdings Inc. Common Stock"),
-            "Example"
-        );
-        assert_eq!(normalize_company_query_name("Alphabet Inc."), "Alphabet");
-    }
-
-    #[test]
-    fn builds_dated_news_query_with_inclusive_end_date() {
-        assert_eq!(
-            build_dated_news_query(
-                "TEST Example earnings",
-                Some("2025-04-30"),
-                Some("2025-05-07")
-            ),
-            "TEST Example earnings"
-        );
-    }
-
-    #[test]
-    fn checks_date_window_from_normalized_news_date() {
-        assert!(within_date_window(
-            "2025-05-07",
-            Some("2025-04-30"),
-            Some("2025-05-07")
-        ));
-        assert!(!within_date_window(
-            "2025-05-08",
-            Some("2025-04-30"),
-            Some("2025-05-07")
-        ));
-    }
-
-    #[test]
-    fn us_company_news_match_accepts_strong_alias_plus_event_signal() {
-        let item = NewsItem {
-            published_at: "2026-05-25".to_string(),
-            title: "Example supplier signals stronger device demand".to_string(),
-            summary: "Reuters says Example demand outlook improved ahead of the next cycle."
-                .to_string(),
-            source: "Reuters".to_string(),
-            url: Some("https://example.com/example-supplier".to_string()),
-        };
-        assert!(is_direct_company_news_match(
-            &item,
-            "TEST",
-            "Example",
-            "Example Inc. Common Stock"
-        ));
-    }
-
-    #[test]
-    fn us_company_news_match_rejects_name_only_without_event_signal() {
-        let item = NewsItem {
-            published_at: "2026-05-25".to_string(),
-            title: "Example investor relations".to_string(),
-            summary: "Corporate profile and overview".to_string(),
-            source: "Example".to_string(),
-            url: Some("https://example.com/example-ir".to_string()),
-        };
-        assert!(!has_meaningful_us_company_event_signal(&item));
-        assert!(!is_direct_company_news_match(
-            &item,
-            "TEST",
-            "Example",
-            "Example Inc. Common Stock"
-        ));
+        Ok(Some(
+            ((end_price - start_price) / start_price)
+                .to_f64()
+                .unwrap_or_default(),
+        ))
     }
 }

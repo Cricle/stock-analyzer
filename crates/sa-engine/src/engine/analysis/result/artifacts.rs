@@ -1,21 +1,15 @@
-use std::{fs, path::PathBuf};
-
 use crate::models::AnalysisResult;
 
 impl crate::TaskManager {
-    pub(super) fn write_full_state_log(&self, result: &AnalysisResult) -> anyhow::Result<String> {
+    pub(super) async fn write_full_state_log(&self, result: &AnalysisResult) -> anyhow::Result<String> {
         let safe_symbol = crate::engine::shared::safe_ticker_component(&result.symbol, 32)
             .unwrap_or_else(|_| result.symbol.replace('/', "_"));
-        let log_dir = PathBuf::from(&self.data_dir)
-            .join("results")
-            .join(if safe_symbol.is_empty() {
-                "unknown"
-            } else {
-                &safe_symbol
-            })
-            .join("TradingAgentsStrategy_logs");
-        fs::create_dir_all(&log_dir)?;
-        let log_path = log_dir.join(format!("full_states_log_{}.json", result.analysis_date));
+        let dir = if safe_symbol.is_empty() {
+            "results/unknown/TradingAgentsStrategy_logs".to_string()
+        } else {
+            format!("results/{}/TradingAgentsStrategy_logs", safe_symbol)
+        };
+        let log_path = format!("{}/full_states_log_{}.json", dir, result.analysis_date);
         let body = serde_json::json!({
             "company_of_interest": result.agent_state.company_of_interest,
             "trade_date": result.agent_state.trade_date,
@@ -39,7 +33,9 @@ impl crate::TaskManager {
             "report": result.report,
             "ic_report": result.ic_report
         });
-        fs::write(&log_path, serde_json::to_vec_pretty(&body)?)?;
-        Ok(log_path.display().to_string())
+        self.storage
+            .write_file(&log_path, &serde_json::to_vec_pretty(&body)?)
+            .await?;
+        Ok(log_path)
     }
 }

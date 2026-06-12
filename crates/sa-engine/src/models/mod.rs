@@ -6,7 +6,6 @@ pub mod market;
 pub mod scoring;
 pub mod store;
 pub mod task;
-pub mod user_preferences;
 pub mod value_utils;
 
 // Re-export scoring types at crate root for convenience.
@@ -73,4 +72,3 @@ pub use task::{
 };
 
 pub use config::LlmProviderConfig;
-pub use user_preferences::{UserPreferences, WatchlistItem};

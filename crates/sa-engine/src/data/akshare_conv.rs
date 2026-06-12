@@ -75,6 +75,16 @@ pub(crate) fn news_item_from_announcement(a: akshare::AnnouncementItem) -> super
     }
 }
 
+pub(crate) fn news_item_from_stock_news(n: akshare::stock::feature::StockNews) -> super::NewsItem {
+    super::NewsItem {
+        published_at: n.publish_time,
+        title: n.title.clone(),
+        summary: n.content.unwrap_or(n.title),
+        source: n.source.unwrap_or_else(|| "Eastmoney".to_string()),
+        url: n.url,
+    }
+}
+
 pub(crate) fn balance_sheet_to_wire(
     b: &akshare::stock::feature::BalanceSheet,
 ) -> super::wire::EastmoneyBalanceSheetItem {

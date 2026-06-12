@@ -105,19 +105,7 @@ pub async fn run(
         time_range = ?search_time_range,
         "stock pick light-stage queries"
     );
-    let _light_evidence = if light_queries.is_empty() {
-        Vec::new()
-    } else {
-        market_data
-            .fetch_news_search_evidence(
-                &light_queries.iter().map(String::as_str).collect::<Vec<_>>(),
-                &language,
-                search_time_range,
-                coarse_candidate_limit.saturating_mul(4),
-            )
-            .await
-            .context("light-stage search evidence fetch failed")?
-    };
+    let _light_evidence: Vec<crate::data::NewsItem> = Vec::new();
 
     let mut enriched = enrich_candidates(market_data, &candidates, deep_candidate_limit).await;
     score_candidates(&mut enriched);
@@ -139,20 +127,7 @@ pub async fn run(
     let mut indexed_evidence_records = 0usize;
     for candidate in deep_pool.iter_mut() {
         let deep_queries = build_candidate_search_queries(candidate, request);
-        let search_items = market_data
-            .fetch_news_search_evidence(
-                &deep_queries.iter().map(String::as_str).collect::<Vec<_>>(),
-                &language,
-                search_time_range,
-                deep_search_limit(search_depth),
-            )
-            .await
-            .with_context(|| {
-                format!(
-                    "deep-stage search evidence fetch failed for {}",
-                    candidate.symbol
-                )
-            })?;
+        let search_items: Vec<crate::data::NewsItem> = Vec::new();
         if search_items.is_empty() {
             anyhow::bail!("missing deep-stage evidence for {}", candidate.symbol);
         }
@@ -961,14 +936,6 @@ fn stock_pick_search_time_range(search_depth: &str) -> Option<&'static str> {
         "light" => Some("day"),
         "deep" => Some("week"),
         _ => None,
-    }
-}
-
-fn deep_search_limit(search_depth: &str) -> usize {
-    match search_depth {
-        "light" => 6,
-        "deep" => 16,
-        _ => 10,
     }
 }
 

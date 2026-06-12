@@ -6,7 +6,6 @@ use tokio::task::AbortHandle;
 
 use crate::engine::memory::TradingMemoryLog;
 use crate::engine::checkpoint::TaskCheckpointStore;
-use crate::engine::telemetry::SharedTelemetry;
 
 /// Ordered analysis pipeline steps with progress percentages.
 pub const TASK_STEPS: [(&str, &str, i32); 5] = [
@@ -119,12 +118,11 @@ pub struct TaskManager {
     pub llm_template: Option<crate::engine::llm::LlmClient>,
     pub market_data: crate::data::MarketDataClient,
     pub toolbox: crate::engine::tools::TradingToolbox,
-    pub data_dir: String,
+    pub storage: Arc<dyn crate::engine::storage::StorageBackend>,
     pub memory_log: TradingMemoryLog,
     pub checkpoint_store: TaskCheckpointStore,
     pub max_debate_rounds: usize,
     pub max_risk_discuss_rounds: usize,
-    pub telemetry: SharedTelemetry,
     pub broadcasters:
         Arc<RwLock<HashMap<String, broadcast::Sender<crate::models::TaskEvent>>>>,
     pub running_tasks: Arc<RwLock<HashMap<String, AbortHandle>>>,
@@ -139,12 +137,11 @@ impl TaskManager {
         llm_client: Option<crate::engine::llm::LlmClient>,
         llm_template: Option<crate::engine::llm::LlmClient>,
         market_data: crate::data::MarketDataClient,
-        data_dir: String,
+        storage: Arc<dyn crate::engine::storage::StorageBackend>,
         memory_log: TradingMemoryLog,
         checkpoint_store: TaskCheckpointStore,
         max_debate_rounds: usize,
         max_risk_discuss_rounds: usize,
-        telemetry: SharedTelemetry,
     ) -> anyhow::Result<Self> {
         Ok(Self {
             analysis_store,
@@ -153,12 +150,11 @@ impl TaskManager {
             llm_template,
             toolbox: crate::engine::tools::TradingToolbox::new(market_data.clone()),
             market_data,
-            data_dir,
+            storage,
             memory_log,
             checkpoint_store,
             max_debate_rounds,
             max_risk_discuss_rounds,
-            telemetry,
             broadcasters: Arc::new(RwLock::new(HashMap::new())),
             running_tasks: Arc::new(RwLock::new(HashMap::new())),
         })

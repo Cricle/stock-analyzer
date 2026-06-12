@@ -46,12 +46,6 @@ impl TradingToolbox {
         scenario_data: Option<&AnalysisScenarioData>,
         pending: &PendingToolCall,
     ) -> ToolObservation {
-        let meter = opentelemetry::global::meter("tradingagents");
-        let tool_total = meter.u64_counter("tool_execution_total").build();
-        let tool_duration = meter.f64_histogram("tool_execution_duration_ms").build();
-        let tool_errors = meter.u64_counter("tool_execution_errors_total").build();
-
-        let start = std::time::Instant::now();
         let result = self
             .execute_inner(
                 symbol,
@@ -61,50 +55,31 @@ impl TradingToolbox {
                 &pending.arguments,
             )
             .await;
-        let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
-
-        let base_attrs = [
-            opentelemetry::KeyValue::new("tool.name", pending.tool_name.clone()),
-            opentelemetry::KeyValue::new("tool.symbol", symbol.to_string()),
-        ];
 
         match result {
-            Ok(result) => {
-                let mut attrs = base_attrs.to_vec();
-                attrs.push(opentelemetry::KeyValue::new("tool.outcome", "success"));
-                tool_total.add(1, &attrs);
-                tool_duration.record(elapsed_ms, &attrs);
-                ToolObservation {
-                    tool_name: pending.tool_name.clone(),
-                    arguments: pending.arguments.clone(),
-                    output: Self::summarize_success_output(
-                        &pending.tool_name,
-                        &result.output,
-                        &result.meta,
-                    ),
-                    meta: result.meta,
-                    success: true,
-                    created_at: Utc::now().to_rfc3339(),
-                }
-            }
-            Err(error) => {
-                let mut attrs = base_attrs.to_vec();
-                attrs.push(opentelemetry::KeyValue::new("tool.outcome", "error"));
-                tool_total.add(1, &attrs);
-                tool_errors.add(1, &attrs);
-                tool_duration.record(elapsed_ms, &attrs);
-                ToolObservation {
-                    tool_name: pending.tool_name.clone(),
-                    arguments: pending.arguments.clone(),
-                    output: format!("tool execution failed: {error:#}"),
-                    meta: json!({
-                        "kind": "tool_error",
-                        "message": error.to_string(),
-                    }),
-                    success: false,
-                    created_at: Utc::now().to_rfc3339(),
-                }
-            }
+            Ok(result) => ToolObservation {
+                tool_name: pending.tool_name.clone(),
+                arguments: pending.arguments.clone(),
+                output: Self::summarize_success_output(
+                    &pending.tool_name,
+                    &result.output,
+                    &result.meta,
+                ),
+                meta: result.meta,
+                success: true,
+                created_at: Utc::now().to_rfc3339(),
+            },
+            Err(error) => ToolObservation {
+                tool_name: pending.tool_name.clone(),
+                arguments: pending.arguments.clone(),
+                output: format!("tool execution failed: {error:#}"),
+                meta: json!({
+                    "kind": "tool_error",
+                    "message": error.to_string(),
+                }),
+                success: false,
+                created_at: Utc::now().to_rfc3339(),
+            },
         }
     }
 
@@ -182,7 +157,7 @@ impl TradingToolbox {
                 if item.published_at.trim().is_empty() {
                     return true;
                 }
-                let normalized = crate::data::normalized_news_date(&item.published_at)
+                let normalized = crate::data::news_filter::normalized_news_date(&item.published_at)
                     .unwrap_or_else(|| {
                         item.published_at
                             .get(0..10)

@@ -65,7 +65,6 @@ impl LlmClient {
         const MAX_ATTEMPTS: usize = 6;
         let mut attempt = 0usize;
         let backoff = llm_retry_backoff();
-        let start = std::time::Instant::now();
 
         let on_delta = std::sync::Mutex::new(on_delta);
 
@@ -106,7 +105,6 @@ impl LlmClient {
                     let status = response.status();
                     let body = response.text().await.unwrap_or_default();
                     let err = anyhow::anyhow!("llm stream request failed with {status}: {body}");
-                    self.record_stream_otel_metrics(start, "error");
                     if is_retryable_llm_error(&err) && attempt < MAX_ATTEMPTS {
                         return Err(BackoffError::transient(err));
                     }
@@ -158,7 +156,6 @@ impl LlmClient {
                                 };
                                 self.record_usage(self.model.as_str(), None, &request, &content)
                                     .await;
-                                self.record_stream_otel_metrics(start, "success");
                                 return Ok(content);
                             }
                             let value: Value = serde_json::from_str(payload)
@@ -176,34 +173,12 @@ impl LlmClient {
                     }
                 }
 
-                self.record_stream_otel_metrics(start, "error");
                 Err(BackoffError::permanent(anyhow::anyhow!(
                     "LLM stream ended without [DONE]"
                 )))
             }
         })
         .await
-    }
-
-    fn record_stream_otel_metrics(&self, start: std::time::Instant, outcome: &'static str) {
-        use opentelemetry::KeyValue;
-        let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
-        let meter = opentelemetry::global::meter("tradingagents");
-        let llm_requests = meter.u64_counter("llm_requests_total").build();
-        let llm_duration = meter.f64_histogram("llm_request_duration_ms").build();
-        let llm_errors = meter.u64_counter("llm_errors_total").build();
-
-        let attrs = [
-            KeyValue::new("llm.model", self.model.clone()),
-            KeyValue::new("llm.provider", self.provider_type.clone()),
-            KeyValue::new("llm.outcome", outcome),
-            KeyValue::new("llm.stream", true),
-        ];
-        llm_requests.add(1, &attrs);
-        llm_duration.record(elapsed_ms, &attrs);
-        if outcome == "error" {
-            llm_errors.add(1, &attrs);
-        }
     }
 
     pub async fn list_models_openai_compatible(

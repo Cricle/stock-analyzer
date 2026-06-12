@@ -1,26 +1,8 @@
-use anyhow::{Context, bail};
+use anyhow::Context;
 
-use super::{DataError, DataErrorKind, MarketDataClient, QuoteSnapshot, wire};
+use super::{DataError, DataErrorKind, MarketDataClient, wire};
 
 impl MarketDataClient {
-    pub(super) fn parse_quote_csv(symbol: &str, csv: &str) -> anyhow::Result<QuoteSnapshot> {
-        let line = csv.trim();
-        let parts: Vec<&str> = line.split(',').collect();
-        if parts.len() < 8 {
-            bail!("unexpected stooq csv format: {line}");
-        }
-
-        Ok(QuoteSnapshot {
-            symbol: symbol.to_uppercase(),
-            date: parts[1].to_string(),
-            open: parts[3].parse().context("invalid open value")?,
-            high: parts[4].parse().context("invalid high value")?,
-            low: parts[5].parse().context("invalid low value")?,
-            close: parts[6].parse().context("invalid close value")?,
-            volume: parts[7].parse().context("invalid volume value")?,
-        })
-    }
-
     pub(super) async fn tushare_query(
         &self,
         api_name: &str,

@@ -253,25 +253,16 @@ impl MarketDataClient {
             MarketKind::HongKong => {
                 let symbol_owned = symbol.to_string();
                 let providers: Vec<NamedProvider<QuoteSnapshot>> = vec![
-                    NamedProvider::new("tencent_quote", {
+                    NamedProvider::new("akshare_hk_quote", {
                         let client = self.clone();
                         let sym = symbol_owned.clone();
                         move || {
                             let client = client.clone();
                             let sym = sym.clone();
                             async move {
-                                let code = client.hk_standard_code(&sym)?;
-                                client.fetch_hk_tencent_quote(&sym, &code).await
+                                let (quote, _source) = super::akshare_rust::hk::fetch_quote(&client, &sym).await?;
+                                Ok(quote)
                             }
-                        }
-                    }),
-                    NamedProvider::new("yahoo_finance_chart", {
-                        let client = self.clone();
-                        let sym = symbol_owned.clone();
-                        move || {
-                            let client = client.clone();
-                            let sym = sym.clone();
-                            async move { client.fetch_hk_yahoo_quote(&sym).await }
                         }
                     }),
                 ];
@@ -287,58 +278,16 @@ impl MarketDataClient {
             MarketKind::UsEquity => {
                 let symbol_owned = symbol.to_string();
                 let providers: Vec<NamedProvider<QuoteSnapshot>> = vec![
-                    NamedProvider::new("sina_us_daily", {
+                    NamedProvider::new("akshare_us", {
                         let client = self.clone();
                         let sym = symbol_owned.clone();
                         move || {
                             let client = client.clone();
                             let sym = sym.clone();
                             async move {
-                                super::akshare_rust::us_sina::fetch_quote(&client, &sym).await
+                                let (quote, _source) = super::akshare_rust::us::fetch_quote(&client, &sym).await?;
+                                Ok(quote)
                             }
-                        }
-                    }),
-                    NamedProvider::new("eastmoney_quote", {
-                        let client = self.clone();
-                        let sym = symbol_owned.clone();
-                        move || {
-                            let client = client.clone();
-                            let sym = sym.clone();
-                            async move { client.fetch_us_quote_from_eastmoney(&sym).await }
-                        }
-                    }),
-                    NamedProvider::new("yahoo_finance_chart", {
-                        let client = self.clone();
-                        let sym = symbol_owned.clone();
-                        move || {
-                            let client = client.clone();
-                            let sym = sym.clone();
-                            async move {
-                                let end = chrono::Utc::now().date_naive() + chrono::Days::new(1);
-                                let start = end - chrono::Days::new(10);
-                                let mut items = client.fetch_us_chart_candles(&sym, start, end).await?;
-                                items
-                                    .pop()
-                                    .map(|last| QuoteSnapshot {
-                                        symbol: sym.trim().to_uppercase(),
-                                        date: last.trade_date,
-                                        open: last.open,
-                                        high: last.high,
-                                        low: last.low,
-                                        close: last.close,
-                                        volume: last.volume,
-                                    })
-                                    .ok_or_else(|| anyhow::anyhow!("yahoo chart returned no candles"))
-                            }
-                        }
-                    }),
-                    NamedProvider::new("stooq", {
-                        let client = self.clone();
-                        let sym = symbol_owned.clone();
-                        move || {
-                            let client = client.clone();
-                            let sym = sym.clone();
-                            async move { client.fetch_us_stooq_quote(&sym).await }
                         }
                     }),
                 ];
@@ -420,22 +369,16 @@ impl MarketDataClient {
             MarketKind::HongKong => {
                 let symbol_owned = symbol.to_string();
                 let providers: Vec<NamedProvider<Vec<CandlePoint>>> = vec![
-                    NamedProvider::new("tencent_kline", {
+                    NamedProvider::new("akshare_hk_candles", {
                         let client = self.clone();
                         let sym = symbol_owned.clone();
                         move || {
                             let client = client.clone();
                             let sym = sym.clone();
-                            async move { client.fetch_hk_tencent_candles(&sym, limit).await }
-                        }
-                    }),
-                    NamedProvider::new("yahoo_finance_chart", {
-                        let client = self.clone();
-                        let sym = symbol_owned.clone();
-                        move || {
-                            let client = client.clone();
-                            let sym = sym.clone();
-                            async move { client.fetch_hk_yahoo_candles(&sym, limit).await }
+                            async move {
+                                let (candles, _source) = super::akshare_rust::hk::fetch_candles(&client, &sym, limit).await?;
+                                Ok(candles)
+                            }
                         }
                     }),
                 ];
@@ -451,50 +394,16 @@ impl MarketDataClient {
             MarketKind::UsEquity => {
                 let symbol_owned = symbol.to_string();
                 let providers: Vec<NamedProvider<Vec<CandlePoint>>> = vec![
-                    NamedProvider::new("sina_us_daily", {
+                    NamedProvider::new("akshare_us", {
                         let client = self.clone();
                         let sym = symbol_owned.clone();
                         move || {
                             let client = client.clone();
                             let sym = sym.clone();
                             async move {
-                                super::akshare_rust::us_sina::fetch_candles(&client, &sym, limit)
-                                    .await
+                                let (candles, _source) = super::akshare_rust::us::fetch_candles(&client, &sym, limit).await?;
+                                Ok(candles)
                             }
-                        }
-                    }),
-                    NamedProvider::new("eastmoney_kline", {
-                        let client = self.clone();
-                        let sym = symbol_owned.clone();
-                        move || {
-                            let client = client.clone();
-                            let sym = sym.clone();
-                            async move {
-                                client.fetch_us_candles_from_eastmoney(&sym, limit).await
-                            }
-                        }
-                    }),
-                    NamedProvider::new("yahoo_finance_chart", {
-                        let client = self.clone();
-                        let sym = symbol_owned.clone();
-                        move || {
-                            let client = client.clone();
-                            let sym = sym.clone();
-                            async move {
-                                let end = chrono::Utc::now().date_naive() + chrono::Days::new(1);
-                                let start =
-                                    end - chrono::Days::new((limit.max(260) + 30) as u64);
-                                client.fetch_us_chart_candles(&sym, start, end).await
-                            }
-                        }
-                    }),
-                    NamedProvider::new("stooq", {
-                        let client = self.clone();
-                        let sym = symbol_owned.clone();
-                        move || {
-                            let client = client.clone();
-                            let sym = sym.clone();
-                            async move { client.fetch_us_stooq_candles(&sym, limit).await }
                         }
                     }),
                 ];

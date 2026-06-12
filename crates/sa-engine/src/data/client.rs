@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use anyhow::Context;
-use opentelemetry::KeyValue;
 use tracing::Instrument;
 
 use super::{
@@ -11,15 +10,13 @@ use super::{
     FundamentalsSnapshot, GLOBAL_NEWS_CACHE_VERSION, INSIDER_CACHE_TTL_SECS,
     MARKET_DATA_CACHE_PREFIX, MarketDataClient, MarketKind, NEWS_CACHE_TTL_SECS,
     NEWS_CACHE_VERSION, NewsFetchAttempt, NewsFetchResult, NewsItem, QUOTE_CACHE_TTL_SECS,
-    QUOTE_CACHE_VERSION, SEARCH_CACHE_TTL_SECS, SEARCH_CACHE_VERSION, SearchProviderConfig,
-    SectorConstituent, SectorSnapshot, Singleflight, SingleflightResult, QuoteSnapshot,
-    StockSearchResult, TradeCalendarItem,
+    QUOTE_CACHE_VERSION, SectorConstituent, SectorSnapshot, Singleflight, SingleflightResult,
+    QuoteSnapshot, StockSearchResult, TradeCalendarItem,
 };
 impl MarketDataClient {
     pub async fn new() -> Self {
         Self::from_config(&DataConfig {
             tushare_token: std::env::var("TUSHARE_TOKEN").ok().filter(|v| !v.is_empty()),
-            search_providers: Vec::new(),
         })
         .await
     }
@@ -70,88 +67,9 @@ impl MarketDataClient {
         Self {
             http,
             tushare_token: config.tushare_token.clone(),
-            search_providers: Self::load_search_providers(),
             ak,
             singleflight: Singleflight::new(),
         }
-    }
-
-    pub(super) fn load_search_providers() -> Vec<SearchProviderConfig> {
-        let provider_names = std::env::var("SEARCH_PROVIDERS")
-            .ok()
-            .map(|value| {
-                value
-                    .split(',')
-                    .map(str::trim)
-                    .filter(|value| !value.is_empty())
-                    .map(str::to_string)
-                    .collect::<Vec<_>>()
-            })
-            .filter(|values| !values.is_empty())
-            .unwrap_or_else(|| vec!["baidu".to_string(), "gdelt".to_string()]);
-
-        let searxng_urls = std::env::var("SEARXNG_BASE_URLS")
-            .or_else(|_| std::env::var("SEARCH_SEARXNG_URLS"))
-            .ok()
-            .map(|value| {
-                value
-                    .split(',')
-                    .map(str::trim)
-                    .filter(|value| !value.is_empty())
-                    .map(|value| value.trim_end_matches('/').to_string())
-                    .collect::<Vec<_>>()
-            })
-            .filter(|values| !values.is_empty())
-            .unwrap_or_else(|| {
-                vec![
-                    std::env::var("SEARXNG_BASE_URL")
-                        .ok()
-                        .map(|value| value.trim().trim_end_matches('/').to_string())
-                        .filter(|value| !value.is_empty())
-                        .unwrap_or_else(|| "http://127.0.0.1:8080".to_string()),
-                ]
-            });
-        let mut providers = Vec::new();
-        for provider_name in provider_names {
-            match provider_name.trim().to_ascii_lowercase().as_str() {
-                "searxng" => {
-                    for (index, base_url) in searxng_urls.iter().enumerate() {
-                        let name = if searxng_urls.len() == 1 {
-                            "searxng".to_string()
-                        } else {
-                            format!("searxng-{}", index + 1)
-                        };
-                        providers.push(SearchProviderConfig::searxng(name, base_url.clone()));
-                    }
-                }
-                "gdelt" => {
-                    providers.push(SearchProviderConfig::gdelt(
-                        "gdelt",
-                        "https://api.gdeltproject.org/api/v2/doc/doc",
-                    ));
-                }
-                "baidu" => {
-                    providers.push(SearchProviderConfig::baidu("baidu"));
-                }
-                "uapis" => {
-                    providers.push(SearchProviderConfig::uapis("uapis"));
-                }
-                unsupported => {
-                    tracing::warn!(
-                        provider = unsupported,
-                        "unsupported search provider configured; ignoring"
-                    );
-                }
-            }
-        }
-
-        if providers.is_empty() {
-            providers.push(SearchProviderConfig::searxng(
-                "searxng",
-                "http://127.0.0.1:8080",
-            ));
-        }
-        providers
     }
 
     pub fn detect_market(&self, symbol: &str) -> MarketKind {
@@ -203,24 +121,9 @@ impl MarketDataClient {
     }
 
     pub async fn fetch_quote(&self, symbol: &str) -> anyhow::Result<QuoteSnapshot> {
-        let start = std::time::Instant::now();
-        let result = self.fetch_quote_with_provider(symbol)
+        self.fetch_quote_with_provider(symbol)
             .await
-            .map(|(quote, _)| quote);
-        let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-        let meter = opentelemetry::global::meter("stock-analyzer");
-        let outcome = if result.is_ok() { "success" } else { "error" };
-        let attrs = vec![
-            KeyValue::new("market_data.type", "quote"),
-            KeyValue::new("market_data.symbol", symbol.to_string()),
-            KeyValue::new("market_data.outcome", outcome),
-        ];
-        meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-        meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
-        if result.is_err() {
-            meter.u64_counter("market_data_fetch_errors_total").build().add(1, &attrs);
-        }
-        result
+            .map(|(quote, _)| quote)
     }
 
     pub async fn fetch_quote_with_provider(
@@ -229,21 +132,11 @@ impl MarketDataClient {
     ) -> anyhow::Result<(QuoteSnapshot, String)> {
         let span = tracing::info_span!("market_data.fetch", data_type = "quote", symbol);
         async {
-            let start = std::time::Instant::now();
             let market = self.detect_market(symbol);
             let normalized_symbol = self.cache_symbol(symbol, market);
             let cache_key =
                 format!("{MARKET_DATA_CACHE_PREFIX}:quote:{QUOTE_CACHE_VERSION}:{normalized_symbol}");
             if let Some(cached) = self.cache_get_json::<QuoteSnapshot>(&cache_key).await {
-                let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-                let meter = opentelemetry::global::meter("stock-analyzer");
-                let attrs = vec![
-                    KeyValue::new("market_data.type", "quote"),
-                    KeyValue::new("market_data.symbol", symbol.to_string()),
-                    KeyValue::new("market_data.outcome", "success"),
-                ];
-                meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-                meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
                 return Ok((cached, "redis_cache".to_string()));
             }
             // Singleflight: prevent cache stampede when multiple users request the same stock
@@ -258,20 +151,6 @@ impl MarketDataClient {
                 }
             };
             let result = super::akshare_rust::fetch_quote(self, symbol).await;
-            let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-            let meter = opentelemetry::global::meter("stock-analyzer");
-            let ok = result.is_ok();
-            let outcome = if ok { "success" } else { "error" };
-            let attrs = vec![
-                KeyValue::new("market_data.type", "quote"),
-                KeyValue::new("market_data.symbol", symbol.to_string()),
-                KeyValue::new("market_data.outcome", outcome),
-            ];
-            meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-            meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
-            if !ok {
-                meter.u64_counter("market_data_fetch_errors_total").build().add(1, &attrs);
-            }
             let (snapshot, provider_used) = result?;
             self.cache_set_json(&cache_key, QUOTE_CACHE_TTL_SECS, &snapshot)
                 .await;
@@ -282,7 +161,6 @@ impl MarketDataClient {
     pub async fn fetch_fundamentals(&self, symbol: &str) -> anyhow::Result<FundamentalsSnapshot> {
         let span = tracing::info_span!("market_data.fetch", data_type = "fundamentals", symbol);
         async {
-            let start = std::time::Instant::now();
             let market = self.detect_market(symbol);
             let normalized_symbol = self.cache_symbol(symbol, market);
             let cache_key = format!(
@@ -292,15 +170,6 @@ impl MarketDataClient {
                 .cache_get_json::<FundamentalsSnapshot>(&cache_key)
                 .await
             {
-                let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-                let meter = opentelemetry::global::meter("stock-analyzer");
-                let attrs = vec![
-                    KeyValue::new("market_data.type", "fundamentals"),
-                    KeyValue::new("market_data.symbol", symbol.to_string()),
-                    KeyValue::new("market_data.outcome", "success"),
-                ];
-                meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-                meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
                 return Ok(cached);
             }
             // Singleflight: prevent cache stampede
@@ -315,20 +184,6 @@ impl MarketDataClient {
                 }
             };
             let result = super::akshare_rust::fetch_fundamentals(self, symbol).await;
-            let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-            let meter = opentelemetry::global::meter("stock-analyzer");
-            let ok = result.is_ok();
-            let outcome = if ok { "success" } else { "error" };
-            let attrs = vec![
-                KeyValue::new("market_data.type", "fundamentals"),
-                KeyValue::new("market_data.symbol", symbol.to_string()),
-                KeyValue::new("market_data.outcome", outcome),
-            ];
-            meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-            meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
-            if !ok {
-                meter.u64_counter("market_data_fetch_errors_total").build().add(1, &attrs);
-            }
             let snapshot = result?;
             self.cache_set_json(&cache_key, FUNDAMENTALS_CACHE_TTL_SECS, &snapshot)
                 .await;
@@ -493,24 +348,9 @@ impl MarketDataClient {
     ) -> anyhow::Result<Vec<NewsItem>> {
         let span = tracing::info_span!("market_data.fetch", data_type = "news", symbol);
         async {
-            let start = std::time::Instant::now();
             let result = self
                 .fetch_news_with_diagnostics(symbol, limit, start_date, end_date)
                 .await;
-            let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-            let meter = opentelemetry::global::meter("stock-analyzer");
-            let ok = result.is_ok();
-            let outcome = if ok { "success" } else { "error" };
-            let attrs = vec![
-                KeyValue::new("market_data.type", "news"),
-                KeyValue::new("market_data.symbol", symbol.to_string()),
-                KeyValue::new("market_data.outcome", outcome),
-            ];
-            meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-            meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
-            if !ok {
-                meter.u64_counter("market_data_fetch_errors_total").build().add(1, &attrs);
-            }
             Ok(result?.items)
         }.instrument(span).await
     }
@@ -536,7 +376,6 @@ impl MarketDataClient {
     ) -> anyhow::Result<NewsFetchResult> {
         let span = tracing::info_span!("market_data.fetch", data_type = "news_detailed", symbol);
         async {
-            let start = std::time::Instant::now();
             let market = self.detect_market(symbol);
             let normalized_symbol = self.cache_symbol(symbol, market);
             let query_cache_key = self.news_query_cache_component(query);
@@ -556,34 +395,11 @@ impl MarketDataClient {
                     });
                 }
                 cached.cacheable = true;
-                let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-                let meter = opentelemetry::global::meter("stock-analyzer");
-                let attrs = vec![
-                    KeyValue::new("market_data.type", "news_detailed"),
-                    KeyValue::new("market_data.symbol", symbol.to_string()),
-                    KeyValue::new("market_data.outcome", "success"),
-                ];
-                meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-                meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
                 return Ok(cached);
             }
             let result = self
                 .fetch_market_news_diagnostics_query(symbol, market, limit, start_date, end_date, query)
                 .await;
-            let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-            let meter = opentelemetry::global::meter("stock-analyzer");
-            let ok = result.is_ok();
-            let outcome = if ok { "success" } else { "error" };
-            let attrs = vec![
-                KeyValue::new("market_data.type", "news_detailed"),
-                KeyValue::new("market_data.symbol", symbol.to_string()),
-                KeyValue::new("market_data.outcome", outcome),
-            ];
-            meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-            meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
-            if !ok {
-                meter.u64_counter("market_data_fetch_errors_total").build().add(1, &attrs);
-            }
             let result = result?;
             if result.cacheable && !result.items.is_empty() {
                 self.cache_set_json(&cache_key, NEWS_CACHE_TTL_SECS, &result)
@@ -602,7 +418,6 @@ impl MarketDataClient {
     ) -> anyhow::Result<Vec<NewsItem>> {
         let span = tracing::info_span!("market_data.fetch", data_type = "global_news", symbol = market_hint_symbol);
         async {
-            let start = std::time::Instant::now();
             let result = self
                 .fetch_global_news_with_diagnostics(
                     market_hint_symbol,
@@ -611,20 +426,6 @@ impl MarketDataClient {
                     limit,
                 )
                 .await;
-            let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-            let meter = opentelemetry::global::meter("stock-analyzer");
-            let ok = result.is_ok();
-            let outcome = if ok { "success" } else { "error" };
-            let attrs = vec![
-                KeyValue::new("market_data.type", "global_news"),
-                KeyValue::new("market_data.symbol", market_hint_symbol.to_string()),
-                KeyValue::new("market_data.outcome", outcome),
-            ];
-            meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-            meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
-            if !ok {
-                meter.u64_counter("market_data_fetch_errors_total").build().add(1, &attrs);
-            }
             Ok(result?.items)
         }.instrument(span).await
     }
@@ -674,37 +475,13 @@ impl MarketDataClient {
     pub async fn fetch_insider_transactions(&self, symbol: &str) -> anyhow::Result<Vec<NewsItem>> {
         let span = tracing::info_span!("market_data.fetch", data_type = "insider", symbol);
         async {
-            let start = std::time::Instant::now();
             let market = self.detect_market(symbol);
             let normalized_symbol = self.cache_symbol(symbol, market);
             let cache_key = format!("{MARKET_DATA_CACHE_PREFIX}:insider:{normalized_symbol}");
             if let Some(cached) = self.cache_get_json(&cache_key).await {
-                let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-                let meter = opentelemetry::global::meter("stock-analyzer");
-                let attrs = vec![
-                    KeyValue::new("market_data.type", "insider"),
-                    KeyValue::new("market_data.symbol", symbol.to_string()),
-                    KeyValue::new("market_data.outcome", "success"),
-                ];
-                meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-                meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
                 return Ok(cached);
             }
             let result = super::akshare_rust::fetch_insider_transactions(self, symbol).await;
-            let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-            let meter = opentelemetry::global::meter("stock-analyzer");
-            let ok = result.is_ok();
-            let outcome = if ok { "success" } else { "error" };
-            let attrs = vec![
-                KeyValue::new("market_data.type", "insider"),
-                KeyValue::new("market_data.symbol", symbol.to_string()),
-                KeyValue::new("market_data.outcome", outcome),
-            ];
-            meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-            meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
-            if !ok {
-                meter.u64_counter("market_data_fetch_errors_total").build().add(1, &attrs);
-            }
             let items = result?;
             self.cache_set_json(&cache_key, INSIDER_CACHE_TTL_SECS, &items)
                 .await;
@@ -720,25 +497,10 @@ impl MarketDataClient {
     ) -> anyhow::Result<Vec<CandlePoint>> {
         let span = tracing::info_span!("market_data.fetch", data_type = "candles", symbol);
         async {
-            let start = std::time::Instant::now();
-            let result = self.fetch_candles_with_provider(symbol, adjust, limit)
+            
+            self.fetch_candles_with_provider(symbol, adjust, limit)
                 .await
-                .map(|(items, _)| items);
-            let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-            let meter = opentelemetry::global::meter("stock-analyzer");
-            let ok = result.is_ok();
-            let outcome = if ok { "success" } else { "error" };
-            let attrs = vec![
-                KeyValue::new("market_data.type", "candles"),
-                KeyValue::new("market_data.symbol", symbol.to_string()),
-                KeyValue::new("market_data.outcome", outcome),
-            ];
-            meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-            meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
-            if !ok {
-                meter.u64_counter("market_data_fetch_errors_total").build().add(1, &attrs);
-            }
-            result
+                .map(|(items, _)| items)
         }.instrument(span).await
     }
 
@@ -750,22 +512,12 @@ impl MarketDataClient {
     ) -> anyhow::Result<(Vec<CandlePoint>, String)> {
         let span = tracing::info_span!("market_data.fetch", data_type = "candles", symbol);
         async {
-            let start = std::time::Instant::now();
             let market = self.detect_market(symbol);
             let normalized_symbol = self.cache_symbol(symbol, market);
             let cache_key = format!(
                 "{MARKET_DATA_CACHE_PREFIX}:candles:{CANDLES_CACHE_VERSION}:{normalized_symbol}:{adjust}:{limit}"
             );
             if let Some(cached) = self.cache_get_json(&cache_key).await {
-                let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-                let meter = opentelemetry::global::meter("stock-analyzer");
-                let attrs = vec![
-                    KeyValue::new("market_data.type", "candles"),
-                    KeyValue::new("market_data.symbol", symbol.to_string()),
-                    KeyValue::new("market_data.outcome", "success"),
-                ];
-                meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-                meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
                 return Ok((cached, "redis_cache".to_string()));
             }
             // Singleflight: prevent cache stampede
@@ -780,20 +532,6 @@ impl MarketDataClient {
                 }
             };
             let result = super::akshare_rust::fetch_candles(self, symbol, adjust, limit).await;
-            let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-            let meter = opentelemetry::global::meter("stock-analyzer");
-            let ok = result.is_ok();
-            let outcome = if ok { "success" } else { "error" };
-            let attrs = vec![
-                KeyValue::new("market_data.type", "candles"),
-                KeyValue::new("market_data.symbol", symbol.to_string()),
-                KeyValue::new("market_data.outcome", outcome),
-            ];
-            meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-            meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
-            if !ok {
-                meter.u64_counter("market_data_fetch_errors_total").build().add(1, &attrs);
-            }
             let (items, provider_used) = result?;
             if !items.is_empty() {
                 self.cache_set_json(&cache_key, CANDLES_CACHE_TTL_SECS, &items)
@@ -810,55 +548,21 @@ impl MarketDataClient {
     ) -> anyhow::Result<Vec<CapitalFlowPoint>> {
         let span = tracing::info_span!("market_data.fetch", data_type = "capital_flow", symbol);
         async {
-            let start = std::time::Instant::now();
             if self.normalize_a_share_symbol(symbol).is_some() {
                 let market = self.detect_market(symbol);
                 let normalized_symbol = self.cache_symbol(symbol, market);
                 let cache_key =
                     format!("{MARKET_DATA_CACHE_PREFIX}:capital-flow:{normalized_symbol}:{limit}");
                 if let Some(cached) = self.cache_get_json(&cache_key).await {
-                    let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-                    let meter = opentelemetry::global::meter("stock-analyzer");
-                    let attrs = vec![
-                        KeyValue::new("market_data.type", "capital_flow"),
-                        KeyValue::new("market_data.symbol", symbol.to_string()),
-                        KeyValue::new("market_data.outcome", "success"),
-                    ];
-                    meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-                    meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
                     return Ok(cached);
                 }
                 let fetch_result = self.ak.a_share_capital_flow(symbol, limit).await
                     .map(|items| items.into_iter().map(super::akshare_conv::capital_flow_from_akshare).collect::<Vec<_>>());
-                let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-                let meter = opentelemetry::global::meter("stock-analyzer");
-                let ok = fetch_result.is_ok();
-                let outcome = if ok { "success" } else { "error" };
-                let attrs = vec![
-                    KeyValue::new("market_data.type", "capital_flow"),
-                    KeyValue::new("market_data.symbol", symbol.to_string()),
-                    KeyValue::new("market_data.outcome", outcome),
-                ];
-                meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-                meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
-                if !ok {
-                    meter.u64_counter("market_data_fetch_errors_total").build().add(1, &attrs);
-                }
                 let items = fetch_result?;
                 self.cache_set_json(&cache_key, CANDLES_CACHE_TTL_SECS, &items)
                     .await;
                 Ok(items)
             } else {
-                let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-                let meter = opentelemetry::global::meter("stock-analyzer");
-                let attrs = vec![
-                    KeyValue::new("market_data.type", "capital_flow"),
-                    KeyValue::new("market_data.symbol", symbol.to_string()),
-                    KeyValue::new("market_data.outcome", "error"),
-                ];
-                meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-                meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
-                meter.u64_counter("market_data_fetch_errors_total").build().add(1, &attrs);
                 Err(DataError::new(
                     DataErrorKind::UnsupportedMarket,
                     format!("capital flow is unsupported for symbol {symbol}"),
@@ -938,7 +642,7 @@ impl MarketDataClient {
             return Ok(cached);
         }
         let item = self.ak.a_share_announcement_detail(art_code).await?;
-        self.cache_set_json(&cache_key, SEARCH_CACHE_TTL_SECS, &item)
+        self.cache_set_json(&cache_key, NEWS_CACHE_TTL_SECS, &item)
             .await;
         Ok(item)
     }
@@ -950,54 +654,20 @@ impl MarketDataClient {
     ) -> anyhow::Result<Vec<AnnouncementItem>> {
         let span = tracing::info_span!("market_data.fetch", data_type = "announcements", symbol);
         async {
-            let start = std::time::Instant::now();
             if let Some(ts_code) = self.normalize_a_share_symbol(symbol) {
                 let cache_key = format!(
                     "{MARKET_DATA_CACHE_PREFIX}:announcements:{}:{}",
                     ts_code, limit
                 );
                 if let Some(cached) = self.cache_get_json(&cache_key).await {
-                    let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-                    let meter = opentelemetry::global::meter("stock-analyzer");
-                    let attrs = vec![
-                        KeyValue::new("market_data.type", "announcements"),
-                        KeyValue::new("market_data.symbol", symbol.to_string()),
-                        KeyValue::new("market_data.outcome", "success"),
-                    ];
-                    meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-                    meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
                     return Ok(cached);
                 }
                 let fetch_result = self.ak.a_share_announcements(&ts_code, limit).await.map_err(anyhow::Error::from);
-                let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-                let meter = opentelemetry::global::meter("stock-analyzer");
-                let ok = fetch_result.is_ok();
-                let outcome = if ok { "success" } else { "error" };
-                let attrs = vec![
-                    KeyValue::new("market_data.type", "announcements"),
-                    KeyValue::new("market_data.symbol", symbol.to_string()),
-                    KeyValue::new("market_data.outcome", outcome),
-                ];
-                meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-                meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
-                if !ok {
-                    meter.u64_counter("market_data_fetch_errors_total").build().add(1, &attrs);
-                }
                 let items = fetch_result?;
                 self.cache_set_json(&cache_key, NEWS_CACHE_TTL_SECS, &items)
                     .await;
                 Ok(items)
             } else {
-                let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-                let meter = opentelemetry::global::meter("stock-analyzer");
-                let attrs = vec![
-                    KeyValue::new("market_data.type", "announcements"),
-                    KeyValue::new("market_data.symbol", symbol.to_string()),
-                    KeyValue::new("market_data.outcome", "error"),
-                ];
-                meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-                meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
-                meter.u64_counter("market_data_fetch_errors_total").build().add(1, &attrs);
                 Err(DataError::new(
                     DataErrorKind::UnsupportedMarket,
                     format!("announcements are unsupported for symbol {symbol}"),
@@ -1072,44 +742,20 @@ impl MarketDataClient {
     ) -> anyhow::Result<Vec<StockSearchResult>> {
         let span = tracing::info_span!("market_data.fetch", data_type = "stock_search", symbol = query);
         async {
-            let start = std::time::Instant::now();
             let normalized_query = query.trim().to_uppercase();
             let normalized_market = market.unwrap_or("all");
             let cache_key = format!(
-                "{MARKET_DATA_CACHE_PREFIX}:search:{SEARCH_CACHE_VERSION}:{normalized_market}:{}:{limit}",
+                "{MARKET_DATA_CACHE_PREFIX}:search:{NEWS_CACHE_VERSION}:{normalized_market}:{}:{limit}",
                 normalized_query
             );
             if let Some(cached) = self.cache_get_json(&cache_key).await {
-                let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-                let meter = opentelemetry::global::meter("stock-analyzer");
-                let attrs = vec![
-                    KeyValue::new("market_data.type", "stock_search"),
-                    KeyValue::new("market_data.symbol", query.to_string()),
-                    KeyValue::new("market_data.outcome", "success"),
-                ];
-                meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-                meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
                 return Ok(cached);
             }
-            let result = self
-                .search_stocks_with_fallbacks(query, market, limit)
-                .await;
-            let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
-            let meter = opentelemetry::global::meter("stock-analyzer");
-            let ok = result.is_ok();
-            let outcome = if ok { "success" } else { "error" };
-            let attrs = vec![
-                KeyValue::new("market_data.type", "stock_search"),
-                KeyValue::new("market_data.symbol", query.to_string()),
-                KeyValue::new("market_data.outcome", outcome),
-            ];
-            meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-            meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
-            if !ok {
-                meter.u64_counter("market_data_fetch_errors_total").build().add(1, &attrs);
-            }
+            let result = super::akshare_rust::search_stocks(self, query, market, limit)
+                .await
+                .map(|mut items| { items.truncate(limit); items });
             let items = result?;
-            self.cache_set_json(&cache_key, SEARCH_CACHE_TTL_SECS, &items)
+            self.cache_set_json(&cache_key, NEWS_CACHE_TTL_SECS, &items)
                 .await;
             Ok(items)
         }.instrument(span).await
@@ -1166,23 +812,8 @@ impl MarketDataClient {
     ) -> anyhow::Result<Option<f64>> {
         let span = tracing::info_span!("market_data.fetch", data_type = "return_since", symbol);
         async {
-            let timer = std::time::Instant::now();
-            let result = super::akshare_rust::fetch_return_since(self, symbol, start_date, holding_days).await;
-            let dur_ms = timer.elapsed().as_secs_f64() * 1000.0;
-            let meter = opentelemetry::global::meter("stock-analyzer");
-            let ok = result.is_ok();
-            let outcome = if ok { "success" } else { "error" };
-            let attrs = vec![
-                KeyValue::new("market_data.type", "return_since"),
-                KeyValue::new("market_data.symbol", symbol.to_string()),
-                KeyValue::new("market_data.outcome", outcome),
-            ];
-            meter.u64_counter("market_data_fetch_total").build().add(1, &attrs);
-            meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
-            if !ok {
-                meter.u64_counter("market_data_fetch_errors_total").build().add(1, &attrs);
-            }
-            result
+            
+            super::akshare_rust::fetch_return_since(self, symbol, start_date, holding_days).await
         }.instrument(span).await
     }
 
@@ -1193,7 +824,7 @@ impl MarketDataClient {
         limit: usize,
         start_date: Option<&str>,
         end_date: Option<&str>,
-        query: Option<&str>,
+        _query: Option<&str>,
     ) -> anyhow::Result<NewsFetchResult> {
         match market {
             MarketKind::AShare => {
@@ -1203,11 +834,21 @@ impl MarketDataClient {
                 self.fetch_a_share_news_diagnostics(&ts_code, limit).await
             }
             MarketKind::HongKong => {
-                self.fetch_hk_news_diagnostics_query(symbol, limit, start_date, end_date, query)
-                    .await
+                let items = self.fetch_hk_news(symbol, limit, start_date, end_date).await?;
+                Ok(NewsFetchResult {
+                    items,
+                    attempts: vec![NewsFetchAttempt {
+                        source: "eastmoney_em_hk".to_string(),
+                        query: None,
+                        success: true,
+                        item_count: 0,
+                        error: None,
+                    }],
+                    cacheable: true,
+                })
             }
             MarketKind::UsEquity => {
-                self.fetch_us_news_diagnostics(symbol, limit, start_date, end_date)
+                self.fetch_us_news(symbol, limit, start_date, end_date)
                     .await
             }
         }
@@ -1227,11 +868,10 @@ impl MarketDataClient {
                     .await
             }
             MarketKind::HongKong => {
-                self.fetch_hk_global_news_diagnostics(curr_date, look_back_days, limit)
-                    .await
+                anyhow::bail!("HK global news diagnostics not supported after akshare migration")
             }
             MarketKind::UsEquity => {
-                self.fetch_us_global_news_diagnostics(curr_date, look_back_days, limit)
+                self.fetch_us_global_news(curr_date, look_back_days, limit)
                     .await
             }
         }

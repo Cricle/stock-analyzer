@@ -4,11 +4,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use sha2::{Digest, Sha256};
 use tokio::sync::Notify;
 
-#[cfg(feature = "redis-cache")]
-use redis::AsyncCommands;
 use super::{MARKET_DATA_CACHE_PREFIX, MarketDataClient, MarketKind};
-#[cfg(feature = "redis-cache")]
-use super::{CACHE_TTL_JITTER_PCT, STALE_CACHE_TTL_MULTIPLIER};
 
 impl MarketDataClient {
     pub(super) fn normalize_a_share_symbol(&self, symbol: &str) -> Option<String> {
@@ -31,55 +27,8 @@ impl MarketDataClient {
         }
     }
 
-    // --- Redis-backed cache methods (behind "redis-cache" feature) ---
+    // --- Cache methods (no-op stubs) ---
 
-    #[cfg(feature = "redis-cache")]
-    #[tracing::instrument(skip_all, fields(cache_key = %key))]
-    pub(super) async fn cache_get_json<T>(&self, key: &str) -> Option<T>
-    where
-        T: DeserializeOwned,
-    {
-        let Some(mut conn) = self.redis_conn() else {
-            return None;
-        };
-        for candidate_key in [key.to_string(), self.stale_cache_key(key)] {
-            let payload: Option<String> = match conn.get(&candidate_key).await {
-                Ok(value) => value,
-                Err(error) => {
-                    tracing::warn!(
-                        key = %candidate_key,
-                        error = ?error,
-                        "market data cache read failed"
-                    );
-                    continue;
-                }
-            };
-            if let Some(value) = payload {
-                match serde_json::from_str::<T>(&value) {
-                    Ok(decoded) => {
-                        if candidate_key != key {
-                            tracing::info!(
-                                key = %key,
-                                stale_key = %candidate_key,
-                                "market data stale cache hit"
-                            );
-                        }
-                        return Some(decoded);
-                    }
-                    Err(error) => {
-                        tracing::warn!(
-                            key = %candidate_key,
-                            error = ?error,
-                            "market data cache decode failed"
-                        );
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    #[cfg(not(feature = "redis-cache"))]
     pub(super) async fn cache_get_json<T>(&self, _key: &str) -> Option<T>
     where
         T: DeserializeOwned,
@@ -87,34 +36,6 @@ impl MarketDataClient {
         None
     }
 
-    #[cfg(feature = "redis-cache")]
-    pub(super) async fn cache_get_json_exact<T>(&self, key: &str) -> Option<T>
-    where
-        T: DeserializeOwned,
-    {
-        let Some(mut conn) = self.redis_conn() else {
-            return None;
-        };
-        let payload: Option<String> = match conn.get(key).await {
-            Ok(value) => value,
-            Err(error) => {
-                tracing::warn!(key = %key, error = ?error, "market data cache read failed");
-                return None;
-            }
-        };
-        let Some(value) = payload else {
-            return None;
-        };
-        match serde_json::from_str::<T>(&value) {
-            Ok(decoded) => Some(decoded),
-            Err(error) => {
-                tracing::warn!(key = %key, error = ?error, "market data cache decode failed");
-                None
-            }
-        }
-    }
-
-    #[cfg(not(feature = "redis-cache"))]
     pub(super) async fn cache_get_json_exact<T>(&self, _key: &str) -> Option<T>
     where
         T: DeserializeOwned,
@@ -122,85 +43,12 @@ impl MarketDataClient {
         None
     }
 
-    #[cfg(feature = "redis-cache")]
-    #[tracing::instrument(skip_all, fields(cache_key = %key, ttl_secs = ttl_secs))]
-    pub(super) async fn cache_set_json<T>(&self, key: &str, ttl_secs: u64, value: &T)
-    where
-        T: Serialize,
-    {
-        let Some(mut conn) = self.redis_conn() else {
-            return;
-        };
-        let payload = match serde_json::to_string(value) {
-            Ok(payload) => payload,
-            Err(error) => {
-                tracing::warn!(key = %key, error = ?error, "market data cache encode failed");
-                return;
-            }
-        };
-        let ttl_secs = self.with_ttl_jitter(key, ttl_secs);
-        if let Err(error) = conn.set_ex::<_, _, ()>(key, &payload, ttl_secs).await {
-            tracing::warn!(key = %key, error = ?error, "market data cache write failed");
-            return;
-        }
-        let stale_key = self.stale_cache_key(key);
-        let stale_ttl_secs = ttl_secs.saturating_mul(STALE_CACHE_TTL_MULTIPLIER);
-        if let Err(error) = conn
-            .set_ex::<_, _, ()>(&stale_key, &payload, stale_ttl_secs)
-            .await
-        {
-            tracing::warn!(
-                key = %stale_key,
-                error = ?error,
-                "market data stale cache write failed"
-            );
-        }
-    }
-
-    #[cfg(not(feature = "redis-cache"))]
     pub(super) async fn cache_set_json<T>(&self, _key: &str, _ttl_secs: u64, _value: &T)
     where
         T: Serialize,
     {
     }
 
-    #[cfg(feature = "redis-cache")]
-    pub(super) async fn cache_mget_json<T>(&self, keys: &[String]) -> Vec<Option<T>>
-    where
-        T: DeserializeOwned,
-    {
-        if keys.is_empty() {
-            return Vec::new();
-        }
-        let Some(mut conn) = self.redis_conn() else {
-            return keys.iter().map(|_| None).collect();
-        };
-        let values: Vec<Option<String>> = match redis::cmd("MGET")
-            .arg(keys)
-            .query_async(&mut conn)
-            .await
-        {
-            Ok(v) => v,
-            Err(error) => {
-                tracing::warn!(error = ?error, "market data cache mget failed");
-                return keys.iter().map(|_| None).collect();
-            }
-        };
-        values
-            .into_iter()
-            .map(|opt| {
-                opt.and_then(|v| match serde_json::from_str::<T>(&v) {
-                    Ok(decoded) => Some(decoded),
-                    Err(error) => {
-                        tracing::warn!(error = ?error, "market data cache mget decode failed");
-                        None
-                    }
-                })
-            })
-            .collect()
-    }
-
-    #[cfg(not(feature = "redis-cache"))]
     pub(super) async fn cache_mget_json<T>(&self, keys: &[String]) -> Vec<Option<T>>
     where
         T: DeserializeOwned,
@@ -208,26 +56,10 @@ impl MarketDataClient {
         keys.iter().map(|_| None).collect()
     }
 
-    #[cfg(feature = "redis-cache")]
-    pub(super) fn redis_conn(&self) -> Option<redis::aio::ConnectionManager> {
-        self.redis.clone()
-    }
-
-    // --- Shared utility methods (no redis dependency) ---
+    // --- Shared utility methods ---
 
     pub(super) fn stale_cache_key(&self, key: &str) -> String {
         format!("{key}:stale")
-    }
-
-    #[cfg(feature = "redis-cache")]
-    pub(super) fn with_ttl_jitter(&self, key: &str, ttl_secs: u64) -> u64 {
-        if ttl_secs <= 1 || CACHE_TTL_JITTER_PCT == 0 {
-            return ttl_secs.max(1);
-        }
-        let digest = Sha256::digest(key.as_bytes());
-        let jitter_window = ((ttl_secs * CACHE_TTL_JITTER_PCT) / 100).max(1);
-        let offset = u64::from(digest[0]) % (jitter_window + 1);
-        ttl_secs.saturating_sub(offset).max(1)
     }
 
     pub(super) fn normalized_news_query(&self, query: &str) -> String {

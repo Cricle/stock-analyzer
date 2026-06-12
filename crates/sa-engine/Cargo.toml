@@ -15,12 +15,11 @@ path = "src/bin/sa-engine-mcp.rs"
 [features]
 default = []
 local-rag-embeddings = ["fastembed"]
-redis-cache = ["redis"]
 
 [dependencies]
 # Core
 adk-graph = { version = "0.8.0" }
-akshare = { path = "../../akshare-local" }
+akshare = { path = "../../../akshare-rs/crates/akshare" }
 anyhow = "1"
 async-trait = "0.1"
 backoff = { version = "0.4", features = ["tokio"] }
@@ -32,7 +31,6 @@ futures = "0.3"
 hex = "0.4"
 opentelemetry = "0.28"
 quick-xml = "0.38"
-redis = { version = "0.32", features = ["tokio-comp", "connection-manager"], optional = true }
 regex = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 reqwest-middleware = { version = "0.4", features = ["json"] }

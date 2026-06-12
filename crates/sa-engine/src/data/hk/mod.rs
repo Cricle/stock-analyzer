@@ -7,6 +7,8 @@ use super::{
     SearchProviderKind, StockSearchResult, build_dated_news_query, merge_ranked_news,
     opt_f64_to_dec,
 };
+use super::akshare_conv::news_item_from_akshare;
+use super::news_search::SearchEvidenceParams;
 use anyhow::{Context, bail};
 use chrono::{Days, NaiveDate};
 use regex::Regex;
@@ -14,6 +16,20 @@ use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 use std::collections::HashSet;
 use std::time::Duration;
+
+/// Context for generating HK company news queries.
+pub(super) struct HkCompanyNewsContext<'a> {
+    pub standard_code: &'a str,
+    pub short_code: &'a str,
+    pub company_name: &'a str,
+    pub primary_name: &'a str,
+    pub english_alias: &'a str,
+    pub aliases: &'a [String],
+    pub query: Option<&'a str>,
+    pub start_date: Option<&'a str>,
+    pub end_date: Option<&'a str>,
+}
+
 impl MarketDataClient {
     const HK_TENCENT_MAX_CANDLE_LIMIT: usize = 300;
     const HKEX_REQUEST_TIMEOUT_SECS: u64 = 3;
@@ -57,7 +73,7 @@ impl MarketDataClient {
 
     async fn hk_company_search_context(&self, standard_code: &str) -> (String, Vec<String>) {
         let mut items = self
-            .search_stocks_from_eastmoney(standard_code, Some("港股"), 8)
+            .ak.a_share_search(standard_code, Some("港股"), 8)
             .await
             .unwrap_or_default();
         let matched = items
@@ -253,7 +269,7 @@ impl MarketDataClient {
         let hk_balance_items = self.fetch_hk_balance_items(symbol).await.ok();
         let hk_cashflow_items = self.fetch_hk_cashflow_items(symbol).await.ok();
         let mut items = self
-            .search_stocks_from_eastmoney(&search_code, Some("港股"), 8)
+            .ak.a_share_search(&search_code, Some("港股"), 8)
             .await?;
         let matched = items
             .drain(..)
@@ -475,70 +491,42 @@ impl MarketDataClient {
             .find(|alias| alias.is_ascii() && alias.chars().any(|ch| ch.is_ascii_alphabetic()))
             .cloned()
             .unwrap_or_else(|| primary_name.clone());
-        let queries = self.hk_company_news_queries(
-            &standard_code,
-            code,
-            &company_name,
-            &primary_name,
-            &english_alias,
-            &aliases,
+        let queries = self.hk_company_news_queries(HkCompanyNewsContext {
+            standard_code: &standard_code,
+            short_code: code,
+            company_name: &company_name,
+            primary_name: &primary_name,
+            english_alias: &english_alias,
+            aliases: &aliases,
             query,
             start_date,
             end_date,
-        );
+        });
         let (mut merged, mut attempts) = self
-            .fetch_search_evidence_with_query_locales_and_scope_mix_strategy(
-                &queries,
-                Some("month"),
+            .fetch_search_evidence_with_query_locales_and_scope_mix_strategy(SearchEvidenceParams {
+                queries: &queries,
+                time_range: Some("month"),
                 start_date,
                 end_date,
-                GeneralSearchIntent::CompanyEvidence,
-                Self::HK_COMPANY_SEARCH_GENERAL_QUERY_LIMIT,
-                Some(SearchProviderKind::Uapis),
-                Some(Self::HK_COMPANY_SEARCH_NEWS_QUERY_LIMIT),
-                Some(Self::HK_COMPANY_SEARCH_GENERAL_QUERY_LIMIT),
-                Self::HK_COMPANY_SEARCH_BATCH_SIZE,
-            )
+                general_intent: GeneralSearchIntent::CompanyEvidence,
+                proactive_general_query_limit: Self::HK_COMPANY_SEARCH_GENERAL_QUERY_LIMIT,
+                provider_kind_filter: Some(SearchProviderKind::Uapis),
+                news_query_limit_per_provider: Some(Self::HK_COMPANY_SEARCH_NEWS_QUERY_LIMIT),
+                general_query_limit_per_provider: Some(Self::HK_COMPANY_SEARCH_GENERAL_QUERY_LIMIT),
+                batch_size: Self::HK_COMPANY_SEARCH_BATCH_SIZE,
+            })
             .await;
-        // Fallback: when Searxng returns too few items (e.g. from China where
-        // searxng can't reach upstream engines), try Bing RSS directly.
+        // Fallback: when Searxng returns too few items, try Bing RSS directly.
         if merged.len() < 5 {
             let existing_titles: std::collections::HashSet<String> =
                 merged.iter().map(|i| i.title.to_lowercase()).collect();
             let mut bing_added = 0;
             for query in queries.iter().take(2) {
-                let rss_url = format!(
-                    "https://cn.bing.com/search?q={}&format=rss",
-                    query.replace(' ', "+")
-                );
-                if let Ok(Ok(response)) = tokio::time::timeout(
-                    Duration::from_secs(10),
-                    self.http.get(&rss_url).send(),
-                )
-                .await
-                    && let Ok(body) = response.text().await
-                {
-                    for item_xml in body.split("<item>").skip(1) {
-                        let end = item_xml.find("</item>").unwrap_or(item_xml.len());
-                        let xml = &item_xml[..end];
-                        let title = extract_rss_field(xml, "title")
-                            .filter(|t| !t.contains("必应") && !t.contains("Bing"));
-                        let link = extract_rss_field(xml, "link");
-                        let desc = extract_rss_field(xml, "description");
-                        let date = extract_rss_field(xml, "pubDate")
-                            .map(|d| normalize_rss_date_simple(&d))
-                            .unwrap_or_default();
-                        if let (Some(title), Some(url)) = (title, link)
-                            && !existing_titles.contains(&title.to_lowercase())
-                        {
-                            merged.push(crate::types::NewsItem {
-                                published_at: date,
-                                title: title.clone(),
-                                summary: desc.unwrap_or_default(),
-                                source: "bing_rss".to_string(),
-                                url: Some(url),
-                            });
+                if let Ok(items) = self.ak.bing_news_rss(query, 10).await {
+                    for item in items.into_iter().map(news_item_from_akshare) {
+                        if !existing_titles.contains(&item.title.to_lowercase()) {
                             bing_added += 1;
+                            merged.push(item);
                         }
                     }
                 }
@@ -564,18 +552,18 @@ impl MarketDataClient {
                 merged.iter().map(|i| i.title.to_lowercase()).collect();
             if let Ok((macro_items, macro_attempts)) = tokio::time::timeout(
                 Duration::from_secs(8),
-                self.fetch_search_evidence_with_query_locales_and_scope_mix_strategy(
-                    &macro_queries,
-                    Some("month"),
+                self.fetch_search_evidence_with_query_locales_and_scope_mix_strategy(SearchEvidenceParams {
+                    queries: &macro_queries,
+                    time_range: Some("month"),
                     start_date,
                     end_date,
-                    GeneralSearchIntent::MacroEvidence,
-                    Self::HK_COMPANY_SEARCH_GENERAL_QUERY_LIMIT,
-                    Some(SearchProviderKind::Uapis),
-                    Some(Self::HK_COMPANY_SEARCH_NEWS_QUERY_LIMIT),
-                    Some(Self::HK_COMPANY_SEARCH_GENERAL_QUERY_LIMIT),
-                    Self::HK_COMPANY_SEARCH_BATCH_SIZE,
-                ),
+                    general_intent: GeneralSearchIntent::MacroEvidence,
+                    proactive_general_query_limit: Self::HK_COMPANY_SEARCH_GENERAL_QUERY_LIMIT,
+                    provider_kind_filter: Some(SearchProviderKind::Uapis),
+                    news_query_limit_per_provider: Some(Self::HK_COMPANY_SEARCH_NEWS_QUERY_LIMIT),
+                    general_query_limit_per_provider: Some(Self::HK_COMPANY_SEARCH_GENERAL_QUERY_LIMIT),
+                    batch_size: Self::HK_COMPANY_SEARCH_BATCH_SIZE,
+                }),
             )
             .await
             {
@@ -800,19 +788,18 @@ impl MarketDataClient {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn hk_company_news_queries(
-        &self,
-        standard_code: &str,
-        short_code: &str,
-        company_name: &str,
-        primary_name: &str,
-        english_alias: &str,
-        aliases: &[String],
-        query: Option<&str>,
-        start_date: Option<&str>,
-        end_date: Option<&str>,
-    ) -> Vec<String> {
+    fn hk_company_news_queries(&self, ctx: HkCompanyNewsContext<'_>) -> Vec<String> {
+        let HkCompanyNewsContext {
+            standard_code,
+            short_code,
+            company_name,
+            primary_name,
+            english_alias,
+            aliases,
+            query,
+            start_date,
+            end_date,
+        } = ctx;
         let mut seen = HashSet::new();
         let mut queries = Vec::new();
         let mut push_query = |raw: String| {
@@ -905,33 +892,6 @@ impl MarketDataClient {
     }
 }
 
-fn extract_rss_field(xml: &str, tag: &str) -> Option<String> {
-    let start_tag = format!("<{tag}>");
-    let end_tag = format!("</{tag}>");
-    let start = xml.find(&start_tag)? + start_tag.len();
-    let end = xml.find(&end_tag)?;
-    let value = xml[start..end].trim();
-    let value = value
-        .strip_prefix("<![CDATA[")
-        .and_then(|s| s.strip_suffix("]]>"))
-        .unwrap_or(value);
-    let value = value.trim();
-    if value.is_empty() {
-        None
-    } else {
-        Some(value.to_string())
-    }
-}
-
-fn normalize_rss_date_simple(raw: &str) -> String {
-    if let Ok(dt) = chrono::DateTime::parse_from_rfc2822(raw) {
-        return dt.format("%Y-%m-%d").to_string();
-    }
-    if raw.len() >= 10 && raw.as_bytes()[4] == b'-' && raw.as_bytes()[7] == b'-' {
-        return raw[..10].to_string();
-    }
-    raw.to_string()
-}
 impl MarketDataClient {
 
     async fn fetch_hkex_company_announcements(

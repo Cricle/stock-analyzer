@@ -8,7 +8,7 @@ use super::stats::{
     suggested_calibration_profile, summarize_entries,
 };
 use super::{
-    ENTRY_SEPARATOR, MemoryContextBundle, MemoryEntry, MemoryQuery, ResearchMemoryRecord,
+    DecisionRecord, ENTRY_SEPARATOR, MemoryContextBundle, MemoryEntry, MemoryQuery,
     TradingMemoryLog, WEAK_SETUP_TAGS,
 };
 impl TradingMemoryLog {
@@ -147,25 +147,15 @@ impl TradingMemoryLog {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub async fn store_decision(
         &self,
-        ticker: &str,
-        trade_date: &str,
-        final_trade_decision: &str,
-        rating: &str,
-        action: &str,
-        market: &str,
-        direction_score: i32,
-        confidence_score: i32,
-        action_score: i32,
-        research: Option<&ResearchMemoryRecord>,
+        record: &DecisionRecord<'_>,
     ) -> anyhow::Result<()> {
         if self.log_path.exists() {
             let raw = tokio::fs::read_to_string(&self.log_path)
                 .await
                 .with_context(|| format!("failed to read {}", self.log_path.display()))?;
-            let pending_tag_prefix = format!("[{trade_date} | {ticker} |");
+            let pending_tag_prefix = format!("[{} | {} |", record.trade_date, record.ticker);
             if raw
                 .lines()
                 .any(|line| line.starts_with(&pending_tag_prefix) && line.ends_with("| pending]"))
@@ -174,31 +164,32 @@ impl TradingMemoryLog {
             }
         }
 
-        let tag = format!("[{trade_date} | {ticker} | {rating} | pending]");
+        let tag = format!("[{} | {} | {} | pending]", record.trade_date, record.ticker, record.rating);
         let meta = json!({
-            "ticker": ticker,
-            "trade_date": trade_date,
-            "rating": rating,
-            "action": action,
-            "market": market,
-            "direction_score": direction_score,
-            "confidence_score": confidence_score,
-            "action_score": action_score,
-            "stock_name": research.map(|item| item.stock_name.clone()).unwrap_or_default(),
-            "summary": research.map(|item| item.summary.clone()).unwrap_or_default(),
-            "risk_assessment": research.map(|item| item.risk_assessment.clone()).unwrap_or_default(),
-            "rationale": research.map(|item| item.rationale.clone()).unwrap_or_default(),
-            "structured_risk": research.map(|item| item.structured_risk.clone()).unwrap_or_default(),
-            "structured_reflection": research.map(|item| item.structured_reflection.clone()).unwrap_or_default(),
-            "trigger_checklist": research.map(|item| item.trigger_checklist.clone()).unwrap_or_default(),
-            "blocking_gaps": research.map(|item| item.blocking_gaps.clone()).unwrap_or_default(),
-            "setup_tags": research.map(|item| item.setup_tags.clone()).unwrap_or_default(),
-            "execution_boundary_complete": research.map(|item| item.execution_boundary_complete).unwrap_or(false),
+            "ticker": record.ticker,
+            "trade_date": record.trade_date,
+            "rating": record.rating,
+            "action": record.action,
+            "market": record.market,
+            "direction_score": record.direction_score,
+            "confidence_score": record.confidence_score,
+            "action_score": record.action_score,
+            "stock_name": record.research.map(|item| item.stock_name.clone()).unwrap_or_default(),
+            "summary": record.research.map(|item| item.summary.clone()).unwrap_or_default(),
+            "risk_assessment": record.research.map(|item| item.risk_assessment.clone()).unwrap_or_default(),
+            "rationale": record.research.map(|item| item.rationale.clone()).unwrap_or_default(),
+            "structured_risk": record.research.map(|item| item.structured_risk.clone()).unwrap_or_default(),
+            "structured_reflection": record.research.map(|item| item.structured_reflection.clone()).unwrap_or_default(),
+            "trigger_checklist": record.research.map(|item| item.trigger_checklist.clone()).unwrap_or_default(),
+            "blocking_gaps": record.research.map(|item| item.blocking_gaps.clone()).unwrap_or_default(),
+            "setup_tags": record.research.map(|item| item.setup_tags.clone()).unwrap_or_default(),
+            "execution_boundary_complete": record.research.map(|item| item.execution_boundary_complete).unwrap_or(false),
             "pending": true,
         });
         let entry = format!(
-            "{tag}\n\nMETA:\n{}\n\nDECISION:\n{final_trade_decision}{ENTRY_SEPARATOR}",
-            serde_json::to_string_pretty(&meta)?
+            "{tag}\n\nMETA:\n{}\n\nDECISION:\n{}{ENTRY_SEPARATOR}",
+            serde_json::to_string_pretty(&meta)?,
+            record.final_trade_decision,
         );
         let mut current = if self.log_path.exists() {
             tokio::fs::read_to_string(&self.log_path)
@@ -518,72 +509,50 @@ impl TradingMemoryLog {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub async fn store_decision_async(
         &self,
-        ticker: &str,
-        trade_date: &str,
-        final_trade_decision: &str,
-        rating: &str,
-        action: &str,
-        market: &str,
-        direction_score: i32,
-        confidence_score: i32,
-        action_score: i32,
-        research: Option<&ResearchMemoryRecord>,
+        record: &DecisionRecord<'_>,
         user_id: &str,
     ) -> anyhow::Result<()> {
-        self.store_decision(
-            ticker,
-            trade_date,
-            final_trade_decision,
-            rating,
-            action,
-            market,
-            direction_score,
-            confidence_score,
-            action_score,
-            research,
-        )
-        .await?;
+        self.store_decision(record).await?;
         self.qdrant_upsert_entry(&MemoryEntry {
-            ticker: ticker.to_string(),
-            trade_date: trade_date.to_string(),
-            rating: rating.to_string(),
-            action: action.to_string(),
-            market: market.to_string(),
-            stock_name: research
+            ticker: record.ticker.to_string(),
+            trade_date: record.trade_date.to_string(),
+            rating: record.rating.to_string(),
+            action: record.action.to_string(),
+            market: record.market.to_string(),
+            stock_name: record.research
                 .map(|item| item.stock_name.clone())
                 .unwrap_or_default(),
-            direction_score: Some(direction_score),
-            confidence_score: Some(confidence_score),
-            action_score: Some(action_score),
-            summary: research
+            direction_score: Some(record.direction_score),
+            confidence_score: Some(record.confidence_score),
+            action_score: Some(record.action_score),
+            summary: record.research
                 .map(|item| item.summary.clone())
                 .unwrap_or_default(),
-            risk_assessment: research
+            risk_assessment: record.research
                 .map(|item| item.risk_assessment.clone())
                 .unwrap_or_default(),
-            rationale: research
+            rationale: record.research
                 .map(|item| item.rationale.clone())
                 .unwrap_or_default(),
-            structured_risk: research
+            structured_risk: record.research
                 .map(|item| item.structured_risk.clone())
                 .unwrap_or_default(),
-            structured_reflection: research
+            structured_reflection: record.research
                 .map(|item| item.structured_reflection.clone())
                 .unwrap_or_default(),
-            trigger_checklist: research
+            trigger_checklist: record.research
                 .map(|item| item.trigger_checklist.clone())
                 .unwrap_or_default(),
-            blocking_gaps: research
+            blocking_gaps: record.research
                 .map(|item| item.blocking_gaps.clone())
                 .unwrap_or_default(),
-            setup_tags: research
+            setup_tags: record.research
                 .map(|item| item.setup_tags.clone())
                 .unwrap_or_default(),
-            execution_boundary_complete: research.map(|item| item.execution_boundary_complete),
-            final_trade_decision: final_trade_decision.to_string(),
+            execution_boundary_complete: record.research.map(|item| item.execution_boundary_complete),
+            final_trade_decision: record.final_trade_decision.to_string(),
             reflection: None,
             raw_return: None,
             alpha_return: None,
@@ -592,9 +561,9 @@ impl TradingMemoryLog {
             user_id: user_id.to_string(),
         })
         .await?;
-        if let Some(research) = research {
+        if let Some(research) = record.research {
             self.qdrant_upsert_research_record(
-                ticker, trade_date, rating, action, market, research,
+                record.ticker, record.trade_date, record.rating, record.action, record.market, research,
             )
             .await?;
         }
@@ -603,18 +572,18 @@ impl TradingMemoryLog {
 
     /// Store a decision from a MemoryEntry struct directly.
     pub async fn store_entry_async(&self, entry: &MemoryEntry) -> anyhow::Result<()> {
-        self.store_decision(
-            &entry.ticker,
-            &entry.trade_date,
-            &entry.final_trade_decision,
-            &entry.rating,
-            &entry.action,
-            &entry.market,
-            entry.direction_score.unwrap_or(0),
-            entry.confidence_score.unwrap_or(0),
-            entry.action_score.unwrap_or(0),
-            None,
-        )
+        self.store_decision(&DecisionRecord {
+            ticker: &entry.ticker,
+            trade_date: &entry.trade_date,
+            final_trade_decision: &entry.final_trade_decision,
+            rating: &entry.rating,
+            action: &entry.action,
+            market: &entry.market,
+            direction_score: entry.direction_score.unwrap_or(0),
+            confidence_score: entry.confidence_score.unwrap_or(0),
+            action_score: entry.action_score.unwrap_or(0),
+            research: None,
+        })
         .await?;
         self.qdrant_upsert_entry(entry).await
     }

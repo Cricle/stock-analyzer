@@ -3,7 +3,6 @@
 pub mod analysis;
 pub mod config;
 pub mod market;
-pub mod qlib;
 pub mod scoring;
 pub mod store;
 pub mod task;
@@ -74,5 +73,4 @@ pub use task::{
 };
 
 pub use config::LlmProviderConfig;
-pub use qlib::{QlibImportRequest, QlibImportResponse};
 pub use user_preferences::{UserPreferences, WatchlistItem};

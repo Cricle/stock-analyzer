@@ -54,3 +54,13 @@ pub(crate) fn capital_flow_from_akshare(c: akshare::CapitalFlowPoint) -> Capital
         change_pct: c.change_pct,
     }
 }
+
+pub(crate) fn news_item_from_akshare(n: akshare::NewsItem) -> super::NewsItem {
+    super::NewsItem {
+        published_at: n.published_at,
+        title: n.title,
+        summary: n.summary,
+        source: n.source,
+        url: n.url,
+    }
+}

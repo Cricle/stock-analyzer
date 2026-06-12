@@ -11,30 +11,13 @@ use super::{
     MarketDataClient, MarketKind, StockSearchResult, UsSecurityDirectoryEntry,
 };
 
-pub(crate) fn search_market_kind(value: &str) -> MarketKind {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "a股" | "a_share" | "a-share" | "ashare" | "cn" | "cn_stock" | "cn-stock" | "china" => MarketKind::AShare,
-        "港股" | "hk" | "hk_equity" | "hk-equity" | "hongkong" | "hong_kong" => {
-            MarketKind::HongKong
-        }
-        _ => MarketKind::UsEquity,
-    }
+pub(crate) trait StockSearchResultExt {
+    fn market_kind(&self) -> MarketKind;
 }
 
-/// Map a market parameter to the Chinese market label used by Eastmoney results.
-pub(crate) fn market_to_eastmoney_label(value: &str) -> &str {
-    match search_market_kind(value) {
-        MarketKind::AShare => "A股",
-        MarketKind::HongKong => "港股",
-        MarketKind::UsEquity => "美股",
-    }
-}
-
-pub(crate) fn stock_market_key(value: &str) -> &'static str {
-    match search_market_kind(value) {
-        MarketKind::AShare => "a_share",
-        MarketKind::HongKong => "hk_equity",
-        MarketKind::UsEquity => "us_equity",
+impl StockSearchResultExt for StockSearchResult {
+    fn market_kind(&self) -> MarketKind {
+        MarketKind::from_market_str(&self.market)
     }
 }
 
@@ -84,26 +67,21 @@ pub(crate) fn excel_cell_string(cell: Option<&Data>) -> String {
     }
 }
 
+/// Patterns that identify HK derivative/warrant products (not plain equities).
+const HK_NON_EQUITY_CONTAINS: &[&str] = &[
+    " WR", " BULL", " BEAR", " CBBC", "WARRANT", " INLINE", " BT ", " N2", " N3", " N4", " N5",
+];
+const HK_NON_EQUITY_ENDS_WITH: &[&str] = &["-WR", " BT"];
+
 pub(crate) fn is_preferred_equity_listing(item: &StockSearchResult) -> bool {
-    let upper_name = item.name.to_ascii_uppercase();
-    
-    let market = search_market_kind(&item.market);
-    if market == MarketKind::HongKong
-        && (upper_name.contains(" WR")
-            || upper_name.ends_with("-WR")
-            || upper_name.contains(" BULL")
-            || upper_name.contains(" BEAR")
-            || upper_name.contains(" CBBC")
-            || upper_name.contains("WARRANT")
-            || upper_name.contains(" INLINE")
-            || upper_name.contains(" BT ")
-            || upper_name.ends_with(" BT")
-            || upper_name.contains(" N2")
-            || upper_name.contains(" N3")
-            || upper_name.contains(" N4")
-            || upper_name.contains(" N5"))
-    {
-        return false;
+    let market = item.market_kind();
+    if market == MarketKind::HongKong {
+        let upper_name = item.name.to_ascii_uppercase();
+        if HK_NON_EQUITY_CONTAINS.iter().any(|pat| upper_name.contains(pat))
+            || HK_NON_EQUITY_ENDS_WITH.iter().any(|pat| upper_name.ends_with(pat))
+        {
+            return false;
+        }
     }
     true
 }
@@ -206,7 +184,7 @@ impl MarketDataClient {
             super::akshare_rust::search_stocks(self, query, market, limit.saturating_mul(3))
                 .await
                 .unwrap_or_default();
-        let normalized_market = market.map(search_market_kind);
+        let normalized_market = market.map(MarketKind::from_market_str);
 
         let mut merged = self.rank_search_results(query, normalized_market, primary);
         if merged.len() >= limit {
@@ -260,7 +238,7 @@ impl MarketDataClient {
             deduped
                 .entry(format!(
                     "{}:{}",
-                    stock_market_key(&item.market),
+                    item.market_kind().market_key(),
                     item.symbol.to_uppercase()
                 ))
                 .or_insert(item);
@@ -279,7 +257,7 @@ impl MarketDataClient {
         let mut scored = items
             .into_iter()
             .filter(|item| {
-                expected_market.is_none_or(|value| search_market_kind(&item.market) == value)
+                expected_market.is_none_or(|value| item.market_kind() == value)
             })
             .map(|item| {
                 let score = stock_search_score(&normalized_query, &item);

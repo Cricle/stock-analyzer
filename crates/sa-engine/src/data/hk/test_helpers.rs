@@ -6,6 +6,9 @@ use super::super::{MarketDataClient, NewsItem};
 use rust_decimal::prelude::ToPrimitive;
 
 #[cfg(test)]
+use super::HkCompanyNewsContext;
+
+#[cfg(test)]
 pub(crate) fn test_hk_yahoo_symbol(
     client: &MarketDataClient,
     symbol: &str,
@@ -37,7 +40,7 @@ pub(crate) fn test_hk_company_news_queries(
     aliases: &[String],
     query: Option<&str>,
 ) -> Vec<String> {
-    client.hk_company_news_queries(
+    client.hk_company_news_queries(HkCompanyNewsContext {
         standard_code,
         short_code,
         company_name,
@@ -45,9 +48,9 @@ pub(crate) fn test_hk_company_news_queries(
         english_alias,
         aliases,
         query,
-        None,
-        None,
-    )
+        start_date: None,
+        end_date: None,
+    })
 }
 
 #[cfg(test)]

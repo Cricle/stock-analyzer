@@ -46,7 +46,27 @@ pub(crate) async fn fetch_insider_transactions(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<NewsItem>> {
-    client.fetch_a_share_insider_transactions(symbol).await
+    let items = client.ak.stock_ggcg_em(symbol).await?;
+    Ok(items
+        .into_iter()
+        .map(|item| {
+            let direction = if item.direction.contains("增") || item.direction.to_uppercase() == "IN" {
+                "增持"
+            } else {
+                "减持"
+            };
+            NewsItem {
+                published_at: item.notice_date,
+                title: format!("{} {} {}", item.holder_name, direction, item.name),
+                summary: format!(
+                    "变动{}股, 占总股本{:.4}%, 占流通股{:.4}%, 持股{}股",
+                    item.change_amount, item.change_total_ratio, item.change_circulating_ratio, item.holding_count
+                ),
+                source: "Eastmoney 高管持股".to_string(),
+                url: None,
+            }
+        })
+        .collect())
 }
 
 pub(crate) async fn fetch_candles(

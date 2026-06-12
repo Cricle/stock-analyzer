@@ -5,6 +5,7 @@ mod stages;
 use chrono::Utc;
 
 use crate::engine::task_manager::TaskRunParams;
+use crate::engine::analysis::lifecycle::task_run::TaskUpdate;
 use crate::data::{FundamentalsSnapshot, NewsItem, QuoteSnapshot};
 use crate::models::{
     AgentStateSnapshot, AnalysisArtifacts, AnalysisGraph, AnalysisResult, PersistedTask,
@@ -20,15 +21,15 @@ impl crate::TaskManager {
         step_description: &str,
         message: &str,
     ) -> anyhow::Result<()> {
-        self.update_task(
+        self.update_task(TaskUpdate {
             task_id,
-            TaskStatus::Running,
+            status: TaskStatus::Running,
             progress,
             step_name,
             step_description,
             message,
-            None,
-        )
+            error_message: None,
+        })
         .await
     }
 

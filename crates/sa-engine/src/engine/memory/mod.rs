@@ -100,6 +100,20 @@ pub struct MemoryEntry {
     pub pending: bool,
 }
 
+/// Parameters for storing a trading decision.
+pub struct DecisionRecord<'a> {
+    pub ticker: &'a str,
+    pub trade_date: &'a str,
+    pub final_trade_decision: &'a str,
+    pub rating: &'a str,
+    pub action: &'a str,
+    pub market: &'a str,
+    pub direction_score: i32,
+    pub confidence_score: i32,
+    pub action_score: i32,
+    pub research: Option<&'a ResearchMemoryRecord>,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct ResearchMemoryRecord {
     pub stock_name: String,

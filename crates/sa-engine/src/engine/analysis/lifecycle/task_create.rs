@@ -54,7 +54,6 @@ impl TaskManager {
         Ok(task_id)
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub async fn create_task_with_id(
         &self,
         owner_username: &str,
@@ -96,12 +95,7 @@ impl TaskManager {
             .clone()
             .filter(|value| !value.trim().is_empty())
             .unwrap_or_else(|| symbol.clone());
-        let inferred_market_type = match self.market_data.detect_market(&symbol) {
-            crate::data::MarketKind::AShare => "A-share",
-            crate::data::MarketKind::HongKong => "HK",
-            crate::data::MarketKind::UsEquity => "US",
-        }
-        .to_string();
+        let inferred_market_type = self.market_data.detect_market(&symbol).label().to_string();
         let task = PersistedTask {
             task_id: task_id.clone(),
             owner_username: owner_username.trim().to_string(),

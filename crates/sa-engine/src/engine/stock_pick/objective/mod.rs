@@ -751,7 +751,7 @@ fn score_pick_evidence_density(pick: &StockPickItem, item: &EnrichedCandidate) -
 fn stock_pick_objective_cap(pick: &StockPickItem, item: &EnrichedCandidate) -> i32 {
     let mut cap = 95;
     let fundamentals = item.fundamentals.as_ref();
-    let market = normalize_market(&pick.market);
+    let market = MarketKind::from_market_str(&pick.market);
     let support_count = [
         item.factor.momentum,
         item.factor.quality,
@@ -1163,10 +1163,3 @@ pub(crate) fn default_evidence(item: &EnrichedCandidate) -> Vec<String> {
     evidence
 }
 
-fn normalize_market(value: &str) -> MarketKind {
-    match value.trim().to_lowercase().as_str() {
-        "a" | "a-share" | "a_share" | "ashare" | "cn" | "china" | "a股" => MarketKind::AShare,
-        "hk" | "hkex" | "hongkong" | "hong_kong" | "港股" => MarketKind::HongKong,
-        _ => MarketKind::UsEquity,
-    }
-}

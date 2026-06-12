@@ -3,6 +3,17 @@
 use super::*;
 use crate::engine::guidance::embedding::semantic_embed;
 
+/// Parameters for storing a news embedding.
+pub struct NewsEmbeddingRecord<'a> {
+    pub date: &'a str,
+    pub market: &'a str,
+    pub title: &'a str,
+    pub summary: &'a str,
+    pub source: &'a str,
+    pub url: Option<&'a str>,
+    pub embedding: &'a [f32],
+}
+
 impl GuidanceStore {
     /// Ensure the vector collection exists.
     ///
@@ -47,36 +58,29 @@ impl GuidanceStore {
             .await
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub async fn store_news_embedding(
         &self,
-        date: &str,
-        market: &str,
-        title: &str,
-        summary: &str,
-        source: &str,
-        url: Option<&str>,
-        embedding: &[f32],
+        record: &NewsEmbeddingRecord<'_>,
     ) -> anyhow::Result<()> {
-        let dedup_key = Self::news_dedup_key(title, source);
-        let point_id = Self::qdrant_point_id(&format!("news:{date}:{dedup_key}"));
-        let text = format!("{} {} {}", title, summary, source);
+        let dedup_key = Self::news_dedup_key(record.title, record.source);
+        let point_id = Self::qdrant_point_id(&format!("news:{}:{dedup_key}", record.date));
+        let text = format!("{} {} {}", record.title, record.summary, record.source);
 
         let payload = serde_json::json!({
             "entry_kind": "news",
-            "date": date,
-            "market": market,
-            "market_lc": market.to_ascii_lowercase(),
-            "title": title,
-            "summary": summary,
-            "source": source,
-            "url": url.unwrap_or_default(),
+            "date": record.date,
+            "market": record.market,
+            "market_lc": record.market.to_ascii_lowercase(),
+            "title": record.title,
+            "summary": record.summary,
+            "source": record.source,
+            "url": record.url.unwrap_or_default(),
             "dedup_key": dedup_key,
             "text": text,
         });
 
         self.vector_store
-            .insert(GUIDANCE_VECTOR_COLLECTION, &point_id, embedding, payload)
+            .insert(GUIDANCE_VECTOR_COLLECTION, &point_id, record.embedding, payload)
             .await
     }
 
@@ -92,15 +96,15 @@ impl GuidanceStore {
         }
         let mut count = 0usize;
         for (title, summary, source, url, embedding) in news_items {
-            self.store_news_embedding(
+            self.store_news_embedding(&NewsEmbeddingRecord {
                 date,
                 market,
                 title,
                 summary,
                 source,
-                url.as_deref(),
+                url: url.as_deref(),
                 embedding,
-            )
+            })
             .await?;
             count += 1;
         }

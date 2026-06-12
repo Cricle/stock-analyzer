@@ -1,6 +1,6 @@
 mod helpers;
 mod task_create;
-mod task_run;
+pub(crate) mod task_run;
 mod task_status;
 
 use crate::models::{AnalysisParameters, AnalysisUserContext};

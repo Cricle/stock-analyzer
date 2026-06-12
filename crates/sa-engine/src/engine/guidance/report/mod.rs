@@ -25,6 +25,22 @@ use crate::engine::guidance::embedding::semantic_embed;
 const QDRANT_HISTORY_LIMIT: usize = 5;
 const QDRANT_NEWS_LIMIT: usize = 10;
 
+pub(crate) struct ReportComponents {
+    pub date: String,
+    pub market: String,
+    pub elapsed_ms: u64,
+    pub market_sentiment: MarketSentiment,
+    pub news_items: Vec<GuidanceNewsItem>,
+    pub news_sources: Vec<String>,
+    pub sector_highlights: Vec<SectorHighlight>,
+    pub stock_guidances: Vec<StockGuidance>,
+    pub risk_alerts: Vec<RiskAlert>,
+    pub user_guides: Vec<UserProfileGuide>,
+    pub recent_stock_picks: Option<RecentStockPickSummary>,
+    pub market_indices: Vec<MarketIndex>,
+    pub historical_insights: Vec<HistoricalInsight>,
+}
+
 /// Generates daily guidance reports by aggregating all available data sources.
 pub struct DailyGuidanceGenerator {
     store: GuidanceStore,
@@ -67,75 +83,60 @@ impl DailyGuidanceGenerator {
     }
 
     /// Build a DailyGuidanceReport from its component parts.
-    #[allow(clippy::too_many_arguments)]
-    fn build_report(
-        date: &str,
-        market: &str,
-        elapsed_ms: u64,
-        market_sentiment: MarketSentiment,
-        news_items: Vec<GuidanceNewsItem>,
-        news_sources: Vec<String>,
-        sector_highlights: Vec<SectorHighlight>,
-        stock_guidances: Vec<StockGuidance>,
-        risk_alerts: Vec<RiskAlert>,
-        user_guides: Vec<UserProfileGuide>,
-        recent_stock_picks: Option<RecentStockPickSummary>,
-        market_indices: Vec<MarketIndex>,
-        historical_insights: Vec<HistoricalInsight>,
-    ) -> DailyGuidanceReport {
-        let news_count = news_items.len();
-        let pos_count = news_items.iter().filter(|n| n.impact == "positive").count();
-        let neg_count = news_items.iter().filter(|n| n.impact == "negative").count();
-        let qdrant_memory_queries = historical_insights.len();
-        let qdrant_memory_hits = historical_insights
+    fn build_report(components: ReportComponents) -> DailyGuidanceReport {
+        let news_count = components.news_items.len();
+        let pos_count = components.news_items.iter().filter(|n| n.impact == "positive").count();
+        let neg_count = components.news_items.iter().filter(|n| n.impact == "negative").count();
+        let qdrant_memory_queries = components.historical_insights.len();
+        let qdrant_memory_hits = components.historical_insights
             .iter()
             .filter(|i| i.confidence > 0.3)
             .count();
 
         let executive_summary = format!(
             "{} | {} news ({}+ / {}-) | {} risks | {} sectors",
-            market_sentiment.label,
+            components.market_sentiment.label,
             news_count,
             pos_count,
             neg_count,
-            risk_alerts.len(),
-            sector_highlights.len(),
+            components.risk_alerts.len(),
+            components.sector_highlights.len(),
         );
         let executive_summary_key = serde_json::json!({
             "i18n_key": "guidance.executive_summary",
-            "label": market_sentiment.label,
+            "label": components.market_sentiment.label,
             "news_count": news_count,
             "pos": pos_count,
             "neg": neg_count,
-            "risk_count": risk_alerts.len(),
-            "sector_count": sector_highlights.len(),
+            "risk_count": components.risk_alerts.len(),
+            "sector_count": components.sector_highlights.len(),
         });
 
         DailyGuidanceReport {
             report_id: uuid::Uuid::new_v4().to_string(),
             generated_at: chrono::Utc::now().to_rfc3339(),
-            date: date.to_string(),
-            market: market.to_string(),
-            market_sentiment,
-            sector_highlights,
-            stock_guidances,
-            risk_alerts,
-            user_guides,
-            recent_stock_picks,
-            market_indices,
+            date: components.date,
+            market: components.market,
+            market_sentiment: components.market_sentiment,
+            sector_highlights: components.sector_highlights,
+            stock_guidances: components.stock_guidances,
+            risk_alerts: components.risk_alerts,
+            user_guides: components.user_guides,
+            recent_stock_picks: components.recent_stock_picks,
+            market_indices: components.market_indices,
             executive_summary,
             executive_summary_key: Some(executive_summary_key),
             metadata: GuidanceMetadata {
                 news_count,
-                news_sources,
+                news_sources: components.news_sources,
                 qdrant_memory_queries,
                 qdrant_memory_hits,
                 cache_hit: false,
-                generation_time_ms: elapsed_ms,
+                generation_time_ms: components.elapsed_ms,
                 data_freshness: chrono::Utc::now().to_rfc3339(),
             },
-            key_news: news_items,
-            historical_insights,
+            key_news: components.news_items,
+            historical_insights: components.historical_insights,
         }
     }
 
@@ -257,10 +258,10 @@ impl DailyGuidanceGenerator {
 
         let elapsed = started.elapsed().as_millis() as u64;
 
-        let mut report = Self::build_report(
-            &date,
-            market.as_str(),
-            elapsed,
+        let mut report = Self::build_report(ReportComponents {
+            date,
+            market: market.as_str().to_string(),
+            elapsed_ms: elapsed,
             market_sentiment,
             news_items,
             news_sources,
@@ -268,18 +269,18 @@ impl DailyGuidanceGenerator {
             stock_guidances,
             risk_alerts,
             user_guides,
-            None,
+            recent_stock_picks: None,
             market_indices,
             historical_insights,
-        );
+        });
 
         // Enrich with latest stock pick results
         report.recent_stock_picks = self.fetch_recent_stock_picks(&market).await;
 
-        self.persist_report(&report, &date, market.as_str()).await;
+        self.persist_report(&report, &report.date, market.as_str()).await;
 
         tracing::info!(
-            date = %date,
+            date = %report.date,
             market = %market.as_str(),
             elapsed_ms = elapsed,
             news_count = report.key_news.len(),
@@ -399,13 +400,13 @@ impl DailyGuidanceGenerator {
 
         let elapsed = started.elapsed().as_millis() as u64;
 
-        let report = Self::build_report(
-            date,
-            market,
-            elapsed,
+        let report = Self::build_report(ReportComponents {
+            date: date.to_string(),
+            market: market.to_string(),
+            elapsed_ms: elapsed,
             market_sentiment,
             news_items,
-            prepared.news_sources,
+            news_sources: prepared.news_sources,
             sector_highlights,
             stock_guidances,
             risk_alerts,
@@ -413,7 +414,7 @@ impl DailyGuidanceGenerator {
             recent_stock_picks,
             market_indices,
             historical_insights,
-        );
+        });
 
         self.persist_report(&report, date, market).await;
 

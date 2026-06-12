@@ -813,22 +813,6 @@ pub fn normalized_news_date(value: &str) -> Option<String> {
     .or_else(|| normalize_relative_news_date(trimmed, Utc::now()))
 }
 
-pub(crate) fn gdelt_timestamp_to_published_at(value: &str) -> String {
-    let trimmed = value.trim();
-    if trimmed.len() < 14 || !trimmed.chars().take(14).all(|ch| ch.is_ascii_digit()) {
-        return trimmed.to_string();
-    }
-    format!(
-        "{}-{}-{} {}:{}:{}",
-        &trimmed[0..4],
-        &trimmed[4..6],
-        &trimmed[6..8],
-        &trimmed[8..10],
-        &trimmed[10..12],
-        &trimmed[12..14]
-    )
-}
-
 pub(crate) fn normalize_relative_news_date(value: &str, now: DateTime<Utc>) -> Option<String> {
     let lower = value.trim().to_ascii_lowercase();
     if lower.is_empty() {

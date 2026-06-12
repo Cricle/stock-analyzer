@@ -53,7 +53,7 @@ mod cache;
 mod client;
 pub mod diagnosis;
 mod hk;
-mod news_search;
+pub(crate) mod news_search;
 pub mod qdrant;
 pub mod search;
 mod tushare;
@@ -66,7 +66,6 @@ pub use cache::{Singleflight, SingleflightGuard, SingleflightResult};
 /// The backend builds this from its `Settings`.
 pub struct DataConfig {
     pub tushare_token: Option<String>,
-    pub redis_url: Option<String>,
     pub search_providers: Vec<SearchProviderConfig>,
 }
 
@@ -89,17 +88,10 @@ const CANDLES_CACHE_TTL_SECS: u64 = 5 * 60;
 const SEARCH_CACHE_TTL_SECS: u64 = 60 * 60;
 const SEARCH_CACHE_VERSION: &str = "v4";
 const HK_SECURITIES_LIST_CACHE_TTL_SECS: u64 = 24 * 60 * 60;
-#[cfg(feature = "redis-cache")]
-const STALE_CACHE_TTL_MULTIPLIER: u64 = 12;
-#[cfg(feature = "redis-cache")]
-const CACHE_TTL_JITTER_PCT: u64 = 15;
-
 #[derive(Clone)]
 pub struct MarketDataClient {
     http: reqwest_middleware::ClientWithMiddleware,
     tushare_token: Option<String>,
-    #[cfg(feature = "redis-cache")]
-    redis: Option<redis::aio::ConnectionManager>,
     search_providers: Vec<SearchProviderConfig>,
     ak: akshare::AkShareClient,
     pub(crate) singleflight: Singleflight,

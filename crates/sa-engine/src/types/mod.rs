@@ -32,6 +32,51 @@ impl From<akshare::types::MarketKind> for MarketKind {
     }
 }
 
+impl MarketKind {
+    /// Parse a market identifier string (Chinese or English) into `MarketKind`.
+    ///
+    /// Accepts all common variants: "A股", "a-share", "cn", "港股", "hk", "美股", "us", etc.
+    /// Defaults to `UsEquity` for unrecognized values.
+    pub fn from_market_str(value: &str) -> Self {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "a股" | "a" | "a_share" | "a-share" | "ashare" | "cn" | "cn_stock" | "cn-stock"
+            | "china" => Self::AShare,
+            "港股" | "hk" | "hk_equity" | "hk-equity" | "hkex" | "hongkong" | "hong_kong" => {
+                Self::HongKong
+            }
+            "美股" | "us" | "us_equity" | "us-equity" | "usa" | "us-stock" => Self::UsEquity,
+            _ => Self::UsEquity,
+        }
+    }
+
+    /// Stable key for cache/storage: "a_share", "hk_equity", "us_equity".
+    pub fn market_key(&self) -> &'static str {
+        match self {
+            Self::AShare => "a_share",
+            Self::HongKong => "hk_equity",
+            Self::UsEquity => "us_equity",
+        }
+    }
+
+    /// Chinese display label: "A股", "港股", "美股".
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::AShare => "A股",
+            Self::HongKong => "港股",
+            Self::UsEquity => "美股",
+        }
+    }
+
+    /// English display label: "A-share", "HK", "US".
+    pub fn display_label(&self) -> &'static str {
+        match self {
+            Self::AShare => "A-share",
+            Self::HongKong => "HK",
+            Self::UsEquity => "US",
+        }
+    }
+}
+
 /// A point-in-time snapshot of a security's latest quote.
 ///
 /// Captures the essential OHLCV (open-high-close-low-volume) data for a

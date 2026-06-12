@@ -1,3 +1,5 @@
+use crate::data::MarketKind;
+
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AnalysisScenarioMarket {
@@ -10,28 +12,31 @@ pub enum AnalysisScenarioMarket {
 
 impl AnalysisScenarioMarket {
     pub fn from_market_type(market_type: &str) -> Self {
-        match market_type.trim().to_ascii_lowercase().as_str() {
-            "a股" | "a_share" | "a-share" | "cn" | "china" => Self::AShare,
-            "港股" | "hk" | "hk_equity" | "hongkong" | "hong_kong" => Self::HongKong,
-            "美股" | "us" | "us_equity" | "usa" | "us-stock" => Self::UsEquity,
-            _ => Self::Unknown,
+        let trimmed = market_type.trim();
+        if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("unknown") {
+            return Self::Unknown;
+        }
+        match MarketKind::from_market_str(trimmed) {
+            MarketKind::AShare => Self::AShare,
+            MarketKind::HongKong => Self::HongKong,
+            MarketKind::UsEquity => Self::UsEquity,
         }
     }
 
     pub fn key(self) -> &'static str {
         match self {
-            Self::AShare => "a_share",
-            Self::HongKong => "hk_equity",
-            Self::UsEquity => "us_equity",
+            Self::AShare => MarketKind::AShare.market_key(),
+            Self::HongKong => MarketKind::HongKong.market_key(),
+            Self::UsEquity => MarketKind::UsEquity.market_key(),
             Self::Unknown => "unknown",
         }
     }
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::AShare => "A股",
-            Self::HongKong => "港股",
-            Self::UsEquity => "美股",
+            Self::AShare => MarketKind::AShare.label(),
+            Self::HongKong => MarketKind::HongKong.label(),
+            Self::UsEquity => MarketKind::UsEquity.label(),
             Self::Unknown => "未知市场",
         }
     }

@@ -12,7 +12,6 @@ pub use engine::{
     TaskManager, TaskRunParams, TASK_STEPS,
     SharedTelemetry, TelemetryState,
     run_stock_pick, score_stock_pick,
-    import_qlib, import_qlib_from_env,
     generate_prewarm_tasks,
     semantic_embed, hash_embed, EMBEDDING_DIMENSION,
     init_telemetry, record_analysis_task_duration, record_llm_usage,

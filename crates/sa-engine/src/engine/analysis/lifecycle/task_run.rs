@@ -8,6 +8,17 @@ use crate::{TaskManager, TaskRunParams};
 use super::{build_user_context, build_user_context_prompt};
 use crate::models::{AnalysisResult, PersistedTask, SingleAnalysisRequest, TaskEvent, TaskStatus};
 
+/// Parameters for updating a task's status and progress.
+pub(crate) struct TaskUpdate<'a> {
+    pub task_id: &'a str,
+    pub status: TaskStatus,
+    pub progress: i32,
+    pub step_name: &'a str,
+    pub step_description: &'a str,
+    pub message: &'a str,
+    pub error_message: Option<String>,
+}
+
 fn trend_label(current: Option<f64>, reference: Option<f64>) -> &'static str {
     match current.zip(reference) {
         Some((price, level)) if price > level => "above",
@@ -332,15 +343,15 @@ impl TaskManager {
         task.message = "Task cancelled".to_string();
         task.error_message = Some("cancelled_by_user".to_string());
         task.updated_at = Utc::now();
-        self.update_task(
+        self.update_task(TaskUpdate {
             task_id,
-            TaskStatus::Cancelled,
-            task.progress,
-            &task.current_step_name,
-            &task.current_step_description,
-            &task.message,
-            task.error_message.clone(),
-        )
+            status: TaskStatus::Cancelled,
+            progress: task.progress,
+            step_name: &task.current_step_name,
+            step_description: &task.current_step_description,
+            message: &task.message,
+            error_message: task.error_message.clone(),
+        })
         .await?;
 
         let params = self
@@ -647,15 +658,15 @@ impl TaskManager {
         params: TaskRunParams,
     ) -> anyhow::Result<()> {
         let task_started_at = Instant::now();
-        self.update_task(
-            &task_id,
-            TaskStatus::Running,
-            5,
-            "Preparing analysis",
-            "Initializing task and loading context",
-            "Preparing analysis",
-            None,
-        )
+        self.update_task(TaskUpdate {
+            task_id: &task_id,
+            status: TaskStatus::Running,
+            progress: 5,
+            step_name: "Preparing analysis",
+            step_description: "Initializing task and loading context",
+            message: "Preparing analysis",
+            error_message: None,
+        })
         .await?;
 
         let task = self
@@ -798,15 +809,15 @@ impl TaskManager {
             "run_task: initial save_result done"
         );
 
-        self.update_task(
-            &task_id,
-            TaskStatus::Running,
-            10,
-            "Analyst phase",
-            "Running analyst agents",
-            "Analyst phase running",
-            None,
-        )
+        self.update_task(TaskUpdate {
+            task_id: &task_id,
+            status: TaskStatus::Running,
+            progress: 10,
+            step_name: "Analyst phase",
+            step_description: "Running analyst agents",
+            message: "Analyst phase running",
+            error_message: None,
+        })
         .await?;
 
         drop(_hydration_span);
@@ -867,68 +878,71 @@ impl TaskManager {
         )
         .await
         .with_context(|| format!("failed to save final checkpoint for task {task_id}"))?;
+        let research_record = crate::engine::memory::ResearchMemoryRecord {
+            setup_tags: crate::models::derive_setup_tags(
+                &result.report.confidence_breakdown,
+                &result.report.direction_breakdown,
+                &result.report.execution_readiness,
+                &result.report.research_plan,
+                &result.report.trader_plan,
+                &result.report.portfolio_decision,
+            ),
+            stock_name: result.stock_name.clone(),
+            summary: result.report.summary.key.clone(),
+            risk_assessment: result.report.risk_assessment.key.clone(),
+            rationale: result.report.rationale.key.clone(),
+            structured_risk: crate::models::StructuredRiskAssessment::from_text(
+                result.report.risk_assessment.as_str(),
+            ),
+            structured_reflection: result.report.reflection.clone(),
+            trigger_checklist: result
+                .report
+                .portfolio_decision
+                .trigger_checklist
+                .iter()
+                .chain(result.report.trader_plan.execution_trigger_checklist.iter())
+                .cloned()
+                .collect(),
+            blocking_gaps: result
+                .report
+                .portfolio_decision
+                .missing_evidence_ladder
+                .blocking_gaps
+                .iter()
+                .chain(result.report.trader_plan.blocking_gaps.iter())
+                .cloned()
+                .collect(),
+            execution_boundary_complete: result
+                .report
+                .execution_readiness
+                .execution_boundary_complete,
+            structured_snapshot: serde_json::json!({
+                "market_chart": result.report.market_chart,
+                "price_context": result.report.price_context,
+                "probability_view": result.report.probability_view,
+                "profit_risk": result.report.profit_risk,
+                "ic_navigator": result.report.ic_navigator,
+                "technical_indicators": result.report.technical_indicators,
+                "evidence_cards": result.report.evidence_cards,
+                "news_insights": result.report.news_insights,
+                "risk_controls": result.report.risk_controls,
+            }),
+        };
         let _ = self
             .memory_log
             .store_decision_async(
-                &task.symbol,
-                &task.analysis_date,
-                &result.agent_state.final_trade_decision,
-                result.report.recommendation.as_str(),
-                result.report.trader_plan.action.as_str(),
-                &result.market_type,
-                result.report.direction_score,
-                result.report.confidence_score,
-                result.report.action_score,
-                Some(&crate::engine::memory::ResearchMemoryRecord {
-                    setup_tags: crate::models::derive_setup_tags(
-                        &result.report.confidence_breakdown,
-                        &result.report.direction_breakdown,
-                        &result.report.execution_readiness,
-                        &result.report.research_plan,
-                        &result.report.trader_plan,
-                        &result.report.portfolio_decision,
-                    ),
-                    stock_name: result.stock_name.clone(),
-                    summary: result.report.summary.key.clone(),
-                    risk_assessment: result.report.risk_assessment.key.clone(),
-                    rationale: result.report.rationale.key.clone(),
-                    structured_risk: crate::models::StructuredRiskAssessment::from_text(
-                        result.report.risk_assessment.as_str(),
-                    ),
-                    structured_reflection: result.report.reflection.clone(),
-                    trigger_checklist: result
-                        .report
-                        .portfolio_decision
-                        .trigger_checklist
-                        .iter()
-                        .chain(result.report.trader_plan.execution_trigger_checklist.iter())
-                        .cloned()
-                        .collect(),
-                    blocking_gaps: result
-                        .report
-                        .portfolio_decision
-                        .missing_evidence_ladder
-                        .blocking_gaps
-                        .iter()
-                        .chain(result.report.trader_plan.blocking_gaps.iter())
-                        .cloned()
-                        .collect(),
-                    execution_boundary_complete: result
-                        .report
-                        .execution_readiness
-                        .execution_boundary_complete,
-                    structured_snapshot: serde_json::json!({
-                        "market_chart": result.report.market_chart,
-                        "price_context": result.report.price_context,
-                        "probability_view": result.report.probability_view,
-                        "profit_risk": result.report.profit_risk,
-                        "ic_navigator": result.report.ic_navigator,
-                        "technical_indicators": result.report.technical_indicators,
-                        "evidence_cards": result.report.evidence_cards,
-                        "news_insights": result.report.news_insights,
-                        "risk_controls": result.report.risk_controls,
-                    }),
-                }),
+                &crate::engine::memory::DecisionRecord {
+                    ticker: &task.symbol,
+                    trade_date: &task.analysis_date,
+                    final_trade_decision: &result.agent_state.final_trade_decision,
+                    rating: result.report.recommendation.as_str(),
+                    action: result.report.trader_plan.action.as_str(),
+                    market: &result.market_type,
+                    direction_score: result.report.direction_score,
+                    confidence_score: result.report.confidence_score,
+                    action_score: result.report.action_score,
+                    research: Some(&research_record),
+                },
                 &task.owner_username,
             )
             .await;
@@ -943,15 +957,15 @@ impl TaskManager {
                 format!("failed to clear graph runtime checkpoint for task {task_id}")
             })?;
 
-        self.update_task(
-            &task_id,
-            TaskStatus::Completed,
-            100,
-            "Analysis completed",
-            "Report and decision generated",
-            "Analysis completed",
-            None,
-        )
+        self.update_task(TaskUpdate {
+            task_id: &task_id,
+            status: TaskStatus::Completed,
+            progress: 100,
+            step_name: "Analysis completed",
+            step_description: "Report and decision generated",
+            message: "Analysis completed",
+            error_message: None,
+        })
         .await
         .with_context(|| format!("failed to publish completed status for task {task_id}"))?;
         crate::engine::telemetry::record_analysis_task_duration(
@@ -1000,15 +1014,15 @@ impl TaskManager {
         } else {
             "internal_error"
         };
-        self.update_task(
+        self.update_task(TaskUpdate {
             task_id,
-            TaskStatus::Failed,
-            100,
-            "Analysis failed",
-            "An error occurred during execution",
-            &error_message,
-            Some(error_message.clone()),
-        )
+            status: TaskStatus::Failed,
+            progress: 100,
+            step_name: "Analysis failed",
+            step_description: "An error occurred during execution",
+            message: &error_message,
+            error_message: Some(error_message.clone()),
+        })
         .await?;
         crate::engine::telemetry::record_analysis_task_duration(
             &self.telemetry,
@@ -1031,17 +1045,8 @@ impl TaskManager {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn update_task(
-        &self,
-        task_id: &str,
-        status: TaskStatus,
-        progress: i32,
-        step_name: &str,
-        step_description: &str,
-        message: &str,
-        error_message: Option<String>,
-    ) -> anyhow::Result<()> {
+    pub(crate) async fn update_task(&self, params: TaskUpdate<'_>) -> anyhow::Result<()> {
+        let TaskUpdate { task_id, status, progress, step_name, step_description, message, error_message } = params;
         tracing::info!(task_id, progress, step_name, "update_task: load task start");
         let mut task = self
             .analysis_store

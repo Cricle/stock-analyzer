@@ -208,7 +208,7 @@ pub async fn run(
         .cloned()
         .collect::<Vec<_>>();
     let prompt = build_prompt(
-        market_display_label(market_kind_from_value(&request.market)),
+        MarketKind::from_market_str(&request.market).display_label(),
         &strategy,
         &analysis_date,
         &language,
@@ -579,7 +579,7 @@ async fn resolve_candidates(
                 CandidateContext {
                     symbol: normalized.clone(),
                     name: normalized,
-                    market: market_display_label(market_kind).to_string(),
+                    market: market_kind.display_label().to_string(),
                     exchange: market_exchange_code(market_kind).to_string(),
                     source_score: 0.0,
                 }
@@ -587,7 +587,7 @@ async fn resolve_candidates(
             .collect());
     }
 
-    let market_kind = market_kind_from_value(&request.market);
+    let market_kind = MarketKind::from_market_str(&request.market);
     match market_kind {
         MarketKind::AShare => {
             resolve_a_share_candidates(market_data, request, candidate_limit).await
@@ -601,7 +601,7 @@ async fn resolve_candidates(
             let items = market_data
                 .search_stocks(
                     query,
-                    Some(market_search_label(market_kind)),
+                    Some(market_kind.display_label()),
                     candidate_limit,
                 )
                 .await?;
@@ -625,7 +625,7 @@ async fn resolve_candidates(
             let items = market_data
                 .search_stocks(
                     query,
-                    Some(market_search_label(market_kind)),
+                    Some(market_kind.display_label()),
                     candidate_limit,
                 )
                 .await?;
@@ -730,7 +730,7 @@ async fn resolve_a_share_candidates(
             CandidateContext {
                 symbol: constituent.symbol,
                 name: constituent.name,
-                market: market_display_label(MarketKind::AShare).to_string(),
+                market: MarketKind::AShare.display_label().to_string(),
                 exchange: market_exchange_code(MarketKind::AShare).to_string(),
                 source_score: constituent.main_net_inflow.unwrap_or_default() / 1_0000_0000.0
                     + constituent.change_pct.max(0.0),
@@ -755,7 +755,7 @@ async fn resolve_a_share_candidates(
             CandidateContext {
                 symbol: constituent.symbol,
                 name: constituent.name,
-                market: market_display_label(MarketKind::AShare).to_string(),
+                market: MarketKind::AShare.display_label().to_string(),
                 exchange: market_exchange_code(MarketKind::AShare).to_string(),
                 source_score: constituent.change_pct
                     + constituent.main_net_inflow.unwrap_or_default() / 2_0000_0000.0,
@@ -777,7 +777,7 @@ async fn resolve_a_share_candidates(
         let items = market_data
             .search_stocks(
                 query,
-                Some(market_search_label(MarketKind::AShare)),
+                Some(MarketKind::AShare.display_label()),
                 candidate_limit.clamp(5, 8),
             )
             .await
@@ -903,26 +903,6 @@ pub(crate) fn test_shortlist_a_share_candidates_for_flow(
 // Pipeline helpers (inlined from helpers.rs)
 // ---------------------------------------------------------------------------
 
-fn market_kind_from_value(value: &str) -> MarketKind {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "a" | "a-share" | "a_share" | "ashare" | "cn" | "china" | "a股" => MarketKind::AShare,
-        "hk" | "hkex" | "hongkong" | "hong_kong" | "港股" => MarketKind::HongKong,
-        _ => MarketKind::UsEquity,
-    }
-}
-
-fn market_display_label(market: MarketKind) -> &'static str {
-    match market {
-        MarketKind::AShare => "A-share",
-        MarketKind::HongKong => "HK",
-        MarketKind::UsEquity => "US",
-    }
-}
-
-fn market_search_label(market: MarketKind) -> &'static str {
-    market_display_label(market)
-}
-
 fn market_exchange_code(market: MarketKind) -> &'static str {
     match market {
         MarketKind::AShare => "CN",
@@ -1009,7 +989,7 @@ fn build_light_search_queries(
     candidates: &[CandidateContext],
 ) -> Vec<String> {
     let mut queries = Vec::new();
-    let market_label = market_display_label(market_kind_from_value(&request.market));
+    let market_label = MarketKind::from_market_str(&request.market).display_label();
     if let Some(sector) = request
         .sector_type
         .as_ref()

@@ -7,6 +7,7 @@ use serde_json::json;
 use crate::models::{AnalysisResult, PendingToolCall};
 
 use crate::TaskManager;
+use crate::engine::analysis::lifecycle::task_run::TaskUpdate;
 use crate::engine::llm::LlmClient;
 
 use crate::engine::task_manager::TaskRunParams;
@@ -50,15 +51,15 @@ pub(super) fn analyst_planner_node(
             let (progress, step_name, step_description, message) =
                 analyst_step_metadata(analyst_key);
             manager
-                .update_task(
-                    &result.task_id,
-                    crate::models::TaskStatus::Running,
+                .update_task(TaskUpdate {
+                    task_id: &result.task_id,
+                    status: crate::models::TaskStatus::Running,
                     progress,
                     step_name,
                     step_description,
                     message,
-                    None,
-                )
+                    error_message: None,
+                })
                 .await
                 .map_err(graph_error)?;
             let runtime = result
@@ -424,15 +425,15 @@ async fn apply_analyst_report(
     match analyst_key {
         "market" => {
             manager
-                .update_task(
-                    &result.task_id,
-                    crate::models::TaskStatus::Running,
-                    87,
-                    "\u{5e02}\u{573a}\u{6280}\u{672f}\u{5206}\u{6790}",
-                    "\u{751f}\u{6210}\u{5e02}\u{573a}\u{6280}\u{672f}\u{5206}\u{6790}\u{5e08}\u{62a5}\u{544a}",
-                    "\u{5e02}\u{573a}\u{6280}\u{672f}\u{5206}\u{6790}\u{4e2d}",
-                    None,
-                )
+                .update_task(TaskUpdate {
+                    task_id: &result.task_id,
+                    status: crate::models::TaskStatus::Running,
+                    progress: 87,
+                    step_name: "\u{5e02}\u{573a}\u{6280}\u{672f}\u{5206}\u{6790}",
+                    step_description: "\u{751f}\u{6210}\u{5e02}\u{573a}\u{6280}\u{672f}\u{5206}\u{6790}\u{5e08}\u{62a5}\u{544a}",
+                    message: "\u{5e02}\u{573a}\u{6280}\u{672f}\u{5206}\u{6790}\u{4e2d}",
+                    error_message: None,
+                })
                 .await?;
             result.agent_state.market_report = report.detail.clone();
             crate::engine::analysis::graph::push_analyst_node(result, report);
@@ -443,15 +444,15 @@ async fn apply_analyst_report(
         }
         "sentiment" => {
             manager
-                .update_task(
-                    &result.task_id,
-                    crate::models::TaskStatus::Running,
-                    88,
-                    "\u{8d44}\u{91d1}\u{60c5}\u{7eea}\u{5206}\u{6790}",
-                    "\u{751f}\u{6210}\u{8d44}\u{91d1}\u{60c5}\u{7eea}\u{5206}\u{6790}\u{5e08}\u{62a5}\u{544a}",
-                    "\u{8d44}\u{91d1}\u{60c5}\u{7eea}\u{5206}\u{6790}\u{4e2d}",
-                    None,
-                )
+                .update_task(TaskUpdate {
+                    task_id: &result.task_id,
+                    status: crate::models::TaskStatus::Running,
+                    progress: 88,
+                    step_name: "\u{8d44}\u{91d1}\u{60c5}\u{7eea}\u{5206}\u{6790}",
+                    step_description: "\u{751f}\u{6210}\u{8d44}\u{91d1}\u{60c5}\u{7eea}\u{5206}\u{6790}\u{5e08}\u{62a5}\u{544a}",
+                    message: "\u{8d44}\u{91d1}\u{60c5}\u{7eea}\u{5206}\u{6790}\u{4e2d}",
+                    error_message: None,
+                })
                 .await?;
             result.agent_state.sentiment_report = report.detail.clone();
             crate::engine::analysis::graph::push_analyst_node(result, report);
@@ -462,15 +463,15 @@ async fn apply_analyst_report(
         }
         "news" => {
             manager
-                .update_task(
-                    &result.task_id,
-                    crate::models::TaskStatus::Running,
-                    89,
-                    "\u{65b0}\u{95fb}\u{4e8b}\u{4ef6}\u{5206}\u{6790}",
-                    "\u{751f}\u{6210}\u{65b0}\u{95fb}\u{4e8b}\u{4ef6}\u{5206}\u{6790}\u{5e08}\u{62a5}\u{544a}",
-                    "\u{65b0}\u{95fb}\u{4e8b}\u{4ef6}\u{5206}\u{6790}\u{4e2d}",
-                    None,
-                )
+                .update_task(TaskUpdate {
+                    task_id: &result.task_id,
+                    status: crate::models::TaskStatus::Running,
+                    progress: 89,
+                    step_name: "\u{65b0}\u{95fb}\u{4e8b}\u{4ef6}\u{5206}\u{6790}",
+                    step_description: "\u{751f}\u{6210}\u{65b0}\u{95fb}\u{4e8b}\u{4ef6}\u{5206}\u{6790}\u{5e08}\u{62a5}\u{544a}",
+                    message: "\u{65b0}\u{95fb}\u{4e8b}\u{4ef6}\u{5206}\u{6790}\u{4e2d}",
+                    error_message: None,
+                })
                 .await?;
             result.agent_state.news_report = report.detail.clone();
             crate::engine::analysis::graph::push_analyst_node(result, report);
@@ -481,15 +482,15 @@ async fn apply_analyst_report(
         }
         "fundamentals" => {
             manager
-                .update_task(
-                    &result.task_id,
-                    crate::models::TaskStatus::Running,
-                    90,
-                    "\u{57fa}\u{672c}\u{9762}\u{5206}\u{6790}",
-                    "\u{751f}\u{6210}\u{57fa}\u{672c}\u{9762}\u{5206}\u{6790}\u{5e08}\u{62a5}\u{544a}",
-                    "\u{57fa}\u{672c}\u{9762}\u{5206}\u{6790}\u{4e2d}",
-                    None,
-                )
+                .update_task(TaskUpdate {
+                    task_id: &result.task_id,
+                    status: crate::models::TaskStatus::Running,
+                    progress: 90,
+                    step_name: "\u{57fa}\u{672c}\u{9762}\u{5206}\u{6790}",
+                    step_description: "\u{751f}\u{6210}\u{57fa}\u{672c}\u{9762}\u{5206}\u{6790}\u{5e08}\u{62a5}\u{544a}",
+                    message: "\u{57fa}\u{672c}\u{9762}\u{5206}\u{6790}\u{4e2d}",
+                    error_message: None,
+                })
                 .await?;
             result.agent_state.fundamentals_report = report.detail.clone();
             crate::engine::analysis::graph::push_analyst_node(result, report);

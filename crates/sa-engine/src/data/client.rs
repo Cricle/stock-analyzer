@@ -19,7 +19,6 @@ impl MarketDataClient {
     pub async fn new() -> Self {
         Self::from_config(&DataConfig {
             tushare_token: std::env::var("TUSHARE_TOKEN").ok().filter(|v| !v.is_empty()),
-            redis_url: std::env::var("REDIS_URL").ok().filter(|v| !v.is_empty()),
             search_providers: Vec::new(),
         })
         .await
@@ -71,28 +70,6 @@ impl MarketDataClient {
         Self {
             http,
             tushare_token: config.tushare_token.clone(),
-            #[cfg(feature = "redis-cache")]
-            redis: {
-                match config
-                    .redis_url
-                    .as_deref()
-                    .and_then(|url| match redis::Client::open(url) {
-                        Ok(client) => Some(client),
-                        Err(error) => {
-                            tracing::warn!(error = ?error, "market data redis client init failed");
-                            None
-                        }
-                    }) {
-                    Some(client) => match client.get_connection_manager().await {
-                        Ok(conn) => Some(conn),
-                        Err(error) => {
-                            tracing::warn!(error = ?error, "market data redis connection manager init failed");
-                            None
-                        }
-                    },
-                    None => None,
-                }
-            },
             search_providers: Self::load_search_providers(),
             ak,
             singleflight: Singleflight::new(),

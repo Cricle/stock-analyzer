@@ -27,33 +27,6 @@ pub(crate) struct TushareResponse {
 }
 
 #[derive(Debug, Deserialize)]
-pub(crate) struct EastmoneySearchEnvelope {
-    #[serde(rename = "QuotationCodeTable")]
-    pub(crate) quotation_code_table: Option<EastmoneySearchTable>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct EastmoneySearchTable {
-    #[serde(rename = "Data")]
-    pub(crate) data: Option<Vec<EastmoneySearchItem>>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct EastmoneySearchItem {
-    #[serde(rename = "Code")]
-    pub(crate) code: Option<String>,
-    #[serde(rename = "Name")]
-    pub(crate) name: Option<String>,
-    #[allow(dead_code)]
-    #[serde(rename = "SecurityTypeName")]
-    pub(crate) security_type_name: Option<String>,
-    #[serde(rename = "JYS")]
-    pub(crate) exchange: Option<String>,
-    #[serde(rename = "Classify")]
-    pub(crate) classify: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
 pub(crate) struct EastmoneyKlineEnvelope {
     pub(crate) data: Option<EastmoneyKlineData>,
 }

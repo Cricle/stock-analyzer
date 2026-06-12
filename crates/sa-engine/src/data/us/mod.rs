@@ -18,6 +18,8 @@ use super::{
     wire::{CompanyFactsResponse, CompanySubmissionsResponse, SecTickerEntry, SecTickerLookup},
     within_date_window,
 };
+use super::akshare_conv::news_item_from_akshare;
+use super::news_search::SearchEvidenceParams;
 use news_filter::{is_direct_company_news_match, normalize_company_query_name};
 use yahoo_chart::YahooChartResponse;
 impl MarketDataClient {
@@ -350,18 +352,18 @@ impl MarketDataClient {
         let company_queries =
             Self::company_news_primary_queries(symbol, &company_name, start_date, end_date);
         let (search_items, mut search_attempts) = self
-            .fetch_search_evidence_with_query_locales_and_scope_mix_strategy(
-                &company_queries,
-                Some("month"),
+            .fetch_search_evidence_with_query_locales_and_scope_mix_strategy(SearchEvidenceParams {
+                queries: &company_queries,
+                time_range: Some("month"),
                 start_date,
                 end_date,
-                super::GeneralSearchIntent::CompanyEvidence,
-                Self::US_COMPANY_SEARCH_GENERAL_QUERY_LIMIT,
-                Some(SearchProviderKind::Uapis),
-                Some(Self::US_COMPANY_SEARCH_NEWS_QUERY_LIMIT),
-                Some(Self::US_COMPANY_SEARCH_GENERAL_QUERY_LIMIT),
-                Self::US_COMPANY_SEARCH_BATCH_SIZE,
-            )
+                general_intent: super::GeneralSearchIntent::CompanyEvidence,
+                proactive_general_query_limit: Self::US_COMPANY_SEARCH_GENERAL_QUERY_LIMIT,
+                provider_kind_filter: Some(SearchProviderKind::Uapis),
+                news_query_limit_per_provider: Some(Self::US_COMPANY_SEARCH_NEWS_QUERY_LIMIT),
+                general_query_limit_per_provider: Some(Self::US_COMPANY_SEARCH_GENERAL_QUERY_LIMIT),
+                batch_size: Self::US_COMPANY_SEARCH_BATCH_SIZE,
+            })
             .await;
         let mut items = search_items;
         attempts.append(&mut search_attempts);
@@ -443,18 +445,18 @@ impl MarketDataClient {
                 end_date,
             );
             let (supplemental_items, mut supplemental_attempts) = self
-                .fetch_search_evidence_with_query_locales_and_scope_mix_strategy(
-                    &supplemental_queries,
-                    Some("month"),
+                .fetch_search_evidence_with_query_locales_and_scope_mix_strategy(SearchEvidenceParams {
+                    queries: &supplemental_queries,
+                    time_range: Some("month"),
                     start_date,
                     end_date,
-                    super::GeneralSearchIntent::CompanyEvidence,
-                    2,
-                    Some(SearchProviderKind::Uapis),
-                    Some(6),
-                    Some(2),
-                    Self::US_COMPANY_SEARCH_BATCH_SIZE,
-                )
+                    general_intent: super::GeneralSearchIntent::CompanyEvidence,
+                    proactive_general_query_limit: 2,
+                    provider_kind_filter: Some(SearchProviderKind::Uapis),
+                    news_query_limit_per_provider: Some(6),
+                    general_query_limit_per_provider: Some(2),
+                    batch_size: Self::US_COMPANY_SEARCH_BATCH_SIZE,
+                })
                 .await;
             attempts.append(&mut supplemental_attempts);
             merge_ranked_news(
@@ -487,18 +489,18 @@ impl MarketDataClient {
             let mut items = items;
             if let Ok((macro_items, macro_attempts)) = tokio::time::timeout(
                 Duration::from_secs(8),
-                self.fetch_search_evidence_with_query_locales_and_scope_mix_strategy(
-                    &macro_queries,
-                    Some("month"),
+                self.fetch_search_evidence_with_query_locales_and_scope_mix_strategy(SearchEvidenceParams {
+                    queries: &macro_queries,
+                    time_range: Some("month"),
                     start_date,
                     end_date,
-                    super::GeneralSearchIntent::MacroEvidence,
-                    Self::US_COMPANY_SEARCH_GENERAL_QUERY_LIMIT,
-                    Some(SearchProviderKind::Uapis),
-                    Some(Self::US_COMPANY_SEARCH_NEWS_QUERY_LIMIT),
-                    Some(Self::US_COMPANY_SEARCH_GENERAL_QUERY_LIMIT),
-                    Self::US_COMPANY_SEARCH_BATCH_SIZE,
-                ),
+                    general_intent: super::GeneralSearchIntent::MacroEvidence,
+                    proactive_general_query_limit: Self::US_COMPANY_SEARCH_GENERAL_QUERY_LIMIT,
+                    provider_kind_filter: Some(SearchProviderKind::Uapis),
+                    news_query_limit_per_provider: Some(Self::US_COMPANY_SEARCH_NEWS_QUERY_LIMIT),
+                    general_query_limit_per_provider: Some(Self::US_COMPANY_SEARCH_GENERAL_QUERY_LIMIT),
+                    batch_size: Self::US_COMPANY_SEARCH_BATCH_SIZE,
+                }),
             )
             .await
             {
@@ -523,49 +525,11 @@ impl MarketDataClient {
                 format!("{} stock", company_name),
             ];
             for query in bing_queries.iter().take(2) {
-                let rss_url = format!(
-                    "https://cn.bing.com/search?q={}&format=rss",
-                    query.replace(' ', "+")
-                );
-                if let Ok(Ok(response)) = tokio::time::timeout(
-                    Duration::from_secs(10),
-                    self.http.get(&rss_url).send(),
-                )
-                .await
-                    && let Ok(body) = response.text().await
-                {
-                    for item_xml in body.split("<item>").skip(1) {
-                        let end = item_xml.find("</item>").unwrap_or(item_xml.len());
-                        let xml = &item_xml[..end];
-                        let title = xml
-                            .split_once("<title>")
-                            .and_then(|(_, rest)| rest.split_once("</title>"))
-                            .map(|(s, _)| s.trim().to_string())
-                            .filter(|t| !t.contains("必应") && !t.contains("Bing"));
-                        let link = xml
-                            .split_once("<link>")
-                            .and_then(|(_, rest)| rest.split_once("</link>"))
-                            .map(|(s, _)| s.trim().to_string());
-                        let desc = xml
-                            .split_once("<description>")
-                            .and_then(|(_, rest)| rest.split_once("</description>"))
-                            .map(|(s, _)| s.trim().to_string());
-                        let date = xml
-                            .split_once("<pubDate>")
-                            .and_then(|(_, rest)| rest.split_once("</pubDate>"))
-                            .map(|(s, _)| s.trim().to_string())
-                            .unwrap_or_default();
-                        if let (Some(title), Some(url)) = (title, link)
-                            && !existing_titles.contains(&title.to_lowercase())
-                        {
-                            items.push(super::NewsItem {
-                                published_at: date,
-                                title: title.clone(),
-                                summary: desc.unwrap_or_default(),
-                                source: "bing_rss".to_string(),
-                                url: Some(url),
-                            });
+                if let Ok(rss_items) = self.ak.bing_news_rss(query, 10).await {
+                    for item in rss_items.into_iter().map(news_item_from_akshare) {
+                        if !existing_titles.contains(&item.title.to_lowercase()) {
                             bing_added += 1;
+                            items.push(item);
                         }
                     }
                 }
@@ -1085,32 +1049,8 @@ impl MarketDataClient {
         limit: usize,
     ) -> anyhow::Result<Vec<super::CandlePoint>> {
         let stooq_symbol = format!("{}.us", symbol.to_lowercase());
-        let response = self
-            .http
-            .get("https://stooq.com/q/d/l/")
-            .query(&[("s", stooq_symbol.as_str()), ("i", "d")])
-            .send()
-            .await
-            .context("failed to fetch candle history from stooq")?;
-
-        if !response.status().is_success() {
-            bail!("stooq candle request failed with {}", response.status());
-        }
-
-        let csv = response
-            .text()
-            .await
-            .context("failed to read stooq candle response")?;
-        if csv.contains("Get your apikey:") {
-            bail!("stooq candle request requires captcha/api key");
-        }
-
-        let mut items = Self::parse_us_stooq_candles_csv(symbol, &csv)?;
-        if limit < items.len() {
-            let start = items.len() - limit;
-            items = items[start..].to_vec();
-        }
-        Ok(items)
+        let ak_candles = self.ak.stooq_candles(&stooq_symbol, limit).await?;
+        Ok(ak_candles.into_iter().map(super::akshare_conv::candle_from_akshare).collect())
     }
 
     fn yahoo_chart_headers(symbol: &str) -> HeaderMap {
@@ -1131,70 +1071,6 @@ impl MarketDataClient {
             headers.insert("x-referer-symbol", value);
         }
         headers
-    }
-
-    fn parse_us_stooq_candles_csv(
-        symbol: &str,
-        csv: &str,
-    ) -> anyhow::Result<Vec<super::CandlePoint>> {
-        let mut items = Vec::new();
-        for line in csv.lines().skip(1) {
-            let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') {
-                continue;
-            }
-            let parts = trimmed.split(',').map(str::trim).collect::<Vec<_>>();
-            if parts.len() < 6 {
-                continue;
-            }
-            if parts[1].eq_ignore_ascii_case("N/D") || parts[4].eq_ignore_ascii_case("N/D") {
-                continue;
-            }
-            let trade_date = parts[0].to_string();
-            let open = parts[1]
-                .parse::<f64>()
-                .with_context(|| format!("invalid stooq open for {symbol} on {trade_date}"))?;
-            let high = parts[2]
-                .parse::<f64>()
-                .with_context(|| format!("invalid stooq high for {symbol} on {trade_date}"))?;
-            let low = parts[3]
-                .parse::<f64>()
-                .with_context(|| format!("invalid stooq low for {symbol} on {trade_date}"))?;
-            let close = parts[4]
-                .parse::<f64>()
-                .with_context(|| format!("invalid stooq close for {symbol} on {trade_date}"))?;
-            let volume = parts[5].parse::<i64>().unwrap_or_default();
-            items.push(super::CandlePoint {
-                trade_date,
-                open: f64_to_dec(open),
-                close: f64_to_dec(close),
-                high: f64_to_dec(high),
-                low: f64_to_dec(low),
-                volume,
-                amount: Decimal::ZERO,
-                amplitude_pct: if low > 0.0 {
-                    ((high - low) / low) * 100.0
-                } else {
-                    0.0
-                },
-                change_pct: 0.0,
-                change_amount: Decimal::ZERO,
-                turnover_pct: 0.0,
-            });
-        }
-
-        items.sort_by_key(|item| NaiveDate::parse_from_str(&item.trade_date, "%Y-%m-%d").ok());
-        for index in 1..items.len() {
-            let previous_close = items[index - 1].close;
-            if previous_close > Decimal::ZERO {
-                items[index].change_amount = items[index].close - previous_close;
-                items[index].change_pct = (items[index].change_amount / previous_close * Decimal::from(100)).to_f64().unwrap_or_default();
-            }
-        }
-        if items.is_empty() {
-            bail!("stooq candle history returned no rows");
-        }
-        Ok(items)
     }
 
     async fn lookup_company(&self, symbol: &str) -> anyhow::Result<SecTickerEntry> {

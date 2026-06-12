@@ -5,98 +5,13 @@ use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 use serde_json::Value;
 
-use super::search::market_to_eastmoney_label;
 use super::{
     CandlePoint, FundamentalsSnapshot, MarketDataClient, NewsItem, QuoteSnapshot,
     StockSearchResult, f64_to_dec, opt_f64_to_dec,
-    wire::{
-        AkshareIndividualInfo, EastmoneyAnnouncementsEnvelope, EastmoneySearchEnvelope,
-    },
+    wire::{AkshareIndividualInfo, EastmoneyAnnouncementsEnvelope},
 };
 
 impl MarketDataClient {
-    const EASTMONEY_SEARCH_TIMEOUT_SECS: u64 = 3;
-
-    pub(super) async fn search_stocks_from_eastmoney(
-        &self,
-        query: &str,
-        market: Option<&str>,
-        limit: usize,
-    ) -> anyhow::Result<Vec<StockSearchResult>> {
-        let trimmed = query.trim();
-        if trimmed.is_empty() {
-            bail!("search query is empty");
-        }
-
-        let response = tokio::time::timeout(
-            std::time::Duration::from_secs(Self::EASTMONEY_SEARCH_TIMEOUT_SECS),
-            self.http
-                .get("https://searchapi.eastmoney.com/api/suggest/get")
-                .query(&[
-                    ("input", trimmed),
-                    ("type", "14"),
-                    ("token", "D43BF722C8E33BDC906FB84D85E326E8"),
-                    ("count", &limit.clamp(1, 20).to_string()),
-                ])
-                .send(),
-        )
-        .await
-        .with_context(|| {
-            format!(
-                "eastmoney stock search timed out after {}s",
-                Self::EASTMONEY_SEARCH_TIMEOUT_SECS
-            )
-        })?
-        .context("failed to search stocks from Eastmoney")?
-            .error_for_status()
-            .context("eastmoney search request failed")?;
-
-        let payload: EastmoneySearchEnvelope = response
-            .json()
-            .await
-            .context("failed to decode eastmoney search response")?;
-
-        let items = payload
-            .quotation_code_table
-            .and_then(|table| table.data)
-            .unwrap_or_default()
-            .into_iter()
-            .filter_map(|item| {
-                let symbol = item.code?;
-                let name = item.name?;
-                let exchange = item.exchange.unwrap_or_default();
-                let market_name = match (
-                    item.classify.as_deref(),
-                    item.security_type_name.as_deref(),
-                ) {
-                    (Some("AStock"), _) => "A股",
-                    (Some("Fund") | Some("OTCFUND"), _) => "A股",
-                    (_, Some("基金")) => "A股",
-                    (Some("Index"), _) => "指数",
-                    (Some("BStock"), _) => "A股",
-                    (Some("NEEQ"), _) => "A股",
-                    (Some("UsStock"), _) => "美股",
-                    (Some("HK"), _) => "港股",
-                    _ => return None,
-                };
-                if let Some(expected_market) = market
-                    && market_to_eastmoney_label(expected_market) != market_name
-                {
-                    return None;
-                }
-                Some(StockSearchResult {
-                    symbol,
-                    name,
-                    market: market_name.to_string(),
-                    exchange,
-                })
-            })
-            .take(limit)
-            .collect::<Vec<_>>();
-
-        Ok(items)
-    }
-
     /// Fallback search: try to look up a code directly via the eastmoney kline API.
     /// This handles codes (like certain indices) that the suggest API doesn't cover.
     /// Tries market IDs 0 (深), 1 (沪), 2 (中证), 47 (北交所).
@@ -622,7 +537,7 @@ impl MarketDataClient {
             .unwrap_or_default();
         let basic = basic_rows.first();
         let mut search_items = self
-            .search_stocks_from_eastmoney(symbol.trim(), Some("A股"), 8)
+            .ak.a_share_search(symbol.trim(), Some("A股"), 8)
             .await
             .unwrap_or_default();
         let search_match = search_items
@@ -928,7 +843,7 @@ impl MarketDataClient {
     ) -> anyhow::Result<super::NewsFetchResult> {
         let symbol = ts_code.split('.').next().unwrap_or(ts_code);
         let search_match = self
-            .search_stocks_from_eastmoney(symbol, Some("A股"), 8)
+            .ak.a_share_search(symbol, Some("A股"), 8)
             .await
             .ok()
             .and_then(|mut items| {
@@ -1139,54 +1054,6 @@ impl MarketDataClient {
             attempts,
             cacheable,
         })
-    }
-
-    pub(super) async fn fetch_a_share_insider_transactions(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<NewsItem>> {
-        let ts_code = self
-            .normalize_a_share_symbol(symbol)
-            .context("invalid A-share symbol for insider transactions")?;
-        let rows = self
-            .tushare_query(
-                "stk_holdertrade",
-                serde_json::json!({ "ts_code": ts_code }),
-                "ts_code,ann_date,holder_name,holder_type,in_de,change_vol,change_ratio,after_share,after_ratio,avg_price,total_share,begin_date,close_date",
-            )
-            .await?;
-        let filtered = rows
-            .into_iter()
-            .map(|row| NewsItem {
-                published_at: row.string("ann_date").unwrap_or_default(),
-                title: format!(
-                    "股东{} {}",
-                    if row.string("in_de").unwrap_or_default() == "IN" {
-                        "增持"
-                    } else {
-                        "减持"
-                    },
-                    row.string("holder_name")
-                        .unwrap_or_else(|_| "未知股东".to_string())
-                ),
-                summary: format!(
-                    "holder_type={}, change_vol={:?}, change_ratio={:?}, avg_price={:?}",
-                    row.string("holder_type").unwrap_or_default(),
-                    row.optional_f64("change_vol"),
-                    row.optional_f64("change_ratio"),
-                    row.optional_f64("avg_price")
-                ),
-                source: "Tushare stk_holdertrade".to_string(),
-                url: None,
-            })
-            .collect::<Vec<_>>();
-        if filtered.is_empty() {
-            bail!(
-                "no A-share insider transaction items available for {}",
-                symbol
-            );
-        }
-        Ok(filtered)
     }
 
     fn merge_a_share_news(

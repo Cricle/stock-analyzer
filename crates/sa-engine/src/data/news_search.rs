@@ -4,10 +4,11 @@ use std::time::Duration;
 use anyhow::{Context, bail};
 use futures::future::join_all;
 
+use super::akshare_conv::news_item_from_akshare;
 use super::news_filter::{
-    extract_site_name_from_url, gdelt_timestamp_to_published_at,
-    is_guidance_relevant_news, is_investment_research_evidence_page,
-    is_macro_research_evidence_page, news_search_dedup_key,
+    extract_site_name_from_url, is_guidance_relevant_news,
+    is_investment_research_evidence_page, is_macro_research_evidence_page,
+    news_search_dedup_key,
 };
 use super::search::{preferred_search_language_for_query, within_date_window};
 use super::{
@@ -17,6 +18,20 @@ use super::{
     SearchProviderConfig, SearchProviderKind, SearchScope,
     SearxngNewsEvidenceCacheEntry, SearxngNewsQueryCacheEntry,
 };
+/// Parameters for fetching search evidence with locale and scope mix strategy.
+pub(super) struct SearchEvidenceParams<'a> {
+    pub queries: &'a [String],
+    pub time_range: Option<&'a str>,
+    pub start_date: Option<&'a str>,
+    pub end_date: Option<&'a str>,
+    pub general_intent: GeneralSearchIntent,
+    pub proactive_general_query_limit: usize,
+    pub provider_kind_filter: Option<SearchProviderKind>,
+    pub news_query_limit_per_provider: Option<usize>,
+    pub general_query_limit_per_provider: Option<usize>,
+    pub batch_size: usize,
+}
+
 impl MarketDataClient {
     pub(super) async fn fetch_news_search_with_scope(
         &self,
@@ -278,120 +293,30 @@ impl MarketDataClient {
         query: &str,
         language: &str,
         time_range: Option<&str>,
-        scope: SearchScope,
+        _scope: SearchScope,
     ) -> anyhow::Result<Vec<NewsItem>> {
         let base_url = provider.base_url.trim().trim_end_matches('/');
         if base_url.is_empty() {
             bail!("GDELT base URL is not configured");
         }
-        let max_records = match scope {
-            SearchScope::News => 25,
-            SearchScope::General => 15,
-        };
-        let mode = match scope {
-            SearchScope::News => "ArtList",
-            SearchScope::General => "ArtList",
-        };
-        let final_query = if language.eq_ignore_ascii_case("zh-CN") {
-            format!("{query} sourceLang:Chinese")
+        let language_hint = if language.eq_ignore_ascii_case("zh-CN") {
+            Some("zh-CN")
         } else if language.eq_ignore_ascii_case("en-US") {
-            format!("{query} sourceLang:English")
+            Some("en-US")
         } else {
-            query.to_string()
+            None
         };
-        let mut request = self.http.get(base_url).query(&[
-            ("query", final_query.as_str()),
-            ("mode", mode),
-            ("format", "json"),
-            ("maxrecords", &max_records.to_string()),
-            ("sort", "DateDesc"),
-        ]);
-        if let Some(range) = time_range {
-            let timespan = match range {
-                "day" => Some("1day"),
-                "week" => Some("7days"),
-                "month" => Some("1month"),
-                other => Some(other),
-            };
-            if let Some(timespan) = timespan {
-                request = request.query(&[("timespan", timespan)]);
-            }
-        } else {
-            request = request.query(&[("timespan", "1month")]);
-        }
-
-        let response = match tokio::time::timeout(
-            Duration::from_secs(NEWS_SEARCH_PROVIDER_TIMEOUT_SECS),
-            request.send(),
-        )
-        .await
-        {
-            Ok(Ok(response)) => match response.error_for_status() {
-                Ok(response) => response,
-                Err(error) => {
-                    bail!("{} request failed: {error}", provider.display_name());
-                }
-            },
-            Ok(Err(error)) => {
-                bail!("failed to fetch {}: {error}", provider.display_name());
-            }
-            Err(_) => {
-                bail!(
-                    "{} request timed out after {}s",
-                    provider.display_name(),
-                    NEWS_SEARCH_PROVIDER_TIMEOUT_SECS
-                );
-            }
-        };
-        let payload = match response.json::<serde_json::Value>().await {
-            Ok(payload) => payload,
-            Err(error) => {
-                bail!(
-                    "failed to decode {} response: {error}",
-                    provider.display_name()
-                );
-            }
-        };
-        let items = payload
-            .get("articles")
-            .and_then(|value| value.as_array())
+        let items = self
+            .ak
+            .gdelt_news_search(query, base_url, language_hint, time_range, NEWS_SEARCH_PROVIDER_TIMEOUT_SECS)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}: {e}", provider.display_name()))?
             .into_iter()
-            .flatten()
-            .filter_map(|item| {
-                let title = item.get("title").and_then(|value| value.as_str())?.trim();
-                if title.is_empty() {
-                    return None;
-                }
-                let url = item
-                    .get("url")
-                    .and_then(|value| value.as_str())
-                    .map(str::to_string);
-                let source = item
-                    .get("sourceCommonName")
-                    .and_then(|value| value.as_str())
-                    .filter(|value| !value.trim().is_empty())
-                    .or_else(|| url.as_deref().and_then(extract_site_name_from_url))
-                    .unwrap_or("GDELT")
-                    .to_string();
-                let summary = item
-                    .get("seendate")
-                    .and_then(|value| value.as_str())
-                    .map(|value| format!("GDELT seen date: {value}"))
-                    .unwrap_or_default();
-                let published_at = item
-                    .get("seendate")
-                    .and_then(|value| value.as_str())
-                    .map(gdelt_timestamp_to_published_at)
-                    .unwrap_or_default();
-                Some(NewsItem {
-                    published_at,
-                    title: title.to_string(),
-                    summary,
-                    source,
-                    url,
-                })
-            })
+            .map(news_item_from_akshare)
             .collect::<Vec<_>>();
+        if items.is_empty() {
+            bail!("{} returned no items", provider.display_name());
+        }
         Ok(items)
     }
 
@@ -400,114 +325,14 @@ impl MarketDataClient {
         query: &str,
         _time_range: Option<&str>,
     ) -> anyhow::Result<Vec<NewsItem>> {
-        let encoded_query = percent_encode(query);
-        let search_url = format!(
-            "https://www.baidu.com/s?wd={}&tn=news&rtt=4&bsst=1&cl=2&medium=0",
-            encoded_query
-        );
-
-        let response = match tokio::time::timeout(
-            Duration::from_secs(NEWS_SEARCH_PROVIDER_TIMEOUT_SECS),
-            self.http
-                .get(&search_url)
-                .header(
-                    reqwest::header::USER_AGENT,
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                )
-                .send(),
-        )
-        .await
-        {
-            Ok(Ok(response)) => match response.error_for_status() {
-                Ok(response) => response,
-                Err(error) => {
-                    bail!("Baidu News request failed: {error}");
-                }
-            },
-            Ok(Err(error)) => {
-                bail!("failed to fetch Baidu News: {error}");
-            }
-            Err(_) => {
-                bail!(
-                    "Baidu News request timed out after {}s",
-                    NEWS_SEARCH_PROVIDER_TIMEOUT_SECS
-                );
-            }
-        };
-
-        let body = match response.text().await {
-            Ok(body) => body,
-            Err(error) => {
-                bail!("failed to read Baidu News response body: {error}");
-            }
-        };
-
-        let mut items = Vec::new();
-        // Parse Baidu news search result HTML
-        // Each result is in a div with class "result"
-        for block in body.split("class=\"result\"").skip(1) {
-            let block_end = block.find("class=\"result\"").unwrap_or(block.len());
-            let block = &block[..block_end.min(4000)];
-
-            // Extract title and URL from <a> tag
-            let title_and_url = extract_baidu_link(block);
-            let (title, url) = match title_and_url {
-                Some(pair) => pair,
-                None => continue,
-            };
-            if title.trim().is_empty() {
-                continue;
-            }
-
-            // Extract summary from content div or abstract
-            let summary = extract_baidu_text_between(
-                block,
-                &["c-abstract", "c-span-last", "content-right_8Zs40"],
-            )
-            .unwrap_or_default();
-
-            // Extract source and time from source span
-            let source_info = extract_baidu_source(block);
-            let (source, published_at) = source_info.unwrap_or_else(|| ("Baidu".to_string(), String::new()));
-
-            items.push(NewsItem {
-                published_at,
-                title: title.trim().to_string(),
-                summary,
-                source,
-                url: Some(url),
-            });
-        }
-
-        // Fallback: try parsing with a simpler pattern for newer Baidu layouts
-        if items.is_empty() {
-            for chunk in body.split("<h3").skip(1) {
-                let chunk_end = chunk.find("<h3").unwrap_or(chunk.len());
-                let chunk = &chunk[..chunk_end.min(4000)];
-
-                let title_and_url = extract_baidu_link(chunk);
-                let (title, url) = match title_and_url {
-                    Some(pair) => pair,
-                    None => continue,
-                };
-                if title.trim().is_empty() {
-                    continue;
-                }
-
-                let summary = extract_baidu_plain_text(chunk).unwrap_or_default();
-                let source_info = extract_baidu_source(chunk);
-                let (source, published_at) = source_info.unwrap_or_else(|| ("Baidu".to_string(), String::new()));
-
-                items.push(NewsItem {
-                    published_at,
-                    title: title.trim().to_string(),
-                    summary,
-                    source,
-                    url: Some(url),
-                });
-            }
-        }
-
+        let items = self
+            .ak
+            .baidu_news_search(query, NEWS_SEARCH_PROVIDER_TIMEOUT_SECS)
+            .await
+            .map_err(|e| anyhow::anyhow!("Baidu News: {e}"))?
+            .into_iter()
+            .map(news_item_from_akshare)
+            .collect::<Vec<_>>();
         if items.is_empty() {
             tracing::warn!(query = %query, "Baidu News returned no items");
             bail!("Baidu News returned no items");
@@ -625,135 +450,6 @@ impl MarketDataClient {
     }
 }
 
-fn extract_baidu_link(html: &str) -> Option<(String, String)> {
-    // Find first <a> with href and text
-    let a_start = html.find("<a ")?;
-    let a_end_tag = html[a_start..].find('>')? + a_start;
-    let a_tag = &html[a_start..a_end_tag];
-
-    // Extract href
-    let href = a_tag
-        .find("href=\"")
-        .and_then(|i| {
-            let rest = &a_tag[i + 6..];
-            rest.find('"').map(|end| rest[..end].to_string())
-        })
-        .or_else(|| {
-            a_tag.find("href='").and_then(|i| {
-                let rest = &a_tag[i + 6..];
-                rest.find('\'').map(|end| rest[..end].to_string())
-            })
-        })?;
-
-    // Extract title text between <a> and </a>
-    let after_a = &html[a_end_tag + 1..];
-    let a_close = after_a.find("</a>")?;
-    let title_html = &after_a[..a_close];
-    let title = strip_html_tags(title_html);
-    let title = decode_html_entities(&title);
-
-    if title.trim().is_empty() || href.is_empty() {
-        return None;
-    }
-
-    let url = if href.starts_with("http") {
-        href
-    } else {
-        format!("https://www.baidu.com{}", href)
-    };
-
-    Some((title, url))
-}
-
-fn extract_baidu_text_between(html: &str, class_names: &[&str]) -> Option<String> {
-    for class_name in class_names {
-        let marker = format!("class=\"{}\"", class_name);
-        if let Some(pos) = html.find(&marker) {
-            let after = &html[pos..];
-            let tag_end = after.find('>')? + 1;
-            let content_start = &after[tag_end..];
-            let close_div = content_start.find("</div>").unwrap_or(content_start.len().min(800));
-            let text = strip_html_tags(&content_start[..close_div]);
-            let text = decode_html_entities(&text);
-            if !text.trim().is_empty() {
-                return Some(text.trim().to_string());
-            }
-        }
-    }
-    None
-}
-
-fn extract_baidu_source(html: &str) -> Option<(String, String)> {
-    // Look for source and time info
-    let source_markers = ["c-color-gray", "c-gap-right-small", "news-source", "source"];
-    for marker in &source_markers {
-        let class_attr = format!("class=\"{}\"", marker);
-        if let Some(pos) = html.find(&class_attr) {
-            let after = &html[pos..];
-            let tag_end = after.find('>')? + 1;
-            let content = &after[tag_end..];
-            let span_close = content.find("</span>").or_else(|| content.find("</a>")).unwrap_or(content.len().min(200));
-            let text = strip_html_tags(&content[..span_close]);
-            let text = decode_html_entities(&text);
-            if !text.trim().is_empty() {
-                // Try to split "source time" patterns
-                let parts: Vec<&str> = text.split_whitespace().collect();
-                if let Some(last) = parts.last().filter(|_| parts.len() >= 2)
-                    && (last.contains('-') || last.contains(':'))
-                {
-                    let source = parts[..parts.len() - 1].join(" ");
-                    return Some((source, last.to_string()));
-                }
-                return Some((text.trim().to_string(), String::new()));
-            }
-        }
-    }
-    None
-}
-
-fn extract_baidu_plain_text(html: &str) -> Option<String> {
-    let text = strip_html_tags(html);
-    let text = decode_html_entities(&text);
-    let text = text.trim();
-    if text.is_empty() { None } else { Some(text.to_string()) }
-}
-
-fn strip_html_tags(html: &str) -> String {
-    let mut result = String::with_capacity(html.len());
-    let mut in_tag = false;
-    for ch in html.chars() {
-        match ch {
-            '<' => in_tag = true,
-            '>' => in_tag = false,
-            _ if !in_tag => result.push(ch),
-            _ => {}
-        }
-    }
-    result
-}
-
-fn decode_html_entities(text: &str) -> String {
-    text.replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&nbsp;", " ")
-}
-
-fn percent_encode(input: &str) -> String {
-    let mut encoded = String::with_capacity(input.len() * 3);
-    for byte in input.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                encoded.push(byte as char);
-            }
-            b' ' => encoded.push('+'),
-            _ => encoded.push_str(&format!("%{:02X}", byte)),
-        }
-    }
-    encoded
-}
 impl MarketDataClient {
 
     #[cfg(test)]
@@ -829,51 +525,14 @@ impl MarketDataClient {
         }
         if merged.is_empty() && !errors.is_empty() {
             // Fallback: try Bing RSS web search when all providers failed
-            // (not when they returned successfully with empty results).
-            // From China, searxng can't reach upstream engines
-            // (GFW blocks DuckDuckGo, Brave, Startpage, etc. and Bing News
-            // redirects to homepage), but Bing regular search RSS works.
             for query in queries.iter().take(2) {
-                let rss_url = format!(
-                    "https://cn.bing.com/search?q={}&format=rss",
-                    query.replace(' ', "+")
-                );
-                let response = tokio::time::timeout(
-                    std::time::Duration::from_secs(10),
-                    self.http.get(&rss_url).send(),
-                )
-                .await;
-                if let Ok(Ok(response)) = response
-                    && let Ok(body) = response.text().await
-                {
-                    for item_xml in body.split("<item>").skip(1) {
-                        let end = item_xml.find("</item>").unwrap_or(item_xml.len());
-                        let xml = &item_xml[..end];
-                        let title = extract_rss_tag(xml, "title")
-                            .filter(|t| !t.contains("必应") && !t.contains("Bing"));
-                        let link = extract_rss_tag(xml, "link");
-                        let desc = extract_rss_tag(xml, "description");
-                        let date = extract_rss_tag(xml, "pubDate")
-                            .map(|d| normalize_rss_date(&d))
-                            .unwrap_or_default();
-                        if let (Some(title), Some(url)) = (title, link)
+                if let Ok(items) = self.ak.bing_news_rss(query, 10).await {
+                    for item in items.into_iter().map(news_item_from_akshare) {
+                        if let Some(url) = &item.url
                             && dedup.insert(url.clone())
+                            && is_guidance_relevant_news(&item)
                         {
-                            let published_at = if date.is_empty() {
-                                chrono::Utc::now().format("%Y-%m-%d").to_string()
-                            } else {
-                                date
-                            };
-                            let item = NewsItem {
-                                published_at,
-                                title,
-                                summary: desc.unwrap_or_default(),
-                                source: "bing_rss".to_string(),
-                                url: Some(url),
-                            };
-                            if is_guidance_relevant_news(&item) {
-                                merged.push(item);
-                            }
+                            merged.push(item);
                         }
                     }
                 }
@@ -881,108 +540,30 @@ impl MarketDataClient {
             // Google News RSS fallback
             if merged.is_empty() {
                 for query in queries.iter().take(2) {
-                    let gnews_url = format!(
-                        "https://news.google.com/rss/search?q={}&hl=en-US&gl=US&ceid=US:en",
-                        query.replace(' ', "+")
-                    );
-                    let response = tokio::time::timeout(
-                        std::time::Duration::from_secs(10),
-                        self.http.get(&gnews_url).send(),
-                    )
-                    .await;
-                    if let Ok(Ok(response)) = response
-                        && let Ok(body) = response.text().await
-                    {
-                        for item_xml in body.split("<item>").skip(1) {
-                            let end = item_xml.find("</item>").unwrap_or(item_xml.len());
-                            let xml = &item_xml[..end];
-                            let title = extract_rss_tag(xml, "title");
-                            let link = extract_rss_tag(xml, "link");
-                            let desc = extract_rss_tag(xml, "description");
-                            let date = extract_rss_tag(xml, "pubDate")
-                                .map(|d| normalize_rss_date(&d))
-                                .unwrap_or_default();
-                            if let (Some(title), Some(url)) = (title, link)
+                    if let Ok(items) = self.ak.google_news_rss(query, 10).await {
+                        for item in items.into_iter().map(news_item_from_akshare) {
+                            if let Some(url) = &item.url
                                 && dedup.insert(url.clone())
+                                && is_guidance_relevant_news(&item)
                             {
-                                let published_at = if date.is_empty() {
-                                    chrono::Utc::now().format("%Y-%m-%d").to_string()
-                                } else {
-                                    date
-                                };
-                                let item = NewsItem {
-                                    published_at,
-                                    title,
-                                    summary: desc.unwrap_or_default(),
-                                    source: "google_news_rss".to_string(),
-                                    url: Some(url),
-                                };
-                                if is_guidance_relevant_news(&item) {
-                                    merged.push(item);
-                                }
+                                merged.push(item);
                             }
                         }
                     }
                 }
             }
-            // Sogou news RSS fallback (works from China without proxy)
+            // Sogou news fallback (works from China without proxy)
             if merged.is_empty() {
                 for query in queries.iter().take(2) {
-                    let sogou_url = format!(
-                        "https://news.sogou.com/news?query={}&sort=1",
-                        query.replace(' ', "+")
-                    );
-                    let response = tokio::time::timeout(
-                        std::time::Duration::from_secs(10),
-                        self.http.get(&sogou_url).send(),
-                    )
-                    .await;
-                    if let Ok(Ok(response)) = response
-                        && let Ok(body) = response.text().await
-                    {
-                        // Sogou returns HTML, extract links and titles from h3/a tags
-                            let mut remaining = body.as_str();
-                            while let Some(pos) = remaining.find("<h3") {
-                                let chunk = &remaining[pos..];
-                                if let Some(a_start) = chunk.find("<a href=\"") {
-                                    let after_href = &chunk[a_start + 9..];
-                                    if let Some(quote_end) = after_href.find('"') {
-                                        let url = after_href[..quote_end].to_string();
-                                        let title_start = after_href.find('>').map(|i| i + 1);
-                                        let title = title_start.and_then(|start| {
-                                            let title_chunk = &after_href[start..];
-                                            title_chunk.find("</a>").map(|end| {
-                                                let raw = &title_chunk[..end];
-                                                // Strip HTML tags
-                                                let clean = raw
-                                                    .split('<')
-                                                    .next()
-                                                    .unwrap_or(raw)
-                                                    .to_string();
-                                                clean.trim().to_string()
-                                            })
-                                        });
-                                        if let (Some(title), true) = (
-                                            title,
-                                            !url.is_empty() && url.starts_with("http"),
-                                        ) && !title.is_empty()
-                                            && dedup.insert(url.clone())
-                                        {
-                                            let item = NewsItem {
-                                                published_at: chrono::Utc::now().format("%Y-%m-%d").to_string(),
-                                                title,
-                                                summary: String::new(),
-                                                source: "sogou_news".to_string(),
-                                                url: Some(url),
-                                            };
-                                            if is_guidance_relevant_news(&item) {
-                                                merged.push(item);
-                                            }
-                                        }
-                                    }
-                                }
-                                remaining = &remaining[pos + 3..];
+                    if let Ok(items) = self.ak.sogou_news_search(query, 10).await {
+                        for item in items.into_iter().map(news_item_from_akshare) {
+                            if let Some(url) = &item.url
+                                && dedup.insert(url.clone())
+                                && is_guidance_relevant_news(&item)
+                            {
+                                merged.push(item);
                             }
+                        }
                     }
                 }
             }
@@ -1184,35 +765,37 @@ impl MarketDataClient {
         general_intent: GeneralSearchIntent,
         proactive_general_query_limit: usize,
     ) -> (Vec<NewsItem>, Vec<NewsFetchAttempt>) {
-        self.fetch_search_evidence_with_query_locales_and_scope_mix_strategy(
+        self.fetch_search_evidence_with_query_locales_and_scope_mix_strategy(SearchEvidenceParams {
             queries,
             time_range,
             start_date,
             end_date,
             general_intent,
             proactive_general_query_limit,
-            None,
-            None,
-            None,
-            3,
-        )
+            provider_kind_filter: None,
+            news_query_limit_per_provider: None,
+            general_query_limit_per_provider: None,
+            batch_size: 3,
+        })
         .await
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(super) async fn fetch_search_evidence_with_query_locales_and_scope_mix_strategy(
         &self,
-        queries: &[String],
-        time_range: Option<&str>,
-        start_date: Option<&str>,
-        end_date: Option<&str>,
-        general_intent: GeneralSearchIntent,
-        proactive_general_query_limit: usize,
-        provider_kind_filter: Option<SearchProviderKind>,
-        news_query_limit_per_provider: Option<usize>,
-        general_query_limit_per_provider: Option<usize>,
-        batch_size: usize,
+        params: SearchEvidenceParams<'_>,
     ) -> (Vec<NewsItem>, Vec<NewsFetchAttempt>) {
+        let SearchEvidenceParams {
+            queries,
+            time_range,
+            start_date,
+            end_date,
+            general_intent,
+            proactive_general_query_limit,
+            provider_kind_filter,
+            news_query_limit_per_provider,
+            general_query_limit_per_provider,
+            batch_size,
+        } = params;
         let mut requests = Vec::new();
         let general_query_limit = general_query_limit_per_provider
             .unwrap_or(proactive_general_query_limit)
@@ -1311,32 +894,6 @@ impl MarketDataClient {
     }
 }
 
-fn extract_rss_tag(xml: &str, tag: &str) -> Option<String> {
-    let start_tag = format!("<{tag}>");
-    let end_tag = format!("</{tag}>");
-    let start = xml.find(&start_tag)? + start_tag.len();
-    let end = xml.find(&end_tag)?;
-    let value = xml[start..end].trim();
-    // Strip CDATA
-    let value = value
-        .strip_prefix("<![CDATA[")
-        .and_then(|s| s.strip_suffix("]]>"))
-        .unwrap_or(value);
-    let value = value.trim();
-    if value.is_empty() { None } else { Some(value.to_string()) }
-}
-
-fn normalize_rss_date(raw: &str) -> String {
-    // Try RFC 2822: "Wed, 03 Jun 2026 00:36:00 GMT"
-    if let Ok(dt) = chrono::DateTime::parse_from_rfc2822(raw) {
-        return dt.format("%Y-%m-%d").to_string();
-    }
-    // Try ISO: "2026-06-03"
-    if raw.len() >= 10 && raw.as_bytes()[4] == b'-' && raw.as_bytes()[7] == b'-' {
-        return raw[..10].to_string();
-    }
-    String::new()
-}
 impl MarketDataClient {
 
     pub(super) async fn fetch_general_search_evidence_with_intent(

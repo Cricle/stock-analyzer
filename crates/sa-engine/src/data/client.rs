@@ -178,13 +178,7 @@ impl MarketDataClient {
     }
 
     pub fn detect_market(&self, symbol: &str) -> MarketKind {
-        if self.normalize_a_share_symbol(symbol).is_some() {
-            return MarketKind::AShare;
-        }
-        if self.normalize_hk_symbol(symbol).is_some() {
-            return MarketKind::HongKong;
-        }
-        MarketKind::UsEquity
+        akshare::detect_market(symbol).into()
     }
 
     pub fn quote_source(&self, symbol: &str) -> &'static str {
@@ -857,7 +851,8 @@ impl MarketDataClient {
                     meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
                     return Ok(cached);
                 }
-                let fetch_result = self.fetch_a_share_capital_flow(symbol, limit).await;
+                let fetch_result = self.ak.a_share_capital_flow(symbol, limit).await
+                    .map(|items| items.into_iter().map(super::akshare_conv::capital_flow_from_akshare).collect::<Vec<_>>());
                 let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
                 let meter = opentelemetry::global::meter("stock-analyzer");
                 let ok = fetch_result.is_ok();
@@ -909,9 +904,7 @@ impl MarketDataClient {
         if let Some(cached) = self.cache_get_json(&cache_key).await {
             return Ok(cached);
         }
-        let items = self
-            .fetch_a_share_sector_rankings_from_eastmoney(sector_type, limit)
-            .await?;
+        let items = self.ak.a_share_sector_rankings(sector_type, limit).await?;
         self.cache_set_json(&cache_key, CANDLES_CACHE_TTL_SECS, &items)
             .await;
         Ok(items)
@@ -930,9 +923,7 @@ impl MarketDataClient {
         if let Some(cached) = self.cache_get_json(&cache_key).await {
             return Ok(cached);
         }
-        let items = self
-            .fetch_a_share_sector_constituents_from_eastmoney(sector_code, limit)
-            .await?;
+        let items = self.ak.a_share_sector_constituents(sector_code, limit).await?;
         self.cache_set_json(&cache_key, CANDLES_CACHE_TTL_SECS, &items)
             .await;
         Ok(items)
@@ -951,9 +942,8 @@ impl MarketDataClient {
         if let Some(cached) = self.cache_get_json(&cache_key).await {
             return Ok(cached);
         }
-        let items = self
-            .fetch_a_share_sector_capital_flow_from_eastmoney(sector_code, limit)
-            .await?;
+        let items = self.ak.a_share_sector_capital_flow(sector_code, limit).await
+            .map(|items| items.into_iter().map(super::akshare_conv::capital_flow_from_akshare).collect::<Vec<_>>())?;
         self.cache_set_json(&cache_key, CANDLES_CACHE_TTL_SECS, &items)
             .await;
         Ok(items)
@@ -970,7 +960,7 @@ impl MarketDataClient {
         if let Some(cached) = self.cache_get_json(&cache_key).await {
             return Ok(cached);
         }
-        let item = self.fetch_a_share_announcement_detail(art_code).await?;
+        let item = self.ak.a_share_announcement_detail(art_code).await?;
         self.cache_set_json(&cache_key, SEARCH_CACHE_TTL_SECS, &item)
             .await;
         Ok(item)
@@ -1001,7 +991,7 @@ impl MarketDataClient {
                     meter.f64_histogram("market_data_fetch_duration_ms").build().record(dur_ms, &attrs);
                     return Ok(cached);
                 }
-                let fetch_result = self.fetch_a_share_announcements(&ts_code, limit).await;
+                let fetch_result = self.ak.a_share_announcements(&ts_code, limit).await.map_err(anyhow::Error::from);
                 let dur_ms = start.elapsed().as_secs_f64() * 1000.0;
                 let meter = opentelemetry::global::meter("stock-analyzer");
                 let ok = fetch_result.is_ok();
@@ -1054,7 +1044,7 @@ impl MarketDataClient {
             if let Some(cached) = self.cache_get_json(&cache_key).await {
                 return Ok(cached);
             }
-            let items = self.fetch_a_share_billboard_entries(symbol, limit).await?;
+            let items = self.ak.a_share_billboard(symbol, limit).await?;
             self.cache_set_json(&cache_key, NEWS_CACHE_TTL_SECS, &items)
                 .await;
             return Ok(items);
@@ -1084,9 +1074,7 @@ impl MarketDataClient {
             if let Some(cached) = self.cache_get_json(&cache_key).await {
                 return Ok(cached);
             }
-            let items = self
-                .fetch_a_share_billboard_seats(symbol, side, limit)
-                .await?;
+            let items = self.ak.a_share_billboard_seats(symbol, side, limit).await?;
             self.cache_set_json(&cache_key, NEWS_CACHE_TTL_SECS, &items)
                 .await;
             return Ok(items);

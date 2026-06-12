@@ -47,6 +47,7 @@ pub use akshare::stock::us_extra::{UsFamousStock, UsPinkStock, UsSpotSina, UsVal
 pub use akshare::stock::xueqiu::XqStockSpot;
 
 mod a_share;
+mod akshare_conv;
 mod akshare_rust;
 mod cache;
 mod client;
@@ -322,32 +323,7 @@ pub(crate) fn news_result_cacheable(items: &[NewsItem], attempts: &[NewsFetchAtt
 
 // CandlePoint and CapitalFlowPoint are re-exported from crate::types via data/mod.rs.
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SectorSnapshot {
-    pub sector_code: String,
-    pub sector_name: String,
-    pub latest_index: f64,
-    pub change_pct: f64,
-    pub main_net_inflow: f64,
-    pub main_net_inflow_ratio_pct: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SectorConstituent {
-    pub symbol: String,
-    pub name: String,
-    pub latest_price: f64,
-    pub change_pct: f64,
-    pub main_net_inflow: Option<f64>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StockSearchResult {
-    pub symbol: String,
-    pub name: String,
-    pub market: String,
-    pub exchange: String,
-}
+pub use akshare::types::{SectorSnapshot, SectorConstituent, StockSearchResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct HkSecurityDirectoryEntry {
@@ -368,59 +344,9 @@ struct UsSecurityDirectoryEntry {
     exchange: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AnnouncementDetail {
-    pub art_code: String,
-    pub title: String,
-    pub published_at: String,
-    pub content: String,
-    pub pdf_url: Option<String>,
-    pub source: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AnnouncementItem {
-    pub art_code: String,
-    pub symbol: String,
-    pub title: String,
-    pub published_at: String,
-    pub url: Option<String>,
-    pub source: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BillboardEntry {
-    pub trade_date: String,
-    pub symbol: String,
-    pub name: String,
-    pub close_price: f64,
-    pub change_rate_pct: f64,
-    pub turnover_rate_pct: Option<f64>,
-    pub net_amount: Option<f64>,
-    pub buy_amount: Option<f64>,
-    pub sell_amount: Option<f64>,
-    pub explanation: Option<String>,
-    pub reason: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BillboardSeatDetail {
-    pub trade_date: String,
-    pub symbol: String,
-    pub department_name: String,
-    pub buy_amount: Option<f64>,
-    pub sell_amount: Option<f64>,
-    pub net_amount: Option<f64>,
-    pub explanation: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TradeCalendarItem {
-    pub exchange: String,
-    pub calendar_date: String,
-    pub is_open: bool,
-    pub previous_trade_date: Option<String>,
-}
+pub use akshare::types::{
+    AnnouncementDetail, AnnouncementItem, BillboardEntry, BillboardSeatDetail, TradeCalendarItem,
+};
 
 fn rewrite_query_for_gdelt(query: &str, language: &str) -> String {
     let mut tokens = query

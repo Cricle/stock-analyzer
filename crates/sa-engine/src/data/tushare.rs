@@ -22,18 +22,7 @@ impl MarketDataClient {
     }
 
     pub(super) fn eastmoney_secid(&self, symbol: &str) -> anyhow::Result<String> {
-        let normalized = self
-            .normalize_a_share_symbol(symbol)
-            .context("invalid A-share symbol")?;
-        let (code, suffix) = normalized
-            .split_once('.')
-            .context("invalid normalized ts_code")?;
-        let market = match suffix {
-            "SH" => "1",
-            "SZ" | "BJ" => "0",
-            _ => bail!("unsupported A-share suffix {}", suffix),
-        };
-        Ok(format!("{market}.{code}"))
+        akshare::market::eastmoney_secid(symbol).map_err(|e| anyhow::anyhow!(e))
     }
 
     pub(super) async fn tushare_query(

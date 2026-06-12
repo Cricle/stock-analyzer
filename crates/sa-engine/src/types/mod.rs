@@ -22,6 +22,16 @@ pub enum MarketKind {
     UsEquity,
 }
 
+impl From<akshare::types::MarketKind> for MarketKind {
+    fn from(m: akshare::types::MarketKind) -> Self {
+        match m {
+            akshare::types::MarketKind::AShare => Self::AShare,
+            akshare::types::MarketKind::HongKong => Self::HongKong,
+            akshare::types::MarketKind::UsEquity => Self::UsEquity,
+        }
+    }
+}
+
 /// A point-in-time snapshot of a security's latest quote.
 ///
 /// Captures the essential OHLCV (open-high-close-low-volume) data for a

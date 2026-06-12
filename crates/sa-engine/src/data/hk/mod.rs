@@ -3,7 +3,7 @@ mod tencent;
 mod test_helpers;
 
 use super::{
-    FundamentalsSnapshot, GeneralSearchIntent, MarketDataClient, NewsItem, QuoteSnapshot,
+    FundamentalsSnapshot, GeneralSearchIntent, MarketDataClient, NewsItem,
     SearchProviderKind, StockSearchResult, build_dated_news_query, merge_ranked_news,
     opt_f64_to_dec,
 };
@@ -240,27 +240,6 @@ impl MarketDataClient {
             .result
             .and_then(|result| result.data)
             .context("eastmoney HK cashflow items returned no rows")
-    }
-
-    pub(super) async fn fetch_hk_quote_with_provider(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<(QuoteSnapshot, String)> {
-        let code = self.hk_standard_code(symbol)?;
-        match self.fetch_hk_tencent_quote(symbol, &code).await {
-            Ok(snapshot) => Ok((snapshot, "tencent_quote".to_string())),
-            Err(primary_error) => {
-                tracing::info!(
-                    symbol = %symbol,
-                    error = ?primary_error,
-                    "Tencent HK quote failed, falling back to Yahoo Finance"
-                );
-                Ok((
-                    self.fetch_hk_yahoo_quote(symbol).await?,
-                    "yahoo_finance_chart".to_string(),
-                ))
-            }
-        }
     }
 
     pub(super) async fn fetch_hk_fundamentals(
@@ -1234,18 +1213,8 @@ impl MarketDataClient {
         symbol: &str,
         limit: usize,
     ) -> anyhow::Result<Vec<super::CandlePoint>> {
-        self.fetch_hk_candles_with_provider(symbol, limit)
-            .await
-            .map(|(items, _)| items)
-    }
-
-    pub(super) async fn fetch_hk_candles_with_provider(
-        &self,
-        symbol: &str,
-        limit: usize,
-    ) -> anyhow::Result<(Vec<super::CandlePoint>, String)> {
         match self.fetch_hk_tencent_candles(symbol, limit).await {
-            Ok(items) => return Ok((items, "tencent_kline".to_string())),
+            Ok(items) => return Ok(items),
             Err(primary_error) => {
                 tracing::info!(
                     symbol = %symbol,
@@ -1254,10 +1223,7 @@ impl MarketDataClient {
                 );
             }
         }
-        Ok((
-            self.fetch_hk_yahoo_candles(symbol, limit).await?,
-            "yahoo_finance_chart".to_string(),
-        ))
+        self.fetch_hk_yahoo_candles(symbol, limit).await
     }
 }
 impl MarketDataClient {

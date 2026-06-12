@@ -12,41 +12,11 @@ use super::{CACHE_TTL_JITTER_PCT, STALE_CACHE_TTL_MULTIPLIER};
 
 impl MarketDataClient {
     pub(super) fn normalize_a_share_symbol(&self, symbol: &str) -> Option<String> {
-        let normalized = symbol.trim().to_uppercase();
-        if normalized.ends_with(".SH") || normalized.ends_with(".SZ") || normalized.ends_with(".BJ")
-        {
-            return Some(normalized);
-        }
-        if normalized.len() != 6 || !normalized.chars().all(|char| char.is_ascii_digit()) {
-            return None;
-        }
-
-        let suffix = match normalized.chars().next()? {
-            '6' | '5' | '9' => "SH",
-            '0' | '1' | '2' | '3' => "SZ",
-            '4' | '8' => "BJ",
-            _ => return None,
-        };
-        Some(format!("{normalized}.{suffix}"))
+        akshare::normalize_a_share_symbol(symbol)
     }
 
     pub(super) fn normalize_hk_symbol(&self, symbol: &str) -> Option<String> {
-        let normalized = symbol.trim().to_uppercase();
-        if normalized.ends_with(".HK") {
-            let code = normalized.trim_end_matches(".HK");
-            if code.len() == 4 || code.len() == 5 {
-                return code
-                    .chars()
-                    .all(|char| char.is_ascii_digit())
-                    .then_some(format!("{code:0>5}.HK"));
-            }
-        }
-        if (normalized.len() == 4 || normalized.len() == 5)
-            && normalized.chars().all(|char| char.is_ascii_digit())
-        {
-            return Some(format!("{normalized:0>5}.HK"));
-        }
-        None
+        akshare::normalize_hk_symbol(symbol).map(|code| format!("{code}.HK"))
     }
 
     pub(super) fn cache_symbol(&self, symbol: &str, market: MarketKind) -> String {

@@ -13,6 +13,7 @@ use crate::data::{
     MarginSzseDetail, MarginSzseSummary, MarketDataClient, NewsItem, PankouChange, ProfitSheet,
     QuoteSnapshot, SectorFundFlowRank, StockComment, StockSearchResult, ZtPool, ZtPoolDtgc,
     ZtPoolPrevious, ZtPoolStrong, ZtPoolSubNew, ZtPoolZbgc,
+    akshare_conv,
 };
 
 pub(crate) async fn search_stocks(
@@ -21,19 +22,16 @@ pub(crate) async fn search_stocks(
     market: Option<&str>,
     limit: usize,
 ) -> anyhow::Result<Vec<StockSearchResult>> {
-    client
-        .search_stocks_from_eastmoney(query, market, limit)
-        .await
+    client.ak.a_share_search(query, market, limit).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_quote(
     client: &MarketDataClient,
     symbol: &str,
-    ts_code: &str,
+    _ts_code: &str,
 ) -> anyhow::Result<ProviderResult<QuoteSnapshot>> {
-    client
-        .fetch_a_share_quote_with_provider(symbol, ts_code)
-        .await
+    let ak_quote = client.ak.a_share_quote(symbol).await?;
+    Ok((akshare_conv::quote_from_akshare(ak_quote), "akshare".to_string()))
 }
 
 pub(crate) async fn fetch_fundamentals(
@@ -57,9 +55,8 @@ pub(crate) async fn fetch_candles(
     adjust: &str,
     limit: usize,
 ) -> anyhow::Result<ProviderResult<Vec<CandlePoint>>> {
-    client
-        .fetch_a_share_candles_with_provider(symbol, adjust, limit)
-        .await
+    let ak_candles = client.ak.a_share_candles(symbol, adjust, limit).await?;
+    Ok((ak_candles.into_iter().map(akshare_conv::candle_from_akshare).collect(), "akshare".to_string()))
 }
 
 pub(crate) async fn fetch_return_since(

@@ -123,63 +123,6 @@ impl MarketDataClient {
         ]
     }
 
-    pub(super) async fn fetch_us_quote_with_provider(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<(QuoteSnapshot, String)> {
-        match us_sina::fetch_quote(self, symbol).await {
-            Ok(snapshot) => return Ok((snapshot, "sina_us_daily".to_string())),
-            Err(error) => {
-                tracing::info!(
-                    symbol = %symbol,
-                    error = ?error,
-                    "Sina US quote failed, falling back to Eastmoney quote"
-                );
-            }
-        }
-        match self.fetch_us_quote_from_eastmoney(symbol).await {
-            Ok(snapshot) => return Ok((snapshot, "eastmoney_quote".to_string())),
-            Err(error) => {
-                tracing::info!(
-                    symbol = %symbol,
-                    error = ?error,
-                    "Eastmoney US quote failed, falling back to Yahoo Finance quote"
-                );
-            }
-        }
-        let end = chrono::Utc::now().date_naive() + chrono::Days::new(1);
-        let start = end - chrono::Days::new(10);
-        match self.fetch_us_chart_candles(symbol, start, end).await {
-            Ok(mut items) => {
-                if let Some(last) = items.pop() {
-                    return Ok((
-                        QuoteSnapshot {
-                            symbol: symbol.trim().to_uppercase(),
-                            date: last.trade_date,
-                            open: last.open,
-                            high: last.high,
-                            low: last.low,
-                            close: last.close,
-                            volume: last.volume,
-                        },
-                        "yahoo_finance_chart".to_string(),
-                    ));
-                }
-            }
-            Err(error) => {
-                tracing::info!(
-                    symbol = %symbol,
-                    error = ?error,
-                    "Yahoo Finance quote failed, falling back to Stooq quote"
-                );
-            }
-        }
-        Ok((
-            self.fetch_us_stooq_quote(symbol).await?,
-            "stooq".to_string(),
-        ))
-    }
-
     pub(super) async fn fetch_us_fundamentals(
         &self,
         symbol: &str,
@@ -852,64 +795,6 @@ impl MarketDataClient {
 }
 impl MarketDataClient {
 
-    pub(super) async fn fetch_us_candles_with_provider(
-        &self,
-        symbol: &str,
-        limit: usize,
-    ) -> anyhow::Result<(Vec<super::CandlePoint>, String)> {
-        let (mut items, provider) = match us_sina::fetch_candles(self, symbol, limit).await {
-            Ok(items) => (items, "sina_us_daily".to_string()),
-            Err(error) => {
-                tracing::info!(
-                    symbol = %symbol,
-                    error = ?error,
-                    "Sina US candles failed, falling back to Eastmoney"
-                );
-                match self.fetch_us_candles_from_eastmoney(symbol, limit).await {
-                    Ok(items) => (items, "eastmoney_kline".to_string()),
-                    Err(error) => {
-                        tracing::info!(
-                            symbol = %symbol,
-                            error = ?error,
-                            "Eastmoney US candles failed, falling back to Yahoo Finance chart"
-                        );
-                        let end = chrono::Utc::now().date_naive() + chrono::Days::new(1);
-                        let start = end - chrono::Days::new((limit.max(260) + 30) as u64);
-                        match self.fetch_us_chart_candles(symbol, start, end).await {
-                            Ok(items) => (items, "yahoo_finance_chart".to_string()),
-                            Err(error) => {
-                                tracing::info!(
-                                    symbol = %symbol,
-                                    error = ?error,
-                                    "Yahoo Finance chart candles failed, falling back to Stooq daily history"
-                                );
-                                (
-                                    self.fetch_us_stooq_candles(symbol, limit)
-                                        .await
-                                        .with_context(|| {
-                                            format!(
-                                                "failed to fetch US candles for {symbol} from Yahoo Finance and Stooq fallback"
-                                            )
-                                        })?,
-                                    "stooq".to_string(),
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        };
-        if items.is_empty() {
-            bail!("historical quote request returned no rows for {}", symbol);
-        }
-        // Always apply limit trim regardless of provider
-        if items.len() > limit {
-            let start = items.len() - limit;
-            items = items[start..].to_vec();
-        }
-        Ok((items, provider))
-    }
-
     pub(crate) async fn fetch_us_quote_from_eastmoney(&self, symbol: &str) -> anyhow::Result<QuoteSnapshot> {
         let secid = self.eastmoney_us_secid(symbol).await?;
         let response = self
@@ -1351,10 +1236,54 @@ impl MarketDataClient {
     ) -> anyhow::Result<Option<f64>> {
         NaiveDate::parse_from_str(start_date, "%Y-%m-%d")
             .with_context(|| format!("invalid start_date for return_since: {start_date}"))?;
-        let items = self
-            .fetch_us_candles_with_provider(symbol, holding_days + 15)
-            .await?
-            .0
+        let limit = holding_days + 15;
+        let mut items = match us_sina::fetch_candles(self, symbol, limit).await {
+            Ok(items) => items,
+            Err(error) => {
+                tracing::info!(
+                    symbol = %symbol,
+                    error = ?error,
+                    "Sina US candles failed, falling back to Eastmoney"
+                );
+                match self.fetch_us_candles_from_eastmoney(symbol, limit).await {
+                    Ok(items) => items,
+                    Err(error) => {
+                        tracing::info!(
+                            symbol = %symbol,
+                            error = ?error,
+                            "Eastmoney US candles failed, falling back to Yahoo Finance chart"
+                        );
+                        let end = chrono::Utc::now().date_naive() + chrono::Days::new(1);
+                        let start = end - chrono::Days::new((limit.max(260) + 30) as u64);
+                        match self.fetch_us_chart_candles(symbol, start, end).await {
+                            Ok(items) => items,
+                            Err(error) => {
+                                tracing::info!(
+                                    symbol = %symbol,
+                                    error = ?error,
+                                    "Yahoo Finance chart candles failed, falling back to Stooq daily history"
+                                );
+                                self.fetch_us_stooq_candles(symbol, limit)
+                                    .await
+                                    .with_context(|| {
+                                        format!(
+                                            "failed to fetch US candles for {symbol} from Yahoo Finance and Stooq fallback"
+                                        )
+                                    })?
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        if items.is_empty() {
+            bail!("historical quote request returned no rows for {}", symbol);
+        }
+        if items.len() > limit {
+            let start = items.len() - limit;
+            items = items[start..].to_vec();
+        }
+        let items = items
             .into_iter()
             .map(|item| (item.trade_date, item.close))
             .collect::<Vec<_>>();

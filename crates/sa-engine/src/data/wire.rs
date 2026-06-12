@@ -68,60 +68,6 @@ pub(crate) struct EastmoneyKlineData {
 }
 
 #[derive(Debug, Deserialize)]
-pub(crate) struct EastmoneySectorRankingEnvelope {
-    pub(crate) data: Option<EastmoneySectorRankingData>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct EastmoneySectorRankingData {
-    #[allow(dead_code)]
-    pub(crate) total: Option<i64>,
-    pub(crate) diff: Option<Vec<EastmoneySectorRankingItem>>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct EastmoneySectorRankingItem {
-    #[serde(rename = "f12")]
-    pub(crate) sector_code: Option<String>,
-    #[serde(rename = "f14")]
-    pub(crate) sector_name: Option<String>,
-    #[serde(rename = "f2")]
-    pub(crate) latest_index: Option<f64>,
-    #[serde(rename = "f3")]
-    pub(crate) change_pct: Option<f64>,
-    #[serde(rename = "f62")]
-    pub(crate) main_net_inflow: Option<f64>,
-    #[serde(rename = "f184")]
-    pub(crate) main_net_inflow_ratio_pct: Option<f64>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct EastmoneySectorConstituentEnvelope {
-    pub(crate) data: Option<EastmoneySectorConstituentData>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct EastmoneySectorConstituentData {
-    #[allow(dead_code)]
-    pub(crate) total: Option<i64>,
-    pub(crate) diff: Option<Vec<EastmoneySectorConstituentItem>>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct EastmoneySectorConstituentItem {
-    #[serde(rename = "f12")]
-    pub(crate) symbol: Option<String>,
-    #[serde(rename = "f14")]
-    pub(crate) name: Option<String>,
-    #[serde(rename = "f2")]
-    pub(crate) latest_price: Option<f64>,
-    #[serde(rename = "f3")]
-    pub(crate) change_pct: Option<f64>,
-    #[serde(rename = "f62")]
-    pub(crate) main_net_inflow: Option<f64>,
-}
-
-#[derive(Debug, Deserialize)]
 pub(crate) struct TushareData {
     pub(crate) fields: Vec<String>,
     pub(crate) items: Vec<Vec<serde_json::Value>>,
@@ -142,20 +88,6 @@ pub(crate) struct EastmoneyAnnouncementItem {
     pub(crate) art_code: Option<String>,
     pub(crate) notice_date: Option<String>,
     pub(crate) title: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct EastmoneyAnnouncementContentEnvelope {
-    pub(crate) data: Option<EastmoneyAnnouncementContentData>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct EastmoneyAnnouncementContentData {
-    pub(crate) art_code: Option<String>,
-    pub(crate) notice_title: Option<String>,
-    pub(crate) notice_date: Option<String>,
-    pub(crate) notice_content: Option<String>,
-    pub(crate) attach_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -278,50 +210,6 @@ pub(crate) struct EastmoneyFinancialStatementItem {
     pub(crate) item_name: Option<String>,
     #[serde(rename = "AMOUNT")]
     pub(crate) amount: Option<f64>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct EastmoneyBillboardEntryItem {
-    #[serde(rename = "TRADE_DATE")]
-    pub(crate) trade_date: Option<String>,
-    #[serde(rename = "SECURITY_CODE")]
-    pub(crate) security_code: Option<String>,
-    #[serde(rename = "SECURITY_NAME_ABBR")]
-    pub(crate) security_name: Option<String>,
-    #[serde(rename = "CLOSE_PRICE")]
-    pub(crate) close_price: Option<f64>,
-    #[serde(rename = "CHANGE_RATE")]
-    pub(crate) change_rate: Option<f64>,
-    #[serde(rename = "TURNOVERRATE")]
-    pub(crate) turnover_rate: Option<f64>,
-    #[serde(rename = "BILLBOARD_NET_AMT")]
-    pub(crate) net_amount: Option<f64>,
-    #[serde(rename = "BILLBOARD_BUY_AMT")]
-    pub(crate) buy_amount: Option<f64>,
-    #[serde(rename = "BILLBOARD_SELL_AMT")]
-    pub(crate) sell_amount: Option<f64>,
-    #[serde(rename = "EXPLAIN")]
-    pub(crate) explain: Option<String>,
-    #[serde(rename = "EXPLANATION")]
-    pub(crate) explanation: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct EastmoneyBillboardSeatItem {
-    #[serde(rename = "TRADE_DATE")]
-    pub(crate) trade_date: Option<String>,
-    #[serde(rename = "SECURITY_CODE")]
-    pub(crate) security_code: Option<String>,
-    #[serde(rename = "OPERATEDEPT_NAME")]
-    pub(crate) department_name: Option<String>,
-    #[serde(rename = "BUY")]
-    pub(crate) buy_amount: Option<f64>,
-    #[serde(rename = "SELL")]
-    pub(crate) sell_amount: Option<f64>,
-    #[serde(rename = "NET")]
-    pub(crate) net_amount: Option<f64>,
-    #[serde(rename = "EXPLANATION")]
-    pub(crate) explanation: Option<String>,
 }
 
 #[derive(Debug, Clone)]

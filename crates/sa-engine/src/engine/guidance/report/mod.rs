@@ -31,6 +31,7 @@ pub struct DailyGuidanceGenerator {
     market_data: crate::data::MarketDataClient,
     memory: std::sync::Arc<dyn crate::engine::guidance::GuidanceMemory>,
     http: reqwest::Client,
+    llm: Option<crate::engine::llm::LlmClient>,
 }
 
 impl Clone for DailyGuidanceGenerator {
@@ -40,6 +41,7 @@ impl Clone for DailyGuidanceGenerator {
             market_data: self.market_data.clone(),
             memory: self.memory.clone(),
             http: self.http.clone(),
+            llm: self.llm.clone(),
         }
     }
 }
@@ -55,7 +57,13 @@ impl DailyGuidanceGenerator {
             market_data,
             memory,
             http,
+            llm: None,
         }
+    }
+
+    pub fn with_llm(mut self, llm: crate::engine::llm::LlmClient) -> Self {
+        self.llm = Some(llm);
+        self
     }
 
     /// Build a DailyGuidanceReport from its component parts.

@@ -6,22 +6,20 @@ impl DailyGuidanceGenerator {
     pub(super) async fn fetch_guidance_news(
         &self,
         market: &GuidanceMarket,
-        _date: &str,
+        date: &str,
     ) -> (Vec<GuidanceNewsItem>, Vec<String>) {
-        let queries = self.news_queries_for_market(market);
-
-        // Use the full search pipeline with multi-provider fallback
-        let (items, _attempts) = self
+        // Use akshare global news (CLS, THS, Sina, Futu) as primary source
+        let market_symbol = match market {
+            GuidanceMarket::AShare => "000001.SH",
+            GuidanceMarket::HongKong => "2800.HK",
+            GuidanceMarket::UsEquity => "SPY",
+            GuidanceMarket::All => "000001.SH",
+        };
+        let items = self
             .market_data
-            .fetch_news_search_queries_with_attempts(
-                &queries,
-                "zh-CN",
-                Some("week"),
-                None,
-                None,
-                crate::data::GeneralSearchIntent::MacroEvidence,
-            )
-            .await;
+            .fetch_global_news(market_symbol, date, 7, 30)
+            .await
+            .unwrap_or_default();
 
         let mut guidance_items = Vec::new();
         let mut sources = Vec::new();
@@ -62,35 +60,124 @@ impl DailyGuidanceGenerator {
 
         guidance_items.sort_by(|a, b| b.published_at.cmp(&a.published_at));
         guidance_items.truncate(30);
+
+        // LLM-based sentiment enrichment (batch classify top items)
+        if let Some(llm) = &self.llm
+            && let Err(e) = self.enrich_sentiment_with_llm(llm, &mut guidance_items).await
+        {
+            tracing::warn!("LLM sentiment enrichment failed, keeping keyword results: {e}");
+        }
+
         (guidance_items, sources)
     }
 
-    fn news_queries_for_market(&self, market: &GuidanceMarket) -> Vec<String> {
-        match market {
-            GuidanceMarket::AShare => vec![
-                "A股 今日 行情".to_string(),
-                "中国股市 新闻".to_string(),
-                "沪深 大盘".to_string(),
-            ],
-            GuidanceMarket::HongKong => vec![
-                "Hong Kong stock market today".to_string(),
-                "恒生指数 行情 新闻".to_string(),
-                "港股 异动 公告".to_string(),
-                "港股 科技股 金融股".to_string(),
-                "Hang Seng Index".to_string(),
-            ],
-            GuidanceMarket::UsEquity => vec![
-                "US stock market today".to_string(),
-                "Wall Street news".to_string(),
-                "S&P 500 market".to_string(),
-            ],
-            GuidanceMarket::All => vec![
-                "A股 今日 行情".to_string(),
-                "港股 今日 行情".to_string(),
-                "US stock market today".to_string(),
-                "global financial markets".to_string(),
-            ],
+    /// Use LLM to batch-classify news sentiment for items still marked "neutral".
+    async fn enrich_sentiment_with_llm(
+        &self,
+        llm: &crate::engine::llm::LlmClient,
+        items: &mut [GuidanceNewsItem],
+    ) -> anyhow::Result<()> {
+        // Only re-classify items that the keyword classifier marked as neutral
+        let neutral_indices: Vec<usize> = items
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| n.impact == "neutral")
+            .take(15)
+            .map(|(i, _)| i)
+            .collect();
+
+        if neutral_indices.is_empty() {
+            return Ok(());
         }
+
+        let items_json: Vec<serde_json::Value> = neutral_indices
+            .iter()
+            .enumerate()
+            .map(|(i, &idx)| {
+                let summary = if items[idx].summary.len() > 200 {
+                    let end = items[idx].summary.floor_char_boundary(200);
+                    &items[idx].summary[..end]
+                } else {
+                    &items[idx].summary
+                };
+                serde_json::json!({
+                    "id": i,
+                    "title": items[idx].title,
+                    "summary": summary,
+                })
+            })
+            .collect();
+
+        let prompt = format!(
+            r#"You are a financial news sentiment classifier. Classify each news item's market impact.
+
+Return a JSON array of objects with keys: id (int), impact ("positive"|"negative"|"neutral"), entities (array of stock/market names mentioned).
+
+Rules:
+- "positive" = bullish signals: earnings beat, upgrades, policy stimulus, institutional buying, sector rotation into
+- "negative" = bearish signals: earnings miss, downgrades, policy tightening, institutional selling, scandals
+- "neutral" = informational only: website descriptions, general market commentary without clear direction
+- Only classify based on actual financial content, not website metadata or navigation text
+
+News items:
+{}"#,
+            serde_json::to_string_pretty(&items_json)?
+        );
+
+        let response = llm.generate(&prompt).await?;
+
+        // Parse JSON array from response (handle markdown code blocks)
+        let json_str = response
+            .trim()
+            .strip_prefix("```json")
+            .or_else(|| response.trim().strip_prefix("```"))
+            .unwrap_or(response.trim())
+            .strip_suffix("```")
+            .unwrap_or(response.trim())
+            .trim();
+
+        let parsed: Vec<serde_json::Value> = serde_json::from_str(json_str)
+            .map_err(|e| anyhow::anyhow!("failed to parse LLM sentiment JSON: {e}"))?;
+
+        for entry in &parsed {
+            if let (Some(id), Some(impact)) = (
+                entry.get("id").and_then(|v| v.as_u64()),
+                entry.get("impact").and_then(|v| v.as_str()),
+            ) {
+                let llm_idx = id as usize;
+                if let Some(&orig_idx) = neutral_indices.get(llm_idx) {
+                    if impact == "positive" || impact == "negative" {
+                        items[orig_idx].impact = impact.to_string();
+                    }
+                    // Extract affected entities
+                    if let Some(entities) = entry.get("entities").and_then(|v| v.as_array()) {
+                        let entity_list: Vec<String> = entities
+                            .iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect();
+                        if !entity_list.is_empty() {
+                            items[orig_idx].affected_entities = entity_list;
+                        }
+                    }
+                }
+            }
+        }
+
+        let reclassified = parsed
+            .iter()
+            .filter(|e| {
+                e.get("impact")
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|i| i != "neutral")
+            })
+            .count();
+        tracing::info!(
+            reclassified,
+            total_neutral = neutral_indices.len(),
+            "LLM sentiment enrichment applied"
+        );
+
+        Ok(())
     }
 
     fn classify_news_impact(&self, title: &str, summary: &str) -> String {
@@ -120,12 +207,14 @@ fn has_negation_before(text: &str, keyword: &str) -> bool {
 fn classify_impact(title: &str, summary: &str) -> String {
     let text = format!("{} {}", title, summary).to_ascii_lowercase();
     let positive_words = [
-        "surge", "rally", "gain", "rise", "bullish", "upgrade", "outperform", "上涨", "大涨",
-        "利好", "突破", "增长", "看多", "上调",
+        "surge", "rally", "gain", "rise", "bullish", "upgrade", "outperform",
+        "上涨", "大涨", "利好", "突破", "增长", "看多", "上调", "反弹", "走强",
+        "涨停", "新高", "放量", "资金流入", "机构买入", "增持", "回购",
     ];
     let negative_words = [
-        "crash", "plunge", "drop", "fall", "bearish", "downgrade", "underperform", "下跌",
-        "暴跌", "利空", "跌破", "下滑", "看空", "下调",
+        "crash", "plunge", "drop", "fall", "bearish", "downgrade", "underperform",
+        "下跌", "暴跌", "利空", "跌破", "下滑", "看空", "下调", "回调", "走弱",
+        "跌停", "新低", "缩量", "资金流出", "机构卖出", "减持", "爆雷",
     ];
 
     let mut pos = 0usize;

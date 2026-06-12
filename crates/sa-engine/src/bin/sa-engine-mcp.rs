@@ -120,7 +120,8 @@ impl ServerHandler for StockAnalyzerServer {
                 let market = args.get("market").and_then(|v| v.as_str()).unwrap_or("a-share");
                 let memory = bin_helpers::build_memory();
                 let http = reqwest::Client::new();
-                let generator = DailyGuidanceGenerator::new(self.market_data.clone(), memory, http);
+                let generator = DailyGuidanceGenerator::new(self.market_data.clone(), memory, http)
+                    .with_llm(self.llm.clone());
                 let req = DailyGuidanceRequest {
                     market: Some(market.to_string()),
                     tickers: None,
@@ -161,7 +162,8 @@ impl ServerHandler for StockAnalyzerServer {
 
                 let memory = bin_helpers::build_memory();
                 let http = reqwest::Client::new();
-                let generator = DailyGuidanceGenerator::new(self.market_data.clone(), memory, http);
+                let generator = DailyGuidanceGenerator::new(self.market_data.clone(), memory, http)
+                    .with_llm(self.llm.clone());
                 let guidance_req = DailyGuidanceRequest {
                     market: Some(market.to_string()),
                     tickers: Some(vec![symbol.clone()]),

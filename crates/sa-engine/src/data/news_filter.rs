@@ -948,6 +948,48 @@ pub(crate) fn latest_preferred_metric(
         })
 }
 
+/// Permissive relevance filter for guidance news.
+/// Rejects obvious noise but accepts any page with financial market content.
+/// Unlike `is_macro_research_evidence_page`, does NOT require matching source/URL markers.
+pub(crate) fn is_guidance_relevant_news(item: &NewsItem) -> bool {
+    let normalized_title = normalize_news_text(&item.title);
+    let normalized_summary = normalize_news_text(&item.summary);
+    let combined = format!("{normalized_title} {normalized_summary}");
+
+    // Reject reference/overview pages
+    if title_is_reference_or_overview_page(&normalized_title, &normalized_summary) {
+        return false;
+    }
+    if url_is_quote_or_overview_page(item.url.as_deref().unwrap_or_default()) {
+        return false;
+    }
+
+    // Reject obvious non-financial noise
+    let noise_markers = [
+        "博物馆", "外交部", "百度百科", "baike.baidu", "人民共和国",
+        "gov.cn/", "fmprc.gov", "chnmuseum", "体育", "足球", "篮球",
+        "entertainment", "celebrity", "movie", "游戏", "小说",
+        "recipe", "cooking", "travel", "旅游", "美食",
+    ];
+    let url_lower = item.url.as_deref().unwrap_or_default().to_ascii_lowercase();
+    if noise_markers.iter().any(|m| {
+        combined.contains(&normalize_news_text(m)) || url_lower.contains(m)
+    }) {
+        return false;
+    }
+
+    // Accept if content has any financial market keywords
+    let financial_keywords = [
+        "股", "市场", "行情", "涨", "跌", "资金", "板块", "指数",
+        "基金", "券商", "银行", "保险", "投资", "利好", "利空",
+        "stock", "market", "index", "fund", "trading", "invest",
+        "bull", "bear", "rally", "crash", "earnings", "revenue",
+    ];
+    financial_keywords
+        .iter()
+        .any(|kw| combined.contains(&normalize_news_text(kw)))
+}
+
 #[cfg(test)]
 #[allow(dead_code)]
 pub(crate) fn eastmoney_price(value: Option<f64>) -> anyhow::Result<f64> {

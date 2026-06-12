@@ -106,11 +106,11 @@ fn resolve_output(value: serde_json::Value, i18n: &I18n, lang: &str) -> serde_js
             let mut resolved = serde_json::Map::new();
             for (k, v) in map {
                 if k == "i18n_key" {
-                    if let Some(key) = v.as_str() {
-                        if let Some(text) = i18n.resolve(key, lang) {
-                            resolved.insert("text".to_string(), json!(text));
-                            resolved.insert("key".to_string(), json!(key));
-                        }
+                    if let Some(key) = v.as_str()
+                        && let Some(text) = i18n.resolve(key, lang)
+                    {
+                        resolved.insert("text".to_string(), json!(text));
+                        resolved.insert("key".to_string(), json!(key));
                     }
                 } else {
                     resolved.insert(k, resolve_output(v, i18n, lang));
@@ -142,6 +142,13 @@ async fn main() {
             let http = reqwest::Client::new();
 
             let generator = DailyGuidanceGenerator::new(market_data, memory, http);
+            let generator = match bin_helpers::build_llm_client() {
+                Ok(llm) => generator.with_llm(llm),
+                Err(e) => {
+                    tracing::warn!("LLM not available for sentiment enrichment: {e}");
+                    generator
+                }
+            };
             let request = DailyGuidanceRequest {
                 market: Some(market.as_str().to_string()),
                 tickers: None,
@@ -205,7 +212,8 @@ async fn main() {
             let http = reqwest::Client::new();
 
             // Generate guidance as context, then run stock pick for the specific symbol
-            let generator = DailyGuidanceGenerator::new(market_data.clone(), memory, http);
+            let generator = DailyGuidanceGenerator::new(market_data.clone(), memory, http)
+                .with_llm(llm.clone());
             let guidance_req = DailyGuidanceRequest {
                 market: Some(market.as_str().to_string()),
                 tickers: Some(vec![symbol.clone()]),

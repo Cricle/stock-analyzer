@@ -6,7 +6,8 @@ use futures::future::join_all;
 
 use super::news_filter::{
     extract_site_name_from_url, gdelt_timestamp_to_published_at,
-    is_investment_research_evidence_page, is_macro_research_evidence_page, news_search_dedup_key,
+    is_guidance_relevant_news, is_investment_research_evidence_page,
+    is_macro_research_evidence_page, news_search_dedup_key,
 };
 use super::search::{preferred_search_language_for_query, within_date_window};
 use super::{
@@ -858,13 +859,21 @@ impl MarketDataClient {
                         if let (Some(title), Some(url)) = (title, link)
                             && dedup.insert(url.clone())
                         {
-                            merged.push(NewsItem {
-                                published_at: date,
+                            let published_at = if date.is_empty() {
+                                chrono::Utc::now().format("%Y-%m-%d").to_string()
+                            } else {
+                                date
+                            };
+                            let item = NewsItem {
+                                published_at,
                                 title,
                                 summary: desc.unwrap_or_default(),
                                 source: "bing_rss".to_string(),
                                 url: Some(url),
-                            });
+                            };
+                            if is_guidance_relevant_news(&item) {
+                                merged.push(item);
+                            }
                         }
                     }
                 }
@@ -896,13 +905,21 @@ impl MarketDataClient {
                             if let (Some(title), Some(url)) = (title, link)
                                 && dedup.insert(url.clone())
                             {
-                                merged.push(NewsItem {
-                                    published_at: date,
+                                let published_at = if date.is_empty() {
+                                    chrono::Utc::now().format("%Y-%m-%d").to_string()
+                                } else {
+                                    date
+                                };
+                                let item = NewsItem {
+                                    published_at,
                                     title,
                                     summary: desc.unwrap_or_default(),
                                     source: "google_news_rss".to_string(),
                                     url: Some(url),
-                                });
+                                };
+                                if is_guidance_relevant_news(&item) {
+                                    merged.push(item);
+                                }
                             }
                         }
                     }
@@ -951,13 +968,16 @@ impl MarketDataClient {
                                         ) && !title.is_empty()
                                             && dedup.insert(url.clone())
                                         {
-                                            merged.push(NewsItem {
-                                                published_at: String::new(),
+                                            let item = NewsItem {
+                                                published_at: chrono::Utc::now().format("%Y-%m-%d").to_string(),
                                                 title,
                                                 summary: String::new(),
                                                 source: "sogou_news".to_string(),
                                                 url: Some(url),
-                                            });
+                                            };
+                                            if is_guidance_relevant_news(&item) {
+                                                merged.push(item);
+                                            }
                                         }
                                     }
                                 }

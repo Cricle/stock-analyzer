@@ -11,9 +11,9 @@ use super::*;
 fn index_definitions(market: &GuidanceMarket) -> Vec<(&'static str, &'static str, &'static str)> {
     match market {
         GuidanceMarket::AShare => vec![
-            ("000001", "SSE Composite", "a_share"),
-            ("399001", "SZSE Component", "a_share"),
-            ("399006", "ChiNext", "a_share"),
+            ("000001.SH", "SSE Composite", "a_share"),
+            ("399001.SZ", "SZSE Component", "a_share"),
+            ("399006.SZ", "ChiNext", "a_share"),
         ],
         GuidanceMarket::HongKong => vec![
             ("2800.HK", "Hang Seng Index", "hong_kong"),
@@ -25,7 +25,7 @@ fn index_definitions(market: &GuidanceMarket) -> Vec<(&'static str, &'static str
             ("DIA", "Dow Jones", "us_equity"),
         ],
         GuidanceMarket::All => vec![
-            ("000001", "SSE Composite", "a_share"),
+            ("000001.SH", "SSE Composite", "a_share"),
             ("2800.HK", "Hang Seng Index", "hong_kong"),
             ("SPY", "S&P 500", "us_equity"),
         ],
@@ -49,8 +49,11 @@ impl DailyGuidanceGenerator {
                 let quote = quote_map.get(symbol)?;
                 let open = quote.open.to_f64().unwrap_or_default();
                 let close = quote.close.to_f64().unwrap_or_default();
-                let change_pct = if open > 0.0 {
-                    ((close - open) / open) * 100.0
+                let high = quote.high.to_f64().unwrap_or_default();
+                // For indices, open is often 0 (real-time); use high (prev_close) as base
+                let base = if open > 0.0 { open } else { high };
+                let change_pct = if base > 0.0 && close > 0.0 {
+                    ((close - base) / base) * 100.0
                 } else {
                     0.0
                 };

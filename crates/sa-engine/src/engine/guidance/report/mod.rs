@@ -101,6 +101,15 @@ impl DailyGuidanceGenerator {
             risk_alerts.len(),
             sector_highlights.len(),
         );
+        let executive_summary_key = serde_json::json!({
+            "i18n_key": "guidance.executive_summary",
+            "label": market_sentiment.label,
+            "news_count": news_count,
+            "pos": pos_count,
+            "neg": neg_count,
+            "risk_count": risk_alerts.len(),
+            "sector_count": sector_highlights.len(),
+        });
 
         DailyGuidanceReport {
             report_id: uuid::Uuid::new_v4().to_string(),
@@ -115,6 +124,7 @@ impl DailyGuidanceGenerator {
             recent_stock_picks,
             market_indices,
             executive_summary,
+            executive_summary_key: Some(executive_summary_key),
             metadata: GuidanceMetadata {
                 news_count,
                 news_sources,

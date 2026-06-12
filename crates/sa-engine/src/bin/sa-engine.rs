@@ -102,6 +102,44 @@ fn resolve_output(value: serde_json::Value, i18n: &I18n, lang: &str) -> serde_js
                         resolved.insert("text".to_string(), json!(text));
                         resolved.insert("key".to_string(), json!(key));
                     }
+                } else if k.ends_with("_key") {
+                    // Handle `*_key` fields: resolve and populate the base field.
+                    let base = k.strip_suffix("_key").unwrap();
+                    match &v {
+                        serde_json::Value::String(key) => {
+                            if let Some(text) = i18n.resolve(key, lang) {
+                                resolved.insert(base.to_string(), json!(text));
+                            }
+                            resolved.insert(k, v);
+                        }
+                        serde_json::Value::Object(obj) => {
+                            if let Some(key) = obj.get("i18n_key").and_then(|v| v.as_str()) {
+                                let params = obj.iter()
+                                    .filter(|(name, _)| *name != "i18n_key")
+                                    .map(|(name, val)| (name.clone(), val.clone()))
+                                    .collect::<serde_json::Map<String, serde_json::Value>>();
+                                if let Some(text) = i18n.resolve_with_params(key, lang, &params) {
+                                    resolved.insert(base.to_string(), json!(text));
+                                }
+                            }
+                            resolved.insert(k, resolve_output(v, i18n, lang));
+                        }
+                        serde_json::Value::Array(arr) => {
+                            // Array of i18n keys (e.g. action_keys).
+                            let texts: Vec<String> = arr.iter()
+                                .filter_map(|item| {
+                                    item.as_str().and_then(|key| i18n.resolve(key, lang))
+                                })
+                                .collect();
+                            if !texts.is_empty() {
+                                resolved.insert(base.to_string(), json!(texts));
+                            }
+                            resolved.insert(k, serde_json::Value::Array(arr.clone()));
+                        }
+                        _ => {
+                            resolved.insert(k, v);
+                        }
+                    }
                 } else {
                     resolved.insert(k, resolve_output(v, i18n, lang));
                 }

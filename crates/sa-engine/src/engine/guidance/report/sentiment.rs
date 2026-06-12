@@ -35,17 +35,17 @@ fn sentiment_score(pos: usize, neg: usize, total: usize) -> i32 {
     (ratio * 100.0).clamp(-100.0, 100.0) as i32
 }
 
-fn sentiment_label(score: i32) -> &'static str {
+fn sentiment_label(score: i32) -> (&'static str, &'static str) {
     if score > 30 {
-        "bullish"
+        ("bullish", "guidance.sentiment.bullish")
     } else if score > 10 {
-        "slightly_bullish"
+        ("slightly_bullish", "guidance.sentiment.slightly_bullish")
     } else if score > -10 {
-        "neutral"
+        ("neutral", "guidance.sentiment.neutral")
     } else if score > -30 {
-        "slightly_bearish"
+        ("slightly_bearish", "guidance.sentiment.slightly_bearish")
     } else {
-        "bearish"
+        ("bearish", "guidance.sentiment.bearish")
     }
 }
 
@@ -59,7 +59,7 @@ impl DailyGuidanceGenerator {
         let neg = news.iter().filter(|n| n.impact == "negative").count();
         let total = news.len();
         let score = sentiment_score(pos, neg, total);
-        let label = sentiment_label(score);
+        let (label, label_key) = sentiment_label(score);
 
         // Extract specific events as drivers
         let mut drivers = Vec::new();
@@ -83,17 +83,25 @@ impl DailyGuidanceGenerator {
             drivers.push(format!("negative: {}", truncate_titles(&neg_events, 80)));
         }
 
+        let neutral_count = total - pos - neg;
+        let rationale_key = serde_json::json!({
+            "i18n_key": "guidance.rationale",
+            "total": total,
+            "pos": pos,
+            "neg": neg,
+            "neutral": neutral_count,
+            "market": market.as_str(),
+        });
+
         MarketSentiment {
             score,
             label: label.to_string(),
+            label_key: Some(label_key.to_string()),
             rationale: format!(
                 "Based on {} news items: {} positive, {} negative, {} neutral for {} market",
-                total,
-                pos,
-                neg,
-                total - pos - neg,
-                market.as_str()
+                total, pos, neg, neutral_count, market.as_str()
             ),
+            rationale_key: Some(rationale_key),
             drivers,
         }
     }
@@ -173,12 +181,12 @@ impl DailyGuidanceGenerator {
         for (sector_name, matching) in &sector_news {
             let pos = matching.iter().filter(|n| n.impact == "positive").count();
             let neg = matching.iter().filter(|n| n.impact == "negative").count();
-            let direction = if pos > neg {
-                "positive"
+            let (direction, direction_key) = if pos > neg {
+                ("positive", "guidance.direction.positive")
             } else if neg > pos {
-                "negative"
+                ("negative", "guidance.direction.negative")
             } else {
-                "mixed"
+                ("mixed", "guidance.direction.mixed")
             };
 
             // Pick key_driver: prefer non-neutral news, then most recent
@@ -244,6 +252,7 @@ impl DailyGuidanceGenerator {
             highlights.push(SectorHighlight {
                 sector_name: sector_name.to_string(),
                 direction: direction.to_string(),
+                direction_key: Some(direction_key.to_string()),
                 key_driver,
                 representative_stocks: stocks,
             });

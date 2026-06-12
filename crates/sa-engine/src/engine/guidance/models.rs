@@ -50,6 +50,9 @@ pub struct DailyGuidanceReport {
     pub recent_stock_picks: Option<RecentStockPickSummary>,
     pub market_indices: Vec<MarketIndex>,
     pub executive_summary: String,
+    /// i18n key + params for `executive_summary`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub executive_summary_key: Option<serde_json::Value>,
     pub metadata: GuidanceMetadata,
 }
 
@@ -57,7 +60,13 @@ pub struct DailyGuidanceReport {
 pub struct MarketSentiment {
     pub score: i32,
     pub label: String,
+    /// i18n key for `label` (e.g. `"guidance.sentiment.bullish"`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label_key: Option<String>,
     pub rationale: String,
+    /// i18n key + params for `rationale`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rationale_key: Option<serde_json::Value>,
     pub drivers: Vec<String>,
 }
 
@@ -76,6 +85,9 @@ pub struct GuidanceNewsItem {
 pub struct SectorHighlight {
     pub sector_name: String,
     pub direction: String,
+    /// i18n key for `direction` (e.g. `"guidance.direction.positive"`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub direction_key: Option<String>,
     pub key_driver: String,
     pub representative_stocks: Vec<String>,
 }
@@ -108,15 +120,30 @@ pub struct RiskAlert {
     pub severity: String,
     pub category: String,
     pub description: String,
+    /// i18n key + params for `description`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description_key: Option<serde_json::Value>,
     pub mitigation: String,
+    /// i18n key for `mitigation`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mitigation_key: Option<String>,
     pub affected_markets: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct UserProfileGuide {
     pub profile: String,
+    /// i18n key for `profile`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile_key: Option<String>,
     pub summary: String,
+    /// i18n key + params for `summary`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary_key: Option<serde_json::Value>,
     pub recommended_actions: Vec<String>,
+    /// i18n keys for each action in `recommended_actions`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action_keys: Option<Vec<String>>,
     pub watch_list: Vec<String>,
     pub avoid_list: Vec<String>,
 }

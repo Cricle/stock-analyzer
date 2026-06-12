@@ -10,7 +10,93 @@
     "trader_plan": { "title": "Trader Plan" },
     "header": { "for_symbol": "Analysis Report for {symbol}" }
   },
-  "guidance": { "title": "Daily Guidance" },
+  "guidance": {
+    "title": "Daily Guidance",
+    "executive_summary": "{label} | {news_count} news ({pos}+ / {neg}-) | {risk_count} risks | {sector_count} sectors",
+    "sentiment": {
+      "bullish": "bullish",
+      "slightly_bullish": "slightly_bullish",
+      "neutral": "neutral",
+      "slightly_bearish": "slightly_bearish",
+      "bearish": "bearish"
+    },
+    "impact": {
+      "positive": "positive",
+      "negative": "negative",
+      "neutral": "neutral"
+    },
+    "direction": {
+      "positive": "positive",
+      "negative": "negative",
+      "mixed": "mixed"
+    },
+    "profile": {
+      "conservative": "conservative",
+      "balanced": "balanced",
+      "aggressive": "aggressive"
+    },
+    "rationale": "Based on {total} news items: {pos} positive, {neg} negative, {neutral} neutral for {market} market",
+    "drivers": {
+      "positive": "positive: {events}",
+      "negative": "negative: {events}"
+    },
+    "risk": {
+      "sentiment_bearish": "Market sentiment is bearish (score: {score}). Consider reducing exposure.",
+      "negative_news": "Multiple negative news items ({count}): {titles}. Monitor for systemic risks.",
+      "high_negative_sentiment": "Average news impact is negative ({avg}) with {count} negative items. Sentiment deterioration warrants caution.",
+      "sector_divergence": "Market indices diverging: {up_names} rising while {down_names} falling. Indicates sector rotation or market fragmentation.",
+      "mitigation": {
+        "review_stoploss": "Review stop-loss levels and position sizing.",
+        "diversify": "Diversify holdings and avoid concentrated positions.",
+        "reduce_position": "Consider reducing position sizes and tightening stop-losses.",
+        "hedge": "Review portfolio concentration and consider hedging."
+      }
+    },
+    "guide": {
+      "conservative": {
+        "high_risk": "High risk environment{index_context}. Avoid: {avoid}.",
+        "medium_risk": "Elevated risk{index_context}. Watch: {watch}.",
+        "stable": "Market conditions stable{index_context}. Hold existing positions."
+      },
+      "balanced": {
+        "summary": "Sentiment: {label}{index_context}. {sector_info}"
+      },
+      "aggressive": {
+        "bullish": "Favorable conditions{index_context}. Focus on: {focus}.",
+        "bearish": "Bearish environment{index_context}. Consider hedging in: {hedge}.",
+        "mixed": "Mixed conditions{index_context}. {info}"
+      },
+      "action": {
+        "hold": "Hold existing positions",
+        "review_allocation": "Review portfolio allocation",
+        "reduce_equity": "Reduce equity exposure",
+        "increase_cash": "Increase cash allocation",
+        "tighten_stoploss": "Tighten stop-losses on all positions",
+        "review_stoploss": "Review stop-losses",
+        "avoid_speculative": "Avoid new speculative entries",
+        "increase_equity": "Consider increasing equity allocation",
+        "rotate_sectors": "Rotate into outperforming sectors",
+        "review_balance": "Review portfolio balance",
+        "reduce_equity_slightly": "Reduce equity allocation slightly",
+        "increase_defensive": "Increase defensive positions",
+        "momentum_breakout": "Look for momentum breakouts",
+        "increase_winners": "Increase position size on winners",
+        "monitor_volume": "Monitor volume breakouts",
+        "hedging_strategies": "Consider hedging strategies",
+        "oversold_bounces": "Look for oversold bounces in quality names",
+        "risk_management": "Tighten risk management",
+        "wait_confirmation": "Wait for confirmation before entry",
+        "maintain_allocation": "Maintain current allocation",
+        "consider_sector_rotation": "Consider sector rotation"
+      },
+      "sector_strong": "Strong sectors: {sectors}",
+      "sector_weak": "Weak sectors: {sectors}",
+      "sector_info_strong": "Strong: {info}",
+      "sector_info_weak": "Weak: {info}",
+      "sector_info_both": "Strong: {strong}. Weak: {weak}",
+      "no_sector_trend": "No dominant sector trend."
+    }
+  },
   "stock_pick": { "title": "Stock Picks" },
   "error": { "section_failed": "Section generation failed: {reason}" }
 }

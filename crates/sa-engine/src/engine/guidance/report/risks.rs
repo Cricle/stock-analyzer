@@ -21,7 +21,12 @@ impl DailyGuidanceGenerator {
                     "Market sentiment is bearish (score: {}). Consider reducing exposure.",
                     sentiment.score
                 ),
+                description_key: Some(serde_json::json!({
+                    "i18n_key": "guidance.risk.sentiment_bearish",
+                    "score": sentiment.score,
+                })),
                 mitigation: "Review stop-loss levels and position sizing.".to_string(),
+                mitigation_key: Some("guidance.risk.mitigation.review_stoploss".to_string()),
                 affected_markets: vec![market.as_str().to_string()],
             });
         }
@@ -35,15 +40,18 @@ impl DailyGuidanceGenerator {
                 .take(3)
                 .map(|n| n.title.as_str())
                 .collect();
+            let titles_str = truncate_event_titles(&neg_titles);
             alerts.push(RiskAlert {
                 severity: if neg_count >= 4 { "high" } else { "medium" }.to_string(),
                 category: "news_flow".to_string(),
-                description: format!(
-                    "Multiple negative news items ({}): {}",
-                    neg_count,
-                    truncate_event_titles(&neg_titles)
-                ),
+                description: format!("Multiple negative news items ({}): {}", neg_count, titles_str),
+                description_key: Some(serde_json::json!({
+                    "i18n_key": "guidance.risk.negative_news",
+                    "count": neg_count,
+                    "titles": titles_str,
+                })),
                 mitigation: "Diversify holdings and avoid concentrated positions.".to_string(),
+                mitigation_key: Some("guidance.risk.mitigation.diversify".to_string()),
                 affected_markets: vec![market.as_str().to_string()],
             });
         }
@@ -67,8 +75,14 @@ impl DailyGuidanceGenerator {
                         "Average news impact is negative ({:.2}) with {} negative items.",
                         avg_impact, neg_count
                     ),
+                    description_key: Some(serde_json::json!({
+                        "i18n_key": "guidance.risk.high_negative_sentiment",
+                        "avg": format!("{:.2}", avg_impact),
+                        "count": neg_count,
+                    })),
                     mitigation: "Consider reducing position sizes and tightening stop-losses."
                         .to_string(),
+                    mitigation_key: Some("guidance.risk.mitigation.reduce_position".to_string()),
                     affected_markets: vec![market.as_str().to_string()],
                 });
             }
@@ -98,7 +112,13 @@ impl DailyGuidanceGenerator {
                         up_names.join(", "),
                         down_names.join(", ")
                     ),
+                    description_key: Some(serde_json::json!({
+                        "i18n_key": "guidance.risk.sector_divergence",
+                        "up_names": up_names.join(", "),
+                        "down_names": down_names.join(", "),
+                    })),
                     mitigation: "Review portfolio concentration and consider hedging.".to_string(),
+                    mitigation_key: Some("guidance.risk.mitigation.hedge".to_string()),
                     affected_markets: vec![market.as_str().to_string()],
                 });
             }

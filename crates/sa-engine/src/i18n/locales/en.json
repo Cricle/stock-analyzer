@@ -1,0 +1,16 @@
+{
+  "report": {
+    "summary": { "title": "Analysis Summary" },
+    "technical": { "title": "Technical Indicators" },
+    "risk": { "title": "Risk Assessment" },
+    "catalyst": { "title": "Catalyst Analysis" },
+    "decision": { "title": "Decision View" },
+    "diagnostics": { "title": "Diagnostics" },
+    "probability": { "title": "Probability Assessment" },
+    "trader_plan": { "title": "Trader Plan" },
+    "header": { "for_symbol": "Analysis Report for {symbol}" }
+  },
+  "guidance": { "title": "Daily Guidance" },
+  "stock_pick": { "title": "Stock Picks" },
+  "error": { "section_failed": "Section generation failed: {reason}" }
+}

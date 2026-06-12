@@ -1,0 +1,16 @@
+{
+  "report": {
+    "summary": { "title": "分析摘要" },
+    "technical": { "title": "技术指标" },
+    "risk": { "title": "风险评估" },
+    "catalyst": { "title": "催化剂分析" },
+    "decision": { "title": "决策视图" },
+    "diagnostics": { "title": "诊断信息" },
+    "probability": { "title": "概率评估" },
+    "trader_plan": { "title": "交易计划" },
+    "header": { "for_symbol": "{symbol} 的分析报告" }
+  },
+  "guidance": { "title": "每日指引" },
+  "stock_pick": { "title": "选股结果" },
+  "error": { "section_failed": "板块生成失败: {reason}" }
+}

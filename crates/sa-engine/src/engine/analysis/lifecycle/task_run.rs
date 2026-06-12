@@ -373,11 +373,6 @@ impl TaskManager {
         result.apply_calibrated_markdown();
         self.analysis_store.save_result(task_id, &result).await?;
 
-        // Store analysis summary in Qdrant for cross-module retrieval
-        if let Err(e) = store_analysis_in_qdrant(&result).await {
-            tracing::warn!(symbol = %result.symbol, error = %e, "failed to store analysis in qdrant");
-        }
-
         Ok(true)
     }
 
@@ -930,7 +925,7 @@ impl TaskManager {
         };
         let _ = self
             .memory_log
-            .store_decision_async(
+            .store_decision(
                 &crate::engine::memory::DecisionRecord {
                     ticker: &task.symbol,
                     trade_date: &task.analysis_date,
@@ -943,7 +938,6 @@ impl TaskManager {
                     action_score: result.report.action_score,
                     research: Some(&research_record),
                 },
-                &task.owner_username,
             )
             .await;
         self.checkpoint_store
@@ -1138,112 +1132,4 @@ fn analysis_news_start(analysis_date: &str) -> Option<String> {
     chrono::NaiveDate::parse_from_str(analysis_date, "%Y-%m-%d")
         .ok()
         .map(|date| (date - chrono::Days::new(7)).format("%Y-%m-%d").to_string())
-}
-
-/// Store analysis result summary in the stock_pick Qdrant collection
-/// so stock picks and guidance can retrieve it.
-async fn store_analysis_in_qdrant(result: &crate::models::AnalysisResult) -> anyhow::Result<()> {
-    let qdrant_url = std::env::var("QDRANT_URL")
-        .or_else(|_| std::env::var("RAG_QDRANT_URL"))
-        .unwrap_or_else(|_| "http://127.0.0.1:6333".to_string());
-    let collection = "tradingagents_stock_pick";
-
-    let report = &result.report;
-    let rating = report.recommendation.clone();
-    let confidence = report.confidence_score;
-    let entry_price = report.decision_view.current_price.clone();
-    let target_price = report.decision_view.target_reference.clone();
-    let stop_loss = report.decision_view.invalidation_level.clone();
-    let reader_summary = report.decision_view.reader_summary.clone();
-
-    // Extract key news headlines
-    let news_headlines: Vec<String> = report
-        .news_insights
-        .iter()
-        .take(5)
-        .map(|n| n.title.clone())
-        .collect();
-
-    // Extract key technical signals
-    let technical_summary: Vec<String> = report
-        .technical_indicators
-        .categories
-        .iter()
-        .flat_map(|c| c.indicators.iter())
-        .filter(|i| !i.signal_code.is_empty())
-        .take(5)
-        .map(|i| format!("{}: {:?}", i.key, i.value.unwrap_or(0.0)))
-        .collect();
-
-    let summary_text = format!(
-        "{} {} market {} analysis {} conclusion {} rating {}",
-        result.symbol,
-        result.stock_name,
-        result.market_type,
-        result.analysis_date,
-        reader_summary,
-        rating
-    );
-
-    use sha2::{Digest, Sha256};
-    use uuid::Uuid;
-
-    let point_id = {
-        let digest = Sha256::digest(format!(
-            "analysis:{}:{}:{}",
-            result.symbol, result.analysis_date, result.task_id
-        ));
-        let mut bytes = [0u8; 16];
-        bytes.copy_from_slice(&digest[..16]);
-        bytes[6] = (bytes[6] & 0x0f) | 0x50;
-        bytes[8] = (bytes[8] & 0x3f) | 0x80;
-        Uuid::from_bytes(bytes).to_string()
-    };
-
-    let embedding = crate::engine::guidance::semantic_embed(&summary_text);
-
-    let client = crate::engine::shared::shared_http_client();
-    let resp = client
-        .put(format!(
-            "{}/collections/{}/points?wait=true",
-            qdrant_url.trim().trim_end_matches('/'),
-            collection
-        ))
-        .json(&serde_json::json!({
-            "points": [{
-                "id": point_id,
-                "vector": embedding,
-                "payload": {
-                    "entry_kind": "analysis_result",
-                    "symbol": result.symbol,
-                    "stock_name": result.stock_name,
-                    "market": result.market_type,
-                    "analysis_date": result.analysis_date,
-                    "task_id": result.task_id,
-                    "rating": rating.clone(),
-                    "confidence": confidence as i64,
-                    "entry_price": entry_price,
-                    "target_price": target_price,
-                    "stop_loss": stop_loss,
-                    "reader_summary": reader_summary,
-                    "news_headlines": news_headlines,
-                    "technical_summary": technical_summary,
-                    "created_at": result.created_at
-                }
-            }]
-        }))
-        .send()
-        .await?;
-
-    if !resp.status().is_success() {
-        let body = resp.text().await.unwrap_or_default();
-        anyhow::bail!("qdrant analysis store failed: {body}");
-    }
-
-    tracing::info!(
-        symbol = %result.symbol,
-        analysis_date = %result.analysis_date,
-        "analysis result stored in qdrant"
-    );
-    Ok(())
 }

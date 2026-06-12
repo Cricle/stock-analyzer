@@ -1,16 +1,13 @@
 //! Daily market guidance report system.
 //!
 //! Aggregates news (via searxng), market data, and historical memory
-//! to produce structured daily guidance reports. Reports are cached in Redis
-//! and summaries are stored in Qdrant for cross-day semantic retrieval.
+//! to produce structured daily guidance reports.
 
-pub mod embedding;
 mod models;
 mod prewarm;
 mod report;
 pub mod store;
 
-pub use embedding::{hash_embed, semantic_embed};
 pub use models::*;
 pub use prewarm::{PrewarmTask, generate_prewarm_tasks};
 pub use report::DailyGuidanceGenerator;

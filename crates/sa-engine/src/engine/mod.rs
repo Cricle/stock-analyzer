@@ -20,7 +20,6 @@ pub use telemetry::{SharedTelemetry, TelemetryState};
 pub use stock_pick::run as run_stock_pick;
 pub use score::scorer::score_stock_pick;
 pub use guidance::generate_prewarm_tasks;
-pub use guidance::embedding::{semantic_embed, hash_embed, EMBEDDING_DIMENSION};
 pub use telemetry::{init_telemetry, record_analysis_task_duration, record_llm_usage};
 pub use config::{env_flag, env_flag_value};
 pub use shared::{shared_http_client, safe_ticker_component};

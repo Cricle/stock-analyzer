@@ -54,7 +54,6 @@ mod client;
 pub mod diagnosis;
 mod hk;
 pub(crate) mod news_search;
-pub mod qdrant;
 pub mod search;
 mod tushare;
 mod us;

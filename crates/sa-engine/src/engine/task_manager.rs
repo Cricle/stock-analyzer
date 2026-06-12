@@ -5,7 +5,6 @@ use tokio::sync::{RwLock, broadcast};
 use tokio::task::AbortHandle;
 
 use crate::engine::memory::TradingMemoryLog;
-use crate::engine::memory::cross_collection::CrossCollectionSearcher;
 use crate::engine::checkpoint::TaskCheckpointStore;
 use crate::engine::telemetry::SharedTelemetry;
 
@@ -126,7 +125,6 @@ pub struct TaskManager {
     pub max_debate_rounds: usize,
     pub max_risk_discuss_rounds: usize,
     pub telemetry: SharedTelemetry,
-    pub cross_collection: CrossCollectionSearcher,
     pub broadcasters:
         Arc<RwLock<HashMap<String, broadcast::Sender<crate::models::TaskEvent>>>>,
     pub running_tasks: Arc<RwLock<HashMap<String, AbortHandle>>>,
@@ -148,8 +146,6 @@ impl TaskManager {
         max_risk_discuss_rounds: usize,
         telemetry: SharedTelemetry,
     ) -> anyhow::Result<Self> {
-        let cross_collection = CrossCollectionSearcher::new(memory_log.clone());
-
         Ok(Self {
             analysis_store,
             cache_store,
@@ -163,7 +159,6 @@ impl TaskManager {
             max_debate_rounds,
             max_risk_discuss_rounds,
             telemetry,
-            cross_collection,
             broadcasters: Arc::new(RwLock::new(HashMap::new())),
             running_tasks: Arc::new(RwLock::new(HashMap::new())),
         })
@@ -301,81 +296,9 @@ impl TaskManager {
     }
 
     /// Fetch sector context for analysis from guidance store.
-    pub async fn fetch_sector_context_for_analysis(&self, market_type: &str) -> String {
-        let store = crate::engine::guidance::GuidanceStore::from_env();
-        let query_text = format!("market {} sector highlights sentiment", market_type);
-        let embedding = self.memory_log.embed_text(&query_text);
-        if embedding.is_empty() {
-            return String::new();
-        }
-        let mut context_parts = Vec::new();
-        match store
-            .search_sector_context(&embedding, market_type, 3)
-            .await
-        {
-            Ok(results) if !results.is_empty() => {
-                let mut lines = vec!["=== Sector Highlights ===".to_string()];
-                for r in &results {
-                    let payload = r.get("payload").unwrap_or(r);
-                    let sector = payload
-                        .get("sector_name")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("");
-                    let direction = payload
-                        .get("direction")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("");
-                    let driver = payload
-                        .get("key_driver")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("");
-                    let date = payload.get("date").and_then(serde_json::Value::as_str).unwrap_or("");
-                    lines.push(format!(
-                        "- [{}] {} {} -- {}",
-                        date, sector, direction, driver
-                    ));
-                }
-                context_parts.push(lines.join("\n"));
-            }
-            _ => {}
-        }
-        match store
-            .search_sentiment_context(&embedding, market_type, 2)
-            .await
-        {
-            Ok(results) if !results.is_empty() => {
-                let mut lines = vec!["=== Market Sentiment ===".to_string()];
-                for r in &results {
-                    let payload = r.get("payload").unwrap_or(r);
-                    let label = payload
-                        .get("sentiment_label")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("");
-                    let score = payload
-                        .get("sentiment_score")
-                        .and_then(serde_json::Value::as_f64)
-                        .unwrap_or(0.0);
-                    let date = payload.get("date").and_then(serde_json::Value::as_str).unwrap_or("");
-                    let drivers = payload
-                        .get("drivers")
-                        .and_then(serde_json::Value::as_array)
-                        .map(|arr| {
-                            arr.iter()
-                                .filter_map(serde_json::Value::as_str)
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        })
-                        .unwrap_or_default();
-                    lines.push(format!(
-                        "- [{}] {} (score {:.1}) -- {}",
-                        date, label, score, drivers
-                    ));
-                }
-                context_parts.push(lines.join("\n"));
-            }
-            _ => {}
-        }
-        context_parts.join("\n\n")
+    pub async fn fetch_sector_context_for_analysis(&self, _market_type: &str) -> String {
+        // Vector-based sector/sentiment search removed with RAG system.
+        String::new()
     }
 }
 

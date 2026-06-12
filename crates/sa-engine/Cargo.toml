@@ -14,7 +14,6 @@ path = "src/bin/sa-engine-mcp.rs"
 
 [features]
 default = []
-local-rag-embeddings = ["fastembed"]
 
 [dependencies]
 # Core
@@ -26,7 +25,6 @@ backoff = { version = "0.4", features = ["tokio"] }
 calamine = "0.31"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
-fastembed = { version = "4", optional = true }
 futures = "0.3"
 hex = "0.4"
 opentelemetry = "0.28"

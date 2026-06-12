@@ -46,7 +46,7 @@ impl DailyGuidanceGenerator {
         }
     }
 
-    /// Fetch recent stock pick summary from Qdrant for inclusion in the report.
+    /// Fetch recent stock pick summary for inclusion in the report.
     pub(super) async fn fetch_recent_stock_picks(
         &self,
         market: &GuidanceMarket,

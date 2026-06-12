@@ -1,10 +1,4 @@
-use std::path::PathBuf;
-
-#[cfg(feature = "local-rag-embeddings")]
-use fastembed::TextEmbedding;
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "local-rag-embeddings")]
-use std::sync::Arc;
 
 use crate::models::HistoricalMemoryHighlight;
 use crate::models::{StructuredReflection, StructuredRiskAssessment};
@@ -12,47 +6,10 @@ use crate::models::{StructuredReflection, StructuredRiskAssessment};
 pub(crate) const ENTRY_SEPARATOR: &str = "\n\n<!-- ENTRY_END -->\n\n";
 pub(crate) const WEAK_SETUP_TAGS: &[&str] = &["watchlist_only"];
 
-/// Vector store backend for memory operations.
-/// Uses the trait-based VectorStore from crate::models.
-pub type VectorMemoryBackend = std::sync::Arc<dyn crate::models::VectorStore>;
-
-#[derive(Clone)]
-pub struct RagConfig {
-    pub enabled: bool,
-    pub embedding_provider: String,
-    pub embedding_model: String,
-    pub top_k: usize,
-    pub same_ticker_top_k: usize,
-    pub cross_ticker_top_k: usize,
-}
-
-#[derive(Clone)]
-pub struct EmbeddingBackend {
-    #[cfg(feature = "local-rag-embeddings")]
-    pub inner: Option<Arc<TextEmbedding>>,
-    pub provider: String,
-    pub model: String,
-    pub dimension: usize,
-    pub retrieval_enabled: bool,
-    pub failure_reason: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub(crate) struct RagRuntimeSnapshot {
-    pub enabled: bool,
-    pub qdrant_url_configured: bool,
-    pub qdrant_collection: String,
-    pub embedding_provider: String,
-    pub embedding_model: String,
-}
-
 #[derive(Clone)]
 pub struct TradingMemoryLog {
-    pub log_path: PathBuf,
+    pub log_path: std::path::PathBuf,
     pub max_entries: usize,
-    pub vector_store: Option<VectorMemoryBackend>,
-    pub rag: RagConfig,
-    pub embedding: EmbeddingBackend,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -220,10 +177,7 @@ pub struct QaMemoryEntry {
 }
 
 mod core;
-pub mod cross_collection;
-mod embedding;
 mod format;
-mod qdrant;
 mod stats;
 
 pub(crate) use stats::*;

@@ -3,7 +3,7 @@
 //! Aggregates data from multiple sources:
 //! - News via searxng
 //! - Market data via MarketDataClient
-//! - Historical patterns via Qdrant
+//! - Historical patterns from memory system
 //!
 //! Produces structured JSON reports (no i18n in backend).
 
@@ -20,10 +20,6 @@ use std::time::Instant;
 
 use super::store::GuidanceStore;
 use super::*;
-use crate::engine::guidance::embedding::semantic_embed;
-
-const QDRANT_HISTORY_LIMIT: usize = 5;
-const QDRANT_NEWS_LIMIT: usize = 10;
 
 pub(crate) struct ReportComponents {
     pub date: String,
@@ -87,8 +83,8 @@ impl DailyGuidanceGenerator {
         let news_count = components.news_items.len();
         let pos_count = components.news_items.iter().filter(|n| n.impact == "positive").count();
         let neg_count = components.news_items.iter().filter(|n| n.impact == "negative").count();
-        let qdrant_memory_queries = components.historical_insights.len();
-        let qdrant_memory_hits = components.historical_insights
+        let historical_query_count = components.historical_insights.len();
+        let historical_hit_count = components.historical_insights
             .iter()
             .filter(|i| i.confidence > 0.3)
             .count();
@@ -129,8 +125,8 @@ impl DailyGuidanceGenerator {
             metadata: GuidanceMetadata {
                 news_count,
                 news_sources: components.news_sources,
-                qdrant_memory_queries,
-                qdrant_memory_hits,
+                historical_query_count,
+                historical_hit_count,
                 cache_hit: false,
                 generation_time_ms: components.elapsed_ms,
                 data_freshness: chrono::Utc::now().to_rfc3339(),
@@ -140,51 +136,11 @@ impl DailyGuidanceGenerator {
         }
     }
 
-    /// Cache report in Redis and store embeddings in Qdrant.
+    /// Cache report.
     #[allow(clippy::type_complexity)]
-    async fn persist_report(&self, report: &DailyGuidanceReport, date: &str, market: &str) {
+    async fn persist_report(&self, report: &DailyGuidanceReport, _date: &str, _market: &str) {
         self.store.cache_report(report).await;
-
-        let summary_text = format!(
-            "daily guidance {} market {} sentiment {} news {}",
-            date,
-            market,
-            report.market_sentiment.label,
-            report.key_news.len(),
-        );
-        let embedding = semantic_embed(&summary_text);
-        if let Err(e) = self.store.store_daily_summary(report, &embedding).await {
-            tracing::warn!("failed to store daily summary in qdrant: {e}");
-        }
-
-        match self.store.store_sector_embeddings(report).await {
-            Ok(count) => tracing::info!(count, "stored sector/sentiment embeddings"),
-            Err(e) => tracing::warn!("failed to store sector embeddings in qdrant: {e}"),
-        }
-
-        let news_embeddings: Vec<(String, String, String, Option<String>, Vec<f32>)> = report
-            .key_news
-            .iter()
-            .map(|news| {
-                let text = format!("{} {} {}", news.title, news.summary, news.source);
-                let embedding = semantic_embed(&text);
-                (
-                    news.title.clone(),
-                    news.summary.clone(),
-                    news.source.clone(),
-                    news.url.clone(),
-                    embedding,
-                )
-            })
-            .collect();
-        match self
-            .store
-            .batch_store_news_embeddings(date, market, &news_embeddings)
-            .await
-        {
-            Ok(count) => tracing::info!(count, "batch stored news embeddings"),
-            Err(e) => tracing::warn!("failed to batch store news embeddings: {e}"),
-        }
+        // Vector store persistence removed with RAG system.
     }
 
     /// Generate or retrieve a cached daily guidance report.
@@ -221,12 +177,7 @@ impl DailyGuidanceGenerator {
         // 1. Fetch news from searxng
         let (news_items, news_sources) = self.fetch_guidance_news(&market, &date).await;
 
-        // 1b. Ensure Qdrant guidance collection exists
-        if let Err(e) = self.store.ensure_collection().await {
-            tracing::warn!("failed to ensure qdrant guidance collection: {e}");
-        }
-
-        // 2. Query Qdrant for historical patterns
+        // 2. Query historical patterns from memory
         let historical_insights = self.query_historical_patterns(&market, &date).await;
 
         // 3. Build market sentiment from news + memory
@@ -304,12 +255,7 @@ impl DailyGuidanceGenerator {
         // 1. Fetch news from searxng
         let (news_items, news_sources) = self.fetch_guidance_news(&market_enum, date).await;
 
-        // 2. Ensure Qdrant collection
-        if let Err(e) = self.store.ensure_collection().await {
-            tracing::warn!("failed to ensure qdrant guidance collection: {e}");
-        }
-
-        // 3. Query Qdrant for historical patterns
+        // 2. Query historical patterns from memory
         let historical_insights = self.query_historical_patterns(&market_enum, date).await;
 
         // 4. Fetch market indices

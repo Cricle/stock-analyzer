@@ -1,24 +1,14 @@
 //! Trait-based storage for daily guidance reports.
 //!
-//! Uses `crate::models::CacheStore` for caching and `crate::models::VectorStore` for vector search.
+//! Uses `crate::models::CacheStore` for caching.
 
 mod cache;
-mod search;
-mod write;
-
-use sha2::{Digest, Sha256};
-use uuid::Uuid;
 
 use super::DailyGuidanceReport;
-
-// Re-export embedding functions from the embedding module.
-// hash_embed is kept as a fallback; prefer semantic_embed for production.
-pub use crate::engine::guidance::embedding::{hash_embed, semantic_embed};
 
 const GUIDANCE_CACHE_PREFIX: &str = "tradingagents:guidance";
 const GUIDANCE_CACHE_TTL_SECS: u64 = 4 * 60 * 60; // 4 hours
 const GUIDANCE_STALE_TTL_SECS: u64 = 24 * 60 * 60; // 24 hours
-const GUIDANCE_VECTOR_COLLECTION: &str = "tradingagents_daily_guidance";
 
 /// Pre-fetched data for two-phase report generation.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -36,47 +26,19 @@ pub struct PreparedData {
 #[derive(Clone)]
 pub struct GuidanceStore {
     cache: std::sync::Arc<dyn crate::models::CacheStore>,
-    vector_store: std::sync::Arc<dyn crate::models::VectorStore>,
 }
 
 impl GuidanceStore {
-    pub fn new(
-        cache: std::sync::Arc<dyn crate::models::CacheStore>,
-        vector_store: std::sync::Arc<dyn crate::models::VectorStore>,
-    ) -> Self {
-        Self { cache, vector_store }
+    pub fn new(cache: std::sync::Arc<dyn crate::models::CacheStore>) -> Self {
+        Self { cache }
     }
 
     /// Create from environment variables (legacy compatibility).
-    ///
-    /// TODO: Replace with explicit dependency injection.
-    /// This falls back to no-op stores when no concrete implementation is available.
     pub fn from_env() -> Self {
         tracing::warn!("GuidanceStore::from_env() called without injected stores; using no-op fallback");
         Self {
             cache: std::sync::Arc::new(NoopCacheStore),
-            vector_store: std::sync::Arc::new(NoopVectorStore),
         }
-    }
-
-    // --- Helpers ---
-
-    fn qdrant_point_id(entry_id: &str) -> String {
-        let digest = Sha256::digest(entry_id.as_bytes());
-        let mut bytes = [0u8; 16];
-        bytes.copy_from_slice(&digest[..16]);
-        bytes[6] = (bytes[6] & 0x0f) | 0x50;
-        bytes[8] = (bytes[8] & 0x3f) | 0x80;
-        Uuid::from_bytes(bytes).to_string()
-    }
-
-    fn news_dedup_key(title: &str, source: &str) -> String {
-        let digest = Sha256::digest(format!(
-            "{}:{}",
-            title.trim().to_ascii_lowercase(),
-            source.trim().to_ascii_lowercase()
-        ));
-        hex::encode(&digest[..16])
     }
 }
 
@@ -116,13 +78,4 @@ impl crate::models::CacheStore for NoopCacheStore {
     async fn delete(&self, _key: &str) -> anyhow::Result<()> { Ok(()) }
     async fn exists(&self, _key: &str) -> anyhow::Result<bool> { Ok(false) }
     async fn list_entries(&self, _prefix: &str) -> anyhow::Result<Vec<crate::models::CacheEntry>> { Ok(vec![]) }
-}
-
-struct NoopVectorStore;
-
-#[async_trait::async_trait]
-impl crate::models::VectorStore for NoopVectorStore {
-    async fn insert(&self, _collection: &str, _id: &str, _embedding: &[f32], _payload: serde_json::Value) -> anyhow::Result<()> { Ok(()) }
-    async fn search(&self, _collection: &str, _query_embedding: &[f32], _top_k: usize) -> anyhow::Result<Vec<crate::models::VectorSearchHit>> { Ok(vec![]) }
-    async fn delete(&self, _collection: &str, _id: &str) -> anyhow::Result<()> { Ok(()) }
 }

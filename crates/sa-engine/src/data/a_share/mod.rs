@@ -3,18 +3,15 @@ use std::collections::HashSet;
 use anyhow::{Context, bail};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
-use serde_json::Value;
 
 use super::{
     CandlePoint, FundamentalsSnapshot, MarketDataClient, NewsItem, QuoteSnapshot,
     StockSearchResult, f64_to_dec, opt_f64_to_dec,
-    wire::{AkshareIndividualInfo, EastmoneyAnnouncementsEnvelope},
+    akshare_conv, wire::AkshareIndividualInfo,
 };
 
 impl MarketDataClient {
-    /// Fallback search: try to look up a code directly via the eastmoney kline API.
-    /// This handles codes (like certain indices) that the suggest API doesn't cover.
-    /// Tries market IDs 0 (深), 1 (沪), 2 (中证), 47 (北交所).
+    /// Fallback search: try to look up a code directly via akshare a_share_search.
     pub(super) async fn search_eastmoney_direct_lookup(
         &self,
         code: &str,
@@ -23,56 +20,11 @@ impl MarketDataClient {
         if trimmed.is_empty() || !trimmed.chars().all(|c| c.is_ascii_digit()) {
             return None;
         }
-        let market_ids: &[u32] = &[1, 0, 2, 47];
-        for &market_id in market_ids {
-            let secid = format!("{}.{}", market_id, trimmed);
-            let result = tokio::time::timeout(
-                std::time::Duration::from_secs(2),
-                self.http
-                    .get("https://push2his.eastmoney.com/api/qt/stock/kline/get")
-                    .query(&[
-                        ("secid", secid.as_str()),
-                        ("ut", "7eea3edcaed734bea9cbfc24409ed989"),
-                        ("fields1", "f1,f2,f3,f4,f5,f6"),
-                        ("fields2", "f51,f52,f53,f54,f55,f56,f57,f58"),
-                        ("klt", "101"),
-                        ("fqt", "0"),
-                        ("beg", "0"),
-                        ("end", "20500000"),
-                    ])
-                    .send(),
-            )
-            .await;
-            let Ok(Ok(response)) = result else {
-                continue;
-            };
-            let Ok(payload) = response
-                .json::<serde_json::Value>()
-                .await
-            else {
-                continue;
-            };
-            let data = payload.get("data")?;
-            let name = data.get("name")?.as_str()?;
-            let code_str = data.get("code")?.as_str()?;
-            if name.is_empty() || code_str.is_empty() {
-                continue;
-            }
-            let market_name = match market_id {
-                0 => "A股",
-                1 => "A股",
-                2 => "指数",
-                47 => "A股",
-                _ => "A股",
-            };
-            return Some(StockSearchResult {
-                symbol: code_str.to_string(),
-                name: name.to_string(),
-                market: market_name.to_string(),
-                exchange: String::new(),
-            });
-        }
-        None
+        self.ak
+            .a_share_search(trimmed, None, 1)
+            .await
+            .ok()
+            .and_then(|mut items| items.drain(..).next())
     }
 
     pub(crate) async fn fetch_a_share_quote_from_tushare(
@@ -111,56 +63,12 @@ impl MarketDataClient {
         &self,
         symbol: &str,
     ) -> anyhow::Result<QuoteSnapshot> {
-        let market_symbol = self.tencent_market_symbol(symbol)?;
-        let response = self
-            .http
-            .get("https://qt.gtimg.cn/q")
-            .query(&[("q", market_symbol.as_str())])
-            .send()
+        let q = self
+            .ak
+            .a_share_quote(symbol)
             .await
-            .context("failed to fetch A-share quote from Tencent")?
-            .error_for_status()
-            .context("tencent quote request failed")?
-            .text()
-            .await
-            .context("failed to read tencent quote response")?;
-        Self::parse_tencent_quote(symbol, &response)
-    }
-
-    fn parse_tencent_quote(_symbol: &str, raw: &str) -> anyhow::Result<QuoteSnapshot> {
-        let fields = Self::parse_tencent_quote_fields(raw)?;
-        if fields.len() < 38 {
-            bail!("unexpected tencent quote field count");
-        }
-        let date = fields[30]
-            .get(0..8)
-            .context("missing tencent trade date")?
-            .to_string();
-        Ok(QuoteSnapshot {
-            symbol: fields[2].trim().to_string(),
-            date,
-            open: fields[5].parse().context("invalid tencent quote open")?,
-            high: fields[33].parse().context("invalid tencent quote high")?,
-            low: fields[34].parse().context("invalid tencent quote low")?,
-            close: fields[3].parse().context("invalid tencent quote close")?,
-            volume: fields[6].parse().context("invalid tencent quote volume")?,
-        })
-    }
-
-    fn parse_tencent_quote_market_cap(raw: &str) -> anyhow::Result<Option<f64>> {
-        let fields = Self::parse_tencent_quote_fields(raw)?;
-        Ok(fields
-            .get(45)
-            .and_then(|value| value.parse::<f64>().ok())
-            .map(|value| value * 100_000_000.0))
-    }
-
-    fn parse_tencent_quote_fields(raw: &str) -> anyhow::Result<Vec<&str>> {
-        let payload = raw
-            .split_once('"')
-            .and_then(|(_, rest)| rest.rsplit_once('"').map(|(body, _)| body))
-            .context("unexpected tencent quote response format")?;
-        Ok(payload.split('~').collect::<Vec<_>>())
+            .context("akshare a_share_quote failed")?;
+        Ok(akshare_conv::quote_from_akshare(q))
     }
 
     pub(crate) async fn fetch_a_share_tencent_candles(
@@ -169,51 +77,15 @@ impl MarketDataClient {
         adjust: &str,
         limit: usize,
     ) -> anyhow::Result<Vec<CandlePoint>> {
-        let market_symbol = self.tencent_market_symbol(symbol)?;
-        let fq = match adjust {
-            "none" => "",
-            "qfq" => "qfq",
-            "hfq" => "hfq",
-            other => bail!("unsupported adjust mode: {}", other),
-        };
-        // Tencent kline API rejects requests with limit > 2000 ("param error").
-        // Cap to 2000; the API returns all available data up to the limit.
-        let capped_limit = limit.clamp(5, 2000);
-        let response = self
-            .http
-            .get("https://web.ifzq.gtimg.cn/appstock/app/fqkline/get")
-            .query(&[(
-                "param",
-                format!("{market_symbol},day,,,{},{}", capped_limit, fq),
-            )])
-            .send()
+        let items = self
+            .ak
+            .a_share_candles(symbol, adjust, limit)
             .await
-            .context("failed to fetch A-share candles from Tencent")?
-            .error_for_status()
-            .context("tencent candle request failed")?
-            .json::<Value>()
-            .await
-            .context("failed to decode tencent candle response")?;
-        let series = response
-            .get("data")
-            .and_then(|data| data.get(&market_symbol))
-            .and_then(|item| item.get(if fq == "hfq" { "hfqday" } else { "qfqday" }))
-            .or_else(|| {
-                response
-                    .get("data")
-                    .and_then(|data| data.get(&market_symbol))
-                    .and_then(|item| item.get("day"))
-            })
-            .and_then(|value| value.as_array())
-            .context("tencent candle response missing day series")?;
-        let items = series
-            .iter()
-            .map(Self::parse_tencent_candle_row)
-            .collect::<anyhow::Result<Vec<_>>>()?;
-        if items.is_empty() {
-            bail!("tencent returned no candle items");
-        }
-        Self::finalize_a_share_candles(items, limit)
+            .context("akshare a_share_candles failed")?;
+        Ok(items
+            .into_iter()
+            .map(akshare_conv::candle_from_akshare)
+            .collect())
     }
 
     pub(crate) async fn fetch_a_share_eastmoney_candles(
@@ -222,159 +94,12 @@ impl MarketDataClient {
         adjust: &str,
         limit: usize,
     ) -> anyhow::Result<Vec<CandlePoint>> {
-        let secid = self.eastmoney_secid(symbol)?;
-        let fqt = match adjust {
-            "none" => "0",
-            "qfq" => "1",
-            "hfq" => "2",
-            other => bail!("unsupported adjust mode: {}", other),
-        };
-        let response = self
-            .http
-            .get("https://push2his.eastmoney.com/api/qt/stock/kline/get")
-            .query(&[
-                ("secid", secid.as_str()),
-                ("ut", "fa5fd1943c7b386f172d6893dbfba10b"),
-                ("klt", "101"),
-                ("fqt", fqt),
-                ("lmt", &limit.max(5).to_string()),
-                ("end", "20500000"),
-                ("fields1", "f1,f2,f3,f4,f5,f6"),
-                ("fields2", "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61"),
-            ])
-            .send()
-            .await
-            .context("failed to fetch A-share candles from Eastmoney")?
-            .error_for_status()
-            .context("eastmoney A-share candle request failed")?;
-        let payload: crate::data::wire::EastmoneyKlineEnvelope = response
-            .json()
-            .await
-            .context("failed to decode eastmoney A-share candle response")?;
-        let data = payload
-            .data
-            .context("eastmoney A-share candle response missing data")?;
-        let klines = data
-            .klines
-            .context("eastmoney A-share candle response missing klines")?;
-        let items = klines
-            .into_iter()
-            .map(|line| Self::parse_eastmoney_a_share_candle_line(&line))
-            .collect::<anyhow::Result<Vec<_>>>()?;
-        if items.is_empty() {
-            bail!("eastmoney A-share candle response returned no rows");
-        }
-        Self::finalize_a_share_candles(items, limit)
+        // Delegate to akshare which has Tencent -> Eastmoney -> Tushare fallback
+        self.fetch_a_share_tencent_candles(symbol, adjust, limit).await
     }
 }
 impl MarketDataClient {
 
-    fn parse_eastmoney_a_share_candle_line(line: &str) -> anyhow::Result<CandlePoint> {
-        let fields = line.split(',').collect::<Vec<_>>();
-        if fields.len() < 11 {
-            bail!("unexpected eastmoney A-share candle format: {}", line);
-        }
-        Ok(CandlePoint {
-            trade_date: fields[0].to_string(),
-            open: fields[1]
-                .parse()
-                .context("invalid eastmoney A-share candle open")?,
-            close: fields[2]
-                .parse()
-                .context("invalid eastmoney A-share candle close")?,
-            high: fields[3]
-                .parse()
-                .context("invalid eastmoney A-share candle high")?,
-            low: fields[4]
-                .parse()
-                .context("invalid eastmoney A-share candle low")?,
-            volume: fields[5].parse::<f64>().unwrap_or_default().round() as i64,
-            amount: fields[6].parse().unwrap_or_default(),
-            amplitude_pct: fields[7].parse().unwrap_or_default(),
-            change_pct: fields[8].parse().unwrap_or_default(),
-            change_amount: fields[9].parse().unwrap_or_default(),
-            turnover_pct: fields[10].parse().unwrap_or_default(),
-        })
-    }
-
-    fn finalize_a_share_candles(
-        mut items: Vec<CandlePoint>,
-        limit: usize,
-    ) -> anyhow::Result<Vec<CandlePoint>> {
-        if items.is_empty() {
-            bail!("A-share candle response returned no rows");
-        }
-        items.sort_by(|left, right| left.trade_date.cmp(&right.trade_date));
-        for index in 1..items.len() {
-            let previous_close = items[index - 1].close;
-            if previous_close > Decimal::ZERO
-                && (items[index].change_amount.abs() <= Decimal::new(1, 10)
-                    || items[index].change_pct.abs() <= f64::EPSILON)
-            {
-                items[index].change_amount = items[index].close - previous_close;
-                items[index].change_pct = (items[index].change_amount / previous_close * Decimal::from(100)).to_f64().unwrap_or_default();
-            }
-        }
-        if items.len() > limit {
-            let start_index = items.len() - limit;
-            items = items[start_index..].to_vec();
-        }
-        Ok(items)
-    }
-}
-impl MarketDataClient {
-    fn parse_tencent_candle_row(value: &Value) -> anyhow::Result<CandlePoint> {
-        let row = value.as_array().context("unexpected tencent candle row")?;
-        if row.len() < 6 {
-            bail!("unexpected tencent candle row length");
-        }
-        let trade_date = row[0]
-            .as_str()
-            .context("missing tencent candle date")?
-            .to_string();
-        let open = row[1]
-            .as_str()
-            .context("missing tencent candle open")?
-            .parse()
-            .context("invalid tencent candle open")?;
-        let close = row[2]
-            .as_str()
-            .context("missing tencent candle close")?
-            .parse()
-            .context("invalid tencent candle close")?;
-        let high = row[3]
-            .as_str()
-            .context("missing tencent candle high")?
-            .parse()
-            .context("invalid tencent candle high")?;
-        let low = row[4]
-            .as_str()
-            .context("missing tencent candle low")?
-            .parse()
-            .context("invalid tencent candle low")?;
-        let volume = row[5]
-            .as_str()
-            .context("missing tencent candle volume")?
-            .parse::<f64>()
-            .context("invalid tencent candle volume")?;
-        Ok(CandlePoint {
-            trade_date,
-            open,
-            close,
-            high,
-            low,
-            volume: volume.round() as i64,
-            amount: Decimal::ZERO,
-            amplitude_pct: if low > Decimal::ZERO {
-                ((high - low) / low * Decimal::from(100)).to_f64().unwrap_or_default()
-            } else {
-                0.0
-            },
-            change_pct: 0.0,
-            change_amount: Decimal::ZERO,
-            turnover_pct: 0.0,
-        })
-    }
 }
 impl MarketDataClient {
     pub(crate) fn a_share_fiscal_year_end_candidate(value: Option<String>) -> Option<String> {
@@ -455,71 +180,28 @@ impl MarketDataClient {
         &self,
         secucode: &str,
     ) -> anyhow::Result<super::wire::EastmoneyBalanceSheetItem> {
-        let response = self
-            .http
-            .get("https://datacenter-web.eastmoney.com/api/data/v1/get")
-            .query(&[
-                ("reportName", "RPT_DMSK_FN_BALANCE"),
-                ("columns", "ALL"),
-                ("filter", &format!("(SECUCODE=\"{secucode}\")")),
-                ("pageNumber", "1"),
-                ("pageSize", "1"),
-                ("sortTypes", "-1"),
-                ("sortColumns", "REPORT_DATE"),
-                ("source", "WEB"),
-                ("client", "WEB"),
-            ])
-            .send()
+        let symbol = secucode.split_once('.').map(|(c, _)| c).unwrap_or(secucode);
+        let sheets = self
+            .ak
+            .stock_balance_sheet_by_report_em_typed(symbol)
             .await
-            .context("failed to fetch Eastmoney balance sheet")?
-            .error_for_status()
-            .context("eastmoney balance sheet request failed")?;
-        let payload: super::wire::EastmoneyDatacenterEnvelope<
-            super::wire::EastmoneyBalanceSheetItem,
-        > = response
-            .json()
-            .await
-            .context("failed to decode eastmoney balance sheet response")?;
-        payload
-            .result
-            .and_then(|result| result.data)
-            .and_then(|mut items| items.drain(..).next())
-            .context("eastmoney balance sheet returned no rows")
+            .context("akshare balance sheet failed")?;
+        let first = sheets.first().context("akshare balance sheet returned no rows")?;
+        Ok(akshare_conv::balance_sheet_to_wire(first))
     }
 
     async fn fetch_eastmoney_cashflow(
         &self,
         secucode: &str,
     ) -> anyhow::Result<super::wire::EastmoneyCashflowItem> {
-        let response = self
-            .http
-            .get("https://datacenter-web.eastmoney.com/api/data/v1/get")
-            .query(&[
-                ("reportName", "RPT_DMSK_FN_CASHFLOW"),
-                ("columns", "ALL"),
-                ("filter", &format!("(SECUCODE=\"{secucode}\")")),
-                ("pageNumber", "1"),
-                ("pageSize", "1"),
-                ("sortTypes", "-1"),
-                ("sortColumns", "REPORT_DATE"),
-                ("source", "WEB"),
-                ("client", "WEB"),
-            ])
-            .send()
+        let symbol = secucode.split_once('.').map(|(c, _)| c).unwrap_or(secucode);
+        let sheets = self
+            .ak
+            .stock_cash_flow_sheet_by_report_em_typed(symbol)
             .await
-            .context("failed to fetch Eastmoney cashflow")?
-            .error_for_status()
-            .context("eastmoney cashflow request failed")?;
-        let payload: super::wire::EastmoneyDatacenterEnvelope<super::wire::EastmoneyCashflowItem> =
-            response
-                .json()
-                .await
-                .context("failed to decode eastmoney cashflow response")?;
-        payload
-            .result
-            .and_then(|result| result.data)
-            .and_then(|mut items| items.drain(..).next())
-            .context("eastmoney cashflow returned no rows")
+            .context("akshare cashflow failed")?;
+        let first = sheets.first().context("akshare cashflow returned no rows")?;
+        Ok(akshare_conv::cashflow_to_wire(first))
     }
 
     pub(super) async fn fetch_a_share_fundamentals(
@@ -546,11 +228,6 @@ impl MarketDataClient {
             .or(None);
         let info = self.fetch_a_share_individual_info(symbol).await.ok();
         let quote = self.fetch_a_share_quote_from_eastmoney(symbol).await.ok();
-        let quote_market_cap = self
-            .fetch_a_share_tencent_market_cap(symbol)
-            .await
-            .ok()
-            .flatten();
         let eastmoney_main = self.fetch_eastmoney_main_finance_indicator(ts_code).await.ok();
         let eastmoney_balance = self.fetch_eastmoney_balance_sheet(ts_code).await.ok();
         let eastmoney_cashflow = self.fetch_eastmoney_cashflow(ts_code).await.ok();
@@ -644,7 +321,6 @@ impl MarketDataClient {
             .and_then(|row| row.optional_f64("total_mv"))
             .map(|v| f64_to_dec(v * 10_000.0))
             .or_else(|| opt_f64_to_dec(info.as_ref().and_then(|value| value.market_cap)))
-            .or(opt_f64_to_dec(quote_market_cap))
             .or_else(|| {
                 let shares = provisional_shares_outstanding?;
                 let quote = quote.as_ref()?;
@@ -1180,87 +856,23 @@ impl MarketDataClient {
         &self,
         symbol: &str,
     ) -> anyhow::Result<AkshareIndividualInfo> {
-        let Some(token) = self.tushare_token.as_deref() else {
-            return Ok(AkshareIndividualInfo {
-                stock_name: None,
-                total_share: None,
-                market_cap: None,
-                industry: None,
-            });
-        };
-        let ts_code = self
-            .normalize_a_share_symbol(symbol)
-            .context("invalid A-share symbol for stock_basic")?;
-        let response = self
-            .http
-            .post("https://api.tushare.pro")
-            .json(&serde_json::json!({
-                "api_name": "stock_basic",
-                "token": token,
-                "params": { "ts_code": ts_code, "list_status": "L" },
-                "fields": "ts_code,name,industry"
-            }))
-            .send()
+        let items = self
+            .ak
+            .stock_individual_info_em(symbol)
             .await
-            .context("failed to call tushare stock_basic for A-share individual info")?
-            .error_for_status()
-            .context("tushare stock_basic http request failed")?;
-        let payload: super::wire::TushareResponse = response
-            .json()
-            .await
-            .context("failed to decode tushare stock_basic response")?;
-        let basic_rows = if payload.code == 0 {
-            payload
-                .data
-                .map(|data| {
-                    data.items
-                        .into_iter()
-                        .map(|item| super::wire::TushareRow::new(&data.fields, item))
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default()
-        } else {
-            Vec::new()
+            .context("akshare stock_individual_info_em failed")?;
+        let find_value = |label: &str| -> Option<&serde_json::Value> {
+            items.iter().find(|item| item.item == label).map(|item| &item.value)
         };
-        let basic = basic_rows.first();
         Ok(AkshareIndividualInfo {
-            stock_name: basic.and_then(|row| row.optional_string("name")),
-            total_share: None,
-            market_cap: None,
-            industry: basic.and_then(|row| row.optional_string("industry")),
+            stock_name: find_value("股票简称").and_then(|v| v.as_str()).map(String::from),
+            total_share: find_value("总股本").and_then(|v| v.as_f64()).map(|v| v as i64),
+            market_cap: find_value("总市值").and_then(|v| v.as_f64()),
+            industry: find_value("行业").and_then(|v| v.as_str()).map(String::from),
         })
     }
 }
 impl MarketDataClient {
-
-    fn tencent_market_symbol(&self, symbol: &str) -> anyhow::Result<String> {
-        akshare::market::tencent_market_symbol(symbol).map_err(|e| anyhow::anyhow!(e))
-    }
-}
-impl MarketDataClient {
-    #[cfg(test)]
-    #[allow(dead_code)]
-    pub(super) fn parse_a_share_candle_line(line: &str) -> anyhow::Result<CandlePoint> {
-        let fields = line.split(',').collect::<Vec<_>>();
-        if fields.len() < 11 {
-            bail!("unexpected eastmoney candle format: {}", line);
-        }
-
-        Ok(CandlePoint {
-            trade_date: fields[0].to_string(),
-            open: fields[1].parse().context("invalid candle open")?,
-            close: fields[2].parse().context("invalid candle close")?,
-            high: fields[3].parse().context("invalid candle high")?,
-            low: fields[4].parse().context("invalid candle low")?,
-            volume: fields[5].parse().context("invalid candle volume")?,
-            amount: fields[6].parse().context("invalid candle amount")?,
-            amplitude_pct: fields[7].parse().context("invalid candle amplitude")?,
-            change_pct: fields[8].parse().context("invalid candle change_pct")?,
-            change_amount: fields[9].parse().context("invalid candle change_amount")?,
-            turnover_pct: fields[10].parse().context("invalid candle turnover_pct")?,
-        })
-    }
-
     pub(super) async fn fetch_a_share_return_since(
         &self,
         symbol: &str,
@@ -1298,91 +910,19 @@ impl MarketDataClient {
             .split_once('.')
             .map(|(code, _)| code)
             .unwrap_or(ts_code);
-        let page_size = limit.to_string();
-        let response = self
-            .http
-            .get("https://np-anotice-stock.eastmoney.com/api/security/ann")
-            .query(&[
-                ("page_size", page_size.as_str()),
-                ("page_index", "1"),
-                ("ann_type", "A"),
-                ("client_source", "web"),
-                ("stock_list", symbol),
-            ])
-            .send()
+        let announcements = self
+            .ak
+            .a_share_announcements(symbol, limit)
             .await
-            .context("failed to fetch Eastmoney announcements")?
-            .error_for_status()
-            .context("eastmoney announcements request failed")?;
-        let payload: EastmoneyAnnouncementsEnvelope = response
-            .json()
-            .await
-            .context("failed to decode eastmoney announcements response")?;
-        let mut items = payload
-            .data
-            .and_then(|data| data.list)
-            .unwrap_or_default()
+            .context("akshare a_share_announcements failed")?;
+        let items: Vec<NewsItem> = announcements
             .into_iter()
-            .map(|item| NewsItem {
-                published_at: item.notice_date.unwrap_or_default(),
-                title: item.title.clone().unwrap_or_else(|| "公司公告".to_string()),
-                summary: item.title.unwrap_or_else(|| "公司公告".to_string()),
-                source: "Eastmoney 公告".to_string(),
-                url: item.art_code.map(|art_code| {
-                    format!("https://data.eastmoney.com/notices/detail/{symbol}/{art_code}.html")
-                }),
-            })
-            .collect::<Vec<_>>();
+            .map(akshare_conv::news_item_from_announcement)
+            .collect();
         if items.is_empty() {
             bail!("eastmoney returned no announcement items");
         }
-        items.truncate(limit);
         Ok(items)
     }
 
-    async fn fetch_a_share_tencent_market_cap(&self, symbol: &str) -> anyhow::Result<Option<f64>> {
-        let market_symbol = self.tencent_market_symbol(symbol)?;
-        let response = self
-            .http
-            .get("https://qt.gtimg.cn/q")
-            .query(&[("q", market_symbol.as_str())])
-            .send()
-            .await
-            .context("failed to fetch A-share Tencent market cap")?
-            .error_for_status()
-            .context("tencent market cap request failed")?
-            .text()
-            .await
-            .context("failed to read tencent market cap response")?;
-        Self::parse_tencent_quote_market_cap(&response)
-    }
-}
-
-#[cfg(test)]
-#[allow(dead_code)]
-pub(crate) fn test_tencent_market_symbol(
-    client: &MarketDataClient,
-    symbol: &str,
-) -> anyhow::Result<String> {
-    client.tencent_market_symbol(symbol)
-}
-
-#[cfg(test)]
-#[allow(dead_code)]
-pub(crate) fn test_parse_tencent_quote(symbol: &str, raw: &str) -> anyhow::Result<QuoteSnapshot> {
-    MarketDataClient::parse_tencent_quote(symbol, raw)
-}
-
-#[cfg(test)]
-#[allow(dead_code)]
-pub(crate) fn test_parse_tencent_candle_row(
-    value: &serde_json::Value,
-) -> anyhow::Result<CandlePoint> {
-    MarketDataClient::parse_tencent_candle_row(value)
-}
-
-#[cfg(test)]
-#[allow(dead_code)]
-pub(crate) fn test_parse_tencent_quote_market_cap(raw: &str) -> anyhow::Result<Option<f64>> {
-    MarketDataClient::parse_tencent_quote_market_cap(raw)
 }

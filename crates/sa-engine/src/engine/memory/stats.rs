@@ -1,10 +1,9 @@
 //! Memory statistics and calibration. Inlined from backend/src/engine/memory/stats/.
 
-use serde::Deserialize;
 use serde_json::json;
 
 use super::MemoryEntry;
-use crate::models::{StructuredReflection, StructuredRiskAssessment, CalibrationProfile};
+use crate::models::CalibrationProfile;
 
 #[derive(Clone, Debug, Default)]
 pub struct SetupMatchStats {
@@ -18,36 +17,6 @@ pub struct SetupMatchStats {
     pub long_match_count: usize,
     pub short_match_count: usize,
     pub neutral_match_count: usize,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct QdrantMemoryPayload {
-    pub(crate) ticker: String,
-    pub(crate) trade_date: String,
-    pub(crate) rating: String,
-    pub(crate) action: Option<String>,
-    pub(crate) market: Option<String>,
-    pub(crate) stock_name: Option<String>,
-    pub(crate) direction_score: Option<i32>,
-    pub(crate) confidence_score: Option<i32>,
-    pub(crate) action_score: Option<i32>,
-    pub(crate) summary: Option<String>,
-    pub(crate) risk_assessment: Option<String>,
-    pub(crate) rationale: Option<String>,
-    pub(crate) structured_risk: Option<StructuredRiskAssessment>,
-    pub(crate) structured_reflection: Option<StructuredReflection>,
-    pub(crate) trigger_checklist: Option<Vec<String>>,
-    pub(crate) blocking_gaps: Option<Vec<String>>,
-    pub(crate) setup_tags: Option<Vec<String>>,
-    pub(crate) execution_boundary_complete: Option<bool>,
-    pub(crate) final_trade_decision: Option<String>,
-    pub(crate) reflection: Option<String>,
-    pub(crate) raw_return: Option<f64>,
-    pub(crate) alpha_return: Option<f64>,
-    pub(crate) holding_days: Option<usize>,
-    pub(crate) pending: Option<bool>,
-    #[serde(default)]
-    pub(crate) user_id: Option<String>,
 }
 
 pub(crate) fn extract_labeled_block<'a>(text: &'a str, label: &str) -> Option<&'a str> {

@@ -71,7 +71,7 @@ impl TaskManager {
         }
 
         self.memory_log
-            .batch_update_with_outcomes_async(&updates)
+            .batch_update_with_outcomes(&updates)
             .await?;
         Ok(())
     }
@@ -387,7 +387,7 @@ impl TaskManager {
                 })
                 .await?;
             self.memory_log
-                .update_outcome_async(
+                .update_outcome(
                     &entry.ticker,
                     &entry.trade_date,
                     outcome_return,
@@ -426,7 +426,7 @@ impl TaskManager {
             })
             .await?;
         self.memory_log
-            .update_outcome_async(
+            .update_outcome(
                 &request.ticker,
                 &request.trade_date,
                 request.outcome_return,

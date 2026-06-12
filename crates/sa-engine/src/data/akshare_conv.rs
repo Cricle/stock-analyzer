@@ -64,3 +64,38 @@ pub(crate) fn news_item_from_akshare(n: akshare::NewsItem) -> super::NewsItem {
         url: n.url,
     }
 }
+
+pub(crate) fn news_item_from_announcement(a: akshare::AnnouncementItem) -> super::NewsItem {
+    super::NewsItem {
+        published_at: a.published_at,
+        title: a.title.clone(),
+        summary: a.title,
+        source: a.source,
+        url: a.url,
+    }
+}
+
+pub(crate) fn balance_sheet_to_wire(
+    b: &akshare::stock::feature::BalanceSheet,
+) -> super::wire::EastmoneyBalanceSheetItem {
+    super::wire::EastmoneyBalanceSheetItem {
+        report_date: b.notice_date.clone(),
+        total_assets: b.total_assets,
+        total_liabilities: b.total_liabilities,
+        total_equity: b.equity,
+        monetary_funds: b.cash,
+        current_liab: None,
+        totalnoncliab: None,
+    }
+}
+
+pub(crate) fn cashflow_to_wire(
+    c: &akshare::stock::feature::CashFlowSheet,
+) -> super::wire::EastmoneyCashflowItem {
+    super::wire::EastmoneyCashflowItem {
+        report_date: c.notice_date.clone(),
+        netcash_operate: c.operating_cash_flow,
+        construct_long_asset: c.investing_cash_flow,
+        end_cce: c.cash_increase,
+    }
+}

@@ -1053,7 +1053,7 @@ mod snapshots {
         let news_ready = !item.news.is_empty() || !item.evidence_records.is_empty();
         let history_ready =
             !item.history_match_snapshot.enabled || item.history_match_snapshot.sample_count > 0;
-        let qdrant_ready =
+        let vector_store_ready =
             !item.history_match_snapshot.enabled || item.history_match_snapshot.vector_hit_count > 0;
         let redis_ready =
             !item.history_match_snapshot.enabled || item.history_match_snapshot.sample_count > 0;
@@ -1079,7 +1079,7 @@ mod snapshots {
             technical_ready,
             news_ready,
             history_ready,
-            qdrant_ready,
+            vector_store_ready,
             redis_ready,
         ]
         .into_iter()
@@ -1092,7 +1092,7 @@ mod snapshots {
             technical_ready,
             news_ready,
             history_ready,
-            qdrant_ready,
+            vector_store_ready,
             redis_ready,
             completeness_score,
             gaps,

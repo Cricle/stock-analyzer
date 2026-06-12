@@ -1,7 +1,6 @@
 //! Stock-level guidance generation.
 
 use super::*;
-use crate::engine::guidance::embedding::semantic_embed;
 
 impl DailyGuidanceGenerator {
     pub(super) async fn generate_stock_guidances(
@@ -23,21 +22,8 @@ impl DailyGuidanceGenerator {
                 .past_context_bundle(&ticker_upper, 3, 2)
                 .await;
 
-            let query_text = format!("{} market {} guidance", ticker_upper, market.as_str());
-            let embedding = semantic_embed(&query_text);
-            let stock_pick_hits = self
-                .store
-                .search_daily_summaries(&embedding, Some(market.as_str()), 3)
-                .await
-                .unwrap_or_default();
-
-            let memory_relevance = if memory_bundle.vector_hit_count > 0 {
+            let memory_relevance = if memory_bundle.same_ticker_count > 0 {
                 0.7
-            } else if !stock_pick_hits.is_empty() {
-                stock_pick_hits
-                    .first()
-                    .and_then(|p| p.get("score").and_then(|v| v.as_f64()))
-                    .unwrap_or(0.3)
             } else {
                 0.0
             };

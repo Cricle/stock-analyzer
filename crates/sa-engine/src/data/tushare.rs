@@ -21,10 +21,6 @@ impl MarketDataClient {
         })
     }
 
-    pub(super) fn eastmoney_secid(&self, symbol: &str) -> anyhow::Result<String> {
-        akshare::market::eastmoney_secid(symbol).map_err(|e| anyhow::anyhow!(e))
-    }
-
     pub(super) async fn tushare_query(
         &self,
         api_name: &str,

@@ -11,6 +11,7 @@ use super::{
     DecisionRecord, ENTRY_SEPARATOR, MemoryContextBundle, MemoryEntry, MemoryQuery,
     TradingMemoryLog, WEAK_SETUP_TAGS,
 };
+
 impl TradingMemoryLog {
     pub(super) fn compact_context_text(text: &str, max_chars: usize) -> String {
         let normalized = text
@@ -43,34 +44,6 @@ impl TradingMemoryLog {
                 head.trim(),
                 tail.trim()
             )
-        }
-    }
-
-    pub(super) fn env_truthy(key: &str, default: bool) -> bool {
-        std::env::var(key)
-            .map(|v| crate::engine::config::env_flag_value(&v))
-            .unwrap_or(default)
-    }
-
-    pub(super) fn non_empty_env(keys: &[&str]) -> Option<String> {
-        keys.iter().find_map(|key| {
-            std::env::var(key)
-                .ok()
-                .map(|value| value.trim().to_string())
-                .filter(|value| !value.is_empty())
-        })
-    }
-
-    pub(crate) fn rag_runtime_snapshot() -> super::RagRuntimeSnapshot {
-        super::RagRuntimeSnapshot {
-            enabled: Self::env_truthy("RAG_ENABLED", true),
-            qdrant_url_configured: Self::non_empty_env(&["RAG_QDRANT_URL", "QDRANT_URL"]).is_some(),
-            qdrant_collection: Self::non_empty_env(&["RAG_QDRANT_COLLECTION", "QDRANT_COLLECTION"])
-                .unwrap_or_else(|| "tradingagents_memory".to_string()),
-            embedding_provider: Self::non_empty_env(&["RAG_EMBEDDING_PROVIDER"])
-                .unwrap_or_else(|| "fastembed".to_string()),
-            embedding_model: Self::non_empty_env(&["RAG_EMBEDDING_MODEL"])
-                .unwrap_or_else(|| "BAAI/bge-small-en-v1.5".to_string()),
         }
     }
 
@@ -115,35 +88,9 @@ impl TradingMemoryLog {
         let base = PathBuf::from(data_dir).join("memory");
         fs::create_dir_all(&base)
             .with_context(|| format!("failed to create {}", base.display()))?;
-        let rag = Self::load_rag_config();
-        let vector_store = Self::build_vector_backend(&rag);
-        let embedding = Self::build_embedding_backend(data_dir, &rag);
         Ok(Self {
             log_path: base.join("decisions.md"),
             max_entries,
-            vector_store,
-            rag,
-            embedding,
-        })
-    }
-
-    /// Create a new TradingMemoryLog with an injected vector store.
-    pub fn with_vector_store(
-        data_dir: &str,
-        max_entries: usize,
-        vector_store: super::VectorMemoryBackend,
-    ) -> anyhow::Result<Self> {
-        let base = PathBuf::from(data_dir).join("memory");
-        fs::create_dir_all(&base)
-            .with_context(|| format!("failed to create {}", base.display()))?;
-        let rag = Self::load_rag_config();
-        let embedding = Self::build_embedding_backend(data_dir, &rag);
-        Ok(Self {
-            log_path: base.join("decisions.md"),
-            max_entries,
-            vector_store: Some(vector_store),
-            rag,
-            embedding,
         })
     }
 
@@ -264,15 +211,6 @@ impl TradingMemoryLog {
         same_limit: usize,
         cross_limit: usize,
     ) -> anyhow::Result<MemoryContextBundle> {
-        let same_limit = self.rag.same_ticker_top_k.max(same_limit);
-        let cross_limit = self.rag.cross_ticker_top_k.max(cross_limit);
-        if let Some(context) = self
-            .qdrant_past_context_bundle(query, same_limit, cross_limit)
-            .await?
-            .filter(|value| !value.context_text.trim().is_empty())
-        {
-            return Ok(context);
-        }
         self.local_past_context_bundle(query, same_limit, cross_limit).await
     }
 
@@ -367,12 +305,8 @@ impl TradingMemoryLog {
             context_text: Self::compact_context_text(&parts.join("\n\n"), 3200),
             source: "local".to_string(),
             retrieval_mode: "local".to_string(),
-            embedding_provider: if self.rag.enabled {
-                self.embedding.provider.clone()
-            } else {
-                "disabled".to_string()
-            },
-            embedding_failure_reason: self.embedding.failure_reason.clone(),
+            embedding_provider: "disabled".to_string(),
+            embedding_failure_reason: None,
             same_ticker_count: same_entries.len(),
             cross_ticker_count: cross_entries.len(),
             vector_hit_count: 0,
@@ -509,112 +443,6 @@ impl TradingMemoryLog {
         Ok(())
     }
 
-    pub async fn store_decision_async(
-        &self,
-        record: &DecisionRecord<'_>,
-        user_id: &str,
-    ) -> anyhow::Result<()> {
-        self.store_decision(record).await?;
-        self.qdrant_upsert_entry(&MemoryEntry {
-            ticker: record.ticker.to_string(),
-            trade_date: record.trade_date.to_string(),
-            rating: record.rating.to_string(),
-            action: record.action.to_string(),
-            market: record.market.to_string(),
-            stock_name: record.research
-                .map(|item| item.stock_name.clone())
-                .unwrap_or_default(),
-            direction_score: Some(record.direction_score),
-            confidence_score: Some(record.confidence_score),
-            action_score: Some(record.action_score),
-            summary: record.research
-                .map(|item| item.summary.clone())
-                .unwrap_or_default(),
-            risk_assessment: record.research
-                .map(|item| item.risk_assessment.clone())
-                .unwrap_or_default(),
-            rationale: record.research
-                .map(|item| item.rationale.clone())
-                .unwrap_or_default(),
-            structured_risk: record.research
-                .map(|item| item.structured_risk.clone())
-                .unwrap_or_default(),
-            structured_reflection: record.research
-                .map(|item| item.structured_reflection.clone())
-                .unwrap_or_default(),
-            trigger_checklist: record.research
-                .map(|item| item.trigger_checklist.clone())
-                .unwrap_or_default(),
-            blocking_gaps: record.research
-                .map(|item| item.blocking_gaps.clone())
-                .unwrap_or_default(),
-            setup_tags: record.research
-                .map(|item| item.setup_tags.clone())
-                .unwrap_or_default(),
-            execution_boundary_complete: record.research.map(|item| item.execution_boundary_complete),
-            final_trade_decision: record.final_trade_decision.to_string(),
-            reflection: None,
-            raw_return: None,
-            alpha_return: None,
-            holding_days: None,
-            pending: true,
-            user_id: user_id.to_string(),
-        })
-        .await?;
-        if let Some(research) = record.research {
-            self.qdrant_upsert_research_record(
-                record.ticker, record.trade_date, record.rating, record.action, record.market, research,
-            )
-            .await?;
-        }
-        Ok(())
-    }
-
-    /// Store a decision from a MemoryEntry struct directly.
-    pub async fn store_entry_async(&self, entry: &MemoryEntry) -> anyhow::Result<()> {
-        self.store_decision(&DecisionRecord {
-            ticker: &entry.ticker,
-            trade_date: &entry.trade_date,
-            final_trade_decision: &entry.final_trade_decision,
-            rating: &entry.rating,
-            action: &entry.action,
-            market: &entry.market,
-            direction_score: entry.direction_score.unwrap_or(0),
-            confidence_score: entry.confidence_score.unwrap_or(0),
-            action_score: entry.action_score.unwrap_or(0),
-            research: None,
-        })
-        .await?;
-        self.qdrant_upsert_entry(entry).await
-    }
-
-    pub async fn update_outcome_async(
-        &self,
-        ticker: &str,
-        trade_date: &str,
-        outcome_return: f64,
-        benchmark_return: f64,
-        reflection: String,
-    ) -> anyhow::Result<()> {
-        self.update_outcome(
-            ticker,
-            trade_date,
-            outcome_return,
-            benchmark_return,
-            reflection,
-        )
-        .await?;
-        if let Some(entry) = self
-            .load_entries()
-            .await?
-            .into_iter()
-            .find(|item| item.ticker.eq_ignore_ascii_case(ticker) && item.trade_date == trade_date)
-        {
-            self.qdrant_upsert_entry(&entry).await?;
-        }
-        Ok(())
-    }
-
     pub async fn batch_update_with_outcomes(
         &self,
         updates: &[MemoryOutcomeUpdate],
@@ -689,72 +517,6 @@ impl TradingMemoryLog {
 }
 impl TradingMemoryLog {
 
-    pub async fn batch_update_with_outcomes_async(
-        &self,
-        updates: &[MemoryOutcomeUpdate],
-    ) -> anyhow::Result<()> {
-        self.batch_update_with_outcomes(updates).await?;
-        if updates.is_empty() {
-            return Ok(());
-        }
-        let mut pending_ids = updates
-            .iter()
-            .map(|item| Self::entry_id(&item.ticker, &item.trade_date))
-            .collect::<HashSet<_>>();
-        for entry in self.load_entries().await? {
-            if pending_ids.remove(&Self::entry_id(&entry.ticker, &entry.trade_date)) {
-                self.qdrant_upsert_entry(&entry).await?;
-            }
-            if pending_ids.is_empty() {
-                break;
-            }
-        }
-        Ok(())
-    }
-
-    /// Search for successful trading patterns across tickers for lesson propagation.
-    /// Returns entries with positive alpha that share similar setup tags.
-    pub async fn cross_ticker_lessons(
-        &self,
-        market: &str,
-        setup_tags: &[String],
-        limit: usize,
-    ) -> anyhow::Result<Vec<MemoryEntry>> {
-        let Some(backend) = &self.vector_store else {
-            return Ok(Vec::new());
-        };
-        if !self.embedding.retrieval_enabled {
-            return Ok(Vec::new());
-        }
-        let query_text = format!(
-            "market {} setup {} successful positive alpha return lesson",
-            market,
-            setup_tags.join(" ")
-        );
-        let vector = self.embed_text(&query_text);
-        let mut entries = self
-            .vector_search_filtered(
-                backend.as_ref(),
-                &vector,
-                limit * 3,
-                None,
-                Some(market),
-                None,
-            )
-            .await?;
-        // Filter to only entries with positive alpha return
-        entries.retain(|e| e.alpha_return.unwrap_or(0.0) > 0.0 && !e.pending);
-        // Sort by alpha return descending
-        entries.sort_by(|a, b| {
-            b.alpha_return
-                .unwrap_or(0.0)
-                .partial_cmp(&a.alpha_return.unwrap_or(0.0))
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-        entries.truncate(limit);
-        Ok(entries)
-    }
-
     pub async fn evaluation_summary(&self) -> anyhow::Result<serde_json::Value> {
         let entries = self.load_entries().await?;
         let resolved = entries
@@ -797,50 +559,6 @@ impl TradingMemoryLog {
 
     pub(super) fn entry_id(ticker: &str, trade_date: &str) -> String {
         format!("{}:{}", ticker.trim().to_uppercase(), trade_date.trim())
-    }
-
-    pub(super) fn research_entry_id(ticker: &str, trade_date: &str) -> String {
-        format!(
-            "research:{}:{}",
-            ticker.trim().to_uppercase(),
-            trade_date.trim()
-        )
-    }
-
-    pub(super) fn entry_text(entry: &MemoryEntry) -> String {
-        [
-            format!("ticker {}", entry.ticker),
-            format!("date {}", entry.trade_date),
-            format!("market {}", entry.market),
-            format!("rating {}", entry.rating),
-            format!("action {}", entry.action),
-            entry.final_trade_decision.clone(),
-            entry.reflection.clone().unwrap_or_default(),
-        ]
-        .into_iter()
-        .filter(|value| !value.trim().is_empty())
-        .collect::<Vec<_>>()
-        .join("\n")
-    }
-
-    pub(super) fn query_text(ticker: &str) -> String {
-        format!(
-            "stock {} decision execution risk reflection lesson analysis",
-            ticker.trim().to_uppercase()
-        )
-    }
-
-    pub(super) fn research_query_text(query: &MemoryQuery) -> String {
-        let mut text = format!(
-            "stock {} market {} research setup trigger risk execution checklist historical lesson",
-            query.ticker.trim().to_uppercase(),
-            query.market.trim()
-        );
-        if !query.setup_tags.is_empty() {
-            text.push_str(" tags ");
-            text.push_str(&query.setup_tags.join(" "));
-        }
-        text
     }
 
     pub(super) fn dedupe_entries(

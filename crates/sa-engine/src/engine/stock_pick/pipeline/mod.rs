@@ -224,18 +224,6 @@ pub async fn run(
 
     let mut memory_context_parts = Vec::new();
     if let Some(ref mem) = memory_log {
-        // Get cross-ticker lessons for this market
-        if let Ok(lessons) = mem.cross_ticker_lessons(&request.market, &[], 3).await
-            && !lessons.is_empty()
-        {
-            let lessons_text = lessons
-                .iter()
-                .map(|l| format!("- {} (rating: {})", l.summary, l.rating))
-                .collect::<Vec<_>>()
-                .join("\n");
-            memory_context_parts.push(format!("Cross-ticker lessons:\n{}", lessons_text));
-        }
-
         // For top candidates, get past context
         for candidate in preselected.iter().take(3) {
             if let Ok(bundle) = mem.past_context_bundle_async(&candidate.symbol, 3, 2).await
@@ -465,7 +453,7 @@ pub async fn run(
         selection_engine_version: "stock-pick-v2-dev".to_string(),
         selection_diagnostics: StockPickSelectionDiagnostics {
             search_depth: search_depth.to_string(),
-            qdrant_enabled: true,
+            vector_store_enabled: true,
             redis_enabled: true,
             history_retrieval_enabled: history_retrieval,
             agreement_with_system_rank: generated.agreement_with_system_rank.clone(),
@@ -547,7 +535,7 @@ pub async fn run(
             &evidence_payloads,
         )
         .await
-        .context("failed to persist stock pick run into redis/qdrant")?;
+        .context("failed to persist stock pick run")?;
 
     if target_output_mode == "focused" && response.picks.len() > 3 {
         response.picks.truncate(3);

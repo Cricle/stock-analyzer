@@ -295,7 +295,7 @@ pub struct StockPickDataQualitySnapshot {
     #[serde(default)]
     pub history_ready: bool,
     #[serde(default)]
-    pub qdrant_ready: bool,
+    pub vector_store_ready: bool,
     #[serde(default)]
     pub redis_ready: bool,
     #[serde(default)]

@@ -30,6 +30,7 @@ pub async fn build_market_data_client() -> anyhow::Result<MarketDataClient> {
 /// - LLM_BASE_URL (required)
 /// - LLM_API_KEY (required)
 /// - LLM_MODEL (default: "claude-sonnet-4-20250514")
+/// - LLM_PROVIDER (default: "openai", also supports "anthropic")
 /// - LLM_TIMEOUT_SECS (default: 120)
 pub fn build_llm_client() -> anyhow::Result<LlmClient> {
     let base_url = std::env::var("LLM_BASE_URL")
@@ -38,6 +39,8 @@ pub fn build_llm_client() -> anyhow::Result<LlmClient> {
         .map_err(|_| anyhow::anyhow!("LLM_API_KEY not set"))?;
     let model = std::env::var("LLM_MODEL")
         .unwrap_or_else(|_| "claude-sonnet-4-20250514".to_string());
+    let provider = std::env::var("LLM_PROVIDER")
+        .unwrap_or_else(|_| "openai".to_string());
     let timeout_secs: u64 = std::env::var("LLM_TIMEOUT_SECS")
         .ok()
         .and_then(|v| v.parse().ok())
@@ -45,13 +48,22 @@ pub fn build_llm_client() -> anyhow::Result<LlmClient> {
 
     let http = reqwest_middleware::ClientBuilder::new(reqwest::Client::new()).build();
 
-    Ok(LlmClient::openai_compatible(
-        http,
-        &base_url,
-        &api_key,
-        &model,
-        timeout_secs,
-    ))
+    match provider.as_str() {
+        "anthropic" => Ok(LlmClient::anthropic(
+            http,
+            &base_url,
+            &api_key,
+            &model,
+            timeout_secs,
+        )),
+        _ => Ok(LlmClient::openai_compatible(
+            http,
+            &base_url,
+            &api_key,
+            &model,
+            timeout_secs,
+        )),
+    }
 }
 
 /// Build a no-op memory for standalone usage.

@@ -381,8 +381,6 @@ pub(crate) fn source_priority(source: &str) -> i32 {
         34
     } else if normalized.contains("google") {
         30
-    } else if normalized.contains("tushare") {
-        28
     } else {
         24
     }

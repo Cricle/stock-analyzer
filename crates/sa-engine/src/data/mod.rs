@@ -46,14 +46,12 @@ pub use akshare::stock::us_extra::{UsFamousStock, UsPinkStock, UsSpotSina, UsVal
 pub use akshare::stock::xueqiu::XqStockSpot;
 
 mod a_share;
-mod akshare_conv;
 mod akshare_rust;
 mod cache;
 mod client;
 pub mod diagnosis;
 mod hk;
 pub(crate) mod news_filter;
-mod tushare;
 mod us;
 mod wire;
 
@@ -62,7 +60,6 @@ pub use cache::{Singleflight, SingleflightGuard, SingleflightResult};
 /// Configuration for constructing a `MarketDataClient`.
 /// The backend builds this from its `Settings`.
 pub struct DataConfig {
-    pub tushare_token: Option<String>,
 }
 
 const MARKET_DATA_CACHE_PREFIX: &str = "stockanalyzer:marketdata";
@@ -79,8 +76,6 @@ const INSIDER_CACHE_TTL_SECS: u64 = 15 * 60;
 const CANDLES_CACHE_TTL_SECS: u64 = 5 * 60;
 #[derive(Clone)]
 pub struct MarketDataClient {
-    http: reqwest_middleware::ClientWithMiddleware,
-    tushare_token: Option<String>,
     ak: akshare::AkShareClient,
     pub(crate) singleflight: Singleflight,
 }

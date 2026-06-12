@@ -13,7 +13,6 @@ use crate::data::{
     MarginSzseDetail, MarginSzseSummary, MarketDataClient, NewsItem, PankouChange, ProfitSheet,
     QuoteSnapshot, SectorFundFlowRank, StockComment, StockSearchResult, ZtPool, ZtPoolDtgc,
     ZtPoolPrevious, ZtPoolStrong, ZtPoolSubNew, ZtPoolZbgc,
-    akshare_conv,
 };
 
 pub(crate) async fn search_stocks(
@@ -31,7 +30,7 @@ pub(crate) async fn fetch_quote(
     _ts_code: &str,
 ) -> anyhow::Result<ProviderResult<QuoteSnapshot>> {
     let ak_quote = client.ak.a_share_quote(symbol).await?;
-    Ok((akshare_conv::quote_from_akshare(ak_quote), "akshare".to_string()))
+    Ok((super::quote_from_akshare(ak_quote), "akshare".to_string()))
 }
 
 pub(crate) async fn fetch_fundamentals(
@@ -76,7 +75,7 @@ pub(crate) async fn fetch_candles(
     limit: usize,
 ) -> anyhow::Result<ProviderResult<Vec<CandlePoint>>> {
     let ak_candles = client.ak.a_share_candles(symbol, adjust, limit).await?;
-    Ok((ak_candles.into_iter().map(akshare_conv::candle_from_akshare).collect(), "akshare".to_string()))
+    Ok((ak_candles.into_iter().map(super::candle_from_akshare).collect(), "akshare".to_string()))
 }
 
 pub(crate) async fn fetch_return_since(

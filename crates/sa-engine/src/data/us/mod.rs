@@ -8,7 +8,7 @@ use super::{
     FundamentalsSnapshot, MarketDataClient, NewsItem,
     f64_to_dec, opt_f64_to_dec,
 };
-use super::akshare_conv::news_item_from_akshare;
+use super::akshare_rust::news_item_from_akshare;
 use super::news_filter::within_date_window;
 
 impl MarketDataClient {

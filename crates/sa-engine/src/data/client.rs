@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use anyhow::Context;
 use tracing::Instrument;
 
@@ -15,19 +13,11 @@ use super::{
 };
 impl MarketDataClient {
     pub async fn new() -> Self {
-        Self::from_config(&DataConfig {
-            tushare_token: std::env::var("TUSHARE_TOKEN").ok().filter(|v| !v.is_empty()),
-        })
-        .await
+        Self::from_config(&DataConfig {}).await
     }
 
-    pub async fn from_config(config: &DataConfig) -> Self {
-        let mut http_builder = reqwest::Client::builder()
-            .user_agent("stock-analyzer/0.1 support@example.com")
-            .http1_only()
-            .connect_timeout(Duration::from_secs(10))
-            .timeout(Duration::from_secs(30))
-            .pool_max_idle_per_host(8);
+    pub async fn from_config(_config: &DataConfig) -> Self {
+        let mut ak_builder = akshare::AkShareClient::builder();
         let outbound_proxy_url = std::env::var("OUTBOUND_PROXY_URL")
             .ok()
             .or_else(|| std::env::var("HTTP_PROXY").ok())
@@ -37,36 +27,11 @@ impl MarketDataClient {
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty());
         if let Some(proxy_url) = outbound_proxy_url.as_deref() {
-            match reqwest::Proxy::all(proxy_url) {
-                Ok(proxy) => {
-                    http_builder = http_builder.proxy(proxy);
-                }
-                Err(error) => {
-                    tracing::warn!(proxy_url, error = ?error, "invalid outbound proxy url");
-                }
-            }
-        }
-        let base_client = http_builder
-            .build()
-            .unwrap_or_else(|error| {
-                tracing::warn!(error = ?error, "market data http client build failed, falling back to default reqwest client");
-                reqwest::Client::new()
-            });
-        let http = reqwest_middleware::ClientBuilder::new(base_client)
-            .with(reqwest_tracing::TracingMiddleware::default())
-            .build();
-        let mut ak_builder = akshare::AkShareClient::builder();
-        if let Some(token) = &config.tushare_token {
-            ak_builder = ak_builder.tushare_token(token);
-        }
-        if let Some(proxy_url) = outbound_proxy_url.as_deref() {
             ak_builder = ak_builder.proxy(proxy_url);
         }
         let ak = ak_builder.build();
 
         Self {
-            http,
-            tushare_token: config.tushare_token.clone(),
             ak,
             singleflight: Singleflight::new(),
         }
@@ -557,7 +522,7 @@ impl MarketDataClient {
                     return Ok(cached);
                 }
                 let fetch_result = self.ak.a_share_capital_flow(symbol, limit).await
-                    .map(|items| items.into_iter().map(super::akshare_conv::capital_flow_from_akshare).collect::<Vec<_>>());
+                    .map(|items| items.into_iter().map(super::akshare_rust::capital_flow_from_akshare).collect::<Vec<_>>());
                 let items = fetch_result?;
                 self.cache_set_json(&cache_key, CANDLES_CACHE_TTL_SECS, &items)
                     .await;
@@ -624,7 +589,7 @@ impl MarketDataClient {
             return Ok(cached);
         }
         let items = self.ak.a_share_sector_capital_flow(sector_code, limit).await
-            .map(|items| items.into_iter().map(super::akshare_conv::capital_flow_from_akshare).collect::<Vec<_>>())?;
+            .map(|items| items.into_iter().map(super::akshare_rust::capital_flow_from_akshare).collect::<Vec<_>>())?;
         self.cache_set_json(&cache_key, CANDLES_CACHE_TTL_SECS, &items)
             .await;
         Ok(items)
@@ -767,39 +732,20 @@ impl MarketDataClient {
         start_date: &str,
         end_date: &str,
     ) -> anyhow::Result<Vec<TradeCalendarItem>> {
-        let exchange = exchange.trim().to_uppercase();
-        let cache_key = format!(
-            "{MARKET_DATA_CACHE_PREFIX}:trade-calendar:{}:{}:{}",
-            exchange, start_date, end_date
-        );
-        if let Some(cached) = self.cache_get_json(&cache_key).await {
-            return Ok(cached);
-        }
-        let rows = self
-            .tushare_query(
-                "trade_cal",
-                serde_json::json!({
-                    "exchange": exchange,
-                    "start_date": start_date,
-                    "end_date": end_date
-                }),
-                "exchange,cal_date,is_open,pretrade_date",
-            )
-            .await?;
-        let items = rows
+        let items = self
+            .ak
+            .a_share_trade_calendar(exchange, start_date, end_date)
+            .await
+            .context("akshare a_share_trade_calendar failed")?;
+        Ok(items
             .into_iter()
-            .map(|row| {
-                Ok(TradeCalendarItem {
-                    exchange: row.optional_string("exchange").unwrap_or_default(),
-                    calendar_date: row.string("cal_date")?,
-                    is_open: row.optional_f64("is_open").unwrap_or_default() > 0.0,
-                    previous_trade_date: row.optional_string("pretrade_date"),
-                })
+            .map(|item| TradeCalendarItem {
+                exchange: item.exchange,
+                calendar_date: item.calendar_date,
+                is_open: item.is_open,
+                previous_trade_date: item.previous_trade_date,
             })
-            .collect::<anyhow::Result<Vec<_>>>()?;
-        self.cache_set_json(&cache_key, FUNDAMENTALS_CACHE_TTL_SECS, &items)
-            .await;
-        Ok(items)
+            .collect())
     }
 }
 impl MarketDataClient {

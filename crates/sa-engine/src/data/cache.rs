@@ -49,10 +49,6 @@ impl MarketDataClient {
         keys.iter().map(|_| None).collect()
     }
 
-    pub(super) fn stale_cache_key(&self, key: &str) -> String {
-        format!("{key}:stale")
-    }
-
     pub(super) fn normalized_news_query(&self, query: &str) -> String {
         query
             .trim()

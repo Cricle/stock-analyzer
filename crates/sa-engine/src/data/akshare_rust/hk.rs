@@ -1,6 +1,6 @@
 use super::types::ProviderResult;
 use crate::data::{
-    CandlePoint, FundamentalsSnapshot, MarketDataClient, NewsItem, QuoteSnapshot, akshare_conv,
+    CandlePoint, FundamentalsSnapshot, MarketDataClient, NewsItem, QuoteSnapshot,
 };
 
 use akshare::stock::hk_extra::{
@@ -18,7 +18,7 @@ pub(crate) async fn fetch_quote(
     symbol: &str,
 ) -> anyhow::Result<ProviderResult<QuoteSnapshot>> {
     let ak_quote = client.ak.hk_quote(symbol).await?;
-    Ok((akshare_conv::quote_from_akshare(ak_quote), "akshare".to_string()))
+    Ok((super::quote_from_akshare(ak_quote), "akshare".to_string()))
 }
 
 pub(crate) async fn fetch_fundamentals(
@@ -41,7 +41,7 @@ pub(crate) async fn fetch_candles(
     limit: usize,
 ) -> anyhow::Result<ProviderResult<Vec<CandlePoint>>> {
     let ak_candles = client.ak.hk_candles(symbol, limit).await?;
-    Ok((ak_candles.into_iter().map(akshare_conv::candle_from_akshare).collect(), "akshare".to_string()))
+    Ok((ak_candles.into_iter().map(super::candle_from_akshare).collect(), "akshare".to_string()))
 }
 
 pub(crate) async fn fetch_return_since(

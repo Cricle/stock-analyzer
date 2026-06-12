@@ -18,19 +18,6 @@ fn derive_availability_diagnostics(result: &AnalysisResult) -> Vec<ReportDiagnos
         for observation in &state.tool_history {
             let lower = observation.output.to_ascii_lowercase();
 
-            if lower.contains("tushare token missing") {
-                diagnostics.push(ReportDiagnosticItem {
-                    code: "missing_credentials".to_string(),
-                    severity: "info".to_string(),
-                    message: LocalText::new("missing_credentials_message"),
-                    details: vec![
-                        format!("analyst={}", state.key),
-                        format!("tool={}", observation.tool_name),
-                    ],
-                    ..Default::default()
-                });
-            }
-
             if matches!(
                 result.artifacts.scenario_context.market,
                 crate::models::AnalysisScenarioMarket::AShare

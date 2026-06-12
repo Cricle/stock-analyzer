@@ -1,5 +1,5 @@
 use super::{FundamentalsSnapshot, MarketDataClient, NewsItem, opt_f64_to_dec};
-use super::akshare_conv::{self, news_item_from_stock_news};
+use super::akshare_rust::{self, news_item_from_stock_news};
 use anyhow::Context;
 
 impl MarketDataClient {
@@ -304,7 +304,7 @@ impl MarketDataClient {
             .context("failed to fetch HK candles from akshare")?;
         Ok(ak_candles
             .into_iter()
-            .map(akshare_conv::candle_from_akshare)
+            .map(akshare_rust::candle_from_akshare)
             .collect())
     }
 

@@ -19,8 +19,7 @@ pub struct DataFetchDiagnosis {
     pub data_type: String,
     pub symbol: String,
     pub attempts: Vec<DataFetchAttempt>,
-    pub final_status: String, // "success", "degraded", "failed"
-    pub used_stale_cache: bool,
+    pub final_status: String, // "success" or "failed"
 }
 
 impl DataFetchDiagnosis {
@@ -30,7 +29,6 @@ impl DataFetchDiagnosis {
             symbol: symbol.to_string(),
             attempts: Vec::new(),
             final_status: "failed".to_string(),
-            used_stale_cache: false,
         }
     }
 
@@ -108,7 +106,6 @@ impl super::MarketDataClient {
         // First, check fresh cache
         if let Some(cached) = self.cache_get_json::<T>(cache_key).await {
             diagnosis.final_status = "success".to_string();
-            diagnosis.used_stale_cache = false;
             diagnosis.attempts.push(DataFetchAttempt {
                 provider: "redis_cache".to_string(),
                 success: true,
@@ -171,25 +168,6 @@ impl super::MarketDataClient {
             }
         }
 
-        // All providers failed — try stale cache
-        let stale_key = self.stale_cache_key(cache_key);
-        if let Some(cached) = self.cache_get_json::<T>(&stale_key).await {
-            diagnosis.final_status = "degraded".to_string();
-            diagnosis.used_stale_cache = true;
-            diagnosis.attempts.push(DataFetchAttempt {
-                provider: "stale_cache".to_string(),
-                success: true,
-                error: None,
-                duration_ms: 0,
-            });
-            tracing::info!(
-                symbol = %symbol,
-                data_type = %data_type,
-                "all providers failed, using stale cache"
-            );
-            return (Some(cached), diagnosis);
-        }
-
         diagnosis.final_status = "failed".to_string();
         (None, diagnosis)
     }
@@ -201,7 +179,7 @@ impl super::MarketDataClient {
 
 impl MarketDataClient {
     /// Fetch quote with provider rotation and diagnosis.
-    /// A-share: tencent -> tushare | HK: tencent -> yahoo | US: sina -> eastmoney -> yahoo -> stooq
+    /// A-share: tencent -> eastmoney | HK: tencent -> yahoo | US: sina -> eastmoney -> yahoo -> stooq
     pub async fn fetch_quote_with_rotation(
         &self,
         symbol: &str,
@@ -216,9 +194,7 @@ impl MarketDataClient {
         );
         match market {
             MarketKind::AShare => {
-                let ts_code = self.normalize_a_share_symbol(symbol).unwrap_or_default();
                 let symbol_owned = symbol.to_string();
-                let ts_owned = ts_code.clone();
                 let providers: Vec<NamedProvider<QuoteSnapshot>> = vec![
                     NamedProvider::new("tencent_quote", {
                         let client = self.clone();
@@ -227,17 +203,6 @@ impl MarketDataClient {
                             let client = client.clone();
                             let sym = sym.clone();
                             async move { client.fetch_a_share_quote_from_eastmoney(&sym).await }
-                        }
-                    }),
-                    NamedProvider::new("tushare_daily", {
-                        let client = self.clone();
-                        let sym = symbol_owned.clone();
-                        let ts = ts_owned.clone();
-                        move || {
-                            let client = client.clone();
-                            let sym = sym.clone();
-                            let ts = ts.clone();
-                            async move { client.fetch_a_share_quote_from_tushare(&sym, &ts).await }
                         }
                     }),
                 ];

@@ -4,6 +4,14 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 
+[[bin]]
+name = "sa-engine"
+path = "src/bin/sa-engine.rs"
+
+[[bin]]
+name = "sa-engine-mcp"
+path = "src/bin/sa-engine-mcp.rs"
+
 [features]
 default = []
 local-rag-embeddings = ["fastembed"]
@@ -39,6 +47,7 @@ tempfile = "3"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
 tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 uuid = { version = "1", features = ["v4"] }
 zeroize = { version = "1", features = ["derive"] }
 

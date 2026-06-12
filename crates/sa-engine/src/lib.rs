@@ -5,6 +5,7 @@ pub mod models;
 pub mod data;
 pub mod engine;
 pub mod i18n;
+pub mod bin_helpers;
 
 // Convenience re-exports at crate root
 pub use engine::{

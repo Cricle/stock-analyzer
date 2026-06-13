@@ -1,6 +1,5 @@
 use anyhow::{Context, bail};
 use chrono::NaiveDate;
-use std::collections::HashMap;
 
 use super::{FundamentalsSnapshot, MarketDataClient, NewsItem};
 use crate::types::{NewsFetchAttempt, NewsFetchResult};
@@ -13,108 +12,70 @@ impl MarketDataClient {
     ) -> anyhow::Result<FundamentalsSnapshot> {
         let t0 = std::time::Instant::now();
 
-        // Fetch financial analysis indicators (annual)
-        let analysis: Vec<HashMap<String, serde_json::Value>> = self
+        // Fetch typed APIs
+        let indicators = self
             .ak
-            .stock_financial_us_analysis_indicator_em(symbol, "年报")
+            .stock_financial_us_analysis_indicator_em_typed(symbol, "年报")
             .await
             .unwrap_or_default();
+        let main = indicators.first();
 
-        // Fetch income statement (annual)
-        let income: Vec<HashMap<String, serde_json::Value>> = self
+        let balance_sheets = self
             .ak
-            .stock_financial_us_report_em(symbol, "综合损益表", "年报")
+            .stock_financial_us_balance_sheet_typed(symbol, "年报")
             .await
             .unwrap_or_default();
+        let bs = balance_sheets.first();
 
-        // Fetch balance sheet (annual)
-        let balance: Vec<HashMap<String, serde_json::Value>> = self
+        let income_sheets = self
             .ak
-            .stock_financial_us_report_em(symbol, "资产负债表", "年报")
+            .stock_financial_us_income_sheet_typed(symbol, "年报")
             .await
             .unwrap_or_default();
+        let is = income_sheets.first();
 
-        // Fetch cash flow statement (annual)
-        let cashflow: Vec<HashMap<String, serde_json::Value>> = self
+        let cashflow_sheets = self
             .ak
-            .stock_financial_us_report_em(symbol, "现金流量表", "年报")
+            .stock_financial_us_cashflow_sheet_typed(symbol, "年报")
             .await
             .unwrap_or_default();
+        let cf = cashflow_sheets.first();
 
         tracing::debug!(
             "fetch_us_fundamentals: akshare reports for {symbol} took {}ms",
             t0.elapsed().as_millis()
         );
 
-        // Extract company name from analysis data
-        let company_name = analysis
-            .first()
-            .and_then(|m| m.get("SECURITY_NAME_ABBR"))
-            .and_then(|v| v.as_str())
+        // Extract company name
+        let company_name = main
+            .and_then(|m| m.report_date.as_ref())
+            .map(|_| symbol) // indicators don't have company name; use symbol
             .unwrap_or(symbol)
             .to_string();
 
-        // Extract key metrics from analysis indicators
-        let (net_income, revenue, shares_outstanding, diluted_shares) =
-            if let Some(first) = analysis.first() {
-                (
-                    first
-                        .get("PARENT_HOLDER_NETPROFIT")
-                        .and_then(serde_json::Value::as_f64),
-                    first
-                        .get("TOTAL_INCOME")
-                        .and_then(serde_json::Value::as_f64),
-                    first
-                        .get("TOTAL_SHARES")
-                        .and_then(serde_json::Value::as_f64)
-                        .map(|v| v as i64),
-                    first
-                        .get("DILUTED_SHARES")
-                        .and_then(serde_json::Value::as_f64)
-                        .map(|v| v as i64),
-                )
-            } else {
-                (None, None, None, None)
-            };
+        // From main indicator
+        let net_income = main.and_then(|m| m.holder_profit);
+        let revenue = main.and_then(|m| m.operate_income.or(m.total_operate_reve));
+        let shares_outstanding = main.and_then(|m| m.total_share).map(|v| v as i64);
+        let diluted_shares = shares_outstanding; // US indicator doesn't separate diluted
 
-        // Helper to find an amount by ITEM_NAME in report data
-        let find_amount =
-            |data: &[HashMap<String, serde_json::Value>], names: &[&str]| -> Option<f64> {
-                for name in names {
-                    for row in data {
-                        if let Some(item_name) = row.get("ITEM_NAME").and_then(|v| v.as_str())
-                            && item_name.contains(name) {
-                                return row.get("AMOUNT").and_then(serde_json::Value::as_f64);
-                            }
-                    }
-                }
-                None
-            };
+        // From typed balance sheet
+        let assets = bs.and_then(|b| b.total_assets);
+        let liabilities = bs.and_then(|b| b.total_liabilities);
+        let stockholders_equity = bs.and_then(|b| b.equity);
+        let cash = bs.and_then(|b| b.cash);
+        let long_term_debt = bs.and_then(|b| b.long_term_debt);
+        let current_debt = bs.and_then(|b| b.short_term_debt);
+        let total_debt = liabilities;
 
-        // Extract balance sheet items
-        let assets = find_amount(&balance, &["资产总计", "总资产"]);
-        let liabilities = find_amount(&balance, &["负债合计", "总负债"]);
-        let stockholders_equity = find_amount(
-            &balance,
-            &["所有者权益合计", "股东权益合计", "归属母公司股东权益"],
-        );
-        let cash = find_amount(&balance, &["货币资金"]);
-        let long_term_debt = find_amount(&balance, &["长期借款"]);
-        let current_debt = find_amount(&balance, &["短期借款", "一年内到期的非流动负债"]);
-        let total_debt = find_amount(&balance, &["负债合计"]);
+        // From typed income sheet
+        let gross_profit = is.and_then(|s| s.gross_profit);
+        let operating_income = is.and_then(|s| s.operating_profit);
+        let operating_expenses = is.and_then(|s| s.operating_expenses);
 
-        // Extract income statement items
-        let gross_profit = find_amount(&income, &["毛利", "营业毛利"]);
-        let operating_income = find_amount(&income, &["营业利润"]);
-        let operating_expenses = find_amount(&income, &["营业总成本", "营业成本"]);
-
-        // Extract cash flow items
-        let operating_cash_flow =
-            find_amount(&cashflow, &["经营活动产生的现金流量净额"]);
-        let capital_expenditure = find_amount(
-            &cashflow,
-            &["购建固定资产、无形资产和其他长期资产支付的现金"],
-        );
+        // From typed cashflow sheet
+        let operating_cash_flow = cf.and_then(|c| c.operating_cash_flow);
+        let capital_expenditure = cf.and_then(|c| c.capital_expenditure);
 
         let free_cash_flow = match (operating_cash_flow, capital_expenditure) {
             (Some(ocf), Some(capex)) => Some(ocf - capex),

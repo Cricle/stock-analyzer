@@ -159,29 +159,14 @@ pub(crate) mod news_utils;
 mod us;
 mod wire;
 
-pub use cache::{Singleflight, SingleflightGuard, SingleflightResult};
-
 /// Configuration for constructing a `MarketDataClient`.
 /// The backend builds this from its `Settings`.
 pub struct DataConfig {
 }
 
-const MARKET_DATA_CACHE_PREFIX: &str = "stockanalyzer:marketdata";
-const QUOTE_CACHE_VERSION: &str = "v5";
-const FUNDAMENTALS_CACHE_VERSION: &str = "v6";
-const CANDLES_CACHE_VERSION: &str = "v5";
-const NEWS_CACHE_VERSION: &str = "v5";
-const GLOBAL_NEWS_CACHE_VERSION: &str = "v2";
-const QUOTE_CACHE_TTL_SECS: u64 = 120;
-const FUNDAMENTALS_CACHE_TTL_SECS: u64 = 6 * 60 * 60;
-const NEWS_CACHE_TTL_SECS: u64 = 10 * 60;
-const GLOBAL_NEWS_CACHE_TTL_SECS: u64 = 10 * 60;
-const INSIDER_CACHE_TTL_SECS: u64 = 15 * 60;
-const CANDLES_CACHE_TTL_SECS: u64 = 5 * 60;
 #[derive(Clone)]
 pub struct MarketDataClient {
     ak: akshare::AkShareClient,
-    pub(crate) singleflight: Singleflight,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

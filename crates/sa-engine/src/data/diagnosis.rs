@@ -89,31 +89,16 @@ impl super::MarketDataClient {
 
     /// Try fetching data from multiple providers in order.
     /// Returns the first successful result, or the last failure.
-    /// On success, caches the result. On all-failure, tries stale cache.
     pub async fn fetch_with_rotation<T>(
         &self,
         symbol: &str,
         data_type: &str,
         providers: &[NamedProvider<T>],
-        cache_key: &str,
-        cache_ttl_secs: u64,
     ) -> (Option<T>, DataFetchDiagnosis)
     where
         T: serde::Serialize + serde::de::DeserializeOwned + Clone,
     {
         let mut diagnosis = DataFetchDiagnosis::new(data_type, symbol);
-
-        // First, check fresh cache
-        if let Some(cached) = self.cache_get_json::<T>(cache_key).await {
-            diagnosis.final_status = "success".to_string();
-            diagnosis.attempts.push(DataFetchAttempt {
-                provider: "redis_cache".to_string(),
-                success: true,
-                error: None,
-                duration_ms: 0,
-            });
-            return (Some(cached), diagnosis);
-        }
 
         // Try each provider in order
         for provider in providers {
@@ -146,8 +131,6 @@ impl super::MarketDataClient {
                         duration_ms,
                     });
                     diagnosis.final_status = "success".to_string();
-                    // Cache the successful result
-                    self.cache_set_json(cache_key, cache_ttl_secs, &data).await;
                     return (Some(data), diagnosis);
                 }
                 Err(e) => {
@@ -185,13 +168,6 @@ impl MarketDataClient {
         symbol: &str,
     ) -> (Option<QuoteSnapshot>, DataFetchDiagnosis) {
         let market = self.detect_market(symbol);
-        let normalized = self.cache_symbol(symbol, market);
-        let cache_key = format!(
-            "{}:quote:{}:{}",
-            super::MARKET_DATA_CACHE_PREFIX,
-            super::QUOTE_CACHE_VERSION,
-            normalized
-        );
         match market {
             MarketKind::AShare => {
                 let symbol_owned = symbol.to_string();
@@ -206,14 +182,8 @@ impl MarketDataClient {
                         }
                     }),
                 ];
-                self.fetch_with_rotation(
-                    symbol,
-                    "quote",
-                    &providers,
-                    &cache_key,
-                    super::QUOTE_CACHE_TTL_SECS,
-                )
-                .await
+                self.fetch_with_rotation(symbol, "quote", &providers)
+                    .await
             }
             MarketKind::HongKong => {
                 let symbol_owned = symbol.to_string();
@@ -231,14 +201,8 @@ impl MarketDataClient {
                         }
                     }),
                 ];
-                self.fetch_with_rotation(
-                    symbol,
-                    "quote",
-                    &providers,
-                    &cache_key,
-                    super::QUOTE_CACHE_TTL_SECS,
-                )
-                .await
+                self.fetch_with_rotation(symbol, "quote", &providers)
+                    .await
             }
             MarketKind::UsEquity => {
                 let symbol_owned = symbol.to_string();
@@ -256,14 +220,8 @@ impl MarketDataClient {
                         }
                     }),
                 ];
-                self.fetch_with_rotation(
-                    symbol,
-                    "quote",
-                    &providers,
-                    &cache_key,
-                    super::QUOTE_CACHE_TTL_SECS,
-                )
-                .await
+                self.fetch_with_rotation(symbol, "quote", &providers)
+                    .await
             }
         }
     }
@@ -277,15 +235,6 @@ impl MarketDataClient {
         limit: usize,
     ) -> (Option<Vec<CandlePoint>>, DataFetchDiagnosis) {
         let market = self.detect_market(symbol);
-        let normalized = self.cache_symbol(symbol, market);
-        let cache_key = format!(
-            "{}:candles:{}:{}:{}:{}",
-            super::MARKET_DATA_CACHE_PREFIX,
-            super::CANDLES_CACHE_VERSION,
-            normalized,
-            adjust,
-            limit
-        );
         match market {
             MarketKind::AShare => {
                 let symbol_owned = symbol.to_string();
@@ -322,14 +271,8 @@ impl MarketDataClient {
                         }
                     }),
                 ];
-                self.fetch_with_rotation(
-                    symbol,
-                    "candles",
-                    &providers,
-                    &cache_key,
-                    super::CANDLES_CACHE_TTL_SECS,
-                )
-                .await
+                self.fetch_with_rotation(symbol, "candles", &providers)
+                    .await
             }
             MarketKind::HongKong => {
                 let symbol_owned = symbol.to_string();
@@ -347,14 +290,8 @@ impl MarketDataClient {
                         }
                     }),
                 ];
-                self.fetch_with_rotation(
-                    symbol,
-                    "candles",
-                    &providers,
-                    &cache_key,
-                    super::CANDLES_CACHE_TTL_SECS,
-                )
-                .await
+                self.fetch_with_rotation(symbol, "candles", &providers)
+                    .await
             }
             MarketKind::UsEquity => {
                 let symbol_owned = symbol.to_string();
@@ -372,14 +309,8 @@ impl MarketDataClient {
                         }
                     }),
                 ];
-                self.fetch_with_rotation(
-                    symbol,
-                    "candles",
-                    &providers,
-                    &cache_key,
-                    super::CANDLES_CACHE_TTL_SECS,
-                )
-                .await
+                self.fetch_with_rotation(symbol, "candles", &providers)
+                    .await
             }
         }
     }

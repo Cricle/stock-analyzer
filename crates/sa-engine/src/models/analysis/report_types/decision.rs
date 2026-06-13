@@ -58,11 +58,6 @@ impl LocalText {
         Self { key: key.into(), params: serde_json::Map::new() }
     }
 
-    pub fn with_param(mut self, k: impl Into<String>, v: serde_json::Value) -> Self {
-        self.params.insert(k.into(), v);
-        self
-    }
-
     pub fn with_str(mut self, k: impl Into<String>, v: impl Into<String>) -> Self {
         self.params.insert(k.into(), serde_json::Value::String(v.into()));
         self
@@ -169,10 +164,6 @@ impl Rating {
 
     pub fn is_bearish(&self) -> bool {
         matches!(self, Self::Sell | Self::Underweight)
-    }
-
-    pub fn is_neutral(&self) -> bool {
-        matches!(self, Self::Hold)
     }
 
     pub fn bias(&self, magnitude: i32) -> i32 {

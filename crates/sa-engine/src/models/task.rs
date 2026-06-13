@@ -133,8 +133,4 @@ pub struct PersistedTask {
     pub updated_at: DateTime<Utc>,
 }
 
-impl PersistedTask {
-    pub fn status_string(&self) -> &str {
-        self.status.as_str()
-    }
-}
+

@@ -19,12 +19,15 @@ pub(crate) fn news_item_from_stock_news(n: akshare::stock::feature::StockNews) -
     }
 }
 
-pub(crate) fn news_item_from_news_entry(n: akshare::stock::feature::NewsEntry) -> NewsItem {
+pub(crate) fn news_item_from_news_entry_with_source(
+    n: akshare::stock::feature::NewsEntry,
+    source: &str,
+) -> NewsItem {
     NewsItem {
         published_at: n.time,
         title: n.title.clone(),
         summary: n.summary.unwrap_or(n.title),
-        source: String::new(),
+        source: source.to_string(),
         url: n.url,
     }
 }

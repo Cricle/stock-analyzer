@@ -489,7 +489,12 @@ impl MarketDataClient {
             match result {
                 Ok(items) => {
                     let count = items.len();
-                    akshare_items.extend(items.into_iter().map(super::news_item_from_news_entry));
+                    let source = name.to_string();
+                    akshare_items.extend(
+                        items
+                            .into_iter()
+                            .map(|n| super::news_item_from_news_entry_with_source(n, &source)),
+                    );
                     attempts.push(NewsFetchAttempt {
                         source: name.to_string(),
                         query: None,

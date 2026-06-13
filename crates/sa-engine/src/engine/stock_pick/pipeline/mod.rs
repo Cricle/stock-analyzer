@@ -108,11 +108,20 @@ pub async fn run(
     let mut enriched = enrich_candidates(market_data, &candidates, deep_candidate_limit).await;
     score_candidates(&mut enriched);
 
-    let filtered = enriched
-        .iter()
-        .filter(|item| item.pass_filter)
-        .cloned()
-        .collect::<Vec<_>>();
+    let is_explicit_set = request
+        .candidate_symbols
+        .as_ref()
+        .is_some_and(|symbols| !symbols.is_empty());
+    let filtered = if is_explicit_set {
+        // For explicit candidates, keep all enriched items regardless of pass_filter
+        enriched.clone()
+    } else {
+        enriched
+            .iter()
+            .filter(|item| item.pass_filter)
+            .cloned()
+            .collect::<Vec<_>>()
+    };
     if filtered.is_empty() {
         anyhow::bail!("all candidates were filtered out before stock selection");
     }
@@ -126,29 +135,25 @@ pub async fn run(
     for candidate in deep_pool.iter_mut() {
         let deep_queries = build_candidate_search_queries(candidate, request);
         let search_items: Vec<crate::data::NewsItem> = Vec::new();
-        if search_items.is_empty() {
-            anyhow::bail!("missing deep-stage evidence for {}", candidate.symbol);
+        if !search_items.is_empty() {
+            let deduped_records = news_items_to_evidence_records(
+                &candidate.symbol,
+                &candidate.market,
+                &candidate.theme_key,
+                &deep_queries,
+                &search_items,
+            );
+            indexed_evidence_records += deduped_records.len();
+            candidate.news = crate::data::news::dedupe_news_items(
+                candidate
+                    .news
+                    .iter()
+                    .cloned()
+                    .chain(search_items)
+                    .collect(),
+            );
+            candidate.evidence_records = deduped_records;
         }
-        let deduped_records = news_items_to_evidence_records(
-            &candidate.symbol,
-            &candidate.market,
-            &candidate.theme_key,
-            &deep_queries,
-            &search_items,
-        );
-        if deduped_records.is_empty() {
-            anyhow::bail!("missing structured deep evidence for {}", candidate.symbol);
-        }
-        indexed_evidence_records += deduped_records.len();
-        candidate.news = crate::data::news::dedupe_news_items(
-            candidate
-                .news
-                .iter()
-                .cloned()
-                .chain(search_items)
-                .collect(),
-        );
-        candidate.evidence_records = deduped_records;
         candidate.theme_key = infer_theme_key(
             &candidate.name,
             candidate.fundamentals.as_ref(),
@@ -164,13 +169,15 @@ pub async fn run(
     }
 
     score_candidates(&mut deep_pool);
-    let preselected = apply_portfolio_constraints(
+    let deep_filtered: Vec<_> = if is_explicit_set {
+        deep_pool
+    } else {
         deep_pool
             .into_iter()
             .filter(|item| item.pass_filter)
-            .collect::<Vec<_>>(),
-        pick_count,
-    );
+            .collect()
+    };
+    let preselected = apply_portfolio_constraints(deep_filtered, pick_count);
     if preselected.is_empty() {
         anyhow::bail!("no winners remained after deep-stage evaluation");
     }
@@ -448,9 +455,15 @@ pub async fn run(
         .trim()
         .eq_ignore_ascii_case("disagree")
     {
-        anyhow::bail!(
-            "llm review disagrees with system rank without supported override integration"
-        );
+        if is_explicit_set {
+            tracing::warn!(
+                "llm review disagrees with system rank for explicit candidates, proceeding anyway"
+            );
+        } else {
+            anyhow::bail!(
+                "llm review disagrees with system rank without supported override integration"
+            );
+        }
     }
 
     let run_id = uuid::Uuid::new_v4().to_string();

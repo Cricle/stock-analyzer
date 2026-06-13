@@ -171,13 +171,7 @@ impl MarketDataClient {
                 let count = ak_news.len();
                 let converted: Vec<NewsItem> = ak_news
                     .into_iter()
-                    .map(|n| NewsItem {
-                        published_at: n.publish_time,
-                        title: n.title,
-                        summary: n.content.unwrap_or_default(),
-                        source: n.source.unwrap_or_else(|| "Eastmoney".to_string()),
-                        url: n.url,
-                    })
+                    .map(super::news_item_from_stock_news)
                     .filter(|item| within_date_window(&item.published_at, start_date, end_date))
                     .collect();
                 attempts.push(NewsFetchAttempt {

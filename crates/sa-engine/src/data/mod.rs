@@ -51,7 +51,6 @@ mod hk;
 pub(crate) mod news_filter;
 pub(crate) mod news_utils;
 mod us;
-mod wire;
 
 #[derive(Clone)]
 pub struct MarketDataClient {

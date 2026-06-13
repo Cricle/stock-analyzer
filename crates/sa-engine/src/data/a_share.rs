@@ -1,12 +1,62 @@
 use std::collections::HashSet;
 
 use anyhow::{Context, bail};
+use serde::Deserialize;
 
 use super::{
     CandlePoint, FundamentalsSnapshot, MarketDataClient, NewsItem, QuoteSnapshot,
-    wire::AkshareIndividualInfo,
 };
 use crate::types::{NewsFetchAttempt, NewsFetchResult};
+
+#[derive(Debug, Clone)]
+struct AkshareIndividualInfo {
+    stock_name: Option<String>,
+    total_share: Option<i64>,
+    market_cap: Option<f64>,
+    industry: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct EastmoneyMainFinanceIndicatorItem {
+    #[serde(rename = "REPORT_DATE")]
+    report_date: Option<String>,
+    #[serde(rename = "STD_REPORT_DATE")]
+    std_report_date: Option<String>,
+    #[serde(rename = "CURRENCY")]
+    currency: Option<String>,
+    #[serde(rename = "OPERATE_INCOME")]
+    operate_income: Option<f64>,
+    #[serde(rename = "TOTALOPERATEREVE")]
+    total_operate_reve: Option<f64>,
+    #[serde(rename = "GROSS_PROFIT")]
+    gross_profit: Option<f64>,
+    #[serde(rename = "MLR")]
+    mlr: Option<f64>,
+    #[serde(rename = "HOLDER_PROFIT")]
+    holder_profit: Option<f64>,
+    #[serde(rename = "PARENTNETPROFIT")]
+    parent_net_profit: Option<f64>,
+    #[serde(rename = "NETCASH_OPERATE")]
+    netcash_operate: Option<f64>,
+    #[serde(rename = "MGJYXJJE")]
+    mgjyxjje: Option<f64>,
+    #[serde(rename = "BPS")]
+    bps: Option<f64>,
+    #[serde(rename = "ZCFZL")]
+    zcfzl: Option<f64>,
+    #[serde(rename = "CURRENT_LIABILITY")]
+    current_liability: Option<f64>,
+    #[serde(rename = "CURRENT_LIAB")]
+    current_liab: Option<f64>,
+    #[serde(rename = "NONCURRENT_LIAB_1YEAR")]
+    noncurrent_liab_1year: Option<f64>,
+    #[serde(rename = "TOTALNONCLIAB")]
+    totalnoncliab: Option<f64>,
+    #[serde(rename = "CAPITAL_EXPENDITURE")]
+    capital_expenditure: Option<f64>,
+    #[serde(rename = "TOTAL_SHARE")]
+    total_share: Option<f64>,
+}
 
 impl MarketDataClient {
     pub(crate) async fn fetch_a_share_quote_from_eastmoney(
@@ -112,7 +162,7 @@ impl MarketDataClient {
     async fn fetch_eastmoney_main_finance_indicator(
         &self,
         secucode: &str,
-    ) -> anyhow::Result<super::wire::EastmoneyMainFinanceIndicatorItem> {
+    ) -> anyhow::Result<EastmoneyMainFinanceIndicatorItem> {
         let items = self
             .ak
             .stock_financial_analysis_indicator_em(secucode, "按报告期")
@@ -158,7 +208,7 @@ impl MarketDataClient {
     async fn fetch_a_share_spot_quote(
         &self,
         symbol: &str,
-    ) -> anyhow::Result<super::wire::AkshareIndividualInfo> {
+    ) -> anyhow::Result<AkshareIndividualInfo> {
         let spot_items = self
             .ak
             .stock_zh_a_spot_em()
@@ -169,7 +219,7 @@ impl MarketDataClient {
             .iter()
             .find(|item| item.code == code)
             .context("symbol not found in spot quotes")?;
-        Ok(super::wire::AkshareIndividualInfo {
+        Ok(AkshareIndividualInfo {
             stock_name: Some(spot.name.clone()),
             total_share: None,
             market_cap: Some(spot.total_market_cap),

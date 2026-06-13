@@ -269,44 +269,14 @@ mod factors {
     }
 
     fn quality_score(item: &EnrichedCandidate) -> f64 {
-        let Some(f) = item.fundamentals.as_ref() else {
-            return 40.0;
-        };
-        let roe: f64 = match (
-            f.net_income_usd,
-            f.stockholders_equity_usd.filter(|value| *value > Decimal::ZERO),
-        ) {
-            (Some(ni), Some(eq)) => (ni / eq).to_f64().unwrap_or_default(),
-            _ => 0.0,
-        };
-        let leverage: f64 = match (
-            f.total_debt_usd,
-            f.stockholders_equity_usd.filter(|value| *value > Decimal::ZERO),
-        ) {
-            (Some(debt), Some(eq)) => (debt / eq).to_f64().unwrap_or_default(),
-            _ => 1.0,
-        };
+        let roe = item.fundamental_snapshot.roe.unwrap_or(0.0);
+        let leverage = item.fundamental_snapshot.leverage.unwrap_or(1.0);
         (55.0 + roe.clamp(-0.2, 0.4) * 80.0 - leverage.clamp(0.0, 3.0) * 8.0).clamp(0.0, 100.0)
     }
 
     fn value_score(item: &EnrichedCandidate) -> f64 {
-        let Some(f) = item.fundamentals.as_ref() else {
-            return 45.0;
-        };
-        let pe_like: f64 = match (
-            f.market_cap.filter(|value| *value > Decimal::ZERO),
-            f.net_income_usd.filter(|value| *value > Decimal::ZERO),
-        ) {
-            (Some(mc), Some(ni)) => (mc / ni).to_f64().unwrap_or_default(),
-            _ => 40.0,
-        };
-        let ps_like: f64 = match (
-            f.market_cap.filter(|value| *value > Decimal::ZERO),
-            f.revenues_usd.filter(|value| *value > Decimal::ZERO),
-        ) {
-            (Some(mc), Some(rev)) => (mc / rev).to_f64().unwrap_or_default(),
-            _ => 10.0,
-        };
+        let pe_like = item.fundamental_snapshot.pe_like.unwrap_or(40.0);
+        let ps_like = item.fundamental_snapshot.ps_like.unwrap_or(10.0);
         let mut score: f64 = 50.0;
         if pe_like < 15.0 {
             score += 18.0;
@@ -324,22 +294,23 @@ mod factors {
     }
 
     fn profitability_score(item: &EnrichedCandidate) -> f64 {
-        let Some(f) = item.fundamentals.as_ref() else {
-            return 40.0;
-        };
-        let margin: f64 = match (
-            f.net_income_usd,
-            f.revenues_usd.filter(|value| *value > Decimal::ZERO),
+        let margin = match (
+            item.fundamental_snapshot.net_income_usd,
+            item.fundamental_snapshot.revenues_usd.filter(|v| *v > 0.0),
         ) {
-            (Some(ni), Some(rev)) => (ni / rev).to_f64().unwrap_or_default(),
+            (Some(ni), Some(rev)) => ni / rev,
             _ => 0.0,
         };
-        let cash_conversion: f64 = match (
-            f.operating_cash_flow_usd,
-            f.net_income_usd.filter(|value| value.abs() > Decimal::ZERO),
-        ) {
-            (Some(ocf), Some(ni)) => (ocf / ni).to_f64().unwrap_or_default(),
-            _ => 0.0,
+        let cash_conversion = match item.fundamentals.as_ref() {
+            Some(f) => {
+                let ocf = f.operating_cash_flow_usd;
+                let ni = f.net_income_usd.filter(|v| v.abs() > Decimal::ZERO);
+                match (ocf, ni) {
+                    (Some(ocf), Some(ni)) => (ocf / ni).to_f64().unwrap_or_default(),
+                    _ => 0.0,
+                }
+            }
+            None => 0.0,
         };
         (48.0 + margin.clamp(-0.2, 0.3) * 90.0 + cash_conversion.clamp(-1.0, 2.0) * 8.0)
             .clamp(0.0, 100.0)
@@ -851,76 +822,6 @@ mod snapshots {
         }
     }
 
-    /// Attempt to parse a `published_at` string into a `NaiveDate`, trying
-    /// several common formats found across news sources.
-    fn parse_news_date(raw: &str) -> Option<NaiveDate> {
-        let trimmed = raw.trim();
-        if trimmed.is_empty() {
-            return None;
-        }
-        // ISO / GDELT style: "YYYY-MM-DD ..." or "YYYY-MM-DDTHH:MM:SS"
-        if let Some(date_part) = trimmed.get(..10)
-            && let Ok(d) = NaiveDate::parse_from_str(date_part, "%Y-%m-%d")
-        {
-            return Some(d);
-        }
-        // US style: "M/D/YYYY" or "MM/DD/YYYY"
-        if let Ok(d) = NaiveDate::parse_from_str(trimmed, "%m/%d/%Y") {
-            return Some(d);
-        }
-        // US style with time: "M/D/YYYY HH:MM:SS"
-        if let Some(date_part) = trimmed.split_whitespace().next()
-            && let Ok(d) = NaiveDate::parse_from_str(date_part, "%m/%d/%Y")
-        {
-            return Some(d);
-        }
-        // Dotted: "YYYY.MM.DD"
-        if let Ok(d) = NaiveDate::parse_from_str(trimmed, "%Y.%m.%d") {
-            return Some(d);
-        }
-        if let Some(date_part) = trimmed.split_whitespace().next()
-            && let Ok(d) = NaiveDate::parse_from_str(date_part, "%Y.%m.%d")
-        {
-            return Some(d);
-        }
-        // Long format: "Aug 10, 2020" / "January 5, 2024"
-        if let Ok(d) = NaiveDate::parse_from_str(trimmed, "%b %d, %Y") {
-            return Some(d);
-        }
-        if let Ok(d) = NaiveDate::parse_from_str(trimmed, "%B %d, %Y") {
-            return Some(d);
-        }
-        // Try parsing a relative date string like "2 hours ago", "3 days ago"
-        let lower = trimmed.to_ascii_lowercase();
-        if let Some((amount_str, rest)) = lower.split_once(' ')
-            && let Ok(amount) = amount_str.parse::<i64>()
-        {
-            let now = Utc::now().date_naive();
-            if rest.starts_with("minute")
-                || rest.starts_with("min")
-                || rest.starts_with("hour")
-                || rest.starts_with("hr")
-            {
-                return Some(now);
-            } else if rest.starts_with("day") {
-                return Some(now - chrono::Duration::days(amount));
-            } else if rest.starts_with("week") {
-                return Some(now - chrono::Duration::weeks(amount));
-            } else if rest.starts_with("month") {
-                return Some(now - chrono::Duration::days(amount * 30));
-            } else if rest.starts_with("year") {
-                return Some(now - chrono::Duration::days(amount * 365));
-            }
-        }
-        if lower == "today" {
-            return Some(Utc::now().date_naive());
-        }
-        if lower == "yesterday" {
-            return Some(Utc::now().date_naive() - chrono::Duration::days(1));
-        }
-        None
-    }
-
     /// Format a date as a relative human-readable time string.
     fn format_relative_time(date: NaiveDate) -> String {
         let today = Utc::now().date_naive();
@@ -965,7 +866,10 @@ mod snapshots {
         let cutoff = Utc::now().date_naive() - chrono::Duration::days(90);
         let most_recent = news
             .iter()
-            .filter_map(|n| parse_news_date(&n.published_at))
+            .filter_map(|n| {
+                crate::data::news_filter::normalized_news_date(&n.published_at)
+                    .and_then(|s| NaiveDate::parse_from_str(&s, "%Y-%m-%d").ok())
+            })
             .filter(|date| *date >= cutoff)
             .max();
         match most_recent {

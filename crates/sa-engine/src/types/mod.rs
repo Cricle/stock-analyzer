@@ -75,6 +75,24 @@ impl MarketKind {
             Self::UsEquity => "US",
         }
     }
+
+    /// Exchange code: "CN", "HK", "US".
+    pub fn exchange_code(&self) -> &'static str {
+        match self {
+            Self::AShare => "CN",
+            Self::HongKong => "HK",
+            Self::UsEquity => "US",
+        }
+    }
+
+    /// Default candidate search query for stock picking.
+    pub fn default_candidate_query(&self) -> &'static str {
+        match self {
+            Self::AShare => "industry",
+            Self::HongKong => "blue chip",
+            Self::UsEquity => "technology",
+        }
+    }
 }
 
 /// A point-in-time snapshot of a security's latest quote.

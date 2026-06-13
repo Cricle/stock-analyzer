@@ -142,7 +142,7 @@ pub async fn run(
             anyhow::bail!("missing structured deep evidence for {}", candidate.symbol);
         }
         indexed_evidence_records += deduped_records.len();
-        candidate.news = dedupe_news_items(
+        candidate.news = crate::data::news_utils::dedupe_news_items(
             candidate
                 .news
                 .iter()
@@ -543,7 +543,7 @@ async fn resolve_candidates(
                     symbol: normalized.clone(),
                     name: normalized,
                     market: market_kind.display_label().to_string(),
-                    exchange: market_exchange_code(market_kind).to_string(),
+                    exchange: market_kind.exchange_code().to_string(),
                     source_score: 0.0,
                 }
             })
@@ -560,7 +560,7 @@ async fn resolve_candidates(
                 .sector_type
                 .as_deref()
                 .filter(|value| !value.trim().is_empty())
-                .unwrap_or(default_market_candidate_query(market_kind));
+                .unwrap_or(market_kind.default_candidate_query());
             let items = market_data
                 .search_stocks(
                     query,
@@ -584,7 +584,7 @@ async fn resolve_candidates(
                 .sector_type
                 .as_deref()
                 .filter(|value| !value.trim().is_empty())
-                .unwrap_or(default_market_candidate_query(market_kind));
+                .unwrap_or(market_kind.default_candidate_query());
             let items = market_data
                 .search_stocks(
                     query,
@@ -694,7 +694,7 @@ async fn resolve_a_share_candidates(
                 symbol: constituent.symbol,
                 name: constituent.name,
                 market: MarketKind::AShare.display_label().to_string(),
-                exchange: market_exchange_code(MarketKind::AShare).to_string(),
+                exchange: MarketKind::AShare.exchange_code().to_string(),
                 source_score: constituent.main_net_inflow.unwrap_or_default() / 1_0000_0000.0
                     + constituent.change_pct.max(0.0),
             }
@@ -719,7 +719,7 @@ async fn resolve_a_share_candidates(
                 symbol: constituent.symbol,
                 name: constituent.name,
                 market: MarketKind::AShare.display_label().to_string(),
-                exchange: market_exchange_code(MarketKind::AShare).to_string(),
+                exchange: MarketKind::AShare.exchange_code().to_string(),
                 source_score: constituent.change_pct
                     + constituent.main_net_inflow.unwrap_or_default() / 2_0000_0000.0,
             }
@@ -866,21 +866,6 @@ pub(crate) fn test_shortlist_a_share_candidates_for_flow(
 // Pipeline helpers (inlined from helpers.rs)
 // ---------------------------------------------------------------------------
 
-fn market_exchange_code(market: MarketKind) -> &'static str {
-    match market {
-        MarketKind::AShare => "CN",
-        MarketKind::HongKong => "HK",
-        MarketKind::UsEquity => "US",
-    }
-}
-
-fn default_market_candidate_query(market: MarketKind) -> &'static str {
-    match market {
-        MarketKind::AShare => "industry",
-        MarketKind::HongKong => "blue chip",
-        MarketKind::UsEquity => "technology",
-    }
-}
 
 fn normalize_stock_pick_search_depth(value: Option<&str>) -> &'static str {
     match value
@@ -1018,50 +1003,18 @@ fn news_items_to_evidence_records(
     let mut dedup = HashSet::new();
     let mut records = Vec::new();
     for item in items {
-        let dedupe_key = format!(
-            "{}|{}|{}|{}",
-            item.title.trim().to_ascii_lowercase(),
-            item.source.trim().to_ascii_lowercase(),
-            item.published_at.trim(),
-            item.url
-                .clone()
-                .unwrap_or_default()
-                .trim()
-                .to_ascii_lowercase()
+        let dedupe_key = crate::data::news_utils::news_dedupe_key(
+            &item.title,
+            &item.source,
+            &item.published_at,
+            item.url.as_deref(),
         );
         if !dedup.insert(dedupe_key.clone()) {
             continue;
         }
-        let combined = format!("{} {}", item.title, item.summary).to_ascii_lowercase();
-        let hard_negative_flag = [
-            "investigation",
-            "fraud",
-            "default",
-            "bankruptcy",
-            "delist",
-            "downgrade",
-            "lawsuit",
-        ]
-        .iter()
-        .any(|token| combined.contains(token));
-        let sentiment_hint = if hard_negative_flag {
-            "negative"
-        } else if [
-            "beat",
-            "growth",
-            "upgrade",
-            "approval",
-            "expansion",
-            "contract",
-            "buyback",
-        ]
-        .iter()
-        .any(|token| combined.contains(token))
-        {
-            "positive"
-        } else {
-            "neutral"
-        };
+        let sentiment = crate::data::news_utils::classify_news_sentiment(&item.title, &item.summary);
+        let hard_negative_flag = crate::data::news_utils::is_hard_negative(item);
+        let sentiment_hint = sentiment.as_str();
         records.push(CandidateEvidenceRecord {
             query: query.clone(),
             published_at: item.published_at.clone(),
@@ -1082,28 +1035,6 @@ fn news_items_to_evidence_records(
     records
 }
 
-fn dedupe_news_items(items: Vec<NewsItem>) -> Vec<NewsItem> {
-    let mut dedup = HashSet::new();
-    let mut output = Vec::new();
-    for item in items {
-        let key = format!(
-            "{}|{}|{}|{}",
-            item.title.trim().to_ascii_lowercase(),
-            item.source.trim().to_ascii_lowercase(),
-            item.published_at.trim(),
-            item.url
-                .clone()
-                .unwrap_or_default()
-                .trim()
-                .to_ascii_lowercase()
-        );
-        if dedup.insert(key) {
-            output.push(item);
-        }
-    }
-    output.sort_by(|left, right| right.published_at.cmp(&left.published_at));
-    output
-}
 
 fn default_selection_reason_codes(item: &EnrichedCandidate) -> Vec<String> {
     let mut codes = vec!["score_leader".to_string()];
@@ -1228,32 +1159,6 @@ pub(crate) fn test_billboard_source_score(items: &[BillboardEntry]) -> f64 {
     billboard_source_score(items)
 }
 
-#[cfg(test)]
-#[allow(dead_code)]
-pub(crate) fn test_has_hard_negative_news(news: &[NewsItem]) -> bool {
-    has_hard_negative_news(news)
-}
-
-#[cfg(test)]
-#[allow(dead_code)]
-fn has_hard_negative_news(news: &[NewsItem]) -> bool {
-    news.iter().any(|item| {
-        let title = item.title.to_ascii_lowercase();
-        let summary = item.summary.to_ascii_lowercase();
-        [
-            "fraud",
-            "bankruptcy",
-            "delist",
-            "recall",
-            "probe",
-            "investigation",
-            "lawsuit",
-            "default",
-        ]
-        .iter()
-        .any(|keyword| title.contains(keyword) || summary.contains(keyword))
-    })
-}
 
 #[cfg(test)]
 #[allow(dead_code)]

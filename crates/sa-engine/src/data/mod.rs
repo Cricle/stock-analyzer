@@ -155,6 +155,7 @@ mod client;
 pub mod diagnosis;
 mod hk;
 pub(crate) mod news_filter;
+pub(crate) mod news_utils;
 mod us;
 mod wire;
 

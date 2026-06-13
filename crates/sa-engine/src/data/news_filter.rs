@@ -400,6 +400,12 @@ pub fn normalized_news_date(value: &str) -> Option<String> {
         "%Y%m%d",
         "%Y-%m-%d %H:%M:%S",
         "%Y-%m-%d %H:%M",
+        "%m/%d/%Y",
+        "%m/%d/%Y %H:%M:%S",
+        "%Y.%m.%d",
+        "%Y.%m.%d %H:%M:%S",
+        "%b %d, %Y",
+        "%B %d, %Y",
         "%Y年%m月%d日",
         "%Y年%m月%d日 %H:%M",
         "%Y年%m月%d日 %H:%M:%S",
@@ -420,6 +426,26 @@ pub fn normalized_news_date(value: &str) -> Option<String> {
             .get(0..10)
             .filter(|prefix| prefix.chars().nth(4) == Some('-'))
             .map(str::to_string)
+    })
+    .or_else(|| {
+        // Try first token for formats with trailing time
+        let first_token = trimmed.split_whitespace().next().unwrap_or("");
+        if first_token != trimmed {
+            [
+                "%m/%d/%Y",
+                "%Y.%m.%d",
+                "%b %d, %Y",
+                "%B %d, %Y",
+            ]
+            .iter()
+            .find_map(|format| {
+                NaiveDate::parse_from_str(first_token, format)
+                    .ok()
+                    .map(|date| date.format("%Y-%m-%d").to_string())
+            })
+        } else {
+            None
+        }
     })
     .or_else(|| normalize_relative_news_date(trimmed, Utc::now()))
 }

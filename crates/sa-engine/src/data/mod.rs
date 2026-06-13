@@ -3,9 +3,9 @@ use std::fmt;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::FromPrimitive;
 
+use crate::types::NewsFetchAttempt;
 pub use crate::types::{
-    CandlePoint, CapitalFlowPoint, FundamentalsSnapshot, MarketKind, NewsFetchAttempt,
-    NewsFetchResult, NewsItem, QuoteSnapshot,
+    CandlePoint, CapitalFlowPoint, FundamentalsSnapshot, MarketKind, NewsItem, QuoteSnapshot,
 };
 
 /// Convert an `f64` to `Decimal`, returning `Decimal::ZERO` for `NaN`/`Inf`.
@@ -19,31 +19,9 @@ pub(crate) fn opt_f64_to_dec(v: Option<f64>) -> Option<Decimal> {
 }
 
 pub use akshare::stock::feature::{
-    AnalystDetail, AnalystRank, BalanceSheet, CashFlowSheet, CommentDesireIndex,
-    CommentFocusIndex, CommentHistScore, CommentOrgParticipation, DividendInfo, DzjyHygtj,
-    DzjyHyyybtj, DzjyMrtj, DzjyYybph, EarningsForecast, EarningsQuickReport, EarningsReport,
-    EsgRating, FundFlowEntry, GdfxHoldingAnalyse, GdfxHoldingChange, GdfxHoldingDetail,
-    GdfxHoldingStatistic, GdfxTeamwork, GdfxTop10, Gdhs, GdhsDetail, Ggcg, GpzyDistributeEntry,
-    GpzyIndustry, GpzyPledgeDetail, GpzyPledgeRatio, GpzyPledgeRatioDetail, GpzyProfile,
-    HotStockXq, IndustryCategory, JgdyDetail, JgdyTj, LhbDetail, LhbHyyyb, LhbJgmmtj,
-    LhbJgstatistic, LhbStockDetail, LhbStockDetailDate, LhbStockStatistic, LhbTraderStatistic,
-    LhbYybDetail, LhbYybph, MainFundFlow, MarginAccountInfo, MarginRatioPa, MarginSseDetail,
-    MarginSseSummary, MarginSzseDetail, MarginSzseSummary, PankouChange, ProfitSheet,
-    SectorFundFlowRank, StockComment, ZtPool, ZtPoolDtgc, ZtPoolPrevious, ZtPoolStrong,
-    ZtPoolSubNew, ZtPoolZbgc,
+    EarningsForecast, FundFlowEntry, HotStockXq, LhbStockStatistic, MarginRatioPa, ZtPool,
 };
 
-// HK-specific types
-pub use akshare::stock::hk_extra::{
-    HkFamousStock, HkFhpxDetailThs, HkGxlLg, HkHotRank, HkHotRankDetail, HkSpotQuote,
-    HkValuationBaidu,
-};
-
-// US-specific types
-pub use akshare::stock::us_extra::{UsFamousStock, UsPinkStock, UsSpotSina, UsValuationBaidu};
-
-// Xueqiu (shared HK/US)
-pub use akshare::stock::xueqiu::XqStockSpot;
 
 mod a_share;
 mod akshare_rust;
@@ -129,8 +107,4 @@ pub(crate) fn news_result_cacheable(items: &[NewsItem], attempts: &[NewsFetchAtt
     !items.is_empty() && !attempts.is_empty() && attempts.iter().all(|attempt| attempt.success)
 }
 
-pub use akshare::types::{SectorSnapshot, SectorConstituent, StockSearchResult};
-
-pub use akshare::types::{
-    AnnouncementDetail, AnnouncementItem, BillboardEntry, BillboardSeatDetail, TradeCalendarItem,
-};
+pub use akshare::types::BillboardEntry;

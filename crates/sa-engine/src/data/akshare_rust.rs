@@ -3,8 +3,9 @@ use rust_decimal::prelude::FromPrimitive;
 
 use super::{
     CandlePoint, CapitalFlowPoint, FundamentalsSnapshot, MarketDataClient, MarketKind, NewsItem,
-    QuoteSnapshot, StockSearchResult,
+    QuoteSnapshot,
 };
+use akshare::types::StockSearchResult;
 
 type ProviderResult<T> = (T, String);
 
@@ -254,21 +255,23 @@ pub(crate) async fn fetch_return_since(
 
 pub(crate) mod a_share {
     use super::ProviderResult;
-    use crate::data::{
-        AnalystDetail, AnalystRank, BalanceSheet, CandlePoint, CashFlowSheet, CommentDesireIndex,
+    use crate::data::{CandlePoint, FundamentalsSnapshot, MarketDataClient, NewsItem, QuoteSnapshot};
+    use akshare::stock::feature::{
+        AnalystDetail, AnalystRank, BalanceSheet, CashFlowSheet, CommentDesireIndex,
         CommentFocusIndex, CommentHistScore, CommentOrgParticipation, DividendInfo, DzjyHygtj,
         DzjyHyyybtj, DzjyMrtj, DzjyYybph, EarningsForecast as AkEarningsForecast,
-        EarningsQuickReport, EarningsReport, EsgRating, FundFlowEntry, FundamentalsSnapshot,
+        EarningsQuickReport, EarningsReport, EsgRating, FundFlowEntry,
         GdfxHoldingAnalyse, GdfxHoldingChange, GdfxHoldingDetail, GdfxHoldingStatistic,
         GdfxTeamwork, GdfxTop10, Gdhs, GdhsDetail, Ggcg, GpzyDistributeEntry, GpzyIndustry,
         GpzyPledgeDetail, GpzyPledgeRatio, GpzyPledgeRatioDetail, GpzyProfile, HotStockXq,
         IndustryCategory, JgdyDetail, JgdyTj, LhbDetail, LhbHyyyb, LhbJgmmtj, LhbJgstatistic,
         LhbStockDetail, LhbStockDetailDate, LhbStockStatistic, LhbTraderStatistic, LhbYybDetail,
         LhbYybph, MainFundFlow, MarginAccountInfo, MarginRatioPa, MarginSseDetail, MarginSseSummary,
-        MarginSzseDetail, MarginSzseSummary, MarketDataClient, NewsItem, PankouChange, ProfitSheet,
-        QuoteSnapshot, SectorFundFlowRank, StockComment, StockSearchResult, ZtPool, ZtPoolDtgc,
+        MarginSzseDetail, MarginSzseSummary, PankouChange, ProfitSheet,
+        SectorFundFlowRank, StockComment, ZtPool, ZtPoolDtgc,
         ZtPoolPrevious, ZtPoolStrong, ZtPoolSubNew, ZtPoolZbgc,
     };
+    use akshare::types::StockSearchResult;
 
     pub(crate) async fn search_stocks(
         client: &MarketDataClient,

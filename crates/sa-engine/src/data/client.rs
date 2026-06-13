@@ -2,14 +2,17 @@ use anyhow::Context;
 use tracing::Instrument;
 
 use super::{
-    AnnouncementDetail, AnnouncementItem, BillboardEntry, BillboardSeatDetail,
-    CANDLES_CACHE_TTL_SECS, CANDLES_CACHE_VERSION, CandlePoint, CapitalFlowPoint, DataConfig,
-    DataError, DataErrorKind, FUNDAMENTALS_CACHE_TTL_SECS, FUNDAMENTALS_CACHE_VERSION,
-    FundamentalsSnapshot, GLOBAL_NEWS_CACHE_VERSION, INSIDER_CACHE_TTL_SECS,
-    MARKET_DATA_CACHE_PREFIX, MarketDataClient, MarketKind, NEWS_CACHE_TTL_SECS,
-    NEWS_CACHE_VERSION, NewsFetchAttempt, NewsFetchResult, NewsItem, QUOTE_CACHE_TTL_SECS,
-    QUOTE_CACHE_VERSION, SectorConstituent, SectorSnapshot, Singleflight, SingleflightResult,
-    QuoteSnapshot, StockSearchResult, TradeCalendarItem,
+    BillboardEntry, CANDLES_CACHE_TTL_SECS, CANDLES_CACHE_VERSION, CandlePoint,
+    CapitalFlowPoint, DataConfig, DataError, DataErrorKind, FUNDAMENTALS_CACHE_TTL_SECS,
+    FUNDAMENTALS_CACHE_VERSION, FundamentalsSnapshot, GLOBAL_NEWS_CACHE_VERSION,
+    INSIDER_CACHE_TTL_SECS, MARKET_DATA_CACHE_PREFIX, MarketDataClient, MarketKind,
+    NEWS_CACHE_TTL_SECS, NEWS_CACHE_VERSION, NewsItem, QUOTE_CACHE_TTL_SECS,
+    QUOTE_CACHE_VERSION, Singleflight, SingleflightResult, QuoteSnapshot,
+};
+use crate::types::{NewsFetchAttempt, NewsFetchResult};
+use akshare::types::{
+    AnnouncementDetail, AnnouncementItem, BillboardSeatDetail, SectorConstituent,
+    SectorSnapshot, StockSearchResult, TradeCalendarItem,
 };
 impl MarketDataClient {
     pub async fn new() -> Self {
@@ -823,7 +826,7 @@ impl MarketDataClient {
         }
     }
 }
-use super::{
+use akshare::stock::feature::{
     AnalystDetail, AnalystRank, BalanceSheet, CashFlowSheet, CommentDesireIndex,
     CommentFocusIndex, CommentHistScore, CommentOrgParticipation, DividendInfo, DzjyHygtj,
     DzjyHyyybtj, DzjyMrtj, DzjyYybph, EarningsForecast, EarningsQuickReport, EarningsReport,

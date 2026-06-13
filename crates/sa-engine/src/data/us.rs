@@ -8,6 +8,7 @@ use super::{
     FundamentalsSnapshot, MarketDataClient, NewsItem,
     f64_to_dec, opt_f64_to_dec,
 };
+use crate::types::{NewsFetchAttempt, NewsFetchResult};
 use super::akshare_rust::news_item_from_akshare;
 use super::news_filter::within_date_window;
 
@@ -166,7 +167,7 @@ impl MarketDataClient {
         limit: usize,
         start_date: Option<&str>,
         end_date: Option<&str>,
-    ) -> anyhow::Result<super::NewsFetchResult> {
+    ) -> anyhow::Result<NewsFetchResult> {
         let mut attempts = Vec::new();
         let mut items: Vec<NewsItem> = Vec::new();
 
@@ -185,7 +186,7 @@ impl MarketDataClient {
                     })
                     .filter(|item| within_date_window(&item.published_at, start_date, end_date))
                     .collect();
-                attempts.push(super::NewsFetchAttempt {
+                attempts.push(NewsFetchAttempt {
                     source: "eastmoney_us".to_string(),
                     query: Some(symbol.to_string()),
                     success: true,
@@ -195,7 +196,7 @@ impl MarketDataClient {
                 items.extend(converted);
             }
             Err(error) => {
-                attempts.push(super::NewsFetchAttempt {
+                attempts.push(NewsFetchAttempt {
                     source: "eastmoney_us".to_string(),
                     query: Some(symbol.to_string()),
                     success: false,
@@ -227,7 +228,7 @@ impl MarketDataClient {
                 }
             }
             if bing_added > 0 {
-                attempts.push(super::NewsFetchAttempt {
+                attempts.push(NewsFetchAttempt {
                     source: "bing_rss".to_string(),
                     query: None,
                     success: true,
@@ -243,7 +244,7 @@ impl MarketDataClient {
 
         items.truncate(limit.max(8));
         let cacheable = super::news_result_cacheable(&items, &attempts);
-        Ok(super::NewsFetchResult {
+        Ok(NewsFetchResult {
             items,
             attempts,
             cacheable,
@@ -255,7 +256,7 @@ impl MarketDataClient {
         curr_date: &str,
         look_back_days: usize,
         limit: usize,
-    ) -> anyhow::Result<super::NewsFetchResult> {
+    ) -> anyhow::Result<NewsFetchResult> {
         let end = NaiveDate::parse_from_str(curr_date, "%Y-%m-%d")
             .context("invalid curr_date for global news")?;
         let start = end - chrono::Days::new(look_back_days as u64);
@@ -284,7 +285,7 @@ impl MarketDataClient {
                         items.push(item);
                     }
                 }
-                attempts.push(super::NewsFetchAttempt {
+                attempts.push(NewsFetchAttempt {
                     source: "bing_rss".to_string(),
                     query: Some(query.to_string()),
                     success: true,
@@ -300,7 +301,7 @@ impl MarketDataClient {
 
         items.truncate(limit.max(8));
         let cacheable = super::news_result_cacheable(&items, &attempts);
-        Ok(super::NewsFetchResult {
+        Ok(NewsFetchResult {
             items,
             attempts,
             cacheable,

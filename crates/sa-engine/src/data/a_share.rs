@@ -9,6 +9,7 @@ use super::{
     f64_to_dec, opt_f64_to_dec,
     wire::AkshareIndividualInfo,
 };
+use crate::types::{NewsFetchAttempt, NewsFetchResult};
 
 impl MarketDataClient {
     pub(crate) async fn fetch_a_share_quote_from_eastmoney(
@@ -375,7 +376,7 @@ impl MarketDataClient {
         &self,
         ts_code: &str,
         limit: usize,
-    ) -> anyhow::Result<super::NewsFetchResult> {
+    ) -> anyhow::Result<NewsFetchResult> {
         let symbol = ts_code.split('.').next().unwrap_or(ts_code);
         let search_match = self
             .ak.a_share_search(symbol, Some("A股"), 8)
@@ -416,7 +417,7 @@ impl MarketDataClient {
         curr_date: &str,
         _look_back_days: usize,
         limit: usize,
-    ) -> anyhow::Result<super::NewsFetchResult> {
+    ) -> anyhow::Result<NewsFetchResult> {
         // Fetch from akshare Chinese financial news sources in parallel.
         let (cls_res, ths_res, sina_res, futu_res) = tokio::join!(
             super::akshare_rust::a_share::fetch_global_news_cls(self),
@@ -436,7 +437,7 @@ impl MarketDataClient {
                 Ok(items) => {
                     let count = items.len();
                     akshare_items.extend(items);
-                    attempts.push(super::NewsFetchAttempt {
+                    attempts.push(NewsFetchAttempt {
                         source: name.to_string(),
                         query: None,
                         success: true,
@@ -445,7 +446,7 @@ impl MarketDataClient {
                     });
                 }
                 Err(e) => {
-                    attempts.push(super::NewsFetchAttempt {
+                    attempts.push(NewsFetchAttempt {
                         source: name.to_string(),
                         query: None,
                         success: false,
@@ -486,7 +487,7 @@ impl MarketDataClient {
         let (merged, attempts, cacheable) = if merged.is_empty() {
             let fallback_items = Self::a_share_macro_reference_pages(curr_date);
             let mut attempts = attempts;
-            attempts.push(super::NewsFetchAttempt {
+            attempts.push(NewsFetchAttempt {
                 source: "A-share Macro Reference".to_string(),
                 query: Some(curr_date.to_string()),
                 success: true,
@@ -498,7 +499,7 @@ impl MarketDataClient {
             let cacheable = super::news_result_cacheable(&merged, &attempts);
             (merged, attempts, cacheable)
         };
-        Ok(super::NewsFetchResult {
+        Ok(NewsFetchResult {
             items: merged,
             attempts,
             cacheable,
@@ -510,9 +511,9 @@ impl MarketDataClient {
         limit: usize,
         eastmoney_result: anyhow::Result<Vec<NewsItem>>,
         google_items: Vec<NewsItem>,
-        mut google_attempts: Vec<super::NewsFetchAttempt>,
+        mut google_attempts: Vec<NewsFetchAttempt>,
         keywords: Vec<String>,
-    ) -> anyhow::Result<super::NewsFetchResult> {
+    ) -> anyhow::Result<NewsFetchResult> {
         let mut merged = Vec::new();
         let mut seen = HashSet::new();
         let mut errors = Vec::new();
@@ -520,7 +521,7 @@ impl MarketDataClient {
 
         match eastmoney_result {
             Ok(items) => {
-                attempts.push(super::NewsFetchAttempt {
+                attempts.push(NewsFetchAttempt {
                     source: "Eastmoney 公告".to_string(),
                     query: Some(ts_code.to_string()),
                     success: true,
@@ -531,7 +532,7 @@ impl MarketDataClient {
             }
             Err(error) => {
                 errors.push(format!("eastmoney: {error:#}"));
-                attempts.push(super::NewsFetchAttempt {
+                attempts.push(NewsFetchAttempt {
                     source: "Eastmoney 公告".to_string(),
                     query: Some(ts_code.to_string()),
                     success: false,
@@ -600,7 +601,7 @@ impl MarketDataClient {
             tracing::info!(symbol = %ts_code, "a-share news merge produced only official announcement items");
         }
         let cacheable = super::news_result_cacheable(&items, &attempts);
-        Ok(super::NewsFetchResult {
+        Ok(NewsFetchResult {
             items,
             attempts,
             cacheable,

@@ -2,8 +2,8 @@ use anyhow::Context;
 use tracing::Instrument;
 
 use super::{
-    BillboardEntry, CandlePoint, CapitalFlowPoint, DataConfig, DataError, DataErrorKind,
-    FundamentalsSnapshot, MarketDataClient, MarketKind, NewsItem, QuoteSnapshot,
+    BillboardEntry, CandlePoint, CapitalFlowPoint, DataError, FundamentalsSnapshot,
+    MarketDataClient, MarketKind, NewsItem, QuoteSnapshot,
 };
 use crate::types::NewsFetchResult;
 use akshare::types::{
@@ -12,10 +12,6 @@ use akshare::types::{
 };
 impl MarketDataClient {
     pub async fn new() -> Self {
-        Self::from_config(&DataConfig {}).await
-    }
-
-    pub async fn from_config(_config: &DataConfig) -> Self {
         let mut ak_builder = akshare::AkShareClient::builder();
         let outbound_proxy_url = std::env::var("OUTBOUND_PROXY_URL")
             .ok()
@@ -28,57 +24,19 @@ impl MarketDataClient {
         if let Some(proxy_url) = outbound_proxy_url.as_deref() {
             ak_builder = ak_builder.proxy(proxy_url);
         }
-        let ak = ak_builder.build();
-
-        Self { ak }
+        Self { ak: ak_builder.build() }
     }
 
     pub fn detect_market(&self, symbol: &str) -> MarketKind {
         akshare::detect_market(symbol).into()
     }
 
-    pub fn quote_source(&self, symbol: &str) -> &'static str {
-        match self.detect_market(symbol) { MarketKind::AShare => "akshare:tencent_quote+eastmoney", MarketKind::HongKong => "akshare:tencent_quote+yahoo_finance_chart", MarketKind::UsEquity => "akshare:sina_us_daily+yahoo_finance_chart+stooq" }
-    }
-
-    pub fn fundamentals_source(&self, symbol: &str) -> &'static str {
-        match self.detect_market(symbol) { MarketKind::AShare => "akshare:eastmoney", MarketKind::HongKong => "akshare:tencent_quote+eastmoney_search", MarketKind::UsEquity => "akshare:sec_edgar" }
-    }
-
-    pub fn news_source(&self, symbol: &str) -> &'static str {
-        match self.detect_market(symbol) { MarketKind::AShare => "akshare:eastmoney+searxng_news", MarketKind::HongKong => "akshare:searxng_news", MarketKind::UsEquity => "akshare:sec_edgar+searxng_news" }
-    }
-
     pub fn candles_source(&self, symbol: &str) -> &'static str {
-        match self.detect_market(symbol) { MarketKind::AShare => "akshare:tencent_kline+eastmoney_kline", MarketKind::HongKong => "akshare:tencent_kline+yahoo_finance_chart", MarketKind::UsEquity => "akshare:sina_us_daily+yahoo_finance_chart+stooq" }
-    }
-
-    pub fn capital_flow_source(&self, symbol: &str) -> &'static str {
         match self.detect_market(symbol) {
-            MarketKind::AShare => "akshare_compatible:eastmoney",
-            MarketKind::HongKong => "unsupported",
-            MarketKind::UsEquity => "unsupported",
+            MarketKind::AShare => "akshare:tencent_kline+eastmoney_kline",
+            MarketKind::HongKong => "akshare:tencent_kline+yahoo_finance_chart",
+            MarketKind::UsEquity => "akshare:sina_us_daily+yahoo_finance_chart+stooq",
         }
-    }
-
-    pub fn error_kind(&self, error: &anyhow::Error) -> &'static str {
-        for cause in error.chain() {
-            if let Some(data_error) = cause.downcast_ref::<DataError>() {
-                return data_error.kind.as_str();
-            }
-            if let Some(reqwest_error) = cause.downcast_ref::<reqwest::Error>()
-                && let Some(status) = reqwest_error.status()
-            {
-                return match status {
-                    reqwest::StatusCode::FORBIDDEN | reqwest::StatusCode::UNAUTHORIZED => {
-                        DataErrorKind::Restricted.as_str()
-                    }
-                    reqwest::StatusCode::NOT_FOUND => DataErrorKind::NotFound.as_str(),
-                    _ => DataErrorKind::Upstream.as_str(),
-                };
-            }
-        }
-        DataErrorKind::Upstream.as_str()
     }
 
     pub async fn fetch_quote(&self, symbol: &str) -> anyhow::Result<QuoteSnapshot> {
@@ -332,7 +290,6 @@ impl MarketDataClient {
                     .map_err(anyhow::Error::from)
             } else {
                 Err(DataError::new(
-                    DataErrorKind::UnsupportedMarket,
                     format!("capital flow is unsupported for symbol {symbol}"),
                 )
                 .into())
@@ -387,7 +344,6 @@ impl MarketDataClient {
                 self.ak.a_share_announcements(&ts_code, limit).await.map_err(anyhow::Error::from)
             } else {
                 Err(DataError::new(
-                    DataErrorKind::UnsupportedMarket,
                     format!("announcements are unsupported for symbol {symbol}"),
                 )
                 .into())
@@ -406,7 +362,6 @@ impl MarketDataClient {
         }
 
         Err(DataError::new(
-            DataErrorKind::UnsupportedMarket,
             format!("billboard is unsupported for symbol {symbol}"),
         )
         .into())
@@ -424,7 +379,6 @@ impl MarketDataClient {
         }
 
         Err(DataError::new(
-            DataErrorKind::UnsupportedMarket,
             format!("billboard seats are unsupported for symbol {symbol}"),
         )
         .into())

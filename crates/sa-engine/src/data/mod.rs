@@ -159,48 +159,19 @@ pub(crate) mod news_utils;
 mod us;
 mod wire;
 
-/// Configuration for constructing a `MarketDataClient`.
-/// The backend builds this from its `Settings`.
-pub struct DataConfig {
-}
-
 #[derive(Clone)]
 pub struct MarketDataClient {
     ak: akshare::AkShareClient,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DataErrorKind {
-    UnsupportedMarket,
-    PermissionDenied,
-    Restricted,
-    MissingCredentials,
-    NotFound,
-    Upstream,
-}
-impl DataErrorKind {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::UnsupportedMarket => "unsupported_market",
-            Self::PermissionDenied => "permission_denied",
-            Self::Restricted => "restricted",
-            Self::MissingCredentials => "missing_credentials",
-            Self::NotFound => "not_found",
-            Self::Upstream => "upstream_error",
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct DataError {
-    kind: DataErrorKind,
     message: String,
 }
 
 impl DataError {
-    fn new(kind: DataErrorKind, message: impl Into<String>) -> Self {
+    pub(crate) fn new(message: impl Into<String>) -> Self {
         Self {
-            kind,
             message: message.into(),
         }
     }

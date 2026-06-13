@@ -131,21 +131,6 @@ pub struct StockPickResponse {
     pub failure: Option<StockPickFailureInfo>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct StockPickRunRecord {
-    pub id: String,
-    pub owner_username: String,
-    pub request: StockPickRequest,
-    pub result: StockPickResponse,
-    pub remaining_credits: f64,
-    #[serde(default)]
-    pub worker_id: Option<String>,
-    #[serde(default)]
-    pub worker_base_url: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickObjectiveAssessment {
     #[serde(default)]

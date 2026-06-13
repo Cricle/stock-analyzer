@@ -1,12 +1,9 @@
 use std::collections::HashSet;
 
 use anyhow::{Context, bail};
-use rust_decimal::Decimal;
-use rust_decimal::prelude::ToPrimitive;
 
 use super::{
     CandlePoint, FundamentalsSnapshot, MarketDataClient, NewsItem, QuoteSnapshot,
-    f64_to_dec, opt_f64_to_dec,
     wire::AkshareIndividualInfo,
 };
 use crate::types::{NewsFetchAttempt, NewsFetchResult};
@@ -21,7 +18,7 @@ impl MarketDataClient {
             .a_share_quote(symbol)
             .await
             .context("akshare a_share_quote failed")?;
-        Ok(super::quote_from_akshare(q))
+        Ok(q)
     }
 
     pub(crate) async fn fetch_a_share_tencent_candles(
@@ -35,10 +32,7 @@ impl MarketDataClient {
             .a_share_candles(symbol, adjust, limit)
             .await
             .context("akshare a_share_candles failed")?;
-        Ok(items
-            .into_iter()
-            .map(super::candle_from_akshare)
-            .collect())
+        Ok(items)
     }
 
     pub(crate) async fn fetch_a_share_eastmoney_candles(
@@ -136,7 +130,7 @@ impl MarketDataClient {
     async fn fetch_eastmoney_balance_sheet(
         &self,
         secucode: &str,
-    ) -> anyhow::Result<super::wire::EastmoneyBalanceSheetItem> {
+    ) -> anyhow::Result<akshare::stock::feature::BalanceSheet> {
         let symbol = secucode.split_once('.').map(|(c, _)| c).unwrap_or(secucode);
         let sheets = self
             .ak
@@ -144,13 +138,13 @@ impl MarketDataClient {
             .await
             .context("akshare balance sheet failed")?;
         let first = sheets.first().context("akshare balance sheet returned no rows")?;
-        Ok(super::balance_sheet_to_wire(first))
+        Ok(first.clone())
     }
 
     async fn fetch_eastmoney_cashflow(
         &self,
         secucode: &str,
-    ) -> anyhow::Result<super::wire::EastmoneyCashflowItem> {
+    ) -> anyhow::Result<akshare::stock::feature::CashFlowSheet> {
         let symbol = secucode.split_once('.').map(|(c, _)| c).unwrap_or(secucode);
         let sheets = self
             .ak
@@ -158,7 +152,7 @@ impl MarketDataClient {
             .await
             .context("akshare cashflow failed")?;
         let first = sheets.first().context("akshare cashflow returned no rows")?;
-        Ok(super::cashflow_to_wire(first))
+        Ok(first.clone())
     }
 
     async fn fetch_a_share_spot_quote(
@@ -186,7 +180,7 @@ impl MarketDataClient {
     async fn fetch_a_share_profit_sheet(
         &self,
         secucode: &str,
-    ) -> anyhow::Result<super::wire::ProfitSheetWire> {
+    ) -> anyhow::Result<akshare::stock::feature::ProfitSheet> {
         let symbol = secucode.split_once('.').map(|(c, _)| c).unwrap_or(secucode);
         let sheets = self
             .ak
@@ -194,7 +188,7 @@ impl MarketDataClient {
             .await
             .context("akshare profit sheet failed")?;
         let first = sheets.first().context("akshare profit sheet returned no rows")?;
-        Ok(super::profit_sheet_to_wire(first))
+        Ok(first.clone())
     }
 
     pub(super) async fn fetch_a_share_fundamentals(
@@ -239,44 +233,40 @@ impl MarketDataClient {
                     .and_then(|item| item.total_share)
                     .map(|value| value.round() as i64)
             });
-        let provisional_market_cap: Option<Decimal> = spot_quote
+        let provisional_market_cap: Option<f64> = spot_quote
             .as_ref()
             .and_then(|q| q.market_cap)
-            .map(f64_to_dec)
-            .or_else(|| opt_f64_to_dec(info.as_ref().and_then(|value| value.market_cap)))
+            .or(info.as_ref().and_then(|value| value.market_cap))
             .or_else(|| {
                 let shares = provisional_shares_outstanding?;
                 let quote = quote.as_ref()?;
-                Some(quote.close * Decimal::from(shares))
+                Some(quote.close * shares as f64)
             });
         let shares_outstanding = provisional_shares_outstanding.or_else(|| {
             let market_cap = provisional_market_cap?;
             let price = quote.as_ref()?.close;
-            if price > Decimal::ZERO {
-                (market_cap / price).round().to_i64()
+            if price > 0.0 {
+                Some((market_cap / price).round() as i64)
             } else {
                 None
             }
         });
-        let eastmoney_equity: Option<Decimal> = eastmoney_balance.as_ref().and_then(|item| item.total_equity)
-            .map(f64_to_dec)
+        let eastmoney_equity: Option<f64> = eastmoney_balance.as_ref().and_then(|item| item.equity)
             .or_else(|| eastmoney_main.as_ref().and_then(|item| {
                 let shares = item.total_share?;
                 let bps = item.bps?;
-                Some(f64_to_dec(shares * bps))
+                Some(shares * bps)
             }));
-        let eastmoney_assets: Option<Decimal> = eastmoney_balance.as_ref().and_then(|item| item.total_assets)
-            .map(f64_to_dec)
+        let eastmoney_assets: Option<f64> = eastmoney_balance.as_ref().and_then(|item| item.total_assets)
             .or_else(|| eastmoney_main.as_ref().and_then(|item| {
                 let equity = eastmoney_equity?;
                 let debt_ratio_pct = item.zcfzl?;
-                let equity_ratio = f64_to_dec(1.0 - (debt_ratio_pct / 100.0));
-                (equity_ratio > Decimal::ZERO).then_some(equity / equity_ratio)
+                let equity_ratio = 1.0 - (debt_ratio_pct / 100.0);
+                (equity_ratio > 0.0).then_some(equity / equity_ratio)
             }));
-        let eastmoney_liabilities: Option<Decimal> = eastmoney_balance
+        let eastmoney_liabilities: Option<f64> = eastmoney_balance
             .as_ref()
             .and_then(|item| item.total_liabilities)
-            .map(f64_to_dec)
             .or_else(|| eastmoney_assets.zip(eastmoney_equity).map(|(assets, equity)| assets - equity));
 
         Ok(FundamentalsSnapshot {
@@ -298,36 +288,36 @@ impl MarketDataClient {
             fiscal_year_end,
             shares_outstanding,
             market_cap: provisional_market_cap,
-            net_income_usd: opt_f64_to_dec(profit_sheet
+            net_income_usd: profit_sheet
                 .as_ref()
                 .and_then(|p| p.net_profit_deducted.or(p.net_profit))
                 .or_else(|| {
                     eastmoney_main
                         .as_ref()
                         .and_then(|item| item.parent_net_profit.or(item.holder_profit))
-                })),
-            revenues_usd: opt_f64_to_dec(profit_sheet
+                }),
+            revenues_usd: profit_sheet
                 .as_ref()
                 .and_then(|p| p.total_revenue)
                 .or_else(|| {
                     eastmoney_main
                         .as_ref()
                         .and_then(|item| item.total_operate_reve.or(item.operate_income))
-                })),
+                }),
             assets_usd: eastmoney_assets,
             liabilities_usd: eastmoney_liabilities,
             stockholders_equity_usd: eastmoney_equity,
-            cash_and_equivalents_usd: opt_f64_to_dec(
-                eastmoney_balance.as_ref().and_then(|item| item.monetary_funds)
-                    .or_else(|| eastmoney_cashflow.as_ref().and_then(|item| item.end_cce))),
-            gross_profit_usd: opt_f64_to_dec(eastmoney_main
+            cash_and_equivalents_usd:
+                eastmoney_balance.as_ref().and_then(|item| item.cash)
+                    .or_else(|| eastmoney_cashflow.as_ref().and_then(|item| item.cash_increase)),
+            gross_profit_usd: eastmoney_main
                 .as_ref()
-                .and_then(|item| item.gross_profit.or(item.mlr))),
-            operating_income_usd: opt_f64_to_dec(eastmoney_main
+                .and_then(|item| item.gross_profit.or(item.mlr)),
+            operating_income_usd: eastmoney_main
                 .as_ref()
-                .and_then(|item| item.operate_income)),
+                .and_then(|item| item.operate_income),
             operating_expenses_usd: None,
-            operating_cash_flow_usd: opt_f64_to_dec(
+            operating_cash_flow_usd:
                 eastmoney_main.as_ref().and_then(|item| {
                     item.netcash_operate
                         .or(item.mgjyxjje.map(|per_share| {
@@ -336,18 +326,18 @@ impl MarketDataClient {
                                 .unwrap_or(per_share)
                         }))
                 })
-                .or_else(|| eastmoney_cashflow.as_ref().and_then(|item| item.netcash_operate))),
-            capital_expenditure_usd: opt_f64_to_dec(eastmoney_main
+                .or_else(|| eastmoney_cashflow.as_ref().and_then(|item| item.operating_cash_flow)),
+            capital_expenditure_usd: eastmoney_main
                 .as_ref()
                 .and_then(|item| item.capital_expenditure)
                 .map(f64::abs)
                 .or_else(|| {
                     eastmoney_cashflow
                         .as_ref()
-                        .and_then(|item| item.construct_long_asset)
+                        .and_then(|item| item.investing_cash_flow)
                         .map(f64::abs)
-                })),
-            free_cash_flow_usd: opt_f64_to_dec(
+                }),
+            free_cash_flow_usd:
                 eastmoney_main.as_ref().and_then(|item| match (
                     item.netcash_operate,
                     item.capital_expenditure.map(f64::abs),
@@ -357,20 +347,19 @@ impl MarketDataClient {
                 })
                 .or_else(|| {
                     eastmoney_cashflow.as_ref().and_then(|item| match (
-                        item.netcash_operate,
-                        item.construct_long_asset.map(f64::abs),
+                        item.operating_cash_flow,
+                        item.investing_cash_flow.map(f64::abs),
                     ) {
                         (Some(ocf), Some(capex)) => Some(ocf - capex),
                         _ => None,
                     })
-                })),
+                }),
             long_term_debt_usd: None,
-            current_debt_usd: opt_f64_to_dec(
+            current_debt_usd:
                 eastmoney_main
                     .as_ref()
-                    .and_then(|item| item.current_liab.or(item.current_liability))
-                    .or_else(|| eastmoney_balance.as_ref().and_then(|item| item.current_liab))),
-            total_debt_usd: opt_f64_to_dec(
+                    .and_then(|item| item.current_liab.or(item.current_liability)),
+            total_debt_usd:
                 eastmoney_main.as_ref().and_then(|item| match (
                     item.current_liab.or(item.current_liability),
                     item.totalnoncliab.or(item.noncurrent_liab_1year),
@@ -379,15 +368,7 @@ impl MarketDataClient {
                     (Some(current), None) => Some(current),
                     (None, Some(noncurrent)) => Some(noncurrent),
                     (None, None) => None,
-                })
-                .or_else(|| {
-                    eastmoney_balance.as_ref().and_then(|item| match (item.current_liab, item.totalnoncliab) {
-                        (Some(current), Some(noncurrent)) => Some(current + noncurrent),
-                        (Some(current), None) => Some(current),
-                        (None, Some(noncurrent)) => Some(noncurrent),
-                        (None, None) => None,
-                    })
-                })),
+                }),
             diluted_shares_outstanding: None,
         })
     }
@@ -676,8 +657,7 @@ impl MarketDataClient {
         holding_days: usize,
     ) -> anyhow::Result<Option<f64>> {
         let ak_candles = self.ak.a_share_candles(symbol, "qfq", 120).await?;
-        let candles: Vec<CandlePoint> = ak_candles.into_iter().map(super::candle_from_akshare).collect();
-        let mut items = candles
+        let mut items = ak_candles
             .into_iter()
             .map(|item| (item.trade_date, item.close))
             .collect::<Vec<_>>();
@@ -691,10 +671,10 @@ impl MarketDataClient {
         }
         let start_price = items[start_index].1;
         let end_price = items[end_index].1;
-        if start_price <= Decimal::ZERO {
+        if start_price <= 0.0 {
             return Ok(None);
         }
-        Ok(Some(((end_price - start_price) / start_price).to_f64().unwrap_or_default()))
+        Ok(Some((end_price - start_price) / start_price))
     }
 
     async fn fetch_a_share_eastmoney_news(

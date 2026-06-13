@@ -1,4 +1,4 @@
-use super::{FundamentalsSnapshot, MarketDataClient, NewsItem, opt_f64_to_dec};
+use super::{FundamentalsSnapshot, MarketDataClient, NewsItem};
 use super::news_item_from_stock_news;
 use anyhow::Context;
 
@@ -154,28 +154,28 @@ impl MarketDataClient {
             fiscal_year_end,
             shares_outstanding,
             market_cap: None,
-            net_income_usd: opt_f64_to_dec(holder_profit),
-            revenues_usd: opt_f64_to_dec(operate_income),
-            assets_usd: opt_f64_to_dec(total_assets),
-            liabilities_usd: opt_f64_to_dec(total_liabilities),
-            stockholders_equity_usd: opt_f64_to_dec(total_parent_equity),
-            cash_and_equivalents_usd: opt_f64_to_dec(cash_and_equivalents),
-            gross_profit_usd: opt_f64_to_dec(gross_profit),
-            operating_income_usd: opt_f64_to_dec(operating_income),
-            operating_expenses_usd: opt_f64_to_dec(operating_expenses),
-            operating_cash_flow_usd: opt_f64_to_dec(netcash_operate),
-            capital_expenditure_usd: opt_f64_to_dec(capital_expenditure_detail.map(f64::abs)),
+            net_income_usd: holder_profit,
+            revenues_usd: operate_income,
+            assets_usd: total_assets,
+            liabilities_usd: total_liabilities,
+            stockholders_equity_usd: total_parent_equity,
+            cash_and_equivalents_usd: cash_and_equivalents,
+            gross_profit_usd: gross_profit,
+            operating_income_usd: operating_income,
+            operating_expenses_usd: operating_expenses,
+            operating_cash_flow_usd: netcash_operate,
+            capital_expenditure_usd: capital_expenditure_detail.map(f64::abs),
             free_cash_flow_usd: {
                 let ocf = netcash_operate;
                 let capex = capital_expenditure_detail.map(f64::abs);
-                opt_f64_to_dec(match (ocf, capex) {
+                match (ocf, capex) {
                     (Some(o), Some(c)) => Some(o - c),
                     _ => None,
-                })
+                }
             },
-            long_term_debt_usd: opt_f64_to_dec(long_term_debt),
-            current_debt_usd: opt_f64_to_dec(current_liability.or(short_term_debt)),
-            total_debt_usd: opt_f64_to_dec(total_debt),
+            long_term_debt_usd: long_term_debt,
+            current_debt_usd: current_liability.or(short_term_debt),
+            total_debt_usd: total_debt,
             diluted_shares_outstanding: shares_outstanding,
         };
         Ok(snapshot)
@@ -297,7 +297,7 @@ impl MarketDataClient {
         symbol: &str,
     ) -> anyhow::Result<(super::QuoteSnapshot, String)> {
         let ak_quote = self.ak.hk_quote(symbol).await?;
-        Ok((super::quote_from_akshare(ak_quote), "akshare".to_string()))
+        Ok((ak_quote, "akshare".to_string()))
     }
 
     pub(super) async fn fetch_hk_candles(
@@ -310,10 +310,7 @@ impl MarketDataClient {
             .hk_candles(symbol, limit)
             .await
             .context("failed to fetch HK candles from akshare")?;
-        Ok(ak_candles
-            .into_iter()
-            .map(super::candle_from_akshare)
-            .collect())
+        Ok(ak_candles)
     }
 
     pub(super) async fn fetch_hk_return_since(
@@ -322,9 +319,6 @@ impl MarketDataClient {
         start_date: &str,
         holding_days: usize,
     ) -> anyhow::Result<Option<f64>> {
-        use rust_decimal::Decimal;
-        use rust_decimal::prelude::ToPrimitive;
-
         let candles = self.fetch_hk_candles(symbol, holding_days + 15).await?;
         let mut items = candles
             .into_iter()
@@ -340,9 +334,9 @@ impl MarketDataClient {
         }
         let start_price = items[start_index].1;
         let end_price = items[end_index].1;
-        if start_price <= Decimal::ZERO {
+        if start_price <= 0.0 {
             return Ok(None);
         }
-        Ok(Some(((end_price - start_price) / start_price).to_f64().unwrap_or_default()))
+        Ok(Some((end_price - start_price) / start_price))
     }
 }

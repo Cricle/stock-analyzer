@@ -2,8 +2,6 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::Context;
 use futures::{StreamExt, stream};
-use rust_decimal::Decimal;
-use rust_decimal::prelude::ToPrimitive;
 
 use crate::data::{BillboardEntry, CapitalFlowPoint, MarketDataClient, MarketKind, NewsItem};
 use crate::engine::llm::{self as llm, LlmClient};
@@ -1123,8 +1121,8 @@ fn capital_flow_source_score(items: &[CapitalFlowPoint]) -> f64 {
     let Some(latest) = items.first().or_else(|| items.last()) else {
         return 0.0;
     };
-    let hundred_million = Decimal::from(100_000_000u64);
-    let inflow_component = (latest.main_net_inflow / hundred_million).to_f64().unwrap_or_default().clamp(-8.0, 12.0);
+    let hundred_million = 100_000_000.0;
+    let inflow_component = (latest.main_net_inflow / hundred_million).clamp(-8.0, 12.0);
     let ratio_component = latest.main_net_inflow_ratio_pct.clamp(-10.0, 20.0) * 0.35;
     let price_component = latest.change_pct.clamp(-5.0, 12.0) * 0.5;
     inflow_component + ratio_component + price_component

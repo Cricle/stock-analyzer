@@ -1,15 +1,9 @@
 use anyhow::{Context, bail};
 use chrono::NaiveDate;
-use rust_decimal::Decimal;
-use rust_decimal::prelude::ToPrimitive;
 use std::collections::HashMap;
 
-use super::{
-    FundamentalsSnapshot, MarketDataClient, NewsItem,
-    f64_to_dec, opt_f64_to_dec,
-};
+use super::{FundamentalsSnapshot, MarketDataClient, NewsItem};
 use crate::types::{NewsFetchAttempt, NewsFetchResult};
-use super::news_item_from_akshare;
 use super::news_filter::within_date_window;
 
 impl MarketDataClient {
@@ -130,7 +124,7 @@ impl MarketDataClient {
         // Get quote for market cap calculation
         let quote = self.fetch_quote(symbol).await.ok();
         let market_cap = quote.as_ref().and_then(|q| {
-            shares_outstanding.map(|shares| q.close * Decimal::from(shares))
+            shares_outstanding.map(|shares| q.close * shares as f64)
         });
 
         Ok(FundamentalsSnapshot {
@@ -142,21 +136,21 @@ impl MarketDataClient {
             fiscal_year_end: None,
             shares_outstanding,
             market_cap,
-            net_income_usd: opt_f64_to_dec(net_income),
-            revenues_usd: opt_f64_to_dec(revenue),
-            assets_usd: opt_f64_to_dec(assets),
-            liabilities_usd: opt_f64_to_dec(liabilities),
-            stockholders_equity_usd: opt_f64_to_dec(stockholders_equity),
-            cash_and_equivalents_usd: opt_f64_to_dec(cash),
-            gross_profit_usd: opt_f64_to_dec(gross_profit),
-            operating_income_usd: opt_f64_to_dec(operating_income),
-            operating_expenses_usd: opt_f64_to_dec(operating_expenses),
-            operating_cash_flow_usd: opt_f64_to_dec(operating_cash_flow),
-            capital_expenditure_usd: opt_f64_to_dec(capital_expenditure),
-            free_cash_flow_usd: opt_f64_to_dec(free_cash_flow),
-            long_term_debt_usd: opt_f64_to_dec(long_term_debt),
-            current_debt_usd: opt_f64_to_dec(current_debt),
-            total_debt_usd: opt_f64_to_dec(total_debt),
+            net_income_usd: net_income,
+            revenues_usd: revenue,
+            assets_usd: assets,
+            liabilities_usd: liabilities,
+            stockholders_equity_usd: stockholders_equity,
+            cash_and_equivalents_usd: cash,
+            gross_profit_usd: gross_profit,
+            operating_income_usd: operating_income,
+            operating_expenses_usd: operating_expenses,
+            operating_cash_flow_usd: operating_cash_flow,
+            capital_expenditure_usd: capital_expenditure,
+            free_cash_flow_usd: free_cash_flow,
+            long_term_debt_usd: long_term_debt,
+            current_debt_usd: current_debt,
+            total_debt_usd: total_debt,
             diluted_shares_outstanding: diluted_shares,
         })
     }
@@ -217,7 +211,7 @@ impl MarketDataClient {
             let mut bing_added = 0usize;
             for query in &queries {
                 if let Ok(rss_items) = self.ak.bing_news_rss(query, 10).await {
-                    for item in rss_items.into_iter().map(news_item_from_akshare) {
+                    for item in rss_items.into_iter() {
                         if within_date_window(&item.published_at, start_date, end_date)
                             && !existing_titles.contains(&item.title.to_lowercase())
                         {
@@ -278,7 +272,7 @@ impl MarketDataClient {
         for query in &queries {
             if let Ok(rss_items) = self.ak.bing_news_rss(query, 10).await {
                 let count = rss_items.len();
-                for item in rss_items.into_iter().map(news_item_from_akshare) {
+                for item in rss_items.into_iter() {
                     if within_date_window(&item.published_at, Some(&start_text), Some(curr_date))
                         && !existing_titles.contains(&item.title.to_lowercase())
                     {
@@ -313,7 +307,7 @@ impl MarketDataClient {
         symbol: &str,
     ) -> anyhow::Result<(super::QuoteSnapshot, String)> {
         let ak_quote = self.ak.us_quote(symbol).await?;
-        Ok((super::quote_from_akshare(ak_quote), "akshare".to_string()))
+        Ok((ak_quote, "akshare".to_string()))
     }
 
     pub(super) async fn fetch_us_candles(
@@ -322,7 +316,7 @@ impl MarketDataClient {
         limit: usize,
     ) -> anyhow::Result<(Vec<super::CandlePoint>, String)> {
         let ak_candles = self.ak.us_candles(symbol, limit).await?;
-        Ok((ak_candles.into_iter().map(super::candle_from_akshare).collect(), "akshare".to_string()))
+        Ok((ak_candles, "akshare".to_string()))
     }
 
     pub(super) async fn fetch_us_insider_transactions(
@@ -349,9 +343,9 @@ impl MarketDataClient {
         if ak_candles.is_empty() {
             bail!("historical quote request returned no rows for {}", symbol);
         }
-        let items: Vec<(String, Decimal)> = ak_candles
+        let items: Vec<(String, f64)> = ak_candles
             .into_iter()
-            .map(|c| (c.trade_date, f64_to_dec(c.close)))
+            .map(|c| (c.trade_date, c.close))
             .collect();
         let Some(start_index) = items.iter().position(|(date, _)| date == start_date) else {
             return Ok(None);
@@ -362,13 +356,9 @@ impl MarketDataClient {
         }
         let start_price = items[start_index].1;
         let end_price = items[end_index].1;
-        if start_price <= Decimal::ZERO {
+        if start_price <= 0.0 {
             return Ok(None);
         }
-        Ok(Some(
-            ((end_price - start_price) / start_price)
-                .to_f64()
-                .unwrap_or_default(),
-        ))
+        Ok(Some((end_price - start_price) / start_price))
     }
 }

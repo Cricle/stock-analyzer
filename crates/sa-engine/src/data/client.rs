@@ -283,7 +283,6 @@ impl MarketDataClient {
         async {
             if self.normalize_a_share_symbol(symbol).is_some() {
                 self.ak.a_share_capital_flow(symbol, limit).await
-                    .map(|items| items.into_iter().map(super::capital_flow_from_akshare).collect::<Vec<_>>())
                     .map_err(anyhow::Error::from)
             } else {
                 Err(DataError::new(

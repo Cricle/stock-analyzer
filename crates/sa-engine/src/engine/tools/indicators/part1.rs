@@ -1,5 +1,5 @@
 impl TradingToolbox {
-    pub(super) fn compute_indicator(name: &str, candles: &[CandlePoint]) -> Option<f64> {
+    pub(crate) fn compute_indicator(name: &str, candles: &[CandlePoint]) -> Option<f64> {
         match name {
             "close_50_sma" => Self::sma(candles, 50),
             "close_200_sma" => Self::sma(candles, 200),
@@ -27,35 +27,35 @@ impl TradingToolbox {
         }
     }
 
-    fn sma(candles: &[CandlePoint], period: usize) -> Option<f64> {
+    pub(crate) fn sma(candles: &[CandlePoint], period: usize) -> Option<f64> {
         if candles.len() < period {
             return None;
         }
         let slice = &candles[candles.len() - period..];
-        Some(slice.iter().map(|item| item.close.to_f64().unwrap_or_default()).sum::<f64>() / period as f64)
+        Some(slice.iter().map(|item| item.close).sum::<f64>() / period as f64)
     }
 
-    fn ema(candles: &[CandlePoint], period: usize) -> Option<f64> {
+    pub(crate) fn ema(candles: &[CandlePoint], period: usize) -> Option<f64> {
         if candles.len() < period {
             return None;
         }
         let multiplier = 2.0 / (period as f64 + 1.0);
         let mut ema = Self::sma(&candles[..period], period)?;
         for candle in &candles[period..] {
-            let close = candle.close.to_f64().unwrap_or_default();
+            let close = candle.close;
             ema = (close - ema) * multiplier + ema;
         }
         Some(ema)
     }
 
-    fn rsi(candles: &[CandlePoint], period: usize) -> Option<f64> {
+    pub(crate) fn rsi(candles: &[CandlePoint], period: usize) -> Option<f64> {
         if candles.len() <= period {
             return None;
         }
         let mut gains = 0.0f64;
         let mut losses = 0.0f64;
         for pair in candles[candles.len() - period - 1..].windows(2) {
-            let change = (pair[1].close - pair[0].close).to_f64().unwrap_or_default();
+            let change = pair[1].close - pair[0].close;
             if change >= 0.0 {
                 gains += change;
             } else {
@@ -69,7 +69,7 @@ impl TradingToolbox {
         Some(100.0 - 100.0 / (1.0 + rs))
     }
 
-    fn atr(candles: &[CandlePoint], period: usize) -> Option<f64> {
+    pub(crate) fn atr(candles: &[CandlePoint], period: usize) -> Option<f64> {
         if candles.len() <= period {
             return None;
         }
@@ -78,9 +78,9 @@ impl TradingToolbox {
             .map(|pair| {
                 let current = &pair[1];
                 let prev = &pair[0];
-                let high_low = (current.high - current.low).to_f64().unwrap_or_default();
-                let high_close = (current.high - prev.close).abs().to_f64().unwrap_or_default();
-                let low_close = (current.low - prev.close).abs().to_f64().unwrap_or_default();
+                let high_low = current.high - current.low;
+                let high_close = (current.high - prev.close).abs();
+                let low_close = (current.low - prev.close).abs();
                 high_low.max(high_close).max(low_close)
             })
             .collect::<Vec<_>>();
@@ -88,7 +88,7 @@ impl TradingToolbox {
         Some(slice.iter().sum::<f64>() / slice.len() as f64)
     }
 
-    fn vwma(candles: &[CandlePoint], period: usize) -> Option<f64> {
+    pub(crate) fn vwma(candles: &[CandlePoint], period: usize) -> Option<f64> {
         if candles.len() < period {
             return None;
         }
@@ -100,13 +100,13 @@ impl TradingToolbox {
         Some(
             slice
                 .iter()
-                .map(|item| item.close.to_f64().unwrap_or_default() * item.volume as f64)
+                .map(|item| item.close * item.volume as f64)
                 .sum::<f64>()
                 / volume_sum,
         )
     }
 
-    fn vwap(candles: &[CandlePoint], period: usize) -> Option<f64> {
+    pub(crate) fn vwap(candles: &[CandlePoint], period: usize) -> Option<f64> {
         if candles.len() < period {
             return None;
         }
@@ -119,7 +119,7 @@ impl TradingToolbox {
             slice
                 .iter()
                 .map(|item| {
-                    let typical = (item.high + item.low + item.close).to_f64().unwrap_or_default() / 3.0;
+                    let typical = (item.high + item.low + item.close) / 3.0;
                     typical * item.volume as f64
                 })
                 .sum::<f64>()
@@ -127,13 +127,13 @@ impl TradingToolbox {
         )
     }
 
-    fn bollinger(candles: &[CandlePoint], period: usize) -> Option<(f64, f64, f64)> {
+    pub(crate) fn bollinger(candles: &[CandlePoint], period: usize) -> Option<(f64, f64, f64)> {
         let mid = Self::sma(candles, period)?;
         let slice = &candles[candles.len() - period..];
         let variance = slice
             .iter()
             .map(|item| {
-                let diff = item.close.to_f64().unwrap_or_default() - mid;
+                let diff = item.close - mid;
                 diff * diff
             })
             .sum::<f64>()
@@ -142,7 +142,7 @@ impl TradingToolbox {
         Some((mid, mid + stddev * 2.0, mid - stddev * 2.0))
     }
 
-    fn macd(candles: &[CandlePoint]) -> Option<(f64, f64, f64)> {
+    pub(crate) fn macd(candles: &[CandlePoint]) -> Option<(f64, f64, f64)> {
         if candles.len() < 35 {
             return None;
         }
@@ -159,23 +159,23 @@ impl TradingToolbox {
         Some((macd, signal_last, macd - signal_last))
     }
 
-    fn ema_series(candles: &[CandlePoint], period: usize) -> Option<Vec<f64>> {
+    pub(crate) fn ema_series(candles: &[CandlePoint], period: usize) -> Option<Vec<f64>> {
         if candles.len() < period {
             return None;
         }
         let multiplier = 2.0 / (period as f64 + 1.0);
         let mut values = Vec::new();
-        let mut ema = candles[..period].iter().map(|item| item.close.to_f64().unwrap_or_default()).sum::<f64>() / period as f64;
+        let mut ema = candles[..period].iter().map(|item| item.close).sum::<f64>() / period as f64;
         values.push(ema);
         for candle in &candles[period..] {
-            let close = candle.close.to_f64().unwrap_or_default();
+            let close = candle.close;
             ema = (close - ema) * multiplier + ema;
             values.push(ema);
         }
         Some(values)
     }
 
-    fn ema_values(values: &[f64], period: usize) -> Option<Vec<f64>> {
+    pub(crate) fn ema_values(values: &[f64], period: usize) -> Option<Vec<f64>> {
         if values.len() < period {
             return None;
         }
@@ -190,7 +190,7 @@ impl TradingToolbox {
         Some(out)
     }
 
-    fn kdj(candles: &[CandlePoint], period: usize) -> Option<(f64, f64, f64)> {
+    pub(crate) fn kdj(candles: &[CandlePoint], period: usize) -> Option<(f64, f64, f64)> {
         if candles.len() < period {
             return None;
         }
@@ -200,13 +200,13 @@ impl TradingToolbox {
             let slice = &candles[index + 1 - period..=index];
             let high = slice
                 .iter()
-                .map(|item| item.high.to_f64().unwrap_or_default())
+                .map(|item| item.high)
                 .fold(f64::NEG_INFINITY, f64::max);
             let low = slice
                 .iter()
-                .map(|item| item.low.to_f64().unwrap_or_default())
+                .map(|item| item.low)
                 .fold(f64::INFINITY, f64::min);
-            let close = candles[index].close.to_f64().unwrap_or_default();
+            let close = candles[index].close;
             let rsv = if high > low {
                 ((close - low) / (high - low)) * 100.0
             } else {
@@ -219,14 +219,14 @@ impl TradingToolbox {
         Some((k, d, j))
     }
 
-    fn cci(candles: &[CandlePoint], period: usize) -> Option<f64> {
+    pub(crate) fn cci(candles: &[CandlePoint], period: usize) -> Option<f64> {
         if candles.len() < period {
             return None;
         }
         let slice = &candles[candles.len() - period..];
         let typical = slice
             .iter()
-            .map(|item| (item.high + item.low + item.close).to_f64().unwrap_or_default() / 3.0)
+            .map(|item| (item.high + item.low + item.close) / 3.0)
             .collect::<Vec<_>>();
         let ma = typical.iter().sum::<f64>() / period as f64;
         let mean_deviation =
@@ -238,27 +238,27 @@ impl TradingToolbox {
         Some((last - ma) / (0.015 * mean_deviation))
     }
 
-    fn wr(candles: &[CandlePoint], period: usize) -> Option<f64> {
+    pub(crate) fn wr(candles: &[CandlePoint], period: usize) -> Option<f64> {
         if candles.len() < period {
             return None;
         }
         let slice = &candles[candles.len() - period..];
         let high = slice
             .iter()
-            .map(|item| item.high.to_f64().unwrap_or_default())
+            .map(|item| item.high)
             .fold(f64::NEG_INFINITY, f64::max);
         let low = slice
             .iter()
-            .map(|item| item.low.to_f64().unwrap_or_default())
+            .map(|item| item.low)
             .fold(f64::INFINITY, f64::min);
-        let close = slice.last()?.close.to_f64().unwrap_or_default();
+        let close = slice.last()?.close;
         if high <= low {
             return None;
         }
         Some(((high - close) / (high - low)) * -100.0)
     }
 
-    fn adx(candles: &[CandlePoint], period: usize) -> Option<f64> {
+    pub(crate) fn adx(candles: &[CandlePoint], period: usize) -> Option<f64> {
         if candles.len() <= period + 1 {
             return None;
         }
@@ -270,17 +270,17 @@ impl TradingToolbox {
             for pair in window.windows(2) {
                 let prev = &pair[0];
                 let current = &pair[1];
-                let up_move = (current.high - prev.high).to_f64().unwrap_or_default();
-                let down_move = (prev.low - current.low).to_f64().unwrap_or_default();
+                let up_move = current.high - prev.high;
+                let down_move = prev.low - current.low;
                 if up_move > down_move && up_move > 0.0 {
                     plus_dm += up_move;
                 }
                 if down_move > up_move && down_move > 0.0 {
                     minus_dm += down_move;
                 }
-                let hl = (current.high - current.low).to_f64().unwrap_or_default();
-                let hc = (current.high - prev.close).abs().to_f64().unwrap_or_default();
-                let lc = (current.low - prev.close).abs().to_f64().unwrap_or_default();
+                let hl = current.high - current.low;
+                let hc = (current.high - prev.close).abs();
+                let lc = (current.low - prev.close).abs();
                 tr_sum += hl.max(hc).max(lc);
             }
             if tr_sum <= f64::EPSILON {
@@ -297,7 +297,7 @@ impl TradingToolbox {
         (!slice.is_empty()).then_some(slice.iter().sum::<f64>() / slice.len() as f64)
     }
 
-    fn obv(candles: &[CandlePoint]) -> Option<(f64, f64)> {
+    pub(crate) fn obv(candles: &[CandlePoint]) -> Option<(f64, f64)> {
         if candles.len() < 2 {
             return None;
         }

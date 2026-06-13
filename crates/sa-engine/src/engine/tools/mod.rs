@@ -1,4 +1,4 @@
-mod indicators;
+pub(crate) mod indicators;
 mod market_data;
 mod news;
 mod summarize;

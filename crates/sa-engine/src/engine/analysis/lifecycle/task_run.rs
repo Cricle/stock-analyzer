@@ -1,7 +1,5 @@
 use anyhow::Context;
 use chrono::Utc;
-use rust_decimal::Decimal;
-use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use std::time::Instant;
 
 use crate::{TaskManager, TaskRunParams};
@@ -506,15 +504,15 @@ impl TaskManager {
                         .into_iter()
                         .map(|item| crate::models::ReportCandle {
                             trade_date: item.trade_date,
-                            open: item.open.to_f64().unwrap_or_default(),
-                            close: item.close.to_f64().unwrap_or_default(),
-                            high: item.high.to_f64().unwrap_or_default(),
-                            low: item.low.to_f64().unwrap_or_default(),
+                            open: item.open,
+                            close: item.close,
+                            high: item.high,
+                            low: item.low,
                             volume: item.volume,
-                            amount: item.amount.to_f64().unwrap_or_default(),
+                            amount: item.amount,
                             amplitude_pct: item.amplitude_pct,
                             change_pct: item.change_pct,
-                            change_amount: item.change_amount.to_f64().unwrap_or_default(),
+                            change_amount: item.change_amount,
                             turnover_pct: item.turnover_pct,
                         })
                         .collect(),
@@ -621,15 +619,15 @@ impl TaskManager {
             .iter()
             .map(|item| crate::data::CandlePoint {
                 trade_date: item.trade_date.clone(),
-                open: Decimal::from_f64(item.open).unwrap_or_default(),
-                close: Decimal::from_f64(item.close).unwrap_or_default(),
-                high: Decimal::from_f64(item.high).unwrap_or_default(),
-                low: Decimal::from_f64(item.low).unwrap_or_default(),
+                open: item.open,
+                close: item.close,
+                high: item.high,
+                low: item.low,
                 volume: item.volume,
-                amount: Decimal::from_f64(item.amount).unwrap_or_default(),
+                amount: item.amount,
                 amplitude_pct: item.amplitude_pct,
                 change_pct: item.change_pct,
-                change_amount: Decimal::from_f64(item.change_amount).unwrap_or_default(),
+                change_amount: item.change_amount,
                 turnover_pct: item.turnover_pct,
             })
             .collect();

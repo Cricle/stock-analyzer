@@ -3,8 +3,6 @@
 //! Uses ETF proxies for indices that the quote provider cannot resolve directly
 //! (e.g. HSI → 2800.HK, S&P 500 → SPY). Display names remain as index names.
 
-use rust_decimal::prelude::ToPrimitive;
-
 use super::*;
 
 /// (fetch_symbol, display_name, market)
@@ -47,9 +45,9 @@ impl DailyGuidanceGenerator {
             .iter()
             .filter_map(|(symbol, name, mkt)| {
                 let quote = quote_map.get(symbol)?;
-                let open = quote.open.to_f64().unwrap_or_default();
-                let close = quote.close.to_f64().unwrap_or_default();
-                let high = quote.high.to_f64().unwrap_or_default();
+                let open = quote.open;
+                let close = quote.close;
+                let high = quote.high;
                 // For indices, open is often 0 (real-time); use high (prev_close) as base
                 let base = if open > 0.0 { open } else { high };
                 let change_pct = if base > 0.0 && close > 0.0 {

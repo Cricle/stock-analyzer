@@ -2,8 +2,6 @@ use std::collections::{HashMap, HashSet};
 
 use chrono::{NaiveDate, Utc};
 use futures::{StreamExt, stream};
-use rust_decimal::Decimal;
-use rust_decimal::prelude::ToPrimitive;
 
 use crate::data::{CandlePoint, FundamentalsSnapshot, MarketDataClient, NewsItem};
 use crate::models::{
@@ -95,9 +93,9 @@ async fn light_enrich_candidate(
         .fetch_candles(&candidate.symbol, "qfq", 260)
         .await
         .unwrap_or_default();
-    let price = quote.as_ref().map(|item| item.close.to_f64().unwrap_or_default());
+    let price = quote.as_ref().map(|item| item.close);
     let change_pct = candles.last().map(|item| item.change_pct);
-    let market_cap = fundamentals.as_ref().and_then(|item| item.market_cap).map(|v| v.to_f64().unwrap_or_default());
+    let market_cap = fundamentals.as_ref().and_then(|item| item.market_cap);
     let company_name = fundamentals
         .as_ref()
         .map(|item| item.company_name.clone())
@@ -157,7 +155,7 @@ fn refresh_candidate_state(item: &mut EnrichedCandidate) {
     if item
         .candles
         .last()
-        .is_some_and(|last| last.volume <= 0 || last.close <= Decimal::ZERO)
+        .is_some_and(|last| last.volume <= 0 || last.close <= 0.0)
     {
         rejected.push("illiquid_latest_bar".to_string());
     }
@@ -245,10 +243,10 @@ mod factors {
         let Some(last) = item.candles.last() else {
             return 0.0;
         };
-        if first.close <= Decimal::ZERO {
+        if first.close <= 0.0 {
             return 0.0;
         }
-        let return_pct = (((last.close / first.close) - Decimal::ONE) * Decimal::from(100)).to_f64().unwrap_or_default();
+        let return_pct = ((last.close / first.close) - 1.0) * 100.0;
         let volume_ratio = if first.volume > 0 {
             last.volume as f64 / first.volume as f64
         } else {
@@ -304,9 +302,9 @@ mod factors {
         let cash_conversion = match item.fundamentals.as_ref() {
             Some(f) => {
                 let ocf = f.operating_cash_flow_usd;
-                let ni = f.net_income_usd.filter(|v| v.abs() > Decimal::ZERO);
+                let ni = f.net_income_usd.filter(|v| v.abs() > 0.0);
                 match (ocf, ni) {
-                    (Some(ocf), Some(ni)) => (ocf / ni).to_f64().unwrap_or_default(),
+                    (Some(ocf), Some(ni)) => ocf / ni,
                     _ => 0.0,
                 }
             }
@@ -385,7 +383,7 @@ mod factors {
             .fundamentals
             .as_ref()
             .and_then(|f| f.revenues_usd)
-            .is_some_and(|value| value <= Decimal::ZERO)
+            .is_some_and(|value| value <= 0.0)
         {
             penalty -= 5.0;
         }
@@ -418,7 +416,6 @@ mod factors_test {
         revenues_usd: Option<f64>,
         change_pct: Option<f64>,
     ) -> f64 {
-        use rust_decimal::prelude::FromPrimitive;
         factors::penalty_score(&EnrichedCandidate {
             symbol: "T".to_string(),
             name: "T".to_string(),
@@ -437,9 +434,9 @@ mod factors_test {
                 currency: "CNY".to_string(),
                 fiscal_year_end: None,
                 shares_outstanding: None,
-                market_cap: market_cap.map(|v| Decimal::from_f64(v).unwrap_or_default()),
+                market_cap,
                 net_income_usd: None,
-                revenues_usd: revenues_usd.map(|v| Decimal::from_f64(v).unwrap_or_default()),
+                revenues_usd,
                 assets_usd: None,
                 liabilities_usd: None,
                 stockholders_equity_usd: None,
@@ -676,10 +673,17 @@ mod normalize {
 
 mod snapshots {
     use super::*;
-    use technical::{
-        adx_candles, atr_candles, candle_volume_ratio, cci_candles, ema_candles, kdj_candles,
-        macd_candles, obv_candles, rsi_candles, sma_candles, vwap_candles, vwma_candles, wr_candles,
-    };
+    use crate::engine::tools::TradingToolbox;
+
+    fn candle_volume_ratio(candles: &[CandlePoint], period: usize) -> Option<f64> {
+        if candles.len() < period + 1 {
+            return None;
+        }
+        let last = candles.last()?;
+        let slice = &candles[candles.len() - period - 1..candles.len() - 1];
+        let avg = slice.iter().map(|row| row.volume as f64).sum::<f64>() / slice.len() as f64;
+        (avg > 0.0).then_some(last.volume as f64 / avg)
+    }
 
     pub(super) fn describe_candidate(item: &EnrichedCandidate) -> String {
         let factor = &item.factor;
@@ -750,9 +754,8 @@ mod snapshots {
                 .first()
                 .zip(item.candles.last())
                 .and_then(|(first, last)| {
-                    (first.close > Decimal::ZERO).then_some(((last.close / first.close) - Decimal::ONE) * Decimal::from(100))
-                })
-                .map(|v| v.to_f64().unwrap_or_default());
+                    (first.close > 0.0).then_some(((last.close / first.close) - 1.0) * 100.0)
+                });
         let latest_volume = item.candles.last().map(|row| row.volume);
         let volume_ratio = candle_volume_ratio(&item.candles, 20);
         StockPickMarketSnapshot {
@@ -776,31 +779,31 @@ mod snapshots {
             };
         };
         let pe_like = match (
-            f.market_cap.filter(|v| *v > Decimal::ZERO),
-            f.net_income_usd.filter(|v| *v > Decimal::ZERO),
+            f.market_cap.filter(|v| *v > 0.0),
+            f.net_income_usd.filter(|v| *v > 0.0),
         ) {
-            (Some(mc), Some(ni)) => Some((mc / ni).to_f64().unwrap_or_default()),
+            (Some(mc), Some(ni)) => Some(mc / ni),
             _ => None,
         };
         let ps_like = match (
-            f.market_cap.filter(|v| *v > Decimal::ZERO),
-            f.revenues_usd.filter(|v| *v > Decimal::ZERO),
+            f.market_cap.filter(|v| *v > 0.0),
+            f.revenues_usd.filter(|v| *v > 0.0),
         ) {
-            (Some(mc), Some(rev)) => Some((mc / rev).to_f64().unwrap_or_default()),
+            (Some(mc), Some(rev)) => Some(mc / rev),
             _ => None,
         };
         let roe = match (
             f.net_income_usd,
-            f.stockholders_equity_usd.filter(|value| *value > Decimal::ZERO),
+            f.stockholders_equity_usd.filter(|value| *value > 0.0),
         ) {
-            (Some(ni), Some(eq)) => Some((ni / eq).to_f64().unwrap_or_default()),
+            (Some(ni), Some(eq)) => Some(ni / eq),
             _ => None,
         };
         let leverage = match (
             f.total_debt_usd,
-            f.stockholders_equity_usd.filter(|value| *value > Decimal::ZERO),
+            f.stockholders_equity_usd.filter(|value| *value > 0.0),
         ) {
-            (Some(debt), Some(eq)) => Some((debt / eq).to_f64().unwrap_or_default()),
+            (Some(debt), Some(eq)) => Some(debt / eq),
             _ => None,
         };
         StockPickFundamentalSnapshot {
@@ -809,12 +812,12 @@ mod snapshots {
                 .clone()
                 .filter(|value| !value.trim().is_empty())
                 .unwrap_or_else(|| item.industry.clone()),
-            market_cap: f.market_cap.map(|v| v.to_f64().unwrap_or_default()).or(item.market_cap),
-            revenues_usd: f.revenues_usd.map(|v| v.to_f64().unwrap_or_default()),
-            net_income_usd: f.net_income_usd.map(|v| v.to_f64().unwrap_or_default()),
-            free_cash_flow_usd: f.free_cash_flow_usd.map(|v| v.to_f64().unwrap_or_default()),
-            total_debt_usd: f.total_debt_usd.map(|v| v.to_f64().unwrap_or_default()),
-            cash_and_equivalents_usd: f.cash_and_equivalents_usd.map(|v| v.to_f64().unwrap_or_default()),
+            market_cap: f.market_cap.or(item.market_cap),
+            revenues_usd: f.revenues_usd,
+            net_income_usd: f.net_income_usd,
+            free_cash_flow_usd: f.free_cash_flow_usd,
+            total_debt_usd: f.total_debt_usd,
+            cash_and_equivalents_usd: f.cash_and_equivalents_usd,
             pe_like,
             ps_like,
             roe,
@@ -1005,322 +1008,23 @@ mod snapshots {
 
     pub(super) fn build_technical_snapshot(candles: &[CandlePoint]) -> StockPickTechnicalSnapshot {
         StockPickTechnicalSnapshot {
-            close_10_ema: ema_candles(candles, 10),
-            close_50_sma: sma_candles(candles, 50),
-            close_200_sma: sma_candles(candles, 200),
-            rsi: rsi_candles(candles, 14),
-            atr: atr_candles(candles, 14),
-            macd: macd_candles(candles).map(|value| value.0),
-            macd_signal: macd_candles(candles).map(|value| value.1),
-            macd_hist: macd_candles(candles).map(|value| value.2),
-            adx: adx_candles(candles, 14),
-            kdj_k: kdj_candles(candles, 9).map(|value| value.0),
-            kdj_d: kdj_candles(candles, 9).map(|value| value.1),
-            kdj_j: kdj_candles(candles, 9).map(|value| value.2),
-            cci: cci_candles(candles, 20),
-            wr: wr_candles(candles, 14),
-            obv: obv_candles(candles).map(|value| value.0),
-            vwap: vwap_candles(candles, 20),
-            vwma: vwma_candles(candles, 20),
+            close_10_ema: TradingToolbox::ema(candles, 10),
+            close_50_sma: TradingToolbox::sma(candles, 50),
+            close_200_sma: TradingToolbox::sma(candles, 200),
+            rsi: TradingToolbox::rsi(candles, 14),
+            atr: TradingToolbox::atr(candles, 14),
+            macd: TradingToolbox::macd(candles).map(|value| value.0),
+            macd_signal: TradingToolbox::macd(candles).map(|value| value.1),
+            macd_hist: TradingToolbox::macd(candles).map(|value| value.2),
+            adx: TradingToolbox::adx(candles, 14),
+            kdj_k: TradingToolbox::kdj(candles, 9).map(|value| value.0),
+            kdj_d: TradingToolbox::kdj(candles, 9).map(|value| value.1),
+            kdj_j: TradingToolbox::kdj(candles, 9).map(|value| value.2),
+            cci: TradingToolbox::cci(candles, 20),
+            wr: TradingToolbox::wr(candles, 14),
+            obv: TradingToolbox::obv(candles).map(|value| value.0),
+            vwap: TradingToolbox::vwap(candles, 20),
+            vwma: TradingToolbox::vwma(candles, 20),
         }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// technical (inlined from scoring/technical.rs)
-// ---------------------------------------------------------------------------
-
-mod technical {
-    use super::*;
-
-    pub(super) fn candle_volume_ratio(candles: &[CandlePoint], period: usize) -> Option<f64> {
-        if candles.len() < period + 1 {
-            return None;
-        }
-        let last = candles.last()?;
-        let slice = &candles[candles.len() - period - 1..candles.len() - 1];
-        let avg = slice.iter().map(|row| row.volume as f64).sum::<f64>() / slice.len() as f64;
-        (avg > 0.0).then_some(last.volume as f64 / avg)
-    }
-
-    pub(super) fn sma_candles(candles: &[CandlePoint], period: usize) -> Option<f64> {
-        if candles.len() < period {
-            return None;
-        }
-        let slice = &candles[candles.len() - period..];
-        Some(slice.iter().map(|row| row.close.to_f64().unwrap_or_default()).sum::<f64>() / period as f64)
-    }
-
-    pub(super) fn ema_candles(candles: &[CandlePoint], period: usize) -> Option<f64> {
-        if candles.len() < period {
-            return None;
-        }
-        let multiplier = 2.0 / (period as f64 + 1.0);
-        let mut ema = sma_candles(&candles[..period], period)?;
-        for candle in &candles[period..] {
-            let close = candle.close.to_f64().unwrap_or_default();
-            ema = (close - ema) * multiplier + ema;
-        }
-        Some(ema)
-    }
-
-    pub(super) fn rsi_candles(candles: &[CandlePoint], period: usize) -> Option<f64> {
-        if candles.len() <= period {
-            return None;
-        }
-        let mut gains = 0.0;
-        let mut losses = 0.0;
-        for pair in candles[candles.len() - period - 1..].windows(2) {
-            let change = pair[1].close.to_f64().unwrap_or_default() - pair[0].close.to_f64().unwrap_or_default();
-            if change >= 0.0 {
-                gains += change;
-            } else {
-                losses += change.abs();
-            }
-        }
-        if losses <= f64::EPSILON {
-            return Some(100.0);
-        }
-        let rs = gains / losses;
-        Some(100.0 - 100.0 / (1.0 + rs))
-    }
-
-    pub(super) fn atr_candles(candles: &[CandlePoint], period: usize) -> Option<f64> {
-        if candles.len() <= period {
-            return None;
-        }
-        let ranges = candles
-            .windows(2)
-            .map(|pair| {
-                let current = &pair[1];
-                let prev = &pair[0];
-                let high_low = (current.high - current.low).to_f64().unwrap_or_default();
-                let high_close = (current.high - prev.close).abs().to_f64().unwrap_or_default();
-                let low_close = (current.low - prev.close).abs().to_f64().unwrap_or_default();
-                high_low.max(high_close).max(low_close)
-            })
-            .collect::<Vec<_>>();
-        let slice = &ranges[ranges.len().saturating_sub(period)..];
-        Some(slice.iter().sum::<f64>() / slice.len() as f64)
-    }
-
-    pub(super) fn vwma_candles(candles: &[CandlePoint], period: usize) -> Option<f64> {
-        if candles.len() < period {
-            return None;
-        }
-        let slice = &candles[candles.len() - period..];
-        let volume_sum = slice.iter().map(|row| row.volume as f64).sum::<f64>();
-        if volume_sum <= 0.0 {
-            return None;
-        }
-        Some(
-            slice
-                .iter()
-                .map(|row| row.close.to_f64().unwrap_or_default() * row.volume as f64)
-                .sum::<f64>()
-                / volume_sum,
-        )
-    }
-
-    pub(super) fn macd_candles(candles: &[CandlePoint]) -> Option<(f64, f64, f64)> {
-        if candles.len() < 35 {
-            return None;
-        }
-        let ema12 = ema_series_candles(candles, 12)?;
-        let ema26 = ema_series_candles(candles, 26)?;
-        let offset = ema12.len().saturating_sub(ema26.len());
-        let macd_series = ema12[offset..]
-            .iter()
-            .zip(ema26.iter())
-            .map(|(fast, slow)| fast - slow)
-            .collect::<Vec<_>>();
-        let signal = ema_values_candles(&macd_series, 9)?;
-        let macd = *macd_series.last()?;
-        let signal_last = *signal.last()?;
-        Some((macd, signal_last, macd - signal_last))
-    }
-
-    fn ema_series_candles(candles: &[CandlePoint], period: usize) -> Option<Vec<f64>> {
-        if candles.len() < period {
-            return None;
-        }
-        let multiplier = 2.0 / (period as f64 + 1.0);
-        let mut values = Vec::new();
-        let mut ema = candles[..period].iter().map(|row| row.close.to_f64().unwrap_or_default()).sum::<f64>() / period as f64;
-        values.push(ema);
-        for candle in &candles[period..] {
-            let close = candle.close.to_f64().unwrap_or_default();
-            ema = (close - ema) * multiplier + ema;
-            values.push(ema);
-        }
-        Some(values)
-    }
-
-    fn ema_values_candles(values: &[f64], period: usize) -> Option<Vec<f64>> {
-        if values.len() < period {
-            return None;
-        }
-        let multiplier = 2.0 / (period as f64 + 1.0);
-        let mut out = Vec::new();
-        let mut ema = values[..period].iter().sum::<f64>() / period as f64;
-        out.push(ema);
-        for value in &values[period..] {
-            ema = (value - ema) * multiplier + ema;
-            out.push(ema);
-        }
-        Some(out)
-    }
-
-    pub(super) fn kdj_candles(candles: &[CandlePoint], period: usize) -> Option<(f64, f64, f64)> {
-        if candles.len() < period {
-            return None;
-        }
-        let mut k = 50.0;
-        let mut d = 50.0;
-        for index in period - 1..candles.len() {
-            let slice = &candles[index + 1 - period..=index];
-            let high = slice
-                .iter()
-                .map(|row| row.high.to_f64().unwrap_or_default())
-                .fold(f64::NEG_INFINITY, f64::max);
-            let low = slice
-                .iter()
-                .map(|row| row.low.to_f64().unwrap_or_default())
-                .fold(f64::INFINITY, f64::min);
-            let close = candles[index].close.to_f64().unwrap_or_default();
-            let rsv = if high > low {
-                ((close - low) / (high - low)) * 100.0
-            } else {
-                50.0
-            };
-            k = (2.0 / 3.0) * k + (1.0 / 3.0) * rsv;
-            d = (2.0 / 3.0) * d + (1.0 / 3.0) * k;
-        }
-        let j = 3.0 * k - 2.0 * d;
-        Some((k, d, j))
-    }
-
-    pub(super) fn cci_candles(candles: &[CandlePoint], period: usize) -> Option<f64> {
-        if candles.len() < period {
-            return None;
-        }
-        let slice = &candles[candles.len() - period..];
-        let typical = slice
-            .iter()
-            .map(|row| (row.high.to_f64().unwrap_or_default() + row.low.to_f64().unwrap_or_default() + row.close.to_f64().unwrap_or_default()) / 3.0)
-            .collect::<Vec<_>>();
-        let ma = typical.iter().sum::<f64>() / period as f64;
-        let mean_deviation =
-            typical.iter().map(|value| (value - ma).abs()).sum::<f64>() / period as f64;
-        if mean_deviation <= f64::EPSILON {
-            return None;
-        }
-        let last = *typical.last()?;
-        Some((last - ma) / (0.015 * mean_deviation))
-    }
-
-    pub(super) fn wr_candles(candles: &[CandlePoint], period: usize) -> Option<f64> {
-        if candles.len() < period {
-            return None;
-        }
-        let slice = &candles[candles.len() - period..];
-        let high = slice
-            .iter()
-            .map(|row| row.high.to_f64().unwrap_or_default())
-            .fold(f64::NEG_INFINITY, f64::max);
-        let low = slice
-            .iter()
-            .map(|row| row.low.to_f64().unwrap_or_default())
-            .fold(f64::INFINITY, f64::min);
-        let close = slice.last()?.close.to_f64().unwrap_or_default();
-        if high <= low {
-            return None;
-        }
-        Some(((high - close) / (high - low)) * -100.0)
-    }
-
-    pub(super) fn adx_candles(candles: &[CandlePoint], period: usize) -> Option<f64> {
-        if candles.len() <= period + 1 {
-            return None;
-        }
-        let mut dx_values = Vec::new();
-        for window in candles.windows(period + 1) {
-            let mut plus_dm = 0.0;
-            let mut minus_dm = 0.0;
-            let mut tr_sum = 0.0;
-            for pair in window.windows(2) {
-                let prev = &pair[0];
-                let current = &pair[1];
-                let cur_high = current.high.to_f64().unwrap_or_default();
-                let cur_low = current.low.to_f64().unwrap_or_default();
-                let prev_high = prev.high.to_f64().unwrap_or_default();
-                let prev_low = prev.low.to_f64().unwrap_or_default();
-                let prev_close = prev.close.to_f64().unwrap_or_default();
-                let up_move = cur_high - prev_high;
-                let down_move = prev_low - cur_low;
-                if up_move > down_move && up_move > 0.0 {
-                    plus_dm += up_move;
-                }
-                if down_move > up_move && down_move > 0.0 {
-                    minus_dm += down_move;
-                }
-                tr_sum += (cur_high - cur_low)
-                    .max((cur_high - prev_close).abs())
-                    .max((cur_low - prev_close).abs());
-            }
-            if tr_sum <= f64::EPSILON {
-                continue;
-            }
-            let plus_di = 100.0 * plus_dm / tr_sum;
-            let minus_di = 100.0 * minus_dm / tr_sum;
-            let denom = plus_di + minus_di;
-            if denom > f64::EPSILON {
-                dx_values.push(((plus_di - minus_di).abs() / denom) * 100.0);
-            }
-        }
-        let slice = &dx_values[dx_values.len().saturating_sub(period)..];
-        (!slice.is_empty()).then_some(slice.iter().sum::<f64>() / slice.len() as f64)
-    }
-
-    pub(super) fn obv_candles(candles: &[CandlePoint]) -> Option<(f64, f64)> {
-        if candles.len() < 2 {
-            return None;
-        }
-        let mut obv = 0.0;
-        let mut prev_obv = 0.0;
-        for pair in candles.windows(2) {
-            prev_obv = obv;
-            let prev = &pair[0];
-            let current = &pair[1];
-            if current.close > prev.close {
-                obv += current.volume as f64;
-            } else if current.close < prev.close {
-                obv -= current.volume as f64;
-            }
-        }
-        Some((obv, obv - prev_obv))
-    }
-
-    pub(super) fn vwap_candles(candles: &[CandlePoint], period: usize) -> Option<f64> {
-        if candles.len() < period {
-            return None;
-        }
-        let slice = &candles[candles.len() - period..];
-        let volume_sum = slice.iter().map(|row| row.volume as f64).sum::<f64>();
-        if volume_sum <= 0.0 {
-            return None;
-        }
-        Some(
-            slice
-                .iter()
-                .map(|row| {
-                    let h = row.high.to_f64().unwrap_or_default();
-                    let l = row.low.to_f64().unwrap_or_default();
-                    let c = row.close.to_f64().unwrap_or_default();
-                    ((h + l + c) / 3.0) * row.volume as f64
-                })
-                .sum::<f64>()
-                / volume_sum,
-        )
     }
 }

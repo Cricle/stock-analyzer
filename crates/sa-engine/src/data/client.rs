@@ -6,10 +6,11 @@ use super::{
     MarketDataClient, MarketKind, NewsItem, QuoteSnapshot,
 };
 use crate::types::NewsFetchResult;
-use akshare::types::{
-    AnnouncementDetail, AnnouncementItem, BillboardSeatDetail, SectorConstituent,
-    SectorSnapshot, StockSearchResult, TradeCalendarItem,
+use akshare::types::{SectorConstituent, SectorSnapshot, StockSearchResult};
+use akshare::stock::feature::{
+    EarningsForecast, FundFlowEntry, HotStockXq, LhbStockStatistic, MarginRatioPa, ZtPool,
 };
+
 impl MarketDataClient {
     pub async fn new() -> Self {
         let mut ak_builder = akshare::AkShareClient::builder();
@@ -74,7 +75,6 @@ impl MarketDataClient {
         }.instrument(span).await
     }
 
-    /// Batch fetch quotes for multiple symbols. Returns (symbol, `Option<QuoteSnapshot>`).
     pub async fn fetch_quotes_batch(
         &self,
         symbols: &[&str],
@@ -110,7 +110,6 @@ impl MarketDataClient {
         futures::future::join_all(futs).await
     }
 
-    /// Batch fetch fundamentals for multiple symbols.
     pub async fn fetch_fundamentals_batch(
         &self,
         symbols: &[&str],
@@ -233,7 +232,6 @@ impl MarketDataClient {
             .await?;
         Ok(result)
     }
-}impl MarketDataClient {
 
     pub async fn fetch_insider_transactions(&self, symbol: &str) -> anyhow::Result<Vec<NewsItem>> {
         let span = tracing::info_span!("market_data.fetch", data_type = "insider", symbol);
@@ -254,7 +252,6 @@ impl MarketDataClient {
     ) -> anyhow::Result<Vec<CandlePoint>> {
         let span = tracing::info_span!("market_data.fetch", data_type = "candles", symbol);
         async {
-
             self.fetch_candles_with_provider(symbol, adjust, limit)
                 .await
                 .map(|(items, _)| items)
@@ -315,42 +312,6 @@ impl MarketDataClient {
         Ok(items)
     }
 
-    pub async fn fetch_a_share_sector_capital_flow(
-        &self,
-        sector_code: &str,
-        limit: usize,
-    ) -> anyhow::Result<Vec<CapitalFlowPoint>> {
-        let items = self.ak.a_share_sector_capital_flow(sector_code, limit).await
-            .map(|items| items.into_iter().map(super::capital_flow_from_akshare).collect::<Vec<_>>())?;
-        Ok(items)
-    }
-
-    pub async fn fetch_announcement_detail(
-        &self,
-        art_code: &str,
-    ) -> anyhow::Result<AnnouncementDetail> {
-        let item = self.ak.a_share_announcement_detail(art_code).await?;
-        Ok(item)
-    }
-
-    pub async fn fetch_announcements(
-        &self,
-        symbol: &str,
-        limit: usize,
-    ) -> anyhow::Result<Vec<AnnouncementItem>> {
-        let span = tracing::info_span!("market_data.fetch", data_type = "announcements", symbol);
-        async {
-            if let Some(ts_code) = self.normalize_a_share_symbol(symbol) {
-                self.ak.a_share_announcements(&ts_code, limit).await.map_err(anyhow::Error::from)
-            } else {
-                Err(DataError::new(
-                    format!("announcements are unsupported for symbol {symbol}"),
-                )
-                .into())
-            }
-        }.instrument(span).await
-    }
-
     pub async fn fetch_billboard_entries(
         &self,
         symbol: &str,
@@ -363,23 +324,6 @@ impl MarketDataClient {
 
         Err(DataError::new(
             format!("billboard is unsupported for symbol {symbol}"),
-        )
-        .into())
-    }
-
-    pub async fn fetch_billboard_seats(
-        &self,
-        symbol: &str,
-        side: &str,
-        limit: usize,
-    ) -> anyhow::Result<Vec<BillboardSeatDetail>> {
-        if self.normalize_a_share_symbol(symbol).is_some() {
-            let items = self.ak.a_share_billboard_seats(symbol, side, limit).await?;
-            return Ok(items);
-        }
-
-        Err(DataError::new(
-            format!("billboard seats are unsupported for symbol {symbol}"),
         )
         .into())
     }
@@ -399,30 +343,6 @@ impl MarketDataClient {
         }.instrument(span).await
     }
 
-    pub async fn fetch_trade_calendar(
-        &self,
-        exchange: &str,
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<TradeCalendarItem>> {
-        let items = self
-            .ak
-            .a_share_trade_calendar(exchange, start_date, end_date)
-            .await
-            .context("akshare a_share_trade_calendar failed")?;
-        Ok(items
-            .into_iter()
-            .map(|item| TradeCalendarItem {
-                exchange: item.exchange,
-                calendar_date: item.calendar_date,
-                is_open: item.is_open,
-                previous_trade_date: item.previous_trade_date,
-            })
-            .collect())
-    }
-}
-impl MarketDataClient {
-
     pub async fn fetch_return_since(
         &self,
         symbol: &str,
@@ -431,7 +351,6 @@ impl MarketDataClient {
     ) -> anyhow::Result<Option<f64>> {
         let span = tracing::info_span!("market_data.fetch", data_type = "return_since", symbol);
         async {
-
             match self.detect_market(symbol) {
                 MarketKind::AShare => self.fetch_a_share_return_since(symbol, start_date, holding_days).await,
                 MarketKind::HongKong => self.fetch_hk_return_since(symbol, start_date, holding_days).await,
@@ -499,25 +418,9 @@ impl MarketDataClient {
             }
         }
     }
-}
-use akshare::stock::feature::{
-    AnalystDetail, AnalystRank, BalanceSheet, CashFlowSheet, CommentDesireIndex,
-    CommentFocusIndex, CommentHistScore, CommentOrgParticipation, DividendInfo, DzjyHygtj,
-    DzjyHyyybtj, DzjyMrtj, DzjyYybph, EarningsForecast, EarningsQuickReport, EarningsReport,
-    EsgRating, FundFlowEntry, GdfxHoldingAnalyse, GdfxHoldingChange, GdfxHoldingDetail,
-    GdfxHoldingStatistic, GdfxTeamwork, GdfxTop10, Gdhs, GdhsDetail, Ggcg, GpzyDistributeEntry,
-    GpzyIndustry, GpzyPledgeDetail, GpzyPledgeRatio, GpzyPledgeRatioDetail, GpzyProfile,
-    HotStockXq, IndustryCategory, JgdyDetail, JgdyTj, LhbDetail, LhbHyyyb, LhbJgmmtj,
-    LhbJgstatistic, LhbStockDetail, LhbStockDetailDate, LhbStockStatistic, LhbTraderStatistic,
-    LhbYybDetail, LhbYybph, MainFundFlow, MarginAccountInfo, MarginRatioPa, MarginSseDetail,
-    MarginSseSummary, MarginSzseDetail, MarginSzseSummary, PankouChange, ProfitSheet,
-    SectorFundFlowRank, StockComment, ZtPool, ZtPoolDtgc, ZtPoolPrevious, ZtPoolStrong,
-    ZtPoolSubNew, ZtPoolZbgc,
-};
 
-impl MarketDataClient {
     // -----------------------------------------------------------------------
-    // Fund Flow (资金流向)
+    // Enrichment data used by task_run
     // -----------------------------------------------------------------------
 
     pub async fn fetch_fund_flow_individual(
@@ -528,147 +431,11 @@ impl MarketDataClient {
         Ok(items)
     }
 
-    pub async fn fetch_fund_flow_concept(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<SectorFundFlowRank>> {
-        let items = self.ak.stock_fund_flow_concept(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_fund_flow_industry(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<SectorFundFlowRank>> {
-        let items = self.ak.stock_fund_flow_industry(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_main_fund_flow(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<MainFundFlow>> {
-        self.normalize_a_share_symbol(symbol)
-            .ok_or_else(|| anyhow::anyhow!("invalid A-share symbol"))?;
-        let items = self.ak.stock_main_fund_flow(symbol).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Billboard / Dragon Tiger List (龙虎榜)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_lhb_detail(
-        &self,
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<LhbDetail>> {
-        let items = self.ak.stock_lhb_detail_em(start_date, end_date).await?;
-        Ok(items)
-    }
-
     pub async fn fetch_lhb_stock_statistic(
         &self,
         symbol: &str,
     ) -> anyhow::Result<Vec<LhbStockStatistic>> {
         let items = self.ak.stock_lhb_stock_statistic_em(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_lhb_jgmmtj(
-        &self,
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<LhbJgmmtj>> {
-        let items = self.ak.stock_lhb_jgmmtj_em(start_date, end_date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_lhb_jgstatistic(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<LhbJgstatistic>> {
-        let items = self.ak.stock_lhb_jgstatistic_em(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_lhb_hyyyb(
-        &self,
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<LhbHyyyb>> {
-        let items = self.ak.stock_lhb_hyyyb_em(start_date, end_date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_lhb_yybph(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<LhbYybph>> {
-        let items = self.ak.stock_lhb_yybph_em(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_lhb_trader_statistic(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<LhbTraderStatistic>> {
-        let items = self.ak.stock_lhb_traderstatistic_em(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_lhb_stock_detail_date(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<LhbStockDetailDate>> {
-        let items = self.ak.stock_lhb_stock_detail_date_em(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_lhb_stock_detail(
-        &self,
-        symbol: &str,
-        date: &str,
-        flag: &str,
-    ) -> anyhow::Result<Vec<LhbStockDetail>> {
-        let items = self.ak.stock_lhb_stock_detail_em(symbol, date, flag).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_lhb_yyb_detail(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<LhbYybDetail>> {
-        let items = self.ak.stock_lhb_yyb_detail_em(symbol).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Margin Trading (融资融券)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_margin_account_info(
-        &self,
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<MarginAccountInfo>> {
-        let items = self.ak.stock_margin_account_info_em(start_date, end_date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_margin_sse_detail(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<MarginSseDetail>> {
-        let items = self.ak.stock_margin_detail_sse(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_margin_szse_detail(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<MarginSzseDetail>> {
-        let items = self.ak.stock_margin_detail_szse(date).await?;
         Ok(items)
     }
 
@@ -681,78 +448,13 @@ impl MarketDataClient {
         Ok(items)
     }
 
-    pub async fn fetch_margin_sse_summary(
+    pub async fn fetch_hot_follow_xq(
         &self,
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<MarginSseSummary>> {
-        let items = self.ak.stock_margin_sse(start_date, end_date).await?;
+        symbol: &str,
+    ) -> anyhow::Result<Vec<HotStockXq>> {
+        let items = self.ak.stock_hot_follow_xq(symbol).await?;
         Ok(items)
     }
-
-    pub async fn fetch_margin_szse_summary(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<MarginSzseSummary>> {
-        let items = self.ak.stock_margin_szse(date).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Limit-Up/Down Pools (涨停/跌停股池)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_zt_pool(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<ZtPool>> {
-        let items = self.ak.stock_zt_pool_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_zt_pool_dtgc(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<ZtPoolDtgc>> {
-        let items = self.ak.stock_zt_pool_dtgc_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_zt_pool_previous(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<ZtPoolPrevious>> {
-        let items = self.ak.stock_zt_pool_previous_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_zt_pool_strong(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<ZtPoolStrong>> {
-        let items = self.ak.stock_zt_pool_strong_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_zt_pool_sub_new(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<ZtPoolSubNew>> {
-        let items = self.ak.stock_zt_pool_sub_new_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_zt_pool_zbgc(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<ZtPoolZbgc>> {
-        let items = self.ak.stock_zt_pool_zbgc_em(date).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Earnings (业绩)
-    // -----------------------------------------------------------------------
 
     pub async fn fetch_earnings_forecast(
         &self,
@@ -762,624 +464,11 @@ impl MarketDataClient {
         Ok(items)
     }
 
-    pub async fn fetch_earnings_quick_report(
+    pub async fn fetch_zt_pool(
         &self,
         date: &str,
-    ) -> anyhow::Result<Vec<EarningsQuickReport>> {
-        let items = self.ak.stock_yjkb_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_earnings_report(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<EarningsReport>> {
-        let items = self.ak.stock_yjbb_em(date).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Analyst (分析师)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_analyst_rank(
-        &self,
-        year: &str,
-    ) -> anyhow::Result<Vec<AnalystRank>> {
-        let items = self.ak.stock_analyst_rank_em(year).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_analyst_detail(
-        &self,
-        analyst_id: &str,
-        indicator: &str,
-    ) -> anyhow::Result<Vec<AnalystDetail>> {
-        let items = self.ak.stock_analyst_detail_em(analyst_id, indicator).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Shareholder Analysis (股东分析)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_gdfx_free_holding_statistics(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<GdfxHoldingStatistic>> {
-        let items = self.ak.stock_gdfx_free_holding_statistics_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_gdfx_holding_statistics(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<GdfxHoldingStatistic>> {
-        let items = self.ak.stock_gdfx_holding_statistics_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_gdfx_free_holding_change(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<GdfxHoldingChange>> {
-        let items = self.ak.stock_gdfx_free_holding_change_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_gdfx_holding_change(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<GdfxHoldingChange>> {
-        let items = self.ak.stock_gdfx_holding_change_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_gdfx_free_top10(
-        &self,
-        symbol: &str,
-        date: &str,
-    ) -> anyhow::Result<Vec<GdfxTop10>> {
-        let items = self.ak.stock_gdfx_free_top_10_em(symbol, date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_gdfx_top10(
-        &self,
-        symbol: &str,
-        date: &str,
-    ) -> anyhow::Result<Vec<GdfxTop10>> {
-        let items = self.ak.stock_gdfx_top_10_em(symbol, date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_gdfx_free_holding_detail(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<GdfxHoldingDetail>> {
-        let items = self.ak.stock_gdfx_free_holding_detail_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_gdfx_holding_detail(
-        &self,
-        date: &str,
-        indicator: &str,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<GdfxHoldingDetail>> {
-        let items = self.ak.stock_gdfx_holding_detail_em(date, indicator, symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_gdfx_free_holding_analyse(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<GdfxHoldingAnalyse>> {
-        let items = self.ak.stock_gdfx_free_holding_analyse_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_gdfx_holding_analyse(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<GdfxHoldingAnalyse>> {
-        let items = self.ak.stock_gdfx_holding_analyse_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_gdfx_free_teamwork(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<GdfxTeamwork>> {
-        let items = self.ak.stock_gdfx_free_holding_teamwork_em(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_gdfx_teamwork(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<GdfxTeamwork>> {
-        let items = self.ak.stock_gdfx_holding_teamwork_em(symbol).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Block Trades (大宗交易)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_block_trade_daily(
-        &self,
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<DzjyMrtj>> {
-        let items = self.ak.stock_dzjy_mrtj(start_date, end_date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_block_trade_industry(
-        &self,
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<DzjyHygtj>> {
-        let items = self.ak.stock_dzjy_hygtj(start_date, end_date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_block_trade_industry_daily(
-        &self,
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<DzjyHyyybtj>> {
-        let items = self.ak.stock_dzjy_hyyybtj(start_date, end_date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_block_trade_seat_ranking(
-        &self,
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<DzjyYybph>> {
-        let items = self.ak.stock_dzjy_yybph(start_date, end_date).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Hot Stocks (雪球热度)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_hot_follow_xq(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<HotStockXq>> {
-        let items = self.ak.stock_hot_follow_xq(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_hot_tweet_xq(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<HotStockXq>> {
-        let items = self.ak.stock_hot_tweet_xq(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_hot_deal_xq(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<HotStockXq>> {
-        let items = self.ak.stock_hot_deal_xq(symbol).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Order Book Changes (盘口异动)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_pankou_changes(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<PankouChange>> {
-        self.ak.stock_changes_em(symbol).await.map_err(Into::into)
-    }
-
-    // -----------------------------------------------------------------------
-    // Dividends (分红送配)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_dividends(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<DividendInfo>> {
-        let items = self.ak.stock_fhps_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_dividend_detail(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<DividendInfo>> {
-        let items = self.ak.stock_fhps_detail_em(symbol).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Pledge Data (股权质押)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_pledge_profile(
-        &self,
-    ) -> anyhow::Result<Vec<GpzyProfile>> {
-        let items = self.ak.stock_gpzy_profile_em().await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_pledge_ratio(
-        &self,
-    ) -> anyhow::Result<Vec<GpzyPledgeRatio>> {
-        let items = self.ak.stock_gpzy_pledge_ratio_em().await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_pledge_detail(
-        &self,
-    ) -> anyhow::Result<Vec<GpzyPledgeDetail>> {
-        let items = self.ak.stock_gpzy_pledge_detail_em().await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_pledge_ratio_detail(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<GpzyPledgeRatioDetail>> {
-        let items = self.ak.stock_gpzy_individual_pledge_ratio_detail_em(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_pledge_distribute_bank(
-        &self,
-    ) -> anyhow::Result<Vec<GpzyDistributeEntry>> {
-        let items = self.ak.stock_gpzy_distribute_statistics_bank_em().await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_pledge_distribute_company(
-        &self,
-    ) -> anyhow::Result<Vec<GpzyDistributeEntry>> {
-        let items = self.ak.stock_gpzy_distribute_statistics_company_em().await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_pledge_industry(
-        &self,
-    ) -> anyhow::Result<Vec<GpzyIndustry>> {
-        let items = self.ak.stock_gpzy_industry_data_em().await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Institutional Research (机构调研)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_institutional_research(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<JgdyTj>> {
-        let items = self.ak.stock_jgdy_tj_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_institutional_research_detail(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<JgdyDetail>> {
-        let items = self.ak.stock_jgdy_detail_em(date).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // ESG Ratings
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_esg_msci(&self) -> anyhow::Result<Vec<EsgRating>> {
-        let items = self.ak.stock_esg_msci_sina().await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_esg_rft(&self) -> anyhow::Result<Vec<EsgRating>> {
-        let items = self.ak.stock_esg_rft_sina().await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_esg_zd(&self) -> anyhow::Result<Vec<EsgRating>> {
-        let items = self.ak.stock_esg_zd_sina().await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_esg_hz(&self) -> anyhow::Result<Vec<EsgRating>> {
-        let items = self.ak.stock_esg_hz_sina().await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Financial Reports (三大报表)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_balance_sheet(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<BalanceSheet>> {
-        let items = self.ak.stock_zcfz_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_profit_sheet(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<ProfitSheet>> {
-        let items = self.ak.stock_lrb_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_cash_flow_sheet(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<CashFlowSheet>> {
-        let items = self.ak.stock_xjll_em(date).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Stock Comments (千股千评)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_stock_comments(&self) -> anyhow::Result<Vec<StockComment>> {
-        let items = self.ak.stock_comment_em().await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_comment_org_participation(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<CommentOrgParticipation>> {
-        let items = self.ak.stock_comment_detail_zlkp_jgcyd_em(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_comment_hist_score(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<CommentHistScore>> {
-        let items = self.ak.stock_comment_detail_zhpj_lspf_em(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_comment_focus_index(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<CommentFocusIndex>> {
-        let items = self.ak.stock_comment_detail_scrd_focus_em(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_comment_desire_index(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<CommentDesireIndex>> {
-        let items = self.ak.stock_comment_detail_scrd_desire_em(symbol).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Shareholder Changes (高管持股变动)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_executive_shareholding(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<Ggcg>> {
-        let items = self.ak.stock_ggcg_em(symbol).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Shareholder Count (股东户数)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_shareholder_count(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<Vec<Gdhs>> {
-        let items = self.ak.stock_gdhs_em(date).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_shareholder_count_detail(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<GdhsDetail>> {
-        let items = self.ak.stock_gdhs_detail_em(symbol).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Industry Classification (行业分类)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_industry_category(&self) -> anyhow::Result<Vec<IndustryCategory>> {
-        let items = self.ak.stock_industry_category_cninfo().await?;
-        Ok(items)
-    }
-}
-use akshare::stock::hk_extra::{
-    HkFamousStock, HkFhpxDetailThs, HkGxlLg, HkHotRank, HkHotRankDetail, HkSpotQuote,
-    HkValuationBaidu,
-};
-use akshare::stock::us_extra::{UsFamousStock, UsPinkStock, UsSpotSina, UsValuationBaidu};
-use akshare::stock::xueqiu::XqStockSpot;
-
-impl MarketDataClient {
-    // -----------------------------------------------------------------------
-    // HK Spot (Sina)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_hk_spot(&self) -> anyhow::Result<Vec<HkSpotQuote>> {
-        let items = self.ak.stock_hk_spot().await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // HK Famous Stocks (Eastmoney)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_hk_famous_spot(&self) -> anyhow::Result<Vec<HkFamousStock>> {
-        let items = self.ak.stock_hk_famous_spot_em().await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // HK Hot Rank (Eastmoney)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_hk_hot_rank(&self) -> anyhow::Result<Vec<HkHotRank>> {
-        let items = self.ak.stock_hk_hot_rank_em().await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_hk_hot_rank_latest(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<HkHotRankDetail>> {
-        let items = self.ak.stock_hk_hot_rank_latest_em(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_hk_hot_rank_detail(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<HkHotRankDetail>> {
-        let items = self.ak.stock_hk_hot_rank_detail_em(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_hk_hot_rank_realtime(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<HkHotRankDetail>> {
-        let items = self.ak.stock_hk_hot_rank_detail_realtime_em(symbol).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // HK Dividends (Eastmoney + THS)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_hk_dividend_payout(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<serde_json::Value>> {
-        let items = self.ak.stock_hk_dividend_payout_em(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_hk_fhpx_detail(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<HkFhpxDetailThs>> {
-        let items = self.ak.stock_hk_fhpx_detail_ths(symbol).await?;
-        Ok(items)
-    }
-
-    pub async fn fetch_hk_dividend_yield(&self) -> anyhow::Result<Vec<HkGxlLg>> {
-        let items = self.ak.stock_hk_gxl_lg().await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // HK Financial Indicators (Eastmoney)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_hk_financial_indicators(
-        &self,
-        symbol: &str,
-    ) -> anyhow::Result<Vec<serde_json::Value>> {
-        let items =
-            self.ak.stock_hk_financial_indicator_em(symbol).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // HK Valuation (Baidu)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_hk_valuation(
-        &self,
-        symbol: &str,
-        indicator: &str,
-        period: &str,
-    ) -> anyhow::Result<Vec<HkValuationBaidu>> {
-        let items =
-            self.ak.stock_hk_valuation_baidu(symbol, indicator, period).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // US Spot (Sina / Eastmoney)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_us_spot(&self) -> anyhow::Result<Vec<UsSpotSina>> {
-        let items = self.ak.stock_us_spot().await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // US Famous Stocks (Eastmoney)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_us_famous_spot(
-        &self,
-        category: &str,
-    ) -> anyhow::Result<Vec<UsFamousStock>> {
-        let items = self.ak.stock_us_famous_spot_em(category).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // US Pink Sheet Stocks (Eastmoney)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_us_pink_spot(&self) -> anyhow::Result<Vec<UsPinkStock>> {
-        let items = self.ak.stock_us_pink_spot_em().await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // US Valuation (Baidu)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_us_valuation(
-        &self,
-        symbol: &str,
-        indicator: &str,
-        period: &str,
-    ) -> anyhow::Result<Vec<UsValuationBaidu>> {
-        let items =
-            self.ak.stock_us_valuation_baidu(symbol, indicator, period).await?;
-        Ok(items)
-    }
-
-    // -----------------------------------------------------------------------
-    // Xueqiu Spot (works for HK and US symbols)
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_xq_spot(&self, symbol: &str) -> anyhow::Result<XqStockSpot> {
-        // Try HK first, then US -- both delegate to the same Xueqiu endpoint
-        let market = self.detect_market(symbol);
-        let items = match market {
-            crate::types::MarketKind::HongKong => {
-                self.ak.stock_individual_spot_xq(symbol).await?
-            }
-            _ => self.ak.stock_individual_spot_xq(symbol).await?,
-        };
+    ) -> anyhow::Result<Vec<ZtPool>> {
+        let items = self.ak.stock_zt_pool_em(date).await?;
         Ok(items)
     }
 }

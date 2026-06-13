@@ -14,8 +14,6 @@ pub(crate) use scoring::{
     apply_portfolio_constraints, enrich_candidates, infer_theme_key, score_candidates,
 };
 
-pub(crate) mod news_cache;
-
 mod objective;
 
 mod llm_utils;

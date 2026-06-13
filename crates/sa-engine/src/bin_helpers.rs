@@ -46,18 +46,14 @@ pub fn build_llm_client() -> anyhow::Result<LlmClient> {
         .and_then(|v| v.parse().ok())
         .unwrap_or(120);
 
-    let http = reqwest_middleware::ClientBuilder::new(reqwest::Client::new()).build();
-
     match provider.as_str() {
         "anthropic" => Ok(LlmClient::anthropic(
-            http,
             &base_url,
             &api_key,
             &model,
             timeout_secs,
         )),
         _ => Ok(LlmClient::openai_compatible(
-            http,
             &base_url,
             &api_key,
             &model,

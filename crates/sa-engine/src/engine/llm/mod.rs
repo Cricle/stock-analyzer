@@ -1,5 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
+use backoff::{Error as BackoffError, future::retry};
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -9,27 +11,14 @@ pub mod parse;
 mod prompt;
 pub mod retry;
 
-/// Configuration for the LLM client.
-#[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
-pub struct LlmConfig {
-    #[zeroize(skip)]
-    pub base_url: String,
-    pub api_key: String,
-    #[zeroize(skip)]
-    pub model: String,
-    #[zeroize(skip)]
-    pub timeout_secs: u64,
-    #[zeroize(skip)]
-    pub provider_type: String,
-}
+use client::{OpenAIClient, OpenAIConfig};
 
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct LlmClient {
     #[zeroize(skip)]
-    pub http: reqwest_middleware::ClientWithMiddleware,
+    openai: OpenAIClient<OpenAIConfig>,
     #[zeroize(skip)]
-    pub openai_base_url: String,
-    pub openai_api_key: String,
+    anthropic_http: reqwest::Client,
     #[zeroize(skip)]
     pub model: String,
     #[zeroize(skip)]
@@ -38,6 +27,9 @@ pub struct LlmClient {
     pub usage_tracker: Arc<Mutex<LlmUsageAccumulator>>,
     #[zeroize(skip)]
     pub provider_type: String,
+    #[zeroize(skip)]
+    pub openai_base_url: String,
+    pub openai_api_key: String,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -65,52 +57,43 @@ pub use prompt::{
 };
 
 impl LlmClient {
-    /// Create a new LLM client with the given HTTP client and config.
-    pub fn new(http: reqwest_middleware::ClientWithMiddleware, config: &LlmConfig) -> Self {
-        Self {
-            http,
-            openai_base_url: config.base_url.trim_end_matches('/').to_string(),
-            openai_api_key: config.api_key.clone(),
-            model: config.model.clone(),
-            timeout: std::time::Duration::from_secs(config.timeout_secs),
-            usage_tracker: Arc::new(Mutex::new(LlmUsageAccumulator::default())),
-            provider_type: config.provider_type.clone(),
-        }
-    }
-
     pub fn openai_compatible(
-        http: reqwest_middleware::ClientWithMiddleware,
         base_url: &str,
         api_key: &str,
         model: &str,
         timeout_secs: u64,
     ) -> Self {
+        let base_url = base_url.trim_end_matches('/').to_string();
+        let config = OpenAIConfig::new()
+            .with_api_base(&base_url)
+            .with_api_key(api_key);
         Self {
-            http,
-            openai_base_url: base_url.trim_end_matches('/').to_string(),
-            openai_api_key: api_key.to_string(),
+            openai: OpenAIClient::with_config(config),
+            anthropic_http: reqwest::Client::new(),
             model: model.to_string(),
             timeout: std::time::Duration::from_secs(timeout_secs),
             usage_tracker: Arc::new(Mutex::new(LlmUsageAccumulator::default())),
             provider_type: "openai".to_string(),
+            openai_base_url: base_url,
+            openai_api_key: api_key.to_string(),
         }
     }
 
     pub fn anthropic(
-        http: reqwest_middleware::ClientWithMiddleware,
         base_url: &str,
         api_key: &str,
         model: &str,
         timeout_secs: u64,
     ) -> Self {
         Self {
-            http,
-            openai_base_url: base_url.trim_end_matches('/').to_string(),
-            openai_api_key: api_key.to_string(),
+            openai: OpenAIClient::new(),
+            anthropic_http: reqwest::Client::new(),
             model: model.to_string(),
             timeout: std::time::Duration::from_secs(timeout_secs),
             usage_tracker: Arc::new(Mutex::new(LlmUsageAccumulator::default())),
             provider_type: "anthropic".to_string(),
+            openai_base_url: base_url.trim_end_matches('/').to_string(),
+            openai_api_key: api_key.to_string(),
         }
     }
 
@@ -125,7 +108,12 @@ impl LlmClient {
     pub fn with_base_url(&self, base_url: Option<&str>) -> Self {
         let mut next = self.clone();
         if let Some(base_url) = base_url.map(str::trim).filter(|value| !value.is_empty()) {
-            next.openai_base_url = base_url.trim_end_matches('/').to_string();
+            let base_url = base_url.trim_end_matches('/').to_string();
+            let config = OpenAIConfig::new()
+                .with_api_base(&base_url)
+                .with_api_key(&next.openai_api_key);
+            next.openai = OpenAIClient::with_config(config);
+            next.openai_base_url = base_url;
         }
         next
     }
@@ -133,45 +121,20 @@ impl LlmClient {
     pub fn with_api_key(&self, api_key: Option<&str>) -> Self {
         let mut next = self.clone();
         if let Some(api_key) = api_key.map(str::trim).filter(|value| !value.is_empty()) {
+            let config = OpenAIConfig::new()
+                .with_api_base(&next.openai_base_url)
+                .with_api_key(api_key);
+            next.openai = OpenAIClient::with_config(config);
             next.openai_api_key = api_key.to_string();
         }
         next
-    }
-
-    pub fn from_provider_config(
-        http: reqwest_middleware::ClientWithMiddleware,
-        provider: &crate::models::LlmProviderConfig,
-        timeout_secs: u64,
-    ) -> Option<Self> {
-        let api_key = provider
-            .api_key
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())?;
-        let provider_type = provider.provider_type.as_deref().unwrap_or("openai");
-        match provider_type {
-            "anthropic" => Some(Self::anthropic(
-                http,
-                &provider.base_url,
-                api_key,
-                &provider.default_model,
-                timeout_secs,
-            )),
-            _ => Some(Self::openai_compatible(
-                http,
-                &provider.base_url,
-                api_key,
-                &provider.default_model,
-                timeout_secs,
-            )),
-        }
     }
 
     #[tracing::instrument(skip_all, fields(model = %self.model, provider = %self.provider_type, prompt_len = prompt.len()))]
     pub async fn generate(&self, prompt: &str) -> anyhow::Result<String> {
         match self.provider_type.as_str() {
             "anthropic" => self.generate_with_anthropic(prompt).await,
-            _ => self.generate_with_openai_compatible(prompt).await,
+            _ => self.generate_with_openai(prompt).await,
         }
     }
 
@@ -183,10 +146,7 @@ impl LlmClient {
     ) -> anyhow::Result<()> {
         match self.provider_type.as_str() {
             "anthropic" => self.healthcheck_anthropic(base_url, api_key, model).await,
-            _ => {
-                self.healthcheck_openai_compatible(base_url, api_key, model)
-                    .await
-            }
+            _ => self.healthcheck_openai(base_url, api_key, model).await,
         }
     }
 
@@ -210,4 +170,276 @@ impl LlmClient {
                 .collect(),
         }
     }
+
+    // -----------------------------------------------------------------------
+    // OpenAI-compatible implementation using async-openai
+    // -----------------------------------------------------------------------
+
+    async fn generate_with_openai(&self, prompt: &str) -> anyhow::Result<String> {
+        use client::{
+            ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
+            ChatCompletionRequestSystemMessageContent, ChatCompletionRequestUserMessage,
+            ChatCompletionRequestUserMessageContent, CreateChatCompletionRequest, ResponseFormat,
+        };
+
+        let request = CreateChatCompletionRequest {
+            model: self.model.clone(),
+            messages: vec![
+                ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
+                    content: ChatCompletionRequestSystemMessageContent::Text(
+                        "You must output valid JSON with no markdown fences.".to_string(),
+                    ),
+                    name: None,
+                }),
+                ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
+                    content: ChatCompletionRequestUserMessageContent::Text(prompt.to_string()),
+                    name: None,
+                }),
+            ],
+            temperature: Some(0.2),
+            response_format: Some(ResponseFormat::JsonObject),
+            ..Default::default()
+        };
+
+        const MAX_ATTEMPTS: usize = 6;
+        let mut attempt = 0usize;
+        let backoff = client::llm_retry_backoff();
+        let openai = &self.openai;
+        let model = &self.model;
+        let tracker = &self.usage_tracker;
+
+        retry(backoff, || {
+            attempt += 1;
+            let request = request.clone();
+            let openai = openai.clone();
+            let model = model.clone();
+            let tracker = tracker.clone();
+            async move {
+                match openai.chat().create(request).await {
+                    Ok(response) => {
+                        let content = response
+                            .choices
+                            .first()
+                            .and_then(|c| c.message.content.clone())
+                            .unwrap_or_default();
+                        let resolved_model = if response.model.is_empty() { model.clone() } else { response.model };
+                        if let Some(usage) = &response.usage {
+                            let mut t = tracker.lock().expect("usage tracker mutex poisoned");
+                            t.total_requests += 1;
+                            t.prompt_tokens += usage.prompt_tokens as i64;
+                            t.completion_tokens += usage.completion_tokens as i64;
+                            t.total_tokens += usage.total_tokens as i64;
+                            let entry = t.by_model.entry(resolved_model.to_string()).or_default();
+                            entry.requests += 1;
+                            entry.prompt_tokens += usage.prompt_tokens as i64;
+                            entry.completion_tokens += usage.completion_tokens as i64;
+                            entry.total_tokens += usage.total_tokens as i64;
+                        }
+                        if !content.trim().is_empty() {
+                            Ok(content)
+                        } else {
+                            Err(BackoffError::permanent(anyhow::anyhow!(
+                                "LLM response contained no content"
+                            )))
+                        }
+                    }
+                    Err(e) => {
+                        let err = anyhow::anyhow!("openai request failed: {e}");
+                        if is_retryable_openai_error(&e) && attempt < MAX_ATTEMPTS {
+                            tracing::warn!(
+                                attempt,
+                                max_attempts = MAX_ATTEMPTS,
+                                error = %err,
+                                "retrying transient LLM upstream failure"
+                            );
+                            Err(BackoffError::transient(err))
+                        } else {
+                            Err(BackoffError::permanent(err))
+                        }
+                    }
+                }
+            }
+        })
+        .await
+    }
+
+    pub async fn stream_with_openai_compatible<F>(
+        &self,
+        prompt: &str,
+        on_delta: F,
+    ) -> anyhow::Result<String>
+    where
+        F: FnMut(&str) -> anyhow::Result<()>,
+    {
+        use client::{
+            ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
+            ChatCompletionRequestSystemMessageContent, ChatCompletionRequestUserMessage,
+            ChatCompletionRequestUserMessageContent, CreateChatCompletionRequest, ResponseFormat,
+        };
+
+        let request = CreateChatCompletionRequest {
+            model: self.model.clone(),
+            messages: vec![
+                ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
+                    content: ChatCompletionRequestSystemMessageContent::Text(
+                        "You must output valid JSON with no markdown fences.".to_string(),
+                    ),
+                    name: None,
+                }),
+                ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
+                    content: ChatCompletionRequestUserMessageContent::Text(prompt.to_string()),
+                    name: None,
+                }),
+            ],
+            temperature: Some(0.2),
+            response_format: Some(ResponseFormat::JsonObject),
+            stream: Some(true),
+            ..Default::default()
+        };
+
+        const MAX_ATTEMPTS: usize = 6;
+        let mut attempt = 0usize;
+        let backoff = client::llm_retry_backoff();
+        let on_delta = std::sync::Mutex::new(on_delta);
+
+        retry(backoff, || {
+            attempt += 1;
+            let request = request.clone();
+            let openai = self.openai.clone();
+            let model = self.model.clone();
+            let tracker = self.usage_tracker.clone();
+            let on_delta = &on_delta;
+            async move {
+                let mut stream = openai.chat().create_stream(request).await.map_err(|e| {
+                    let err = anyhow::anyhow!("openai stream request failed: {e}");
+                    if is_retryable_openai_error(&e) && attempt < MAX_ATTEMPTS {
+                        BackoffError::transient(err)
+                    } else {
+                        BackoffError::permanent(err)
+                    }
+                })?;
+
+                let mut content = String::new();
+                while let Some(result) = stream.next().await {
+                    let chunk = result.map_err(|e| {
+                        let err = anyhow::anyhow!("failed to read LLM stream chunk: {e}");
+                        if is_retryable_openai_error(&e) && attempt < MAX_ATTEMPTS {
+                            BackoffError::transient(err)
+                        } else {
+                            BackoffError::permanent(err)
+                        }
+                    })?;
+                    if let Some(delta) = chunk.choices.first().and_then(|c| c.delta.content.as_deref())
+                        && !delta.is_empty()
+                    {
+                        content.push_str(delta);
+                        on_delta
+                            .lock()
+                            .expect("stream callback mutex poisoned")(delta)
+                            .map_err(BackoffError::permanent)?;
+                    }
+                }
+
+                // Record usage (estimated, since stream doesn't return usage)
+                {
+                    let mut t = tracker.lock().expect("usage tracker mutex poisoned");
+                    t.total_requests += 1;
+                    let prompt_chars = prompt.len() as i64;
+                    let completion_chars = content.len() as i64;
+                    let prompt_tokens = ((prompt_chars.max(1) + 3) / 4).max(1);
+                    let completion_tokens = ((completion_chars.max(1) + 3) / 4).max(1);
+                    t.prompt_tokens += prompt_tokens;
+                    t.completion_tokens += completion_tokens;
+                    t.total_tokens += prompt_tokens + completion_tokens;
+                    let entry = t.by_model.entry(model).or_default();
+                    entry.requests += 1;
+                    entry.prompt_tokens += prompt_tokens;
+                    entry.completion_tokens += completion_tokens;
+                    entry.total_tokens += prompt_tokens + completion_tokens;
+                }
+
+                Ok(content)
+            }
+        })
+        .await
+    }
+
+    pub async fn list_models_openai_compatible(
+        &self,
+        base_url: &str,
+        api_key: &str,
+    ) -> anyhow::Result<Vec<String>> {
+        let config = OpenAIConfig::new()
+            .with_api_base(base_url.trim_end_matches('/'))
+            .with_api_key(api_key);
+        let client = OpenAIClient::with_config(config);
+        let response = client
+            .models()
+            .list()
+            .await
+            .map_err(|e| anyhow::anyhow!("failed to list OpenAI-compatible models: {e}"))?;
+        let models = response
+            .data
+            .into_iter()
+            .map(|item| item.id.trim().to_string())
+            .filter(|item| !item.is_empty())
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect();
+        Ok(models)
+    }
+
+    pub async fn healthcheck_openai(
+        &self,
+        base_url: &str,
+        api_key: &str,
+        model: &str,
+    ) -> anyhow::Result<()> {
+        use client::{
+            ChatCompletionRequestMessage, ChatCompletionRequestUserMessage,
+            ChatCompletionRequestUserMessageContent, CreateChatCompletionRequest, ResponseFormat,
+        };
+
+        let config = OpenAIConfig::new()
+            .with_api_base(base_url.trim_end_matches('/'))
+            .with_api_key(api_key);
+        let client = OpenAIClient::with_config(config);
+        let request = CreateChatCompletionRequest {
+            model: model.to_string(),
+            messages: vec![ChatCompletionRequestMessage::User(
+                ChatCompletionRequestUserMessage {
+                    content: ChatCompletionRequestUserMessageContent::Text(
+                        "Reply with JSON: {\"ok\":true}".to_string(),
+                    ),
+                    name: None,
+                },
+            )],
+            temperature: Some(0.0),
+            response_format: Some(ResponseFormat::JsonObject),
+            ..Default::default()
+        };
+        client
+            .chat()
+            .create(request)
+            .await
+            .map_err(|e| anyhow::anyhow!("openai-compatible healthcheck failed: {e}"))?;
+        Ok(())
+    }
+}
+
+fn is_retryable_openai_error(error: &async_openai::error::OpenAIError) -> bool {
+    let text = error.to_string();
+    text.contains("429")
+        || text.contains("502")
+        || text.contains("503")
+        || text.contains("504")
+        || text.contains("520")
+        || text.contains("521")
+        || text.contains("522")
+        || text.contains("523")
+        || text.contains("524")
+        || text.contains("525")
+        || text.contains("526")
+        || text.contains("timed out")
+        || text.contains("connection reset")
 }

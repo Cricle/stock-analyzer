@@ -71,7 +71,7 @@ impl TradingToolbox {
                     end_date,
                 )
                 .into_iter()
-                .map(|item| Self::candle_json(&item))
+                .map(|item| serde_json::to_value(&item).unwrap_or_default())
                 .collect::<Vec<_>>()
         });
         Ok(ToolExecutionResult {
@@ -223,46 +223,44 @@ impl TradingToolbox {
         })
     }
 
+    async fn fetch_fundamentals_item(
+        &self,
+        symbol: &str,
+        scenario_data: Option<&AnalysisScenarioData>,
+    ) -> anyhow::Result<(FundamentalsSnapshot, &'static str)> {
+        if let Some(prefetched) = scenario_data.and_then(|data| data.fundamentals.clone()) {
+            Ok((prefetched, "prefetched_scenario"))
+        } else {
+            Ok((self.market_data.fetch_fundamentals(symbol).await?, "live_fetch"))
+        }
+    }
+
+    fn fundamentals_subset(full: &Value, keys: &[&str]) -> Value {
+        let obj = full.as_object().cloned().unwrap_or_default();
+        Value::Object(keys.iter().filter_map(|k| obj.get_key_value(*k).map(|(k, v)| (k.clone(), v.clone()))).collect())
+    }
+
     pub(super) async fn get_fundamentals(
         &self,
         symbol: &str,
         scenario_data: Option<&AnalysisScenarioData>,
     ) -> anyhow::Result<ToolExecutionResult> {
-        let item =
-            if let Some(prefetched) = scenario_data.and_then(|data| data.fundamentals.clone()) {
-                prefetched
-            } else {
-                self.market_data.fetch_fundamentals(symbol).await?
-            };
-        let payload = json!({
-            "company_name": item.company_name,
-            "industry": item.industry,
-            "currency": item.currency,
-            "fiscal_year_end": item.fiscal_year_end,
-            "shares_outstanding": item.shares_outstanding,
-            "diluted_shares_outstanding": item.diluted_shares_outstanding,
-            "market_cap": item.market_cap,
-            "net_income": item.net_income_usd,
-            "revenues": item.revenues_usd,
-            "assets": item.assets_usd,
-            "liabilities": item.liabilities_usd,
-            "stockholders_equity": item.stockholders_equity_usd,
-            "cash_and_equivalents": item.cash_and_equivalents_usd,
-            "gross_profit": item.gross_profit_usd,
-            "operating_income": item.operating_income_usd,
-            "operating_expenses": item.operating_expenses_usd,
-            "operating_cash_flow": item.operating_cash_flow_usd,
-            "capital_expenditure": item.capital_expenditure_usd,
-            "free_cash_flow": item.free_cash_flow_usd,
-            "long_term_debt": item.long_term_debt_usd,
-            "current_debt": item.current_debt_usd,
-            "total_debt": item.total_debt_usd
-        });
+        let (item, source) = self.fetch_fundamentals_item(symbol, scenario_data).await?;
+        let full = serde_json::to_value(&item)?;
+        let payload = Self::fundamentals_subset(&full, &[
+            "company_name", "industry", "currency", "fiscal_year_end",
+            "shares_outstanding", "diluted_shares_outstanding", "market_cap",
+            "net_income_usd", "revenues_usd", "assets_usd", "liabilities_usd",
+            "stockholders_equity_usd", "cash_and_equivalents_usd",
+            "gross_profit_usd", "operating_income_usd", "operating_expenses_usd",
+            "operating_cash_flow_usd", "capital_expenditure_usd", "free_cash_flow_usd",
+            "long_term_debt_usd", "current_debt_usd", "total_debt_usd",
+        ]);
         Ok(ToolExecutionResult {
             output: serde_json::to_string_pretty(&payload)?,
             meta: json!({
                 "kind": "fundamentals",
-                "source": if scenario_data.and_then(|data| data.fundamentals.as_ref()).is_some() { "prefetched_scenario" } else { "live_fetch" },
+                "source": source,
                 "currency": payload["currency"],
             }),
         })
@@ -273,30 +271,17 @@ impl TradingToolbox {
         symbol: &str,
         scenario_data: Option<&AnalysisScenarioData>,
     ) -> anyhow::Result<ToolExecutionResult> {
-        let item =
-            if let Some(prefetched) = scenario_data.and_then(|data| data.fundamentals.clone()) {
-                prefetched
-            } else {
-                self.market_data.fetch_fundamentals(symbol).await?
-            };
-        let payload = json!({
-            "assets": item.assets_usd,
-            "liabilities": item.liabilities_usd,
-            "stockholders_equity": item.stockholders_equity_usd,
-            "cash_and_equivalents": item.cash_and_equivalents_usd,
-            "long_term_debt": item.long_term_debt_usd,
-            "current_debt": item.current_debt_usd,
-            "total_debt": item.total_debt_usd,
-            "shares_outstanding": item.shares_outstanding,
-            "diluted_shares_outstanding": item.diluted_shares_outstanding,
-            "fiscal_year_end": item.fiscal_year_end
-        });
+        let (item, source) = self.fetch_fundamentals_item(symbol, scenario_data).await?;
+        let full = serde_json::to_value(&item)?;
+        let payload = Self::fundamentals_subset(&full, &[
+            "assets_usd", "liabilities_usd", "stockholders_equity_usd",
+            "cash_and_equivalents_usd", "long_term_debt_usd", "current_debt_usd",
+            "total_debt_usd", "shares_outstanding", "diluted_shares_outstanding",
+            "fiscal_year_end",
+        ]);
         Ok(ToolExecutionResult {
             output: serde_json::to_string_pretty(&payload)?,
-            meta: json!({
-                "kind": "balance_sheet",
-                "source": if scenario_data.and_then(|data| data.fundamentals.as_ref()).is_some() { "prefetched_scenario" } else { "live_fetch" },
-            }),
+            meta: json!({ "kind": "balance_sheet", "source": source }),
         })
     }
 }

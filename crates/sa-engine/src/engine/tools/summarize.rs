@@ -72,20 +72,14 @@ impl TradingToolbox {
         serde_json::to_string_pretty(&summary).unwrap_or_else(|_| output.to_string())
     }
 
-    pub(super) fn summarize_json_object_output(output: &str, max_keys: usize) -> String {
+    pub(super) fn summarize_json_object_output(output: &str) -> String {
         let Ok(value) = serde_json::from_str::<Value>(output) else {
             return output.to_string();
         };
-        let Some(object) = value.as_object() else {
-            return output.to_string();
-        };
-        let mut summary = serde_json::Map::new();
-        for (index, (key, value)) in object.iter().enumerate() {
-            if index >= max_keys {
-                break;
-            }
-            summary.insert(key.clone(), value.clone());
+        if value.is_object() {
+            output.to_string()
+        } else {
+            serde_json::to_string_pretty(&value).unwrap_or_else(|_| output.to_string())
         }
-        serde_json::to_string_pretty(&Value::Object(summary)).unwrap_or_else(|_| output.to_string())
     }
 }

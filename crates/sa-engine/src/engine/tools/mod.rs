@@ -32,7 +32,7 @@ impl TradingToolbox {
             "get_stock_data" => Self::summarize_stock_data_output(output),
             "get_indicators" => Self::summarize_indicator_output(output, meta),
             "get_fundamentals" | "get_balance_sheet" | "get_cashflow" | "get_income_statement" => {
-                Self::summarize_json_object_output(output, 18)
+                Self::summarize_json_object_output(output)
             }
             _ => output.to_string(),
         }
@@ -151,24 +151,10 @@ impl TradingToolbox {
         start_date: Option<&str>,
         end_date: Option<&str>,
     ) -> Vec<NewsItem> {
-        let mut filtered = items
+        let mut filtered: Vec<_> = items
             .into_iter()
-            .filter(|item| {
-                if item.published_at.trim().is_empty() {
-                    return true;
-                }
-                let normalized = crate::data::news_filter::normalized_news_date(&item.published_at)
-                    .unwrap_or_else(|| {
-                        item.published_at
-                            .get(0..10)
-                            .unwrap_or(item.published_at.as_str())
-                            .to_string()
-                    });
-                let date = normalized.as_str();
-                start_date.is_none_or(|value| date >= value)
-                    && end_date.is_none_or(|value| date <= value)
-            })
-            .collect::<Vec<_>>();
+            .filter(|item| crate::data::news_filter::within_date_window(&item.published_at, start_date, end_date))
+            .collect();
         filtered.sort_by(|left, right| right.published_at.cmp(&left.published_at));
         filtered.dedup_by(|left, right| {
             left.published_at.get(0..10) == right.published_at.get(0..10)
@@ -178,19 +164,4 @@ impl TradingToolbox {
         filtered
     }
 
-    fn candle_json(item: &CandlePoint) -> Value {
-        json!({
-            "trade_date": item.trade_date,
-            "open": item.open,
-            "close": item.close,
-            "high": item.high,
-            "low": item.low,
-            "volume": item.volume,
-            "amount": item.amount,
-            "amplitude_pct": item.amplitude_pct,
-            "change_pct": item.change_pct,
-            "change_amount": item.change_amount,
-            "turnover_pct": item.turnover_pct
-        })
-    }
 }

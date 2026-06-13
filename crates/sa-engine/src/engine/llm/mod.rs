@@ -1,7 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use backoff::{Error as BackoffError, future::retry};
-use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -138,18 +137,6 @@ impl LlmClient {
         }
     }
 
-    pub async fn healthcheck(
-        &self,
-        base_url: &str,
-        api_key: &str,
-        model: &str,
-    ) -> anyhow::Result<()> {
-        match self.provider_type.as_str() {
-            "anthropic" => self.healthcheck_anthropic(base_url, api_key, model).await,
-            _ => self.healthcheck_openai(base_url, api_key, model).await,
-        }
-    }
-
     pub async fn usage_summary(&self) -> crate::models::LlmTokenUsageSummary {
         let tracker = self.usage_tracker.lock().expect("usage tracker mutex poisoned").clone();
         crate::models::LlmTokenUsageSummary {
@@ -261,169 +248,6 @@ impl LlmClient {
             }
         })
         .await
-    }
-
-    pub async fn stream_with_openai_compatible<F>(
-        &self,
-        prompt: &str,
-        on_delta: F,
-    ) -> anyhow::Result<String>
-    where
-        F: FnMut(&str) -> anyhow::Result<()>,
-    {
-        use client::{
-            ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
-            ChatCompletionRequestSystemMessageContent, ChatCompletionRequestUserMessage,
-            ChatCompletionRequestUserMessageContent, CreateChatCompletionRequest, ResponseFormat,
-        };
-
-        let request = CreateChatCompletionRequest {
-            model: self.model.clone(),
-            messages: vec![
-                ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
-                    content: ChatCompletionRequestSystemMessageContent::Text(
-                        "You must output valid JSON with no markdown fences.".to_string(),
-                    ),
-                    name: None,
-                }),
-                ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
-                    content: ChatCompletionRequestUserMessageContent::Text(prompt.to_string()),
-                    name: None,
-                }),
-            ],
-            temperature: Some(0.2),
-            response_format: Some(ResponseFormat::JsonObject),
-            stream: Some(true),
-            ..Default::default()
-        };
-
-        const MAX_ATTEMPTS: usize = 6;
-        let mut attempt = 0usize;
-        let backoff = client::llm_retry_backoff();
-        let on_delta = std::sync::Mutex::new(on_delta);
-
-        retry(backoff, || {
-            attempt += 1;
-            let request = request.clone();
-            let openai = self.openai.clone();
-            let model = self.model.clone();
-            let tracker = self.usage_tracker.clone();
-            let on_delta = &on_delta;
-            async move {
-                let mut stream = openai.chat().create_stream(request).await.map_err(|e| {
-                    let err = anyhow::anyhow!("openai stream request failed: {e}");
-                    if is_retryable_openai_error(&e) && attempt < MAX_ATTEMPTS {
-                        BackoffError::transient(err)
-                    } else {
-                        BackoffError::permanent(err)
-                    }
-                })?;
-
-                let mut content = String::new();
-                while let Some(result) = stream.next().await {
-                    let chunk = result.map_err(|e| {
-                        let err = anyhow::anyhow!("failed to read LLM stream chunk: {e}");
-                        if is_retryable_openai_error(&e) && attempt < MAX_ATTEMPTS {
-                            BackoffError::transient(err)
-                        } else {
-                            BackoffError::permanent(err)
-                        }
-                    })?;
-                    if let Some(delta) = chunk.choices.first().and_then(|c| c.delta.content.as_deref())
-                        && !delta.is_empty()
-                    {
-                        content.push_str(delta);
-                        on_delta
-                            .lock()
-                            .expect("stream callback mutex poisoned")(delta)
-                            .map_err(BackoffError::permanent)?;
-                    }
-                }
-
-                // Record usage (estimated, since stream doesn't return usage)
-                {
-                    let mut t = tracker.lock().expect("usage tracker mutex poisoned");
-                    t.total_requests += 1;
-                    let prompt_chars = prompt.len() as i64;
-                    let completion_chars = content.len() as i64;
-                    let prompt_tokens = ((prompt_chars.max(1) + 3) / 4).max(1);
-                    let completion_tokens = ((completion_chars.max(1) + 3) / 4).max(1);
-                    t.prompt_tokens += prompt_tokens;
-                    t.completion_tokens += completion_tokens;
-                    t.total_tokens += prompt_tokens + completion_tokens;
-                    let entry = t.by_model.entry(model).or_default();
-                    entry.requests += 1;
-                    entry.prompt_tokens += prompt_tokens;
-                    entry.completion_tokens += completion_tokens;
-                    entry.total_tokens += prompt_tokens + completion_tokens;
-                }
-
-                Ok(content)
-            }
-        })
-        .await
-    }
-
-    pub async fn list_models_openai_compatible(
-        &self,
-        base_url: &str,
-        api_key: &str,
-    ) -> anyhow::Result<Vec<String>> {
-        let config = OpenAIConfig::new()
-            .with_api_base(base_url.trim_end_matches('/'))
-            .with_api_key(api_key);
-        let client = OpenAIClient::with_config(config);
-        let response = client
-            .models()
-            .list()
-            .await
-            .map_err(|e| anyhow::anyhow!("failed to list OpenAI-compatible models: {e}"))?;
-        let models = response
-            .data
-            .into_iter()
-            .map(|item| item.id.trim().to_string())
-            .filter(|item| !item.is_empty())
-            .collect::<std::collections::BTreeSet<_>>()
-            .into_iter()
-            .collect();
-        Ok(models)
-    }
-
-    pub async fn healthcheck_openai(
-        &self,
-        base_url: &str,
-        api_key: &str,
-        model: &str,
-    ) -> anyhow::Result<()> {
-        use client::{
-            ChatCompletionRequestMessage, ChatCompletionRequestUserMessage,
-            ChatCompletionRequestUserMessageContent, CreateChatCompletionRequest, ResponseFormat,
-        };
-
-        let config = OpenAIConfig::new()
-            .with_api_base(base_url.trim_end_matches('/'))
-            .with_api_key(api_key);
-        let client = OpenAIClient::with_config(config);
-        let request = CreateChatCompletionRequest {
-            model: model.to_string(),
-            messages: vec![ChatCompletionRequestMessage::User(
-                ChatCompletionRequestUserMessage {
-                    content: ChatCompletionRequestUserMessageContent::Text(
-                        "Reply with JSON: {\"ok\":true}".to_string(),
-                    ),
-                    name: None,
-                },
-            )],
-            temperature: Some(0.0),
-            response_format: Some(ResponseFormat::JsonObject),
-            ..Default::default()
-        };
-        client
-            .chat()
-            .create(request)
-            .await
-            .map_err(|e| anyhow::anyhow!("openai-compatible healthcheck failed: {e}"))?;
-        Ok(())
     }
 }
 

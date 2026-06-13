@@ -1,4 +1,4 @@
-use anyhow::{Context, bail};
+use anyhow::Context;
 use backoff::{Error as BackoffError, future::retry};
 use reqwest::header::CONTENT_TYPE;
 use serde::Deserialize;
@@ -133,41 +133,6 @@ impl LlmClient {
         .await
     }
 
-    pub async fn healthcheck_anthropic(
-        &self,
-        base_url: &str,
-        api_key: &str,
-        model: &str,
-    ) -> anyhow::Result<()> {
-        let base = base_url.trim_end_matches('/');
-        let url = if base.ends_with("/v1") {
-            format!("{}/messages", base)
-        } else {
-            format!("{}/v1/messages", base)
-        };
-        let request = serde_json::json!({
-            "model": model,
-            "max_tokens": 32,
-            "messages": [{ "role": "user", "content": "Reply with JSON: {\"ok\":true}" }]
-        });
-        let response = self
-            .anthropic_http
-            .post(&url)
-            .header("x-api-key", api_key)
-            .header("anthropic-version", "2023-06-01")
-            .header(CONTENT_TYPE, "application/json")
-            .json(&request)
-            .send()
-            .await
-            .context("failed to call Anthropic API")?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            bail!("anthropic healthcheck failed with {status}: {body}");
-        }
-        Ok(())
-    }
 }
 
 // ---------------------------------------------------------------------------

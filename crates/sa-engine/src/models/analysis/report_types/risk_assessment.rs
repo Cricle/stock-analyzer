@@ -119,7 +119,7 @@ where
     D: Deserializer<'de>,
 {
     let value = Value::deserialize(deserializer)?;
-    Ok(crate::models::value_utils::normalize_probability(&value))
+    Ok(crate::engine::llm::parse::normalize_probability(&value))
 }
 
 fn deserialize_string_value<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -127,7 +127,7 @@ where
     D: Deserializer<'de>,
 {
     let value = Value::deserialize(deserializer)?;
-    Ok(crate::models::value_utils::normalize_value(&value))
+    Ok(crate::engine::llm::parse::normalize_value(&value))
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

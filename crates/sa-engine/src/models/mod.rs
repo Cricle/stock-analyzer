@@ -1,11 +1,9 @@
 //! Analysis result models and storage trait interfaces.
 
 pub mod analysis;
-pub mod config;
 pub mod scoring;
 pub mod store;
 pub mod task;
-pub mod value_utils;
 
 // Re-export scoring types at crate root for convenience.
 pub use scoring::{
@@ -53,14 +51,11 @@ pub use analysis::{
 
 
 pub use store::{
-    AnalysisStore, CacheStore, CheckpointStore, GuidanceStore, VectorStore,
-    CacheEntry, CheckpointInfo, GuidanceRule, StoredAnalysisSummary, StoredCheckpoint,
-    VectorSearchHit,
+    AnalysisStore, CacheStore, CheckpointStore,
+    CacheEntry, CheckpointInfo, StoredCheckpoint,
 };
 
 pub use task::{
     AnalysisStep, PersistedTask, ResultStage, StepStatus, TaskEvent, TaskStatus,
     TaskStatusResponse,
 };
-
-pub use config::LlmProviderConfig;

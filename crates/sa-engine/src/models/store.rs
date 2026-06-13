@@ -4,18 +4,6 @@ use serde::{Deserialize, Serialize};
 use crate::models::analysis::{AnalysisResult, SingleAnalysisRequest};
 use crate::models::task::PersistedTask;
 
-/// Summary of a persisted analysis task.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct StoredAnalysisSummary {
-    pub task_id: String,
-    pub symbol: String,
-    pub stock_name: String,
-    pub market_type: String,
-    pub status: String,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
 /// Cache entry metadata.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CacheEntry {
@@ -25,14 +13,6 @@ pub struct CacheEntry {
     pub size_bytes: u64,
 }
 
-/// Vector search result.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct VectorSearchHit {
-    pub id: String,
-    pub score: f32,
-    pub payload: serde_json::Value,
-}
-
 /// Checkpoint metadata.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CheckpointInfo {
@@ -40,17 +20,6 @@ pub struct CheckpointInfo {
     pub checkpoint_id: String,
     pub created_at: String,
     pub step_name: String,
-}
-
-/// Guidance rule stored for reuse.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct GuidanceRule {
-    pub id: String,
-    pub market_type: String,
-    pub rule_type: String,
-    pub content: String,
-    pub priority: i32,
-    pub enabled: bool,
 }
 
 /// Stored checkpoint data for resumable analysis.
@@ -109,13 +78,6 @@ pub trait AnalysisStore: Send + Sync {
         self.load_result(task_id).await
     }
 
-    /// List recent analyses, optionally filtered by symbol.
-    async fn list_analyses(
-        &self,
-        symbol: Option<&str>,
-        limit: usize,
-    ) -> anyhow::Result<Vec<StoredAnalysisSummary>>;
-
     /// Delete an analysis by task ID.
     async fn delete_analysis(&self, task_id: &str) -> anyhow::Result<()>;
 
@@ -147,30 +109,6 @@ pub trait CacheStore: Send + Sync {
     async fn list_entries(&self, prefix: &str) -> anyhow::Result<Vec<CacheEntry>>;
 }
 
-/// Vector store for semantic search over analysis artifacts.
-#[async_trait]
-pub trait VectorStore: Send + Sync {
-    /// Insert a vector with associated metadata.
-    async fn insert(
-        &self,
-        collection: &str,
-        id: &str,
-        embedding: &[f32],
-        payload: serde_json::Value,
-    ) -> anyhow::Result<()>;
-
-    /// Search for similar vectors.
-    async fn search(
-        &self,
-        collection: &str,
-        query_embedding: &[f32],
-        top_k: usize,
-    ) -> anyhow::Result<Vec<VectorSearchHit>>;
-
-    /// Delete a vector by ID.
-    async fn delete(&self, collection: &str, id: &str) -> anyhow::Result<()>;
-}
-
 /// Checkpoint storage for resumable analysis workflows.
 #[async_trait]
 pub trait CheckpointStore: Send + Sync {
@@ -192,42 +130,10 @@ pub trait CheckpointStore: Send + Sync {
     async fn delete_checkpoints(&self, task_id: &str) -> anyhow::Result<()>;
 }
 
-/// Storage for guidance rules that steer analysis behavior.
-#[async_trait]
-pub trait GuidanceStore: Send + Sync {
-    /// List all guidance rules for a market type.
-    async fn list_rules(&self, market_type: &str) -> anyhow::Result<Vec<GuidanceRule>>;
-
-    /// Get a specific guidance rule by ID.
-    async fn get_rule(&self, rule_id: &str) -> anyhow::Result<Option<GuidanceRule>>;
-
-    /// Create or update a guidance rule.
-    async fn upsert_rule(&self, rule: &GuidanceRule) -> anyhow::Result<()>;
-
-    /// Delete a guidance rule.
-    async fn delete_rule(&self, rule_id: &str) -> anyhow::Result<()>;
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn stored_analysis_summary_serialization() {
-        let s = StoredAnalysisSummary {
-            task_id: "t1".into(),
-            symbol: "AAPL".into(),
-            stock_name: "Apple".into(),
-            market_type: "us".into(),
-            status: "completed".into(),
-            created_at: "2025-01-15".into(),
-            updated_at: "2025-01-15".into(),
-        };
-        let json = serde_json::to_string(&s).unwrap();
-        let s2: StoredAnalysisSummary = serde_json::from_str(&json).unwrap();
-        assert_eq!(s.task_id, s2.task_id);
-        assert_eq!(s.symbol, s2.symbol);
-    }
 
     #[test]
     fn cache_entry_serialization() {
@@ -244,19 +150,6 @@ mod tests {
     }
 
     #[test]
-    fn vector_search_hit_serialization() {
-        let h = VectorSearchHit {
-            id: "vec-1".into(),
-            score: 0.85,
-            payload: serde_json::json!({"ticker": "AAPL"}),
-        };
-        let json = serde_json::to_string(&h).unwrap();
-        let h2: VectorSearchHit = serde_json::from_str(&json).unwrap();
-        assert_eq!(h.id, h2.id);
-        assert!((h.score - h2.score).abs() < f32::EPSILON);
-    }
-
-    #[test]
     fn checkpoint_info_serialization() {
         let c = CheckpointInfo {
             task_id: "t1".into(),
@@ -267,22 +160,6 @@ mod tests {
         let json = serde_json::to_string(&c).unwrap();
         let c2: CheckpointInfo = serde_json::from_str(&json).unwrap();
         assert_eq!(c.step_name, c2.step_name);
-    }
-
-    #[test]
-    fn guidance_rule_serialization() {
-        let r = GuidanceRule {
-            id: "rule-1".into(),
-            market_type: "us".into(),
-            rule_type: "risk".into(),
-            content: "Max position 5%".into(),
-            priority: 10,
-            enabled: true,
-        };
-        let json = serde_json::to_string(&r).unwrap();
-        let r2: GuidanceRule = serde_json::from_str(&json).unwrap();
-        assert!(r2.enabled);
-        assert_eq!(r2.priority, 10);
     }
 
     #[test]

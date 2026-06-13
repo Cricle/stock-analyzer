@@ -10,29 +10,17 @@ impl crate::TaskManager {
             format!("results/{}/TradingAgentsStrategy_logs", safe_symbol)
         };
         let log_path = format!("{}/full_states_log_{}.json", dir, result.analysis_date);
-        let body = serde_json::json!({
-            "company_of_interest": result.agent_state.company_of_interest,
-            "trade_date": result.agent_state.trade_date,
-            "sender": result.agent_state.sender,
-            "market_report": result.agent_state.market_report,
-            "sentiment_report": result.agent_state.sentiment_report,
-            "news_report": result.agent_state.news_report,
-            "fundamentals_report": result.agent_state.fundamentals_report,
-            "investment_debate_state": result.agent_state.investment_debate_state,
-            "investment_plan": result.agent_state.investment_plan,
-            "trader_investment_plan": result.agent_state.trader_investment_plan,
-            "risk_debate_state": result.agent_state.risk_debate_state,
-            "final_trade_decision": result.agent_state.final_trade_decision,
-            "past_context": result.agent_state.past_context,
-            "artifacts": result.artifacts,
-            "market_chart": result.report.market_chart,
-            "price_context": result.report.price_context,
-            "probability_view": result.report.probability_view,
-            "profit_risk": result.report.profit_risk,
-            "ic_navigator": result.report.ic_navigator,
-            "report": result.report,
-            "ic_report": result.ic_report
-        });
+        let mut body = serde_json::to_value(&result.agent_state)?;
+        if let Some(obj) = body.as_object_mut() {
+            obj.insert("artifacts".into(), serde_json::to_value(&result.artifacts)?);
+            obj.insert("market_chart".into(), serde_json::to_value(&result.report.market_chart)?);
+            obj.insert("price_context".into(), serde_json::to_value(&result.report.price_context)?);
+            obj.insert("probability_view".into(), serde_json::to_value(&result.report.probability_view)?);
+            obj.insert("profit_risk".into(), serde_json::to_value(&result.report.profit_risk)?);
+            obj.insert("ic_navigator".into(), serde_json::to_value(&result.report.ic_navigator)?);
+            obj.insert("report".into(), serde_json::to_value(&result.report)?);
+            obj.insert("ic_report".into(), serde_json::to_value(&result.ic_report)?);
+        }
         self.storage
             .write_file(&log_path, &serde_json::to_vec_pretty(&body)?)
             .await?;

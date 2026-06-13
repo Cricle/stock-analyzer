@@ -3,7 +3,6 @@
 //! Decouples task artifacts and memory logs from direct filesystem access.
 
 use std::path::PathBuf;
-use std::sync::Arc;
 
 /// Abstraction over persistent storage used by TaskManager.
 ///
@@ -74,9 +73,4 @@ impl StorageBackend for FilesystemStorage {
         tokio::fs::create_dir_all(&full).await?;
         Ok(())
     }
-}
-
-/// Build a `FilesystemStorage` from the configured data directory.
-pub fn default_storage(data_dir: &str) -> Arc<dyn StorageBackend> {
-    Arc::new(FilesystemStorage::new(data_dir))
 }

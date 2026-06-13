@@ -50,9 +50,3 @@ pub(crate) fn parse_generated_trader_decision(
     validate_trader_decision(&parsed, content);
     Ok(parsed)
 }
-
-pub fn parse_generated_subscription_qa_answer(
-    content: &str,
-) -> anyhow::Result<GeneratedSubscriptionQaAnswer> {
-    parse_object_candidates_value(content, GeneratedSubscriptionQaAnswer::from_value)
-}

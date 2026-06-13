@@ -42,31 +42,6 @@ impl GuidanceStore {
     }
 }
 
-/// Returns an appropriate cache TTL based on market trading hours.
-///
-/// During market hours, uses the base TTL. After hours, extends to 12x the base
-/// since data changes less frequently when markets are closed.
-pub fn market_ttl(market: &str, base_ttl: std::time::Duration) -> std::time::Duration {
-    use chrono::{Timelike, Utc};
-
-    let now = Utc::now();
-    let hour = now.hour();
-    let minute = now.minute();
-    let minutes_of_day = hour * 60 + minute;
-
-    let is_market_hours = match market {
-        "a_share" | "hong_kong" => (75..420).contains(&minutes_of_day),
-        "us_equity" => (870..1260).contains(&minutes_of_day),
-        _ => false,
-    };
-
-    if is_market_hours {
-        base_ttl
-    } else {
-        base_ttl * 12
-    }
-}
-
 // No-op implementations for from_env() fallback
 
 struct NoopCacheStore;

@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use super::{
     GeneratedAnalystDecision, GeneratedDebateTurn, GeneratedPortfolioDecision,
-    GeneratedResearchManager, GeneratedRoleReport, GeneratedSubscriptionQaAnswer,
+    GeneratedResearchManager, GeneratedRoleReport,
     GeneratedTraderDecision,
 };
 

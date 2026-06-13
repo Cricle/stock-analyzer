@@ -21,7 +21,7 @@ impl MarketDataClient {
             .a_share_quote(symbol)
             .await
             .context("akshare a_share_quote failed")?;
-        Ok(super::akshare_rust::quote_from_akshare(q))
+        Ok(super::quote_from_akshare(q))
     }
 
     pub(crate) async fn fetch_a_share_tencent_candles(
@@ -37,7 +37,7 @@ impl MarketDataClient {
             .context("akshare a_share_candles failed")?;
         Ok(items
             .into_iter()
-            .map(super::akshare_rust::candle_from_akshare)
+            .map(super::candle_from_akshare)
             .collect())
     }
 
@@ -52,7 +52,29 @@ impl MarketDataClient {
     }
 }
 impl MarketDataClient {
-
+    pub(crate) async fn fetch_a_share_insider_transactions(&self, symbol: &str) -> anyhow::Result<Vec<NewsItem>> {
+        let items = self.ak.stock_ggcg_em(symbol).await?;
+        Ok(items
+            .into_iter()
+            .map(|item| {
+                let direction = if item.direction.contains("增") || item.direction.to_uppercase() == "IN" {
+                    "增持"
+                } else {
+                    "减持"
+                };
+                NewsItem {
+                    published_at: item.notice_date,
+                    title: format!("{} {} {}", item.holder_name, direction, item.name),
+                    summary: format!(
+                        "变动{}股, 占总股本{:.4}%, 占流通股{:.4}%, 持股{}股",
+                        item.change_amount, item.change_total_ratio, item.change_circulating_ratio, item.holding_count
+                    ),
+                    source: "Eastmoney 高管持股".to_string(),
+                    url: None,
+                }
+            })
+            .collect())
+    }
 }
 impl MarketDataClient {
     pub(crate) fn a_share_fiscal_year_end_candidate(value: Option<String>) -> Option<String> {
@@ -122,7 +144,7 @@ impl MarketDataClient {
             .await
             .context("akshare balance sheet failed")?;
         let first = sheets.first().context("akshare balance sheet returned no rows")?;
-        Ok(super::akshare_rust::balance_sheet_to_wire(first))
+        Ok(super::balance_sheet_to_wire(first))
     }
 
     async fn fetch_eastmoney_cashflow(
@@ -136,7 +158,7 @@ impl MarketDataClient {
             .await
             .context("akshare cashflow failed")?;
         let first = sheets.first().context("akshare cashflow returned no rows")?;
-        Ok(super::akshare_rust::cashflow_to_wire(first))
+        Ok(super::cashflow_to_wire(first))
     }
 
     async fn fetch_a_share_spot_quote(
@@ -172,7 +194,7 @@ impl MarketDataClient {
             .await
             .context("akshare profit sheet failed")?;
         let first = sheets.first().context("akshare profit sheet returned no rows")?;
-        Ok(super::akshare_rust::profit_sheet_to_wire(first))
+        Ok(super::profit_sheet_to_wire(first))
     }
 
     pub(super) async fn fetch_a_share_fundamentals(
@@ -420,10 +442,10 @@ impl MarketDataClient {
     ) -> anyhow::Result<NewsFetchResult> {
         // Fetch from akshare Chinese financial news sources in parallel.
         let (cls_res, ths_res, sina_res, futu_res) = tokio::join!(
-            super::akshare_rust::a_share::fetch_global_news_cls(self),
-            super::akshare_rust::a_share::fetch_global_news_ths(self),
-            super::akshare_rust::a_share::fetch_global_news_sina(self),
-            super::akshare_rust::a_share::fetch_global_news_futu(self),
+            self.ak.stock_info_global_cls(),
+            self.ak.stock_info_global_ths(),
+            self.ak.stock_info_global_sina(),
+            self.ak.stock_info_global_futu(),
         );
         let mut akshare_items = Vec::new();
         let mut attempts = Vec::new();
@@ -436,7 +458,7 @@ impl MarketDataClient {
             match result {
                 Ok(items) => {
                     let count = items.len();
-                    akshare_items.extend(items);
+                    akshare_items.extend(items.into_iter().map(super::news_item_from_news_entry));
                     attempts.push(NewsFetchAttempt {
                         source: name.to_string(),
                         query: None,
@@ -654,7 +676,7 @@ impl MarketDataClient {
         holding_days: usize,
     ) -> anyhow::Result<Option<f64>> {
         let ak_candles = self.ak.a_share_candles(symbol, "qfq", 120).await?;
-        let candles: Vec<CandlePoint> = ak_candles.into_iter().map(super::akshare_rust::candle_from_akshare).collect();
+        let candles: Vec<CandlePoint> = ak_candles.into_iter().map(super::candle_from_akshare).collect();
         let mut items = candles
             .into_iter()
             .map(|item| (item.trade_date, item.close))
@@ -691,7 +713,7 @@ impl MarketDataClient {
             .context("akshare a_share_announcements failed")?;
         let items: Vec<NewsItem> = announcements
             .into_iter()
-            .map(super::akshare_rust::news_item_from_announcement)
+            .map(super::news_item_from_announcement)
             .collect();
         if items.is_empty() {
             bail!("eastmoney returned no announcement items");

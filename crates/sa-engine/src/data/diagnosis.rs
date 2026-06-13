@@ -225,7 +225,7 @@ impl MarketDataClient {
                             let client = client.clone();
                             let sym = sym.clone();
                             async move {
-                                let (quote, _source) = super::akshare_rust::hk::fetch_quote(&client, &sym).await?;
+                                let (quote, _source) = client.fetch_hk_quote(&sym).await?;
                                 Ok(quote)
                             }
                         }
@@ -250,7 +250,7 @@ impl MarketDataClient {
                             let client = client.clone();
                             let sym = sym.clone();
                             async move {
-                                let (quote, _source) = super::akshare_rust::us::fetch_quote(&client, &sym).await?;
+                                let (quote, _source) = client.fetch_us_quote(&sym).await?;
                                 Ok(quote)
                             }
                         }
@@ -341,7 +341,7 @@ impl MarketDataClient {
                             let client = client.clone();
                             let sym = sym.clone();
                             async move {
-                                let (candles, _source) = super::akshare_rust::hk::fetch_candles(&client, &sym, limit).await?;
+                                let candles = client.fetch_hk_candles(&sym, limit).await?;
                                 Ok(candles)
                             }
                         }
@@ -366,7 +366,7 @@ impl MarketDataClient {
                             let client = client.clone();
                             let sym = sym.clone();
                             async move {
-                                let (candles, _source) = super::akshare_rust::us::fetch_candles(&client, &sym, limit).await?;
+                                let (candles, _source) = client.fetch_us_candles(&sym, limit).await?;
                                 Ok(candles)
                             }
                         }

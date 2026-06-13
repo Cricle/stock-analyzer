@@ -1,5 +1,5 @@
 use super::{FundamentalsSnapshot, MarketDataClient, NewsItem, opt_f64_to_dec};
-use super::akshare_rust::{self, news_item_from_stock_news};
+use super::news_item_from_stock_news;
 use anyhow::Context;
 
 impl MarketDataClient {
@@ -292,6 +292,14 @@ impl MarketDataClient {
         Ok(items)
     }
 
+    pub(super) async fn fetch_hk_quote(
+        &self,
+        symbol: &str,
+    ) -> anyhow::Result<(super::QuoteSnapshot, String)> {
+        let ak_quote = self.ak.hk_quote(symbol).await?;
+        Ok((super::quote_from_akshare(ak_quote), "akshare".to_string()))
+    }
+
     pub(super) async fn fetch_hk_candles(
         &self,
         symbol: &str,
@@ -304,7 +312,7 @@ impl MarketDataClient {
             .context("failed to fetch HK candles from akshare")?;
         Ok(ak_candles
             .into_iter()
-            .map(akshare_rust::candle_from_akshare)
+            .map(super::candle_from_akshare)
             .collect())
     }
 

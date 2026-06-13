@@ -9,7 +9,7 @@ use super::{
     f64_to_dec, opt_f64_to_dec,
 };
 use crate::types::{NewsFetchAttempt, NewsFetchResult};
-use super::akshare_rust::news_item_from_akshare;
+use super::news_item_from_akshare;
 use super::news_filter::within_date_window;
 
 impl MarketDataClient {
@@ -306,6 +306,23 @@ impl MarketDataClient {
             attempts,
             cacheable,
         })
+    }
+
+    pub(super) async fn fetch_us_quote(
+        &self,
+        symbol: &str,
+    ) -> anyhow::Result<(super::QuoteSnapshot, String)> {
+        let ak_quote = self.ak.us_quote(symbol).await?;
+        Ok((super::quote_from_akshare(ak_quote), "akshare".to_string()))
+    }
+
+    pub(super) async fn fetch_us_candles(
+        &self,
+        symbol: &str,
+        limit: usize,
+    ) -> anyhow::Result<(Vec<super::CandlePoint>, String)> {
+        let ak_candles = self.ak.us_candles(symbol, limit).await?;
+        Ok((ak_candles.into_iter().map(super::candle_from_akshare).collect(), "akshare".to_string()))
     }
 
     pub(super) async fn fetch_us_insider_transactions(

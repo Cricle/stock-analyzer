@@ -32,6 +32,14 @@ impl MarketDataClient {
         akshare::detect_market(symbol).into()
     }
 
+    pub(super) fn normalize_a_share_symbol(&self, symbol: &str) -> Option<String> {
+        akshare::normalize_a_share_symbol(symbol)
+    }
+
+    pub(super) fn normalize_hk_symbol(&self, symbol: &str) -> Option<String> {
+        akshare::normalize_hk_symbol(symbol).map(|code| format!("{code}.HK"))
+    }
+
     pub fn candles_source(&self, symbol: &str) -> &'static str {
         match self.detect_market(symbol) {
             MarketKind::AShare => "akshare:tencent_kline+eastmoney_kline",

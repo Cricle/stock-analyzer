@@ -870,7 +870,7 @@ mod snapshots {
         let most_recent = news
             .iter()
             .filter_map(|n| {
-                crate::data::news_filter::normalized_news_date(&n.published_at)
+                crate::data::news::normalized_news_date(&n.published_at)
                     .and_then(|s| NaiveDate::parse_from_str(&s, "%Y-%m-%d").ok())
             })
             .filter(|date| *date >= cutoff)

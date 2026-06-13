@@ -153,7 +153,7 @@ impl TradingToolbox {
     ) -> Vec<NewsItem> {
         let mut filtered: Vec<_> = items
             .into_iter()
-            .filter(|item| crate::data::news_filter::within_date_window(&item.published_at, start_date, end_date))
+            .filter(|item| crate::data::news::within_date_window(&item.published_at, start_date, end_date))
             .collect();
         filtered.sort_by(|left, right| right.published_at.cmp(&left.published_at));
         filtered.dedup_by(|left, right| {

@@ -515,7 +515,7 @@ impl MarketDataClient {
         let filtered_by_year: Vec<_> = merged
             .iter()
             .filter(|item| {
-                super::news_filter::normalized_news_date(&item.published_at)
+                super::news::normalized_news_date(&item.published_at)
                     .is_some_and(|date| date.starts_with(year))
             })
             .cloned()
@@ -525,7 +525,7 @@ impl MarketDataClient {
         } else {
             filtered_by_year
         };
-        let merged = super::news_filter::merge_ranked_news(
+        let merged = super::news::merge_ranked_news(
             selected_items,
             limit.max(8),
             None,
@@ -606,7 +606,7 @@ impl MarketDataClient {
         }
 
         let target_limit = limit.max(8);
-        let ranked = super::news_filter::merge_ranked_news(merged, target_limit, None, None, &keywords);
+        let ranked = super::news::merge_ranked_news(merged, target_limit, None, None, &keywords);
         let has_official = ranked.iter().any(|item| item.source.contains("Eastmoney"));
         let web_quota = if has_official {
             ranked

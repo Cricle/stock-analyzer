@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use super::{FundamentalsSnapshot, MarketDataClient, NewsItem};
 use crate::types::{NewsFetchAttempt, NewsFetchResult};
-use super::news_filter::within_date_window;
+use super::news::within_date_window;
 
 impl MarketDataClient {
     pub(super) async fn fetch_us_fundamentals(

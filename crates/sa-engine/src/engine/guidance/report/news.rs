@@ -169,7 +169,7 @@ News items:
     }
 
     fn classify_news_impact(&self, title: &str, summary: &str) -> String {
-        crate::data::news_utils::classify_news_sentiment(title, summary).as_str().to_string()
+        crate::data::news::classify_news_sentiment(title, summary).as_str().to_string()
     }
 }
 

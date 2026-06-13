@@ -140,7 +140,7 @@ pub async fn run(
             anyhow::bail!("missing structured deep evidence for {}", candidate.symbol);
         }
         indexed_evidence_records += deduped_records.len();
-        candidate.news = crate::data::news_utils::dedupe_news_items(
+        candidate.news = crate::data::news::dedupe_news_items(
             candidate
                 .news
                 .iter()
@@ -1001,7 +1001,7 @@ fn news_items_to_evidence_records(
     let mut dedup = HashSet::new();
     let mut records = Vec::new();
     for item in items {
-        let dedupe_key = crate::data::news_utils::news_dedupe_key(
+        let dedupe_key = crate::data::news::news_dedupe_key(
             &item.title,
             &item.source,
             &item.published_at,
@@ -1010,8 +1010,8 @@ fn news_items_to_evidence_records(
         if !dedup.insert(dedupe_key.clone()) {
             continue;
         }
-        let sentiment = crate::data::news_utils::classify_news_sentiment(&item.title, &item.summary);
-        let hard_negative_flag = crate::data::news_utils::is_hard_negative(item);
+        let sentiment = crate::data::news::classify_news_sentiment(&item.title, &item.summary);
+        let hard_negative_flag = crate::data::news::is_hard_negative(item);
         let sentiment_hint = sentiment.as_str();
         records.push(CandidateEvidenceRecord {
             query: query.clone(),

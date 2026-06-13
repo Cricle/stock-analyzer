@@ -44,12 +44,10 @@ pub use akshare::stock::feature::{
 };
 
 mod a_share;
-mod cache;
 mod client;
 pub mod diagnosis;
 mod hk;
-pub(crate) mod news_filter;
-pub(crate) mod news_utils;
+pub(crate) mod news;
 mod us;
 
 #[derive(Clone)]

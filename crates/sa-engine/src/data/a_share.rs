@@ -141,6 +141,8 @@ pub(crate) struct AShareEnrichmentData {
     // Analyst coverage
     pub analyst_report_count: Option<i64>,
     pub analyst_buy_ratio: Option<f64>,
+    // Industry from earnings report (fallback)
+    pub industry: Option<String>,
 }
 
 impl MarketDataClient {
@@ -180,6 +182,7 @@ impl MarketDataClient {
             dividend_yield: div_data.dividend_yield,
             analyst_report_count: analyst_data.analyst_report_count,
             analyst_buy_ratio: analyst_data.analyst_buy_ratio,
+            industry: earn.industry,
         })
     }
 
@@ -202,21 +205,38 @@ impl MarketDataClient {
         &self,
         code: &str,
     ) -> anyhow::Result<AShareEnrichmentData> {
-        // Try current year, fallback to last year
-        let current_year = chrono::Utc::now().format("%Y").to_string();
-        let dates = [format!("{current_year}-12-31"), format!("{}-12-31", current_year.parse::<i32>().unwrap_or(2025) - 1)];
+        // Try multiple report dates: recent quarters + annual reports
+        // Dates must be in YYYYMMDD format for akshare-rs fmt_date
+        let now = chrono::Utc::now();
+        let year: i32 = now.format("%Y").to_string().parse().unwrap_or(2026);
+        let dates = [
+            format!("{year}0331"),
+            format!("{year}0630"),
+            format!("{year}0930"),
+            format!("{year}1231"),
+            format!("{}1231", year - 1),
+            format!("{}0930", year - 1),
+        ];
         for date in &dates {
-            if let Ok(items) = self.ak.stock_yjbb_em(date).await
-                && let Some(item) = items.iter().find(|i| i.code == code)
-            {
-                return Ok(AShareEnrichmentData {
-                    revenue_yoy: if item.total_revenue_yoy != 0.0 { Some(item.total_revenue_yoy) } else { None },
-                    net_profit_yoy: if item.net_profit_yoy != 0.0 { Some(item.net_profit_yoy) } else { None },
-                    gross_margin: if item.gross_margin != 0.0 { Some(item.gross_margin) } else { None },
-                    ..AShareEnrichmentData::default()
-                });
+            match self.ak.stock_yjbb_em(date).await {
+                Ok(items) => {
+                    if let Some(item) = items.iter().find(|i| i.code == code) {
+                        tracing::info!(code, date, "found earnings data");
+                        return Ok(AShareEnrichmentData {
+                            revenue_yoy: if item.total_revenue_yoy != 0.0 { Some(item.total_revenue_yoy) } else { None },
+                            net_profit_yoy: if item.net_profit_yoy != 0.0 { Some(item.net_profit_yoy) } else { None },
+                            gross_margin: if item.gross_margin != 0.0 { Some(item.gross_margin) } else { None },
+                            industry: item.industry.clone().filter(|s| !s.is_empty()),
+                            ..AShareEnrichmentData::default()
+                        });
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(code, date, error = %e, "stock_yjbb_em failed");
+                }
             }
         }
+        tracing::warn!(code, "no earnings data found for any date");
         Ok(AShareEnrichmentData::default())
     }
 

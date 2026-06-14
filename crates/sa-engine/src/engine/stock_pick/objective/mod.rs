@@ -772,7 +772,7 @@ pub(crate) fn evaluate_stock_pick_objective_assessment(
     let applied_cap = stock_pick_objective_cap(pick, item, metrics, industry_avg);
     let final_score = (weighted as i32).clamp(0, applied_cap);
     let grade = stock_pick_objective_grade(final_score);
-    let gaps = stock_pick_objective_gaps(pick, item);
+    let gaps = stock_pick_objective_gaps(pick, item, industry_avg);
     let ready = final_score >= 75 && gaps.len() <= 2;
     let headline = stock_pick_objective_headline(final_score, ready, &gaps);
 
@@ -1395,17 +1395,20 @@ fn stock_pick_objective_grade(score: i32) -> &'static str {
     }
 }
 
-fn stock_pick_objective_gaps(pick: &StockPickItem, item: &EnrichedCandidate) -> Vec<String> {
+fn stock_pick_objective_gaps(pick: &StockPickItem, item: &EnrichedCandidate, industry_avg: &IndustryAverages) -> Vec<String> {
     let mut gaps = Vec::new();
     let fundamentals = item.fundamentals.as_ref();
     if fundamentals.is_none() {
         gaps.push("missing_fundamentals".to_string());
         return gaps;
     }
-    if fundamentals
+    // Only flag missing_industry when no industry averages are available
+    // (i.e., not even via the "default" fallback for Unknown industries)
+    let has_industry = fundamentals
         .and_then(|value| value.industry.as_ref())
-        .is_none_or(|value| value.trim().is_empty() || value == "Unknown")
-    {
+        .is_some_and(|value| !value.trim().is_empty() && value != "Unknown");
+    let has_default_avg = industry_avg.pe_avg != 25.0 || industry_avg.ps_avg != 5.0; // non-default means averages were computed
+    if !has_industry && !has_default_avg {
         gaps.push("missing_industry".to_string());
     }
     if fundamentals

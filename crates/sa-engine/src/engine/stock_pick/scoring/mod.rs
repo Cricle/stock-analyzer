@@ -109,6 +109,7 @@ async fn light_enrich_candidate(
         .as_ref()
         .and_then(|item| item.industry.clone())
         .filter(|value| !value.trim().is_empty())
+        .or(enrichment.industry.clone())
         .unwrap_or_else(|| "Unknown".to_string());
 
     let mut item = EnrichedCandidate {
@@ -1266,8 +1267,6 @@ mod snapshots {
             !item.history_match_snapshot.enabled || item.history_match_snapshot.sample_count > 0;
         let vector_store_ready =
             !item.history_match_snapshot.enabled || item.history_match_snapshot.vector_hit_count > 0;
-        let redis_ready =
-            !item.history_match_snapshot.enabled || item.history_match_snapshot.sample_count > 0;
         let enrichment_ready = item.enrichment.pe_ttm.is_some()
             || item.enrichment.pb.is_some()
             || item.enrichment.revenue_yoy.is_some()
@@ -1298,13 +1297,12 @@ mod snapshots {
             news_ready,
             history_ready,
             vector_store_ready,
-            redis_ready,
             enrichment_ready,
         ]
         .into_iter()
         .filter(|value| *value)
         .count() as i32
-            * 12;
+            * 14;
         StockPickDataQualitySnapshot {
             quote_ready,
             fundamentals_ready,
@@ -1312,7 +1310,7 @@ mod snapshots {
             news_ready,
             history_ready,
             vector_store_ready,
-            redis_ready,
+            redis_ready: false,
             enrichment_ready,
             completeness_score,
             gaps,

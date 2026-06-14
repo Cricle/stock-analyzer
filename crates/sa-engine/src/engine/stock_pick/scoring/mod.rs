@@ -378,6 +378,22 @@ mod factors {
                 score += 4.0;
             }
         }
+        // Dividend yield: consistent dividends signal financial stability
+        if let Some(dy) = item.fundamental_snapshot.dividend_yield {
+            if dy > 0.03 {
+                score += 5.0;
+            } else if dy > 0.01 {
+                score += 2.0;
+            }
+        }
+        // Analyst consensus: high buy ratio = quality validation
+        if let Some(br) = item.fundamental_snapshot.analyst_buy_ratio {
+            if br > 0.7 {
+                score += 4.0;
+            } else if br > 0.5 {
+                score += 2.0;
+            }
+        }
         score.clamp(0.0, 100.0)
     }
 
@@ -564,8 +580,24 @@ mod factors {
             .max(item.news_snapshot.light_item_count) as f64;
         let recency_support = (!item.news_snapshot.latest_published_at.trim().is_empty()) as i32 as f64;
         let catalyst_support = item.news_snapshot.catalyst_count.min(4) as f64;
-        (35.0 + disclosure_count.min(8.0) * 4.0 + recency_support * 8.0 + catalyst_support * 6.0)
-            .clamp(0.0, 100.0)
+        let mut score = 35.0 + disclosure_count.min(8.0) * 4.0 + recency_support * 8.0 + catalyst_support * 6.0;
+        // Fund flow as institutional event signal
+        if let Some(flow) = item.fundamental_snapshot.fund_flow_net_ratio {
+            if flow > 0.05 {
+                score += 6.0; // Strong institutional buying
+            } else if flow > 0.0 {
+                score += 3.0;
+            }
+        }
+        // Analyst coverage as event catalyst
+        if let Some(count) = item.fundamental_snapshot.analyst_report_count {
+            if count >= 5 {
+                score += 4.0;
+            } else if count >= 2 {
+                score += 2.0;
+            }
+        }
+        score.clamp(0.0, 100.0)
     }
 
     fn evidence_score(item: &EnrichedCandidate) -> f64 {

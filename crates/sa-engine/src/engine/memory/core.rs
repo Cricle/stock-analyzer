@@ -1,6 +1,6 @@
-use std::{collections::HashSet, fs, path::PathBuf};
+use std::collections::HashSet;
+use std::sync::Arc;
 
-use anyhow::Context;
 use serde_json::json;
 
 use super::stats::{
@@ -8,8 +8,8 @@ use super::stats::{
     suggested_calibration_profile, summarize_entries,
 };
 use super::{
-    DecisionRecord, ENTRY_SEPARATOR, MemoryContextBundle, MemoryEntry, MemoryQuery,
-    TradingMemoryLog, WEAK_SETUP_TAGS,
+    DecisionRecord, ENTRY_SEPARATOR, FilesystemMemoryStore, MemoryContextBundle, MemoryEntry,
+    MemoryQuery, TradingMemoryLog, WEAK_SETUP_TAGS,
 };
 
 impl TradingMemoryLog {
@@ -84,31 +84,26 @@ impl TradingMemoryLog {
             .count()
     }
 
-    pub fn new(data_dir: &str, max_entries: usize) -> anyhow::Result<Self> {
-        let base = PathBuf::from(data_dir).join("memory");
-        fs::create_dir_all(&base)
-            .with_context(|| format!("failed to create {}", base.display()))?;
-        Ok(Self {
-            log_path: base.join("decisions.md"),
-            max_entries,
-        })
+    pub fn new(store: Arc<dyn super::MemoryStore>, max_entries: usize) -> Self {
+        Self { store, max_entries }
+    }
+
+    /// Convenience constructor using filesystem storage.
+    pub fn with_filesystem(data_dir: &str, max_entries: usize) -> anyhow::Result<Self> {
+        let store = Arc::new(FilesystemMemoryStore::new(data_dir)?);
+        Ok(Self { store, max_entries })
     }
 
     pub async fn store_decision(
         &self,
         record: &DecisionRecord<'_>,
     ) -> anyhow::Result<()> {
-        if self.log_path.exists() {
-            let raw = tokio::fs::read_to_string(&self.log_path)
-                .await
-                .with_context(|| format!("failed to read {}", self.log_path.display()))?;
-            let pending_tag_prefix = format!("[{} | {} |", record.trade_date, record.ticker);
-            if raw
-                .lines()
-                .any(|line| line.starts_with(&pending_tag_prefix) && line.ends_with("| pending]"))
-            {
-                return Ok(());
-            }
+        // Check for duplicate pending entry
+        let entries = self.store.load_entries().await?;
+        if entries.iter().any(|e| {
+            e.pending && e.trade_date == record.trade_date && e.ticker == record.ticker
+        }) {
+            return Ok(());
         }
 
         let tag = format!("[{} | {} | {} | pending]", record.trade_date, record.ticker, record.rating);
@@ -138,31 +133,12 @@ impl TradingMemoryLog {
             serde_json::to_string_pretty(&meta)?,
             record.final_trade_decision,
         );
-        let mut current = if self.log_path.exists() {
-            tokio::fs::read_to_string(&self.log_path)
-                .await
-                .with_context(|| format!("failed to read {}", self.log_path.display()))?
-        } else {
-            String::new()
-        };
-        current.push_str(&entry);
-        tokio::fs::write(&self.log_path, current)
-            .await
-            .with_context(|| format!("failed to write {}", self.log_path.display()))?;
+        self.store.append_entry(&entry).await?;
         Ok(())
     }
 
     pub async fn load_entries(&self) -> anyhow::Result<Vec<MemoryEntry>> {
-        if !self.log_path.exists() {
-            return Ok(Vec::new());
-        }
-        let text = tokio::fs::read_to_string(&self.log_path)
-            .await
-            .with_context(|| format!("failed to read {}", self.log_path.display()))?;
-        Ok(text
-            .split(ENTRY_SEPARATOR)
-            .filter_map(Self::parse_entry)
-            .collect())
+        self.store.load_entries().await
     }
 
     pub async fn past_context_async(
@@ -383,49 +359,96 @@ impl TradingMemoryLog {
         benchmark_return: f64,
         reflection: String,
     ) -> anyhow::Result<()> {
-        if !self.log_path.exists() {
+        let entries = self.store.load_entries().await?;
+        if entries.is_empty() {
             return Ok(());
         }
 
-        let text = tokio::fs::read_to_string(&self.log_path)
-            .await
-            .with_context(|| format!("failed to read {}", self.log_path.display()))?;
-        let blocks = text.split(ENTRY_SEPARATOR).collect::<Vec<_>>();
-        let pending_prefix = format!("[{trade_date} | {ticker} |");
         let raw_pct = format!("{:+.1}%", outcome_return * 100.0);
         let alpha_pct = format!("{:+.1}%", (outcome_return - benchmark_return) * 100.0);
         let holding_days = 5usize;
 
+        // Rebuild the full text from entries, updating the matching pending entry
         let mut updated = false;
         let mut new_blocks = Vec::new();
-        for block in blocks {
-            let stripped = block.trim();
-            if stripped.is_empty() {
-                continue;
-            }
-            let lines = stripped.lines().collect::<Vec<_>>();
-            let tag_line = lines.first().copied().unwrap_or_default().trim();
-            if !updated && tag_line.starts_with(&pending_prefix) && tag_line.ends_with("| pending]")
+        for entry in &entries {
+            if !updated
+                && entry.pending
+                && entry.ticker.eq_ignore_ascii_case(ticker)
+                && entry.trade_date == trade_date
             {
-                let fields = tag_line
-                    .trim_start_matches('[')
-                    .trim_end_matches(']')
-                    .split('|')
-                    .map(|item| item.trim())
-                    .collect::<Vec<_>>();
-                let rating = fields.get(2).copied().unwrap_or("Hold");
                 let new_tag = format!(
-                    "[{trade_date} | {ticker} | {rating} | {raw_pct} | {alpha_pct} | {holding_days}d]"
+                    "[{trade_date} | {ticker} | {} | {raw_pct} | {alpha_pct} | {holding_days}d]",
+                    entry.rating
                 );
-                let rest = lines.into_iter().skip(1).collect::<Vec<_>>().join("\n");
+                let meta = json!({
+                    "ticker": entry.ticker,
+                    "trade_date": entry.trade_date,
+                    "rating": entry.rating,
+                    "action": entry.action,
+                    "market": entry.market,
+                    "direction_score": entry.direction_score,
+                    "confidence_score": entry.confidence_score,
+                    "action_score": entry.action_score,
+                    "stock_name": entry.stock_name,
+                    "summary": entry.summary,
+                    "risk_assessment": entry.risk_assessment,
+                    "rationale": entry.rationale,
+                    "structured_risk": entry.structured_risk,
+                    "structured_reflection": entry.structured_reflection,
+                    "trigger_checklist": entry.trigger_checklist,
+                    "blocking_gaps": entry.blocking_gaps,
+                    "setup_tags": entry.setup_tags,
+                    "execution_boundary_complete": entry.execution_boundary_complete,
+                    "pending": false,
+                });
+                let meta_str = serde_json::to_string_pretty(&meta).unwrap_or_default();
                 new_blocks.push(format!(
-                    "{new_tag}\n\n{}\n\nREFLECTION:\n{}",
-                    rest.trim_start(),
-                    reflection
+                    "{new_tag}\n\nMETA:\n{meta_str}\n\nDECISION:\n{}\n\nREFLECTION:\n{}",
+                    entry.final_trade_decision, reflection
                 ));
                 updated = true;
             } else {
-                new_blocks.push(stripped.to_string());
+                // Reconstruct the block from the entry
+                let pending = entry.pending;
+                let tag = if pending {
+                    format!("[{} | {} | {} | pending]", entry.trade_date, entry.ticker, entry.rating)
+                } else {
+                    let raw = entry.raw_return.map(|r| format!("{:+.1}%", r * 100.0)).unwrap_or_default();
+                    let alpha = entry.alpha_return.map(|r| format!("{:+.1}%", r * 100.0)).unwrap_or_default();
+                    let days = entry.holding_days.unwrap_or(0);
+                    format!("[{} | {} | {} | {raw} | {alpha} | {days}d]", entry.trade_date, entry.ticker, entry.rating)
+                };
+                let meta = json!({
+                    "ticker": entry.ticker,
+                    "trade_date": entry.trade_date,
+                    "rating": entry.rating,
+                    "action": entry.action,
+                    "market": entry.market,
+                    "direction_score": entry.direction_score,
+                    "confidence_score": entry.confidence_score,
+                    "action_score": entry.action_score,
+                    "stock_name": entry.stock_name,
+                    "summary": entry.summary,
+                    "risk_assessment": entry.risk_assessment,
+                    "rationale": entry.rationale,
+                    "structured_risk": entry.structured_risk,
+                    "structured_reflection": entry.structured_reflection,
+                    "trigger_checklist": entry.trigger_checklist,
+                    "blocking_gaps": entry.blocking_gaps,
+                    "setup_tags": entry.setup_tags,
+                    "execution_boundary_complete": entry.execution_boundary_complete,
+                    "pending": entry.pending,
+                });
+                let meta_str = serde_json::to_string_pretty(&meta).unwrap_or_default();
+                let mut block = format!(
+                    "{tag}\n\nMETA:\n{meta_str}\n\nDECISION:\n{}",
+                    entry.final_trade_decision
+                );
+                if let Some(ref refl) = entry.reflection {
+                    block.push_str(&format!("\n\nREFLECTION:\n{refl}"));
+                }
+                new_blocks.push(block);
             }
         }
 
@@ -434,12 +457,13 @@ impl TradingMemoryLog {
         }
 
         let rotated = self.apply_rotation(new_blocks);
-        tokio::fs::write(
-            &self.log_path,
-            format!("{}{}", rotated.join(ENTRY_SEPARATOR), ENTRY_SEPARATOR),
-        )
-        .await
-        .with_context(|| format!("failed to write {}", self.log_path.display()))?;
+        self.store
+            .write_all(&format!(
+                "{}{}",
+                rotated.join(ENTRY_SEPARATOR),
+                ENTRY_SEPARATOR
+            ))
+            .await?;
         Ok(())
     }
 
@@ -447,39 +471,27 @@ impl TradingMemoryLog {
         &self,
         updates: &[MemoryOutcomeUpdate],
     ) -> anyhow::Result<()> {
-        if !self.log_path.exists() || updates.is_empty() {
+        if updates.is_empty() {
             return Ok(());
         }
 
-        let text = tokio::fs::read_to_string(&self.log_path)
-            .await
-            .with_context(|| format!("failed to read {}", self.log_path.display()))?;
-        let blocks = text.split(ENTRY_SEPARATOR).collect::<Vec<_>>();
+        let entries = self.store.load_entries().await?;
+        if entries.is_empty() {
+            return Ok(());
+        }
+
         let mut remaining = updates.to_vec();
         let mut new_blocks = Vec::new();
 
-        for block in blocks {
-            let stripped = block.trim();
-            if stripped.is_empty() {
-                continue;
-            }
-            let lines = stripped.lines().collect::<Vec<_>>();
-            let tag_line = lines.first().copied().unwrap_or_default().trim();
-
+        for entry in &entries {
             let matched_index = remaining.iter().position(|update| {
-                let pending_prefix = format!("[{} | {} |", update.trade_date, update.ticker);
-                tag_line.starts_with(&pending_prefix) && tag_line.ends_with("| pending]")
+                entry.pending
+                    && entry.ticker.eq_ignore_ascii_case(&update.ticker)
+                    && entry.trade_date == update.trade_date
             });
 
             if let Some(index) = matched_index {
                 let update = remaining.remove(index);
-                let fields = tag_line
-                    .trim_start_matches('[')
-                    .trim_end_matches(']')
-                    .split('|')
-                    .map(|item| item.trim())
-                    .collect::<Vec<_>>();
-                let rating = fields.get(2).copied().unwrap_or("Hold");
                 let raw_pct = format!("{:+.1}%", update.outcome_return * 100.0);
                 let alpha_pct = format!(
                     "{:+.1}%",
@@ -489,29 +501,89 @@ impl TradingMemoryLog {
                     "[{} | {} | {} | {} | {} | {}d]",
                     update.trade_date,
                     update.ticker,
-                    rating,
+                    entry.rating,
                     raw_pct,
                     alpha_pct,
                     update.holding_days
                 );
-                let rest = lines.into_iter().skip(1).collect::<Vec<_>>().join("\n");
+                let meta = json!({
+                    "ticker": entry.ticker,
+                    "trade_date": entry.trade_date,
+                    "rating": entry.rating,
+                    "action": entry.action,
+                    "market": entry.market,
+                    "direction_score": entry.direction_score,
+                    "confidence_score": entry.confidence_score,
+                    "action_score": entry.action_score,
+                    "stock_name": entry.stock_name,
+                    "summary": entry.summary,
+                    "risk_assessment": entry.risk_assessment,
+                    "rationale": entry.rationale,
+                    "structured_risk": entry.structured_risk,
+                    "structured_reflection": entry.structured_reflection,
+                    "trigger_checklist": entry.trigger_checklist,
+                    "blocking_gaps": entry.blocking_gaps,
+                    "setup_tags": entry.setup_tags,
+                    "execution_boundary_complete": entry.execution_boundary_complete,
+                    "pending": false,
+                });
+                let meta_str = serde_json::to_string_pretty(&meta).unwrap_or_default();
                 new_blocks.push(format!(
-                    "{new_tag}\n\n{}\n\nREFLECTION:\n{}",
-                    rest.trim_start(),
-                    update.reflection
+                    "{new_tag}\n\nMETA:\n{meta_str}\n\nDECISION:\n{}",
+                    entry.final_trade_decision
                 ));
             } else {
-                new_blocks.push(stripped.to_string());
+                // Reconstruct block
+                let pending = entry.pending;
+                let tag = if pending {
+                    format!("[{} | {} | {} | pending]", entry.trade_date, entry.ticker, entry.rating)
+                } else {
+                    let raw = entry.raw_return.map(|r| format!("{:+.1}%", r * 100.0)).unwrap_or_default();
+                    let alpha = entry.alpha_return.map(|r| format!("{:+.1}%", r * 100.0)).unwrap_or_default();
+                    let days = entry.holding_days.unwrap_or(0);
+                    format!("[{} | {} | {} | {raw} | {alpha} | {days}d]", entry.trade_date, entry.ticker, entry.rating)
+                };
+                let meta = json!({
+                    "ticker": entry.ticker,
+                    "trade_date": entry.trade_date,
+                    "rating": entry.rating,
+                    "action": entry.action,
+                    "market": entry.market,
+                    "direction_score": entry.direction_score,
+                    "confidence_score": entry.confidence_score,
+                    "action_score": entry.action_score,
+                    "stock_name": entry.stock_name,
+                    "summary": entry.summary,
+                    "risk_assessment": entry.risk_assessment,
+                    "rationale": entry.rationale,
+                    "structured_risk": entry.structured_risk,
+                    "structured_reflection": entry.structured_reflection,
+                    "trigger_checklist": entry.trigger_checklist,
+                    "blocking_gaps": entry.blocking_gaps,
+                    "setup_tags": entry.setup_tags,
+                    "execution_boundary_complete": entry.execution_boundary_complete,
+                    "pending": entry.pending,
+                });
+                let meta_str = serde_json::to_string_pretty(&meta).unwrap_or_default();
+                let mut block = format!(
+                    "{tag}\n\nMETA:\n{meta_str}\n\nDECISION:\n{}",
+                    entry.final_trade_decision
+                );
+                if let Some(ref refl) = entry.reflection {
+                    block.push_str(&format!("\n\nREFLECTION:\n{refl}"));
+                }
+                new_blocks.push(block);
             }
         }
 
         let rotated = self.apply_rotation(new_blocks);
-        tokio::fs::write(
-            &self.log_path,
-            format!("{}{}", rotated.join(ENTRY_SEPARATOR), ENTRY_SEPARATOR),
-        )
-        .await
-        .with_context(|| format!("failed to write {}", self.log_path.display()))?;
+        self.store
+            .write_all(&format!(
+                "{}{}",
+                rotated.join(ENTRY_SEPARATOR),
+                ENTRY_SEPARATOR
+            ))
+            .await?;
         Ok(())
     }
 }

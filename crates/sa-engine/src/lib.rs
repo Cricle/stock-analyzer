@@ -16,3 +16,7 @@ pub use engine::{
     safe_ticker_component,
 };
 pub use engine::storage::{StorageBackend, FilesystemStorage};
+pub use engine::store::{
+    FilesystemAnalysisStore, FilesystemCacheStore, FilesystemCheckpointStore,
+};
+pub use engine::memory::{MemoryStore, FilesystemMemoryStore};

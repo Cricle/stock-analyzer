@@ -199,7 +199,7 @@ pub async fn run(
         &enriched,
     );
     // Query memory system for cross-ticker lessons
-    let memory_log = crate::engine::memory::TradingMemoryLog::new(
+    let memory_log = crate::engine::memory::TradingMemoryLog::with_filesystem(
         &std::env::var("DATA_DIR").unwrap_or_else(|_| "/data".to_string()),
         256,
     )

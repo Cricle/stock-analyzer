@@ -10,6 +10,7 @@ pub mod analysis;
 pub mod memory;
 pub mod checkpoint;
 pub mod stock_pick;
+pub mod store;
 pub mod tools;
 pub mod score;
 pub mod guidance;

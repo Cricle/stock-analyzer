@@ -8,7 +8,7 @@ pub(crate) const WEAK_SETUP_TAGS: &[&str] = &["watchlist_only"];
 
 #[derive(Clone)]
 pub struct TradingMemoryLog {
-    pub log_path: std::path::PathBuf,
+    pub store: std::sync::Arc<dyn MemoryStore>,
     pub max_entries: usize,
 }
 
@@ -178,6 +178,11 @@ pub struct QaMemoryEntry {
 
 mod core;
 mod format;
+pub mod fs_store;
 mod stats;
+pub mod store;
+
+pub use fs_store::FilesystemMemoryStore;
+pub use store::MemoryStore;
 
 pub(crate) use stats::*;

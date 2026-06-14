@@ -334,11 +334,14 @@ pub async fn run(
                 evidence_quality_score,
             };
             let metrics = item.fundamentals.as_ref().map(|f| {
-                AdvancedMetrics::compute(
+                AdvancedMetrics::compute_with_enrichment(
                     f,
                     item.fundamental_snapshot.pe_like,
                     item.fundamental_snapshot.ps_like,
                     item.fundamental_snapshot.roe,
+                    item.fundamental_snapshot.pe_ttm,
+                    item.fundamental_snapshot.pb,
+                    item.fundamental_snapshot.gross_margin,
                     industry_averages.get(&item.industry),
                 )
             });

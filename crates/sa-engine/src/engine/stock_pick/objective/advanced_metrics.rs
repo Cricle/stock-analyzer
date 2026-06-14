@@ -42,6 +42,12 @@ pub(crate) struct AdvancedMetrics {
     pub ps_deviation_z: Option<f64>,
     /// ROE z-score relative to industry mean (positive = better).
     pub roe_deviation_z: Option<f64>,
+    /// PE TTM z-score relative to industry mean (negative = cheaper).
+    pub pe_ttm_deviation_z: Option<f64>,
+    /// PB z-score relative to industry mean (negative = cheaper).
+    pub pb_deviation_z: Option<f64>,
+    /// Gross margin z-score relative to industry mean (positive = better).
+    pub gross_margin_deviation_z: Option<f64>,
 }
 
 impl AdvancedMetrics {
@@ -51,6 +57,21 @@ impl AdvancedMetrics {
         pe_like: Option<f64>,
         ps_like: Option<f64>,
         roe: Option<f64>,
+        industry_avg: Option<&IndustryAverages>,
+    ) -> Self {
+        Self::compute_with_enrichment(f, pe_like, ps_like, roe, None, None, None, industry_avg)
+    }
+
+    /// Compute advanced metrics including enrichment-based z-scores.
+    #[allow(clippy::too_many_arguments)]
+    pub fn compute_with_enrichment(
+        f: &FundamentalsSnapshot,
+        pe_like: Option<f64>,
+        ps_like: Option<f64>,
+        roe: Option<f64>,
+        pe_ttm: Option<f64>,
+        pb: Option<f64>,
+        gross_margin_enrichment: Option<f64>,
         industry_avg: Option<&IndustryAverages>,
     ) -> Self {
         let net_income = f.net_income_usd;
@@ -120,14 +141,17 @@ impl AdvancedMetrics {
         };
 
         // --- Industry z-scores ---
-        let (pe_z, ps_z, roe_z) = if let Some(avg) = industry_avg {
+        let (pe_z, ps_z, roe_z, pe_ttm_z, pb_z, gm_z) = if let Some(avg) = industry_avg {
             (
                 pe_like.map(|pe| z_score(pe, avg.pe_avg, avg.pe_std)),
                 ps_like.map(|ps| z_score(ps, avg.ps_avg, avg.ps_std)),
                 roe.map(|r| z_score(r, avg.roe_avg, avg.roe_std)),
+                pe_ttm.map(|v| z_score(v, avg.pe_ttm_avg, avg.pe_ttm_std)),
+                pb.map(|v| z_score(v, avg.pb_avg, avg.pb_std)),
+                gross_margin_enrichment.map(|v| z_score(v, avg.gross_margin_avg, avg.gross_margin_std)),
             )
         } else {
-            (None, None, None)
+            (None, None, None, None, None, None)
         };
 
         AdvancedMetrics {
@@ -146,6 +170,9 @@ impl AdvancedMetrics {
             pe_deviation_z: pe_z,
             ps_deviation_z: ps_z,
             roe_deviation_z: roe_z,
+            pe_ttm_deviation_z: pe_ttm_z,
+            pb_deviation_z: pb_z,
+            gross_margin_deviation_z: gm_z,
         }
     }
 }

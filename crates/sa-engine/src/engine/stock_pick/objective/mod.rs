@@ -24,6 +24,12 @@ pub(crate) struct IndustryAverages {
     pub(crate) ps_std: f64,
     pub(crate) roe_avg: f64,
     pub(crate) roe_std: f64,
+    pub(crate) pe_ttm_avg: f64,
+    pub(crate) pe_ttm_std: f64,
+    pub(crate) pb_avg: f64,
+    pub(crate) pb_std: f64,
+    pub(crate) gross_margin_avg: f64,
+    pub(crate) gross_margin_std: f64,
 }
 
 impl Default for IndustryAverages {
@@ -35,6 +41,12 @@ impl Default for IndustryAverages {
             ps_std: 3.0,
             roe_avg: 0.10,
             roe_std: 0.08,
+            pe_ttm_avg: 25.0,
+            pe_ttm_std: 10.0,
+            pb_avg: 3.0,
+            pb_std: 2.0,
+            gross_margin_avg: 0.30,
+            gross_margin_std: 0.15,
         }
     }
 }
@@ -45,6 +57,9 @@ pub(crate) fn compute_industry_averages(
     let mut pe_sums: HashMap<String, Vec<f64>> = HashMap::new();
     let mut ps_sums: HashMap<String, Vec<f64>> = HashMap::new();
     let mut roe_sums: HashMap<String, Vec<f64>> = HashMap::new();
+    let mut pe_ttm_sums: HashMap<String, Vec<f64>> = HashMap::new();
+    let mut pb_sums: HashMap<String, Vec<f64>> = HashMap::new();
+    let mut gm_sums: HashMap<String, Vec<f64>> = HashMap::new();
 
     for candidate in all_candidates {
         let industry = &candidate.industry;
@@ -69,6 +84,24 @@ pub(crate) fn compute_industry_averages(
                 .or_default()
                 .push(roe);
         }
+        if let Some(pe_ttm) = candidate.fundamental_snapshot.pe_ttm.filter(|v| *v > 0.0) {
+            pe_ttm_sums
+                .entry(industry.clone())
+                .or_default()
+                .push(pe_ttm);
+        }
+        if let Some(pb) = candidate.fundamental_snapshot.pb.filter(|v| *v > 0.0) {
+            pb_sums
+                .entry(industry.clone())
+                .or_default()
+                .push(pb);
+        }
+        if let Some(gm) = candidate.fundamental_snapshot.gross_margin.filter(|v| *v > 0.0) {
+            gm_sums
+                .entry(industry.clone())
+                .or_default()
+                .push(gm);
+        }
     }
 
     let mut averages = HashMap::new();
@@ -76,12 +109,18 @@ pub(crate) fn compute_industry_averages(
         .keys()
         .chain(ps_sums.keys())
         .chain(roe_sums.keys())
+        .chain(pe_ttm_sums.keys())
+        .chain(pb_sums.keys())
+        .chain(gm_sums.keys())
         .collect();
 
     for industry in all_industries {
         let pe_vals = pe_sums.get(industry);
         let ps_vals = ps_sums.get(industry);
         let roe_vals = roe_sums.get(industry);
+        let pe_ttm_vals = pe_ttm_sums.get(industry);
+        let pb_vals = pb_sums.get(industry);
+        let gm_vals = gm_sums.get(industry);
         let count = pe_vals.map(|v| v.len()).unwrap_or(0)
             .max(ps_vals.map(|v| v.len()).unwrap_or(0))
             .max(roe_vals.map(|v| v.len()).unwrap_or(0));
@@ -92,6 +131,9 @@ pub(crate) fn compute_industry_averages(
         let (pe_avg, pe_std) = mean_std(pe_vals);
         let (ps_avg, ps_std) = mean_std(ps_vals);
         let (roe_avg, roe_std) = mean_std(roe_vals);
+        let (pe_ttm_avg, pe_ttm_std) = mean_std(pe_ttm_vals);
+        let (pb_avg, pb_std) = mean_std(pb_vals);
+        let (gross_margin_avg, gross_margin_std) = mean_std(gm_vals);
 
         if pe_avg > 0.0 && ps_avg > 0.0 {
             averages.insert(
@@ -103,6 +145,12 @@ pub(crate) fn compute_industry_averages(
                     ps_std,
                     roe_avg,
                     roe_std,
+                    pe_ttm_avg,
+                    pe_ttm_std,
+                    pb_avg,
+                    pb_std,
+                    gross_margin_avg,
+                    gross_margin_std,
                 },
             );
         }
@@ -864,9 +912,39 @@ fn score_pick_market_validation(pick: &StockPickItem, item: &EnrichedCandidate) 
         reasons.push("acceptable composite factor");
     }
 
+    // 8. Enrichment data validation (0-4 points)
+    let mut enrichment_pts = 0.0_f64;
+    if item.fundamental_snapshot.pe_ttm.is_some_and(|v| v > 0.0) {
+        enrichment_pts += 1.0;
+        reasons.push("PE TTM available");
+    }
+    if item.fundamental_snapshot.revenue_yoy.is_some() {
+        enrichment_pts += 1.0;
+        reasons.push("earnings growth data");
+    }
+    if item.fundamental_snapshot.fund_flow_net_ratio.is_some() {
+        enrichment_pts += 0.5;
+        reasons.push("fund flow data");
+    }
+    if item.fundamental_snapshot.analyst_report_count.is_some_and(|v| v > 0) {
+        enrichment_pts += 0.5;
+        reasons.push("analyst coverage");
+    }
+    // Analyst consensus validation
+    if let Some(buy_ratio) = item.fundamental_snapshot.analyst_buy_ratio {
+        if buy_ratio >= 0.6 {
+            enrichment_pts += 1.0;
+            reasons.push("strong analyst consensus");
+        } else if buy_ratio >= 0.4 {
+            enrichment_pts += 0.5;
+            reasons.push("moderate analyst consensus");
+        }
+    }
+    score += enrichment_pts.min(4.0);
+
     ScoreDimension {
-        score: score.clamp(0.0, 25.0) as i32,
-        max_score: 25,
+        score: score.clamp(0.0, 29.0) as i32,
+        max_score: 29,
         rationale: LocalText::new("pick_market_validation_rationale")
             .with_str("validation_details", reasons.join(", ")),
     }
@@ -1085,6 +1163,20 @@ fn stock_pick_objective_cap(
     // ROIC bonus
     if let Some(roic) = metrics.roic {
         cap += sigmoid(roic, 0.10, 12.0) * 2.0;
+    }
+
+    // Enrichment z-score bonuses
+    // PE TTM cheaper than industry → bonus
+    if let Some(pe_ttm_z) = metrics.pe_ttm_deviation_z {
+        cap += sigmoid(-pe_ttm_z, 0.5, 2.0) * 2.0; // negative z = cheaper = good
+    }
+    // PB cheaper than industry → bonus
+    if let Some(pb_z) = metrics.pb_deviation_z {
+        cap += sigmoid(-pb_z, 0.5, 2.0) * 1.5;
+    }
+    // Gross margin above industry → bonus
+    if let Some(gm_z) = metrics.gross_margin_deviation_z {
+        cap += sigmoid(gm_z, 0.5, 2.0) * 1.5;
     }
 
     // Evidence & thesis quality — small bonus

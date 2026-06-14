@@ -617,6 +617,20 @@ pub(crate) fn default_risks(item: &EnrichedCandidate) -> Vec<String> {
         risks.push(format!("Net profit declined {:.1}% YoY, earnings deterioration risk", np_yoy * 100.0));
     }
 
+    // PB valuation risk
+    if let Some(pb) = item.fundamental_snapshot.pb
+        && pb > 8.0
+    {
+        risks.push(format!("PB ratio {:.1}x indicates premium asset valuation", pb));
+    }
+
+    // Chip concentration risk: high concentration = more volatile on large trades
+    if let Some(conc) = item.fundamental_snapshot.chip_concentration_90
+        && conc > 0.7
+    {
+        risks.push("High chip concentration increases volatility on large trades".to_string());
+    }
+
     // Fund flow risk: heavy outflows
     if let Some(flow) = item.fundamental_snapshot.fund_flow_net_ratio
         && flow < -0.1
@@ -1441,6 +1455,18 @@ pub(crate) fn default_evidence(item: &EnrichedCandidate) -> Vec<String> {
     }
     if let Some(count) = item.fundamental_snapshot.analyst_report_count {
         evidence.push(format!("Analyst reports: {}", count));
+    }
+    if let Some(gm) = item.fundamental_snapshot.gross_margin {
+        evidence.push(format!("Gross margin {:.1}%", gm * 100.0));
+    }
+    if let Some(peg) = item.fundamental_snapshot.peg {
+        evidence.push(format!("PEG {:.2}x", peg));
+    }
+    if let Some(dy) = item.fundamental_snapshot.dividend_yield {
+        evidence.push(format!("Dividend yield {:.2}%", dy * 100.0));
+    }
+    if let Some(chip) = item.fundamental_snapshot.chip_benefit_ratio {
+        evidence.push(format!("Chip benefit ratio {:.0}%", chip * 100.0));
     }
 
     // Technical

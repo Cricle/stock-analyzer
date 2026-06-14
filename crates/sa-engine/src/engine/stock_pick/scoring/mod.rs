@@ -1191,6 +1191,19 @@ mod snapshots {
         if hard_negative_news {
             signal_codes.push("hard_negative_news".to_string());
         }
+        // Enrichment risk signals
+        if fundamental.net_profit_yoy.is_some_and(|v| v < -0.2) {
+            signal_codes.push("earnings_decline".to_string());
+        }
+        if fundamental.fund_flow_net_ratio.is_some_and(|v| v < -0.05) {
+            signal_codes.push("fund_outflow".to_string());
+        }
+        if fundamental.chip_benefit_ratio.is_some_and(|v| v < 0.3) {
+            signal_codes.push("low_chip_benefit".to_string());
+        }
+        if fundamental.leverage.is_some_and(|v| v > 2.0) {
+            signal_codes.push("high_leverage".to_string());
+        }
         StockPickRiskSnapshot {
             hard_negative_news,
             volatility_elevated,

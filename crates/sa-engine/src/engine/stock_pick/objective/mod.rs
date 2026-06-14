@@ -773,9 +773,17 @@ fn score_pick_data_completeness(pick: &StockPickItem, item: &EnrichedCandidate) 
         score += 1;
         covered.push("analyst_coverage");
     }
+    if item.enrichment.chip_benefit_ratio.is_some() {
+        score += 1;
+        covered.push("chip_distribution");
+    }
+    if item.enrichment.dividend_yield.is_some() {
+        score += 1;
+        covered.push("dividend");
+    }
     ScoreDimension {
         score,
-        max_score: 31,
+        max_score: 33,
         rationale: LocalText::new("pick_data_completeness_rationale")
             .with_str("covered_fields", covered.join(", ")),
     }
@@ -1051,9 +1059,35 @@ fn score_pick_risk_balance(pick: &StockPickItem, item: &EnrichedCandidate) -> Sc
     // 6. Risk factor awareness — sigmoid (0-3 points)
     score += sigmoid(risk_factor, 50.0, 0.06) * 3.0;
 
+    // 7. Enrichment risk signals (±2 points)
+    let mut enrichment_risk_adj = 0.0_f64;
+    // Chip benefit: high ratio = less selloff pressure → bonus
+    if let Some(chip) = item.fundamental_snapshot.chip_benefit_ratio {
+        if chip >= 0.6 {
+            enrichment_risk_adj += 1.0;
+        } else if chip <= 0.3 {
+            enrichment_risk_adj -= 0.5;
+        }
+    }
+    // Fund flow: outflow = risk, inflow = support
+    if let Some(flow) = item.fundamental_snapshot.fund_flow_net_ratio {
+        if flow < -0.05 {
+            enrichment_risk_adj -= 1.0;
+        } else if flow > 0.03 {
+            enrichment_risk_adj += 0.5;
+        }
+    }
+    // Valuation stretched (PE TTM > 80 = elevated risk)
+    if let Some(pe_ttm) = item.fundamental_snapshot.pe_ttm
+        && pe_ttm > 80.0
+    {
+        enrichment_risk_adj -= 0.5;
+    }
+    score = (score + enrichment_risk_adj).max(0.0);
+
     ScoreDimension {
-        score: score.clamp(0.0, 25.0) as i32,
-        max_score: 25,
+        score: score.clamp(0.0, 27.0) as i32,
+        max_score: 27,
         rationale: LocalText::new("pick_risk_balance_rationale")
             .with_i32("catalysts", pick.catalysts.len() as i32)
             .with_i32("risks", pick.risks.len() as i32)

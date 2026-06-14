@@ -320,6 +320,36 @@ mod factors {
         {
             score += 3.0;
         }
+        // KDJ: J > K > D and J < 80 = bullish momentum without overbought
+        if let (Some(k), Some(d), Some(j)) = (
+            item.technical_snapshot.kdj_k,
+            item.technical_snapshot.kdj_d,
+            item.technical_snapshot.kdj_j,
+        ) {
+            if j > k && k > d && j < 80.0 {
+                score += 3.0; // Bullish KDJ crossover
+            } else if j > 90.0 {
+                score -= 2.0; // Overbought
+            }
+        }
+        // CCI: 0-100 = bullish momentum
+        if let Some(cci) = item.technical_snapshot.cci {
+            if (0.0..100.0).contains(&cci) {
+                score += 2.0;
+            } else if cci > 200.0 {
+                score -= 2.0; // Extremely overbought
+            }
+        }
+        // Williams %R: -20 to 0 = overbought, -80 to -100 = oversold
+        if let Some(wr) = item.technical_snapshot.wr {
+            if (-50.0..-20.0).contains(&wr) {
+                score += 2.0; // Bullish zone
+            } else if wr > -10.0 {
+                score -= 2.0; // Overbought
+            } else if wr < -90.0 {
+                score -= 2.0; // Oversold
+            }
+        }
 
         score.clamp(0.0, 100.0)
     }

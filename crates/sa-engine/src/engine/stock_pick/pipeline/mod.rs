@@ -1069,6 +1069,19 @@ fn default_selection_reason_codes(item: &EnrichedCandidate) -> Vec<String> {
     if !item.risk_snapshot.signal_codes.is_empty() {
         codes.push("risk_capped".to_string());
     }
+    // Enrichment-based reason codes
+    if item.fundamental_snapshot.pe_ttm.is_some_and(|v| v > 0.0 && v < 25.0) {
+        codes.push("valuation_support".to_string());
+    }
+    if item.fundamental_snapshot.analyst_buy_ratio.is_some_and(|v| v > 0.6) {
+        codes.push("analyst_consensus".to_string());
+    }
+    if item.fundamental_snapshot.fund_flow_net_ratio.is_some_and(|v| v > 0.03) {
+        codes.push("fund_flow_support".to_string());
+    }
+    if item.fundamental_snapshot.dividend_yield.is_some_and(|v| v > 0.02) {
+        codes.push("income_support".to_string());
+    }
     codes
 }
 

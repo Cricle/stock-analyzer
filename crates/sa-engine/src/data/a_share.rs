@@ -244,14 +244,26 @@ impl MarketDataClient {
         &self,
         code: &str,
     ) -> anyhow::Result<Option<f64>> {
-        let items = self.ak.stock_fund_flow_individual(code).await?;
-        let Some(first) = items.first() else {
-            return Ok(None);
-        };
-        // Net flow ratio = net_flow / amount (how much of total volume is net buying)
-        match (first.net_flow, first.amount) {
-            (Some(net), Some(amt)) if amt > 0.0 => Ok(Some(net / amt)),
-            _ => Ok(None),
+        match self.ak.stock_main_fund_flow(code).await {
+            Ok(items) => {
+                let Some(last) = items.last() else {
+                    return Ok(None);
+                };
+                // kline format: "date,main_in,main_out,main_net,super_large_net,large_net,ratio"
+                let kline_str = last.data.as_str().unwrap_or("");
+                let ratio = kline_str
+                    .split(',')
+                    .last()
+                    .and_then(|s| s.parse::<f64>().ok());
+                // API returns percentage (e.g. 1.07 = 1.07%), convert to ratio
+                let result = ratio.map(|v| v / 100.0);
+                tracing::debug!(code, ?result, "fund_flow from main_fund_flow");
+                Ok(result)
+            }
+            Err(e) => {
+                tracing::warn!(code, error = %e, "main_fund_flow failed");
+                Ok(None)
+            }
         }
     }
 

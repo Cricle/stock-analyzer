@@ -1018,6 +1018,17 @@ fn score_pick_evidence_density(pick: &StockPickItem, item: &EnrichedCandidate) -
         .unwrap_or(0);
     score += sigmoid(fin_fields as f64, 4.0, 0.8) * 3.0;
 
+    // 5. Enrichment data fields — sigmoid (0-4 points)
+    let enrichment_fields = usize::from(item.enrichment.pe_ttm.is_some())
+        + usize::from(item.enrichment.pb.is_some())
+        + usize::from(item.enrichment.revenue_yoy.is_some())
+        + usize::from(item.enrichment.net_profit_yoy.is_some())
+        + usize::from(item.enrichment.fund_flow_net_ratio.is_some())
+        + usize::from(item.enrichment.analyst_report_count.is_some())
+        + usize::from(item.enrichment.chip_benefit_ratio.is_some())
+        + usize::from(item.enrichment.dividend_yield.is_some());
+    score += sigmoid(enrichment_fields as f64, 3.0, 0.8) * 4.0;
+
     ScoreDimension {
         score: score.clamp(0.0, 25.0) as i32,
         max_score: 25,

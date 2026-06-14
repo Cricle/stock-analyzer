@@ -355,8 +355,26 @@ pub(crate) fn default_thesis(item: &EnrichedCandidate) -> String {
     if let Some(roe) = item.fundamental_snapshot.roe {
         val_parts.push(format!("ROE {:.1}%", roe * 100.0));
     }
+    if let Some(pb) = item.fundamental_snapshot.pb {
+        val_parts.push(format!("PB {:.1}x", pb));
+    }
     if !val_parts.is_empty() {
         parts.push(format!("Valuation metrics: {}.", val_parts.join(", ")));
+    }
+
+    // Growth context
+    let mut growth_parts = Vec::new();
+    if let Some(rev_yoy) = item.fundamental_snapshot.revenue_yoy {
+        growth_parts.push(format!("Revenue YoY {:.1}%", rev_yoy * 100.0));
+    }
+    if let Some(np_yoy) = item.fundamental_snapshot.net_profit_yoy {
+        growth_parts.push(format!("Net Profit YoY {:.1}%", np_yoy * 100.0));
+    }
+    if let Some(peg) = item.fundamental_snapshot.peg {
+        growth_parts.push(format!("PEG {:.2}x", peg));
+    }
+    if !growth_parts.is_empty() {
+        parts.push(format!("Growth metrics: {}.", growth_parts.join(", ")));
     }
 
     // Technical signals

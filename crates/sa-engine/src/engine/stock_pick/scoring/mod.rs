@@ -570,6 +570,24 @@ mod factors {
         {
             score += 3.0; // Chips spread out, less whale manipulation
         }
+        // Fund flow: heavy outflows increase risk
+        if let Some(flow) = item.fundamental_snapshot.fund_flow_net_ratio {
+            if flow < -0.1 {
+                score -= 6.0; // Institutional distribution
+            } else if flow < -0.03 {
+                score -= 3.0;
+            } else if flow > 0.05 {
+                score += 3.0; // Institutional accumulation, lower risk
+            }
+        }
+        // High leverage increases risk
+        if let Some(lev) = item.fundamental_snapshot.leverage {
+            if lev > 2.0 {
+                score -= 5.0;
+            } else if lev > 1.5 {
+                score -= 2.0;
+            }
+        }
         score.clamp(0.0, 100.0)
     }
 

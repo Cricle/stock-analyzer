@@ -355,13 +355,32 @@ impl MarketDataClient {
     }
 
     /// Fetch enrichment data for HK stocks.
-    /// Tries Baidu valuation API for PE and PB, falls back to computing PE from fundamentals.
+    /// Tries Tencent financial API for PE and PB, then Baidu, then fundamentals fallback.
     pub(crate) async fn fetch_hk_enrichment(
         &self,
         symbol: &str,
     ) -> anyhow::Result<super::a_share::AShareEnrichmentData> {
+        // Primary: Tencent financial API (PE_TTM, PB, EPS, BVPS)
+        match self.ak.hk_financial(symbol).await {
+            Ok(fin) => {
+                let pe = fin.pe_ttm.filter(|v| *v > 0.0);
+                let pb = fin.pb.filter(|v| *v > 0.0);
+                if pe.is_some() || pb.is_some() {
+                    tracing::debug!(symbol, ?pe, ?pb, "hk_enrichment from tencent");
+                    return Ok(super::a_share::AShareEnrichmentData {
+                        pe_ttm: pe,
+                        pb,
+                        ..super::a_share::AShareEnrichmentData::default()
+                    });
+                }
+            }
+            Err(e) => {
+                tracing::debug!(symbol, error = %e, "tencent hk_financial failed");
+            }
+        }
+
+        // Fallback: Baidu valuation API
         let code = self.hk_standard_code(symbol)?;
-        // Try Baidu valuation API for PE and PB
         let pe = self
             .ak
             .stock_hk_valuation_baidu(&code, "pe_ttm", "monthly")
@@ -384,7 +403,8 @@ impl MarketDataClient {
                 ..super::a_share::AShareEnrichmentData::default()
             });
         }
-        // Fallback: compute PE from fundamentals
+
+        // Last resort: compute PE from fundamentals
         let fundamentals = self.fetch_hk_fundamentals(symbol).await.ok();
         let pe_ttm = fundamentals.as_ref().and_then(|f| {
             let mc = f.market_cap?;

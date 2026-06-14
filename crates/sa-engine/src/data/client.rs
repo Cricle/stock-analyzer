@@ -89,9 +89,7 @@ impl MarketDataClient {
     ) -> anyhow::Result<super::a_share::AShareEnrichmentData> {
         let span = tracing::info_span!("market_data.fetch", data_type = "enrichment", symbol);
         async {
-            let market = self.detect_market(symbol);
-            tracing::debug!(symbol, ?market, "fetch_enrichment dispatching");
-            match market {
+            match self.detect_market(symbol) {
                 MarketKind::AShare => self.fetch_a_share_enrichment(symbol).await,
                 MarketKind::HongKong => self.fetch_hk_enrichment(symbol).await,
                 MarketKind::UsEquity => self.fetch_us_enrichment(symbol).await,

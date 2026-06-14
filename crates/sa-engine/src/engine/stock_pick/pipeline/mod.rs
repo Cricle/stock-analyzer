@@ -21,7 +21,8 @@ use crate::engine::stock_pick::{
 };
 
 use crate::engine::stock_pick::objective::{
-    build_prompt, default_catalysts, default_evidence, default_risks, default_thesis,
+    AdvancedMetrics, build_prompt, compute_industry_averages,
+    default_catalysts, default_evidence, default_risks, default_thesis,
     evaluate_stock_pick_objective_assessment, stock_pick_priority_label, stock_pick_priority_rank,
     stock_pick_sort_key, summarize_stock_pick_objective_overview,
 };
@@ -107,6 +108,8 @@ pub async fn run(
 
     let mut enriched = enrich_candidates(market_data, &candidates, deep_candidate_limit).await;
     score_candidates(&mut enriched);
+
+    let industry_averages = compute_industry_averages(&enriched);
 
     let is_explicit_set = request
         .candidate_symbols
@@ -329,7 +332,25 @@ pub async fn run(
                 rejection_risk_flags,
                 evidence_quality_score,
             };
-            pick.objective_assessment = evaluate_stock_pick_objective_assessment(&pick, &item);
+            let metrics = item.fundamentals.as_ref().map(|f| {
+                AdvancedMetrics::compute(
+                    f,
+                    item.fundamental_snapshot.pe_like,
+                    item.fundamental_snapshot.ps_like,
+                    item.fundamental_snapshot.roe,
+                    industry_averages.get(&item.industry),
+                )
+            });
+            let industry_avg = industry_averages
+                .get(&item.industry)
+                .cloned()
+                .unwrap_or_default();
+            pick.objective_assessment = evaluate_stock_pick_objective_assessment(
+                &pick,
+                &item,
+                metrics.as_ref().unwrap_or(&AdvancedMetrics::default()),
+                &industry_avg,
+            );
             pick.priority_rank = stock_pick_priority_rank(&pick);
             pick.priority_label = stock_pick_priority_label(pick.priority_rank).to_string();
             pick.sort_key = stock_pick_sort_key(&pick);
@@ -850,29 +871,6 @@ async fn pre_rank_a_share_candidates(
     dedup_candidates(ranked, candidate_limit)
 }
 
-#[cfg(test)]
-#[allow(dead_code)]
-pub(crate) fn test_shortlist_a_share_candidates_for_flow(
-    rows: Vec<(&str, f64)>,
-    candidate_limit: usize,
-) -> Vec<String> {
-    shortlist_a_share_candidates_for_flow(
-        rows.into_iter()
-            .map(|(symbol, source_score)| CandidateContext {
-                symbol: symbol.to_string(),
-                name: symbol.to_string(),
-                market: "A-share".to_string(),
-                exchange: "CN".to_string(),
-                source_score,
-            })
-            .collect(),
-        candidate_limit,
-    )
-    .into_iter()
-    .map(|item| item.symbol)
-    .collect()
-}
-
 // ---------------------------------------------------------------------------
 // Pipeline helpers (inlined from helpers.rs)
 // ---------------------------------------------------------------------------
@@ -1156,70 +1154,4 @@ fn billboard_source_score(items: &[BillboardEntry]) -> f64 {
         * 0.15;
     let change_component = latest.change_rate_pct.clamp(-5.0, 12.0) * 0.4;
     net_component + turnover_component + change_component + 2.0
-}
-
-#[cfg(test)]
-#[allow(dead_code)]
-pub(crate) fn test_capital_flow_source_score(items: &[CapitalFlowPoint]) -> f64 {
-    capital_flow_source_score(items)
-}
-
-#[cfg(test)]
-#[allow(dead_code)]
-pub(crate) fn test_billboard_source_score(items: &[BillboardEntry]) -> f64 {
-    billboard_source_score(items)
-}
-
-
-#[cfg(test)]
-#[allow(dead_code)]
-pub(crate) fn test_shortlist_candidates_for_news(
-    rows: Vec<(&str, f64)>,
-    pick_count: usize,
-) -> Vec<String> {
-    use crate::engine::stock_pick::FactorBreakdown;
-    use crate::models::{
-        StockPickDataQualitySnapshot, StockPickFundamentalSnapshot, StockPickMarketSnapshot,
-        StockPickNewsSnapshot, StockPickRiskSnapshot, StockPickTechnicalSnapshot,
-    };
-
-    let mut shortlisted = crate::engine::stock_pick::scoring::shortlist_candidates_for_news(
-        &rows
-            .into_iter()
-            .map(|(symbol, total)| EnrichedCandidate {
-                symbol: symbol.to_string(),
-                name: symbol.to_string(),
-                market: "A-share".to_string(),
-                exchange: "CN".to_string(),
-                industry: "test".to_string(),
-                price: Some(10.0),
-                change_pct: Some(1.0),
-                market_cap: Some(1_000_000_000.0),
-                theme_key: "test".to_string(),
-                fundamentals: None,
-                news: Vec::new(),
-                evidence_records: Vec::new(),
-                candles: Vec::new(),
-                technical_snapshot: StockPickTechnicalSnapshot::default(),
-                market_snapshot: StockPickMarketSnapshot::default(),
-                fundamental_snapshot: StockPickFundamentalSnapshot::default(),
-                news_snapshot: StockPickNewsSnapshot::default(),
-                history_match_snapshot: StockPickHistoryMatchSnapshot::default(),
-                risk_snapshot: StockPickRiskSnapshot::default(),
-                data_quality_snapshot: StockPickDataQualitySnapshot::default(),
-                factor: FactorBreakdown {
-                    total,
-                    ..FactorBreakdown::default()
-                },
-                pass_filter: true,
-                rejected_reasons: Vec::new(),
-                description: String::new(),
-            })
-            .collect::<Vec<_>>(),
-        pick_count,
-    )
-    .into_iter()
-    .collect::<Vec<_>>();
-    shortlisted.sort();
-    shortlisted
 }

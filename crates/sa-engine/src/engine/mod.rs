@@ -1,6 +1,7 @@
 //! sa-engine analysis modules.
 
 pub mod config;
+pub mod math_utils;
 pub mod shared;
 pub mod storage;
 pub mod task_manager;

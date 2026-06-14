@@ -231,55 +231,6 @@ impl TaskManager {
     const MARKET_DATA_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
     const MARKET_NEWS_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
 
-    pub async fn resume_task(&self, task_id: &str) -> anyhow::Result<bool> {
-        let Some(task) = self.analysis_store.get_task(task_id).await? else {
-            return Ok(false);
-        };
-        let checkpoint_step = self
-            .checkpoint_store
-            .checkpoint_step(&task.task_id, &task.symbol, &task.analysis_date)
-            .await?;
-        let can_resume_completed = checkpoint_step.is_some_and(|step| step < 100);
-        if matches!(task.status, TaskStatus::Completed) && !can_resume_completed {
-            return Ok(true);
-        }
-        if matches!(task.status, TaskStatus::Cancelled) {
-            return Ok(false);
-        }
-        let params = self
-            .task_run_params_from_request(&task, &task.request)
-            .await;
-        let this = self.clone();
-        let task_id = task_id.to_string();
-        let running_task_id = task_id.clone();
-        let handle = tokio::spawn(async move {
-            if let Err(error) = this.run_task(task_id.clone(), params).await {
-                tracing::error!("resume task {} failed: {:?}", task_id, error);
-                let _ = this
-                    .publish_failure(&task_id, format!("Failed to resume analysis task: {error:#}"))
-                    .await;
-            }
-        });
-        self.running_tasks
-            .write()
-            .await
-            .insert(running_task_id, handle.abort_handle());
-        Ok(true)
-    }
-
-    pub async fn clear_task_checkpoint(&self, task_id: &str) -> anyhow::Result<bool> {
-        let Some(task) = self.analysis_store.get_task(task_id).await? else {
-            return Ok(false);
-        };
-        self.checkpoint_store
-            .clear(&task.task_id, &task.symbol, &task.analysis_date)
-            .await?;
-        self.checkpoint_store
-            .clear_graph_runtime(&task.task_id, &task.symbol, &task.analysis_date)
-            .await?;
-        Ok(true)
-    }
-
     pub async fn task_run_params_from_request(
         &self,
         task: &PersistedTask,
@@ -310,68 +261,6 @@ impl TaskManager {
             user_context,
             sector_context,
         }
-    }
-
-    pub async fn mark_task_failed(
-        &self,
-        task_id: &str,
-        error_message: String,
-    ) -> anyhow::Result<()> {
-        self.publish_failure(task_id, error_message).await
-    }
-
-    pub async fn cancel_task(&self, task_id: &str) -> anyhow::Result<bool> {
-        let Some(mut task) = self.analysis_store.get_task(task_id).await? else {
-            return Ok(false);
-        };
-        if matches!(
-            task.status,
-            TaskStatus::Completed | TaskStatus::Cancelled | TaskStatus::Failed
-        ) {
-            return Ok(false);
-        }
-
-        if let Some(handle) = self.running_tasks.write().await.remove(task_id) {
-            handle.abort();
-        }
-
-        task.status = TaskStatus::Cancelled;
-        task.current_step_name = "Task cancelled".to_string();
-        task.current_step_description = "Cancelled by user".to_string();
-        task.message = "Task cancelled".to_string();
-        task.error_message = Some("cancelled_by_user".to_string());
-        task.updated_at = Utc::now();
-        self.update_task(TaskUpdate {
-            task_id,
-            status: TaskStatus::Cancelled,
-            progress: task.progress,
-            step_name: &task.current_step_name,
-            step_description: &task.current_step_description,
-            message: &task.message,
-            error_message: task.error_message.clone(),
-        })
-        .await?;
-
-        let params = self
-            .task_run_params_from_request(&task, &task.request)
-            .await;
-        let mut result = match self.analysis_store.get_result(task_id).await? {
-            Some(result) => result,
-            None => {
-                crate::engine::analysis::runtime::TradingAgentsGraph::prepare_result(self, &task, &params)
-                    .await?
-            }
-        };
-        result.agent_state.company_of_interest = result.symbol.clone();
-        result.agent_state.trade_date = result.analysis_date.clone();
-        result.agent_state.sender = "System".to_string();
-        result.agent_state.past_context = params.past_context.clone();
-        result.artifacts.user_context = params.user_context.clone();
-        self.refresh_structured_report_snapshot(&mut result).await?;
-        result.apply_calibrated_markdown();
-        self.analysis_store.save_result(task_id, &result).await?;
-
-        Ok(true)
     }
 
     pub async fn execute_existing_task(

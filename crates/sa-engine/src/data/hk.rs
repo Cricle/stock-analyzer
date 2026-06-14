@@ -60,7 +60,7 @@ impl MarketDataClient {
             .filter(|value| !value.trim().is_empty())
             .unwrap_or_else(|| symbol.to_uppercase());
 
-        // Extract from main indicator
+        // Extract from main indicator with income sheet fallbacks
         let currency = main
             .and_then(|m| m.currency.clone())
             .unwrap_or_else(|| "HKD".to_string());
@@ -69,17 +69,44 @@ impl MarketDataClient {
                 .clone()
                 .or_else(|| m.std_report_date.clone())
         });
-        let operate_income = main.and_then(|m| m.operate_income);
-        let holder_profit = main.and_then(|m| m.holder_profit);
-        let gross_profit = main.and_then(|m| m.gross_profit);
-        let total_assets = main.and_then(|m| m.total_assets);
-        let total_liabilities = main.and_then(|m| m.total_liabilities);
-        let total_parent_equity = main.and_then(|m| m.total_parent_equity);
+        let operate_income = main
+            .and_then(|m| m.operate_income)
+            .or_else(|| is.and_then(|s| s.total_revenue));
+        let holder_profit = main
+            .and_then(|m| m.holder_profit)
+            .or_else(|| is.and_then(|s| s.net_profit));
+        let gross_profit = main
+            .and_then(|m| m.gross_profit)
+            .or_else(|| is.and_then(|s| s.gross_profit));
+        let total_assets = main
+            .and_then(|m| m.total_assets)
+            .or_else(|| bs.and_then(|b| b.total_assets));
+        let total_liabilities = main
+            .and_then(|m| m.total_liabilities)
+            .or_else(|| bs.and_then(|b| b.total_liabilities));
+        let total_parent_equity = main
+            .and_then(|m| m.total_parent_equity)
+            .or_else(|| bs.and_then(|b| b.equity))
+            .or_else(|| {
+                // Derive equity from total_assets - total_liabilities
+                let assets = main
+                    .and_then(|m| m.total_assets)
+                    .or_else(|| bs.and_then(|b| b.total_assets))?;
+                let liabilities = main
+                    .and_then(|m| m.total_liabilities)
+                    .or_else(|| bs.and_then(|b| b.total_liabilities))?;
+                let eq = assets - liabilities;
+                if eq > 0.0 { Some(eq) } else { None }
+            });
         let netcash_operate = main.and_then(|m| m.netcash_operate);
         let capital_expenditure = main.and_then(|m| m.capital_expenditure);
         let total_share = main.and_then(|m| m.total_share);
-        let current_liability = main.and_then(|m| m.current_liability);
-        let noncurrent_liab_1year = main.and_then(|m| m.noncurrent_liab_1year);
+        let current_liability = main
+            .and_then(|m| m.current_liability)
+            .or_else(|| bs.and_then(|b| b.short_term_debt));
+        let noncurrent_liab_1year = main
+            .and_then(|m| m.noncurrent_liab_1year)
+            .or_else(|| bs.and_then(|b| b.long_term_debt));
 
         // From typed balance sheet
         let cash_and_equivalents = bs.and_then(|b| b.cash);
@@ -106,6 +133,29 @@ impl MarketDataClient {
 
         let shares_outstanding = total_share.map(|value| (value * 10_000.0).round() as i64);
 
+        // Compute market cap: try Eastmoney famous stocks API first, then Tencent, then quote fallback
+        let market_cap = match self.ak.stock_hk_famous_spot_em().await {
+            Ok(stocks) => stocks
+                .iter()
+                .find(|s| s.code.eq_ignore_ascii_case(&search_code))
+                .and_then(|s| s.market_cap),
+            Err(_) => None,
+        };
+        let market_cap = if market_cap.is_some() {
+            market_cap
+        } else {
+            // Fallback: try Tencent API
+            match self.ak.hk_market_cap_from_tencent(&search_code).await {
+                Ok(Some(cap)) => Some(cap),
+                _ => {
+                    // Fallback: compute from quote and shares_outstanding
+                    self.fetch_hk_quote(symbol).await.ok().and_then(|(q, _)| {
+                        shares_outstanding.map(|shares| q.close * shares as f64)
+                    })
+                }
+            }
+        };
+
         let noncurrent_liabilities: Option<f64> = None;
 
         let total_debt = match (current_liability, noncurrent_liab_1year) {
@@ -120,15 +170,18 @@ impl MarketDataClient {
             },
         };
 
+        // Resolve industry from Eastmoney individual stock info API
+        let industry = self.resolve_hk_industry(&search_code).await;
+
         let snapshot = FundamentalsSnapshot {
             symbol: symbol.to_uppercase(),
             company_name,
             cik: String::new(),
-            industry: None,
+            industry,
             currency,
             fiscal_year_end,
             shares_outstanding,
-            market_cap: None,
+            market_cap,
             net_income_usd: holder_profit,
             revenues_usd: operate_income,
             assets_usd: total_assets,
@@ -180,6 +233,66 @@ impl MarketDataClient {
         Ok(items)
     }
 
+    pub(super) async fn fetch_hk_global_news(
+        &self,
+        curr_date: &str,
+        look_back_days: usize,
+        limit: usize,
+    ) -> anyhow::Result<crate::types::NewsFetchResult> {
+        use super::news::within_date_window;
+        use crate::types::{NewsFetchAttempt, NewsFetchResult};
+
+        let end = chrono::NaiveDate::parse_from_str(curr_date, "%Y-%m-%d")
+            .context("invalid curr_date for HK global news")?;
+        let start = end - chrono::Days::new(look_back_days as u64);
+        let start_text = start.to_string();
+
+        let queries: &[(&str, Option<&str>)] = &[
+            ("Hong Kong stock market", Some("en")),
+            ("Hang Seng index", Some("en")),
+            ("港股 恒生", None),
+            ("HK stocks earnings", Some("en")),
+        ];
+
+        let mut attempts = Vec::new();
+        let mut items: Vec<NewsItem> = Vec::new();
+        let mut existing_titles: std::collections::HashSet<String> =
+            items.iter().map(|i| i.title.to_lowercase()).collect();
+
+        for &(query, lang) in queries {
+            if let Ok(rss_items) = self.ak.bing_news_rss_with_lang(query, 10, lang).await {
+                let count = rss_items.len();
+                for item in rss_items.into_iter() {
+                    if within_date_window(&item.published_at, Some(&start_text), Some(curr_date))
+                        && !existing_titles.contains(&item.title.to_lowercase())
+                    {
+                        existing_titles.insert(item.title.to_lowercase());
+                        items.push(item);
+                    }
+                }
+                attempts.push(NewsFetchAttempt {
+                    source: "bing_rss".to_string(),
+                    query: Some(query.to_string()),
+                    success: true,
+                    item_count: count,
+                    error: None,
+                });
+            }
+        }
+
+        if items.is_empty() {
+            anyhow::bail!("no HK global/macro news available from current upstreams");
+        }
+
+        items.truncate(limit.max(8));
+        let cacheable = super::news_result_cacheable(&items, &attempts);
+        Ok(NewsFetchResult {
+            items,
+            attempts,
+            cacheable,
+        })
+    }
+
     pub(super) async fn fetch_hk_quote(
         &self,
         symbol: &str,
@@ -228,5 +341,16 @@ impl MarketDataClient {
             return Ok(None);
         }
         Ok(Some((end_price - start_price) / start_price))
+    }
+
+    /// Try to resolve HK stock industry from Eastmoney individual stock info API.
+    /// Uses secid format: 116.{code} for Hong Kong stocks.
+    pub(super) async fn resolve_hk_industry(&self, symbol: &str) -> Option<String> {
+        // Normalize to 5-digit HK code
+        let code = symbol.trim().trim_start_matches('0');
+        let code = if code.is_empty() { "0" } else { code };
+        let code = format!("{:0>5}", code);
+        let secid = format!("116.{code}");
+        self.ak.stock_info_by_secid(&secid).await.ok().flatten()
     }
 }

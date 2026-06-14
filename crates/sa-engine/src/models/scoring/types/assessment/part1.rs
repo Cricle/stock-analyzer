@@ -5,30 +5,31 @@ fn derive_execution_confidence(
     portfolio_decision: &StructuredPortfolioDecision,
     execution_boundary_complete: bool,
 ) -> ScoreDimension {
-    let mut score = 48;
+    let mut score = 48.0_f64;
     if execution_boundary_complete {
-        score += 18;
+        score += 18.0;
     }
-    score += trader_plan.execution_trigger_checklist.len().min(5) as i32 * 3;
-    score += portfolio_decision.trigger_checklist.len().min(5) as i32 * 2;
+    // Trigger checklists — sigmoid (replaces min(5)*N)
+    score += sigmoid(trader_plan.execution_trigger_checklist.len() as f64, 3.0, 1.0) * 15.0;
+    score += sigmoid(portfolio_decision.trigger_checklist.len() as f64, 3.0, 1.0) * 10.0;
     if !trader_plan.entry_price.trim().is_empty() {
-        score += 8;
+        score += 8.0;
     }
     if !trader_plan.stop_loss.trim().is_empty() {
-        score += 7;
+        score += 7.0;
     }
     if !portfolio_decision.time_horizon.trim().is_empty() {
-        score += 5;
+        score += 5.0;
     }
     if result
         .structured_portfolio_decision()
         .rating == Rating::Hold
         && !execution_boundary_complete
     {
-        score = score.min(78);
+        score = score.min(78.0);
     }
     ScoreDimension {
-        score: score.clamp(0, 100),
+        score: score.clamp(0.0, 100.0) as i32,
         max_score: 100,
         rationale: LocalText::new("execution_confidence_rationale"),
     }
@@ -41,23 +42,28 @@ fn derive_evidence_completeness(
     research_plan: &StructuredResearchPlan,
     portfolio_decision: &StructuredPortfolioDecision,
 ) -> ScoreDimension {
-    let mut score = (non_empty_core as i32) * 18 - (tool_failures as i32 * 4);
+    // Core desks — sigmoid (replaces linear * 18)
+    let mut score = sigmoid(non_empty_core as f64, 3.0, 1.5) * 72.0;
+
+    // Tool failures — exponential decay penalty
+    score -= exponential_decay(tool_failures as f64, 2.0) * 16.0;
+
     if !research_plan.missing_evidence_ladder.manageable_gaps.is_empty() {
-        score -= 10;
+        score -= 10.0;
     }
     if !research_plan.missing_evidence_ladder.blocking_gaps.is_empty()
         || !portfolio_decision.missing_evidence_ladder.blocking_gaps.is_empty()
     {
-        score -= 12;
+        score -= 12.0;
     }
     if fundamentals_diagnostics
         .iter()
         .any(|item| item.code == "fundamentals_period_mixed")
     {
-        score -= 10;
+        score -= 10.0;
     }
     ScoreDimension {
-        score: score.clamp(0, 100),
+        score: score.clamp(0.0, 100.0) as i32,
         max_score: 100,
         rationale: LocalText::new("evidence_completeness_rationale"),
     }
@@ -68,31 +74,26 @@ fn derive_historical_calibration(
     historical_transferability: &ScoreDimension,
 ) -> ScoreDimension {
     let memory = &result.artifacts.memory_context;
-    let mut score = historical_transferability.score * 8;
-    if memory.setup_resolved_match_count == 0 {
-        // No verified setup history — give a modest base score when seed samples exist
-        // instead of zeroing out, which would crush the overall confidence to single digits.
-        score = if memory.same_ticker_count > 0 || memory.cross_ticker_count > 0 {
-            25
-        } else {
-            20
-        };
+
+    let score = if memory.setup_resolved_match_count == 0 {
+        // No verified setup history — sigmoid based on seed samples
+        let seed = (memory.same_ticker_count + memory.cross_ticker_count) as f64;
+        sigmoid(seed, 2.0, 1.0) * 25.0 + 20.0
     } else if memory.used_setup_fallback_calibration {
-        score = (historical_transferability.score * 5)
-            + (memory.setup_match_hit_rate * 12.0).round() as i32
-            + if memory.setup_match_avg_alpha_return > 0.0 {
-                4
-            } else {
-                0
-            };
+        // Weak calibration — continuous
+        let hit_rate_score = sigmoid(memory.setup_match_hit_rate, 0.5, 8.0) * 12.0;
+        let alpha_bonus = if memory.setup_match_avg_alpha_return > 0.0 { 4.0 } else { 0.0 };
+        historical_transferability.score as f64 * 5.0 + hit_rate_score + alpha_bonus
     } else {
-        score += (memory.setup_match_hit_rate * 20.0).round() as i32;
-        if memory.setup_match_avg_alpha_return > 0.0 {
-            score += 10;
-        }
-    }
+        // Normal calibration — continuous
+        let base = historical_transferability.score as f64 * 8.0;
+        let hit_rate_bonus = sigmoid(memory.setup_match_hit_rate, 0.5, 8.0) * 20.0;
+        let alpha_bonus = if memory.setup_match_avg_alpha_return > 0.0 { 10.0 } else { 0.0 };
+        base + hit_rate_bonus + alpha_bonus
+    };
+
     ScoreDimension {
-        score: score.clamp(0, 100),
+        score: score.clamp(0.0, 100.0) as i32,
         max_score: 100,
         rationale: if memory.used_setup_fallback_calibration {
             LocalText::new("historical_calibration_fallback_rationale")

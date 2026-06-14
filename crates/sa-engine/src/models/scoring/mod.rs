@@ -4,6 +4,7 @@ use crate::models::{
     SignedScoreDimension, StructuredPortfolioDecision, StructuredResearchPlan,
     StructuredTraderPlan,
 };
+use crate::engine::math_utils::{sigmoid, exponential_decay};
 
 include!("types.rs");
 include!("assessment.rs");

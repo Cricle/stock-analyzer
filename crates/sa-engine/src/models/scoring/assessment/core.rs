@@ -4,13 +4,28 @@ fn score_data_quality(
     tool_successes: usize,
     tool_failures: usize,
 ) -> ScoreDimension {
-    let mut score = 0;
-    score += (non_empty_core as i32 * 3).min(12);
-    score += analyst_count.min(4) as i32;
-    score += tool_successes.min(5) as i32;
-    score -= (tool_failures as i32 * 2).min(6);
+    let mut score = 0.0_f64;
+
+    // Core analysis desks — sigmoid (0-12 points)
+    score += sigmoid(non_empty_core as f64, 3.0, 1.5) * 12.0;
+
+    // Analyst count — sigmoid (0-4 points)
+    score += sigmoid(analyst_count as f64, 2.0, 1.5) * 4.0;
+
+    // Tool success rate — sigmoid (0-5 points)
+    let total_tools = tool_successes + tool_failures;
+    let success_rate = if total_tools > 0 {
+        tool_successes as f64 / total_tools as f64
+    } else {
+        0.5
+    };
+    score += sigmoid(success_rate, 0.7, 8.0) * 5.0;
+
+    // Tool failure penalty — exponential decay
+    score -= exponential_decay(tool_failures as f64, 2.0) * 3.0;
+
     ScoreDimension {
-        score: score.clamp(0, DATA_QUALITY_MAX),
+        score: score.clamp(0.0, DATA_QUALITY_MAX as f64) as i32,
         max_score: DATA_QUALITY_MAX,
         rationale: format!(
             "核心分析台完成数={non_empty_core}/4，结构化分析台数={analyst_count}，成功工具调用={tool_successes}，失败工具调用={tool_failures}。"
@@ -31,17 +46,23 @@ fn score_trend_confirmation(
         + portfolio_decision.price_target_numeric_count();
     let probability_quality = analyst_probability_quality(analyst);
 
-    let mut score = if market_report.trim().is_empty() {
-        0
-    } else {
-        5
-    };
-    score += evidence_points.min(6) as i32;
-    score += numeric_levels.min(6);
-    score += probability_quality;
+    let mut score = 0.0_f64;
+
+    // Report presence — sigmoid (0-5 points)
+    let report_present = if market_report.trim().is_empty() { 0.0 } else { 1.0 };
+    score += report_present * 5.0;
+
+    // Evidence points — sigmoid (0-6 points)
+    score += sigmoid(evidence_points as f64, 3.0, 1.0) * 6.0;
+
+    // Numeric anchors — sigmoid (0-6 points)
+    score += sigmoid(numeric_levels as f64, 3.0, 1.0) * 6.0;
+
+    // Probability quality — sigmoid (0-3 points)
+    score += sigmoid(probability_quality as f64, 3.0, 1.0) * 3.0;
 
     ScoreDimension {
-        score: score.clamp(0, TREND_CONFIRMATION_MAX),
+        score: score.clamp(0.0, TREND_CONFIRMATION_MAX as f64) as i32,
         max_score: TREND_CONFIRMATION_MAX,
         rationale: format!(
             "市场技术报告存在={}，证据点={}，价位/指标数值锚点={}，概率闭合质量={}。",
@@ -61,17 +82,23 @@ fn score_fundamentals(
     let numeric_levels = count_numeric_levels(fundamentals_report);
     let probability_quality = analyst_probability_quality(analyst);
 
-    let mut score = if fundamentals_report.trim().is_empty() {
-        0
-    } else {
-        6
-    };
-    score += evidence_points.min(6) as i32;
-    score += numeric_levels.min(6);
-    score += (probability_quality / 2).max(0);
+    let mut score = 0.0_f64;
+
+    // Report presence — sigmoid (0-6 points)
+    let report_present = if fundamentals_report.trim().is_empty() { 0.0 } else { 1.0 };
+    score += report_present * 6.0;
+
+    // Evidence points — sigmoid (0-6 points)
+    score += sigmoid(evidence_points as f64, 3.0, 1.0) * 6.0;
+
+    // Numeric anchors — sigmoid (0-6 points)
+    score += sigmoid(numeric_levels as f64, 3.0, 1.0) * 6.0;
+
+    // Probability quality — sigmoid (0-1.5 points)
+    score += sigmoid(probability_quality as f64, 3.0, 1.0) * 1.5;
 
     ScoreDimension {
-        score: score.clamp(0, FUNDAMENTAL_CONFIRMATION_MAX),
+        score: score.clamp(0.0, FUNDAMENTAL_CONFIRMATION_MAX as f64) as i32,
         max_score: FUNDAMENTAL_CONFIRMATION_MAX,
         rationale: format!(
             "基本面报告存在={}，证据点={}，数值锚点={}，概率闭合质量={}。",
@@ -93,13 +120,24 @@ fn score_catalyst_quality(
     let date_hits = count_numeric_dates(news_report);
     let horizon_dates = count_numeric_dates(&portfolio_decision.time_horizon);
 
-    let mut score = if news_report.trim().is_empty() { 0 } else { 4 };
-    score += evidence_points.min(5) as i32;
-    score += next_steps.min(3) as i32;
-    score += (date_hits + horizon_dates).min(3);
+    let mut score = 0.0_f64;
+
+    // News report presence — sigmoid (0-4 points)
+    let report_present = if news_report.trim().is_empty() { 0.0 } else { 1.0 };
+    score += report_present * 4.0;
+
+    // Evidence points — sigmoid (0-5 points)
+    score += sigmoid(evidence_points as f64, 3.0, 1.2) * 5.0;
+
+    // Next steps — sigmoid (0-3 points)
+    score += sigmoid(next_steps as f64, 2.0, 1.5) * 3.0;
+
+    // Date anchors — sigmoid (0-3 points)
+    let total_dates = (date_hits + horizon_dates) as f64;
+    score += sigmoid(total_dates, 2.0, 1.5) * 3.0;
 
     ScoreDimension {
-        score: score.clamp(0, CATALYST_QUALITY_MAX),
+        score: score.clamp(0.0, CATALYST_QUALITY_MAX as f64) as i32,
         max_score: CATALYST_QUALITY_MAX,
         rationale: format!(
             "新闻报告存在={}，证据点={}，后续跟踪项={}，日期/时间线锚点={}。",
@@ -113,55 +151,41 @@ fn score_catalyst_quality(
 
 fn score_historical_transferability(result: &AnalysisResult) -> ScoreDimension {
     let memory = &result.artifacts.memory_context;
-    let setup_match_count = memory.setup_match_count as i32;
-    let setup_resolved_match_count = memory.setup_resolved_match_count as i32;
-    let same_ticker_count = memory.same_ticker_count as i32;
-    let cross_ticker_count = memory.cross_ticker_count as i32;
-    let used_setup_filter = memory.used_setup_filtered_retrieval;
-    let used_fallback = memory.used_setup_fallback_calibration;
+    let setup_match_count = memory.setup_match_count as f64;
+    let setup_resolved_match_count = memory.setup_resolved_match_count as f64;
+    let same_ticker_count = memory.same_ticker_count as f64;
+    let cross_ticker_count = memory.cross_ticker_count as f64;
 
-    let mut score = 0;
-    if used_setup_filter {
-        if used_fallback {
-            score += setup_match_count.min(2);
-            score += setup_resolved_match_count.min(2);
-            if memory.setup_match_hit_rate >= 0.6 {
-                score += 1;
-            }
-            if memory.setup_match_avg_alpha_return > 0.03 {
-                score += 1;
-            }
-        } else {
-            score += setup_match_count.min(3);
-            score += setup_resolved_match_count.min(3);
-            if memory.setup_match_hit_rate >= 0.6 {
-                score += 2;
-            } else if memory.setup_match_hit_rate >= 0.5 {
-                score += 1;
-            }
-            if memory.setup_match_avg_alpha_return > 0.03 {
-                score += 2;
-            } else if memory.setup_match_avg_alpha_return > 0.0 {
-                score += 1;
-            }
-        }
-    } else if same_ticker_count > 0 || cross_ticker_count > 0 {
-        score += 3;
+    let mut score = 0.0_f64;
+
+    if memory.used_setup_filtered_retrieval {
+        // Match bonus multiplier: fallback weakens the signal
+        let match_bonus = if memory.used_setup_fallback_calibration { 0.7 } else { 1.0 };
+
+        // Setup match count — sigmoid (0-3 points × bonus)
+        score += sigmoid(setup_match_count, 2.0, 1.5) * 3.0 * match_bonus;
+        score += sigmoid(setup_resolved_match_count, 2.0, 1.5) * 3.0 * match_bonus;
+
+        // Hit rate — sigmoid (0-2 points × bonus)
+        score += sigmoid(memory.setup_match_hit_rate, 0.55, 10.0) * 2.0 * match_bonus;
+
+        // Alpha return — sigmoid (0-2 points × bonus)
+        score += sigmoid(memory.setup_match_avg_alpha_return, 0.015, 50.0) * 2.0 * match_bonus;
+    } else if same_ticker_count > 0.0 || cross_ticker_count > 0.0 {
+        score += 3.0;
     }
-    if same_ticker_count > 0 {
-        score += 1;
-    }
-    if cross_ticker_count >= 2 {
-        score += 1;
-    }
+
+    // Same/cross ticker samples — sigmoid
+    score += sigmoid(same_ticker_count, 1.0, 2.0) * 1.0;
+    score += sigmoid(cross_ticker_count, 2.0, 1.0) * 1.0;
 
     ScoreDimension {
-        score: score.clamp(0, HISTORICAL_TRANSFERABILITY_MAX),
+        score: score.clamp(0.0, HISTORICAL_TRANSFERABILITY_MAX as f64) as i32,
         max_score: HISTORICAL_TRANSFERABILITY_MAX,
         rationale: format!(
             "setup 过滤启用={}，fallback 弱校准={}，setup 命中数={}，已验证命中={}，命中率={:.0}%，平均超额收益={:.1}%，同票样本={}，跨票样本={}。相似历史越充分且结果越稳健，当前结论越具可迁移性。",
-            bool_text(used_setup_filter),
-            bool_text(used_fallback),
+            bool_text(memory.used_setup_filtered_retrieval),
+            bool_text(memory.used_setup_fallback_calibration),
             memory.setup_match_count,
             memory.setup_resolved_match_count,
             memory.setup_match_hit_rate * 100.0,
@@ -185,32 +209,16 @@ pub fn score_setup_direction_alignment(result: &AnalysisResult) -> ScoreDimensio
 
     let score = if memory.setup_resolved_match_count == 0 || current_direction == 0 {
         4
-    } else if current_direction > 0 {
-        let aligned = memory.setup_long_match_count as f64;
-        let opposed = memory.setup_short_match_count as f64;
-        let ratio = (aligned - opposed) / memory.setup_resolved_match_count as f64;
-        if ratio >= 0.4 {
-            10
-        } else if ratio >= 0.15 {
-            8
-        } else if ratio > -0.15 {
-            6
-        } else {
-            3
-        }
     } else {
-        let aligned = memory.setup_short_match_count as f64;
-        let opposed = memory.setup_long_match_count as f64;
-        let ratio = (aligned - opposed) / memory.setup_resolved_match_count as f64;
-        if ratio >= 0.4 {
-            10
-        } else if ratio >= 0.15 {
-            8
-        } else if ratio > -0.15 {
-            6
+        let (aligned, opposed) = if current_direction > 0 {
+            (memory.setup_long_match_count as f64, memory.setup_short_match_count as f64)
         } else {
-            3
-        }
+            (memory.setup_short_match_count as f64, memory.setup_long_match_count as f64)
+        };
+        let ratio = (aligned - opposed) / memory.setup_resolved_match_count as f64;
+        // Continuous mapping: ratio=-0.5→3, ratio=0→6, ratio=0.15→8, ratio=0.4→10
+        let base = sigmoid(ratio, 0.1, 8.0) * 7.0 + 3.0;
+        base.clamp(3.0, 10.0) as i32
     };
 
     ScoreDimension {
@@ -250,24 +258,23 @@ fn score_cross_agent_consistency(result: &AnalysisResult) -> ScoreDimension {
     let positive = nets.iter().filter(|item| **item > 0.05).count();
     let negative = nets.iter().filter(|item| **item < -0.05).count();
     let neutral = nets.len().saturating_sub(positive + negative);
-    let avg_abs = nets.iter().map(|item| item.abs()).sum::<f64>() / nets.len() as f64;
 
-    let score = if positive == nets.len() || negative == nets.len() {
-        if avg_abs >= 0.20 { 15 } else { 13 }
-    } else if positive == 0 || negative == 0 {
-        if avg_abs >= 0.12 { 12 } else { 10 }
-    } else if neutral > 0 {
-        8
-    } else {
-        6
-    };
+    // Direction consensus — sigmoid (0-10 points)
+    let consensus_ratio = (positive.max(negative) as f64) / nets.len() as f64;
+    let consensus_score = sigmoid(consensus_ratio, 0.6, 8.0) * 10.0;
+
+    // Direction strength — sigmoid (0-5 points)
+    let avg_abs = nets.iter().map(|item| item.abs()).sum::<f64>() / nets.len() as f64;
+    let strength_score = sigmoid(avg_abs, 0.15, 15.0) * 5.0;
+
+    let score = (consensus_score + strength_score).clamp(0.0, CROSS_AGENT_CONSISTENCY_MAX as f64) as i32;
 
     ScoreDimension {
         score,
         max_score: CROSS_AGENT_CONSISTENCY_MAX,
         rationale: format!(
-            "偏多={}，偏空={}，中性={}，平均方向强度={:.2}。",
-            positive, negative, neutral, avg_abs
+            "偏多={}，偏空={}，中性={}，共识比={:.0}%，平均方向强度={:.2}。",
+            positive, negative, neutral, consensus_ratio * 100.0, avg_abs
         ).into(),
     }
 }
@@ -285,20 +292,25 @@ fn score_risk_clarity(
         + count_numeric_levels(research_plan.risk_assessment.as_str());
     let has_execution_boundary = has_execution_boundary(trader_plan, portfolio_decision);
 
-    let mut score = 0;
-    if !research_plan.risk_assessment.trim().is_empty()
+    let mut score = 0.0_f64;
+
+    // Risk conclusion presence — sigmoid (0-3 points)
+    let risk_present = if !research_plan.risk_assessment.trim().is_empty()
         || !portfolio_decision.risk_assessment.trim().is_empty()
-    {
-        score += 3;
-    }
-    score += risk_turns.min(3) as i32;
-    score += numeric_levels.min(3);
-    if has_execution_boundary {
-        score += 1;
-    }
+    { 1.0 } else { 0.0 };
+    score += risk_present * 3.0;
+
+    // Risk debate turns — sigmoid (0-3 points)
+    score += sigmoid(risk_turns as f64, 2.0, 1.5) * 3.0;
+
+    // Numeric risk control boundaries — sigmoid (0-3 points)
+    score += sigmoid(numeric_levels as f64, 2.0, 1.5) * 3.0;
+
+    // Execution boundary completeness
+    score += if has_execution_boundary { 1.0 } else { 0.0 };
 
     ScoreDimension {
-        score: score.clamp(0, RISK_CLARITY_MAX),
+        score: score.clamp(0.0, RISK_CLARITY_MAX as f64) as i32,
         max_score: RISK_CLARITY_MAX,
         rationale: format!(
             "风险结论存在={}，风险辩论轮次={}，数值风控边界={}，执行边界完整={}。",

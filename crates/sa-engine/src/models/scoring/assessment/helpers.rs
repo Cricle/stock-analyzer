@@ -85,33 +85,42 @@ fn score_action_alignment(
         0
     };
 
-    let mut score = 0;
-    if action_bias == recommendation_bias {
-        score += 14;
+    // Action-recommendation alignment — continuous (0-14 points)
+    let rec_alignment = if action_bias == recommendation_bias {
+        1.0
     } else if recommendation_bias == 0 && action_bias != 0 && action_bias == direction_bias {
-        score += 6;
-    }
+        0.5
+    } else {
+        0.0
+    };
+    let rec_score = rec_alignment * 14.0;
 
-    if action_bias == direction_bias {
-        score += 10;
+    // Action-direction alignment — continuous (0-10 points)
+    let dir_alignment = if action_bias == direction_bias {
+        1.0
     } else if direction_bias == 0 && action_bias == 0 {
-        score += 8;
+        0.8
     } else if direction_bias == 0 && action_bias == recommendation_bias {
-        score += 4;
-    }
+        0.4
+    } else {
+        0.0
+    };
+    let dir_score = dir_alignment * 10.0;
 
-    if confidence_score >= 75 && action_bias != 0 && action_bias == direction_bias {
-        score += 8;
-    } else if confidence_score < 55 && action_bias == 0 {
-        score += 6;
-    } else if (55..75).contains(&confidence_score)
-        && (action_bias == 0 || action_bias == direction_bias)
-    {
-        score += 4;
-    }
+    // Confidence bonus — sigmoid continuous (0-8 points)
+    let conf_factor = sigmoid(confidence_score as f64, 65.0, 0.08);
+    let conf_bonus = if action_bias != 0 && action_bias == direction_bias {
+        conf_factor * 8.0
+    } else if action_bias == 0 {
+        (1.0 - conf_factor) * 6.0
+    } else {
+        4.0
+    };
+
+    let score = (rec_score + dir_score + conf_bonus).clamp(0.0, 30.0) as i32;
 
     ScoreDimension {
-        score: score.clamp(0, 30),
+        score,
         max_score: 30,
         rationale: LocalText::new("action_alignment_rationale")
             .with_str("recommendation", recommendation.to_string())
@@ -238,7 +247,7 @@ fn score_reward_to_risk(
     let has_stop = stop.is_some();
     let has_horizon = !portfolio_decision.time_horizon.trim().is_empty();
 
-    let mut score = 0;
+    let mut score = 0.0_f64;
     let mut rr_value: Option<f64> = None;
     let mut rr_status = "missing_fields";
     if let (Some(entry), Some(stop), Some(target)) = (entry, stop, target) {
@@ -251,40 +260,31 @@ fn score_reward_to_risk(
         };
 
         if let Some(rr) = rr {
-            score = if rr >= 3.0 {
-                15
-            } else if rr >= 2.0 {
-                13
-            } else if rr >= 1.5 {
-                11
-            } else if rr >= 1.0 {
-                8
-            } else {
-                4
-            };
+            // Continuous mapping: rr=1→~8, rr=2→~12, rr=3→~14, rr=4+→~15
+            score = sigmoid(rr, 1.5, 1.5) * 15.0;
             rr_value = Some(rr);
             rr_status = "computed";
         } else {
             if action == "Hold" && has_horizon {
-                score = 8;
+                score = 8.0;
             } else if has_entry && has_stop {
-                score = 6;
+                score = 6.0;
             }
             rr_status = "cannot_close";
         }
     } else if let (Some(_entry), Some(_stop), Some(confirm)) = (entry, stop, confirmation) {
         if action == "Hold" && has_horizon {
-            score = 9;
+            score = 9.0;
         } else if has_entry && has_stop {
-            score = 7;
+            score = 7.0;
         }
         rr_value = Some(confirm);
         rr_status = "confirmation_used";
     } else {
         if action == "Hold" && has_horizon {
-            score = 8;
+            score = 8.0;
         } else if has_entry && has_stop {
-            score = 6;
+            score = 6.0;
         }
     };
 
@@ -296,7 +296,7 @@ fn score_reward_to_risk(
     }
 
     ScoreDimension {
-        score: score.clamp(0, 15),
+        score: score.clamp(0.0, 15.0) as i32,
         max_score: 15,
         rationale,
     }

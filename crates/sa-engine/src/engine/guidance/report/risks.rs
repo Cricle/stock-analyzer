@@ -11,8 +11,9 @@ impl DailyGuidanceGenerator {
         indices: &[MarketIndex],
     ) -> Vec<RiskAlert> {
         let mut alerts = Vec::new();
+        let market_str = market.as_str().to_string();
 
-        // Sentiment-based alert (lowered threshold: -10 instead of -20)
+        // Sentiment-based alert
         if sentiment.score < -10 {
             alerts.push(RiskAlert {
                 severity: if sentiment.score < -20 { "high" } else { "medium" }.to_string(),
@@ -27,11 +28,11 @@ impl DailyGuidanceGenerator {
                 })),
                 mitigation: "Review stop-loss levels and position sizing.".to_string(),
                 mitigation_key: Some("guidance.risk.mitigation.review_stoploss".to_string()),
-                affected_markets: vec![market.as_str().to_string()],
+                affected_markets: vec![market_str.clone()],
             });
         }
 
-        // Negative news count alert (lowered threshold: >= 2 instead of > 3)
+        // Negative news count alert
         let neg_count = news.iter().filter(|n| n.impact == "negative").count();
         if neg_count >= 2 {
             let neg_titles: Vec<&str> = news
@@ -52,7 +53,7 @@ impl DailyGuidanceGenerator {
                 })),
                 mitigation: "Diversify holdings and avoid concentrated positions.".to_string(),
                 mitigation_key: Some("guidance.risk.mitigation.diversify".to_string()),
-                affected_markets: vec![market.as_str().to_string()],
+                affected_markets: vec![market_str.clone()],
             });
         }
 
@@ -83,12 +84,12 @@ impl DailyGuidanceGenerator {
                     mitigation: "Consider reducing position sizes and tightening stop-losses."
                         .to_string(),
                     mitigation_key: Some("guidance.risk.mitigation.reduce_position".to_string()),
-                    affected_markets: vec![market.as_str().to_string()],
+                    affected_markets: vec![market_str.clone()],
                 });
             }
         }
 
-        // Sector divergence (lowered threshold: 1.5% instead of 2%)
+        // Sector divergence
         if indices.len() >= 2 {
             let has_up = indices.iter().any(|i| i.change_pct > 1.5);
             let has_down = indices.iter().any(|i| i.change_pct < -1.5);
@@ -119,7 +120,34 @@ impl DailyGuidanceGenerator {
                     })),
                     mitigation: "Review portfolio concentration and consider hedging.".to_string(),
                     mitigation_key: Some("guidance.risk.mitigation.hedge".to_string()),
-                    affected_markets: vec![market.as_str().to_string()],
+                    affected_markets: vec![market_str.clone()],
+                });
+            }
+        }
+
+        // Index-level risks from market indices data
+        for idx in indices {
+            if idx.change_pct.abs() > 2.0 {
+                alerts.push(RiskAlert {
+                    severity: if idx.change_pct.abs() > 4.0 {
+                        "high"
+                    } else {
+                        "medium"
+                    }
+                    .to_string(),
+                    category: "index_volatility".to_string(),
+                    description: format!(
+                        "{} moved {:.2}% today. Significant intraday movement increases risk.",
+                        idx.name, idx.change_pct
+                    ),
+                    description_key: Some(serde_json::json!({
+                        "i18n_key": "guidance.risk.index_volatility",
+                        "index": idx.name,
+                        "change_pct": idx.change_pct,
+                    })),
+                    mitigation: "Avoid chasing momentum; wait for volatility to subside.".to_string(),
+                    mitigation_key: Some("guidance.risk.mitigation.wait_volatility".to_string()),
+                    affected_markets: vec![market_str.clone()],
                 });
             }
         }

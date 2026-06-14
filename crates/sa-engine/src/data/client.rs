@@ -417,7 +417,8 @@ impl MarketDataClient {
                     .await
             }
             MarketKind::HongKong => {
-                anyhow::bail!("HK global news diagnostics not supported after akshare migration")
+                self.fetch_hk_global_news(curr_date, look_back_days, limit)
+                    .await
             }
             MarketKind::UsEquity => {
                 self.fetch_us_global_news(curr_date, look_back_days, limit)

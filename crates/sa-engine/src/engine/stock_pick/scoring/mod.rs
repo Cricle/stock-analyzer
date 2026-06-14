@@ -402,72 +402,6 @@ mod factors {
 
 #[cfg(test)]
 mod factors_test {
-    use super::*;
-    use crate::data::FundamentalsSnapshot;
-    use crate::models::{
-        StockPickDataQualitySnapshot, StockPickFundamentalSnapshot, StockPickHistoryMatchSnapshot,
-        StockPickMarketSnapshot, StockPickNewsSnapshot, StockPickRiskSnapshot,
-        StockPickTechnicalSnapshot,
-    };
-
-    #[allow(dead_code)]
-    pub(crate) fn test_penalty_score_missing_data(
-        market_cap: Option<f64>,
-        revenues_usd: Option<f64>,
-        change_pct: Option<f64>,
-    ) -> f64 {
-        factors::penalty_score(&EnrichedCandidate {
-            symbol: "T".to_string(),
-            name: "T".to_string(),
-            market: "A-share".to_string(),
-            exchange: "CN".to_string(),
-            industry: "test".to_string(),
-            price: Some(10.0),
-            change_pct,
-            market_cap,
-            theme_key: "test".to_string(),
-            fundamentals: Some(FundamentalsSnapshot {
-                symbol: "T".to_string(),
-                company_name: "T".to_string(),
-                cik: String::new(),
-                industry: None,
-                currency: "CNY".to_string(),
-                fiscal_year_end: None,
-                shares_outstanding: None,
-                market_cap,
-                net_income_usd: None,
-                revenues_usd,
-                assets_usd: None,
-                liabilities_usd: None,
-                stockholders_equity_usd: None,
-                cash_and_equivalents_usd: None,
-                gross_profit_usd: None,
-                operating_income_usd: None,
-                operating_expenses_usd: None,
-                operating_cash_flow_usd: None,
-                capital_expenditure_usd: None,
-                free_cash_flow_usd: None,
-                long_term_debt_usd: None,
-                current_debt_usd: None,
-                total_debt_usd: None,
-                diluted_shares_outstanding: None,
-            }),
-            news: Vec::new(),
-            evidence_records: Vec::new(),
-            candles: Vec::new(),
-            technical_snapshot: StockPickTechnicalSnapshot::default(),
-            market_snapshot: StockPickMarketSnapshot::default(),
-            fundamental_snapshot: StockPickFundamentalSnapshot::default(),
-            news_snapshot: StockPickNewsSnapshot::default(),
-            history_match_snapshot: StockPickHistoryMatchSnapshot::default(),
-            risk_snapshot: StockPickRiskSnapshot::default(),
-            data_quality_snapshot: StockPickDataQualitySnapshot::default(),
-            factor: FactorBreakdown::default(),
-            pass_filter: true,
-            rejected_reasons: Vec::new(),
-            description: String::new(),
-        })
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -541,6 +475,9 @@ mod normalize {
         getter: impl Fn(&EnrichedCandidate) -> f64,
         setter: impl Fn(&mut EnrichedCandidate, f64),
     ) {
+        if items.len() <= 1 {
+            return;
+        }
         let values = items.iter().map(&getter).collect::<Vec<_>>();
         let min = values
             .iter()
@@ -800,11 +737,24 @@ mod snapshots {
             _ => None,
         };
         let leverage = match (
-            f.total_debt_usd,
+            f.total_debt_usd
+                .or(f.liabilities_usd),
             f.stockholders_equity_usd.filter(|value| *value > 0.0),
         ) {
             (Some(debt), Some(eq)) => Some(debt / eq),
-            _ => None,
+            _ => {
+                // Fallback: compute from assets and equity if both available
+                match (
+                    f.assets_usd.filter(|v| *v > 0.0),
+                    f.stockholders_equity_usd.filter(|v| *v > 0.0),
+                ) {
+                    (Some(assets), Some(eq)) => {
+                        let liabilities = assets - eq;
+                        if eq > 0.0 { Some(liabilities / eq) } else { None }
+                    }
+                    _ => None,
+                }
+            }
         };
         StockPickFundamentalSnapshot {
             industry: f

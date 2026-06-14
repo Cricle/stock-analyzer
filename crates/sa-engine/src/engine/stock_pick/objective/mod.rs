@@ -1269,6 +1269,26 @@ pub(crate) fn default_evidence(item: &EnrichedCandidate) -> Vec<String> {
         evidence.push(format!("ROE {:.1}%", roe * 100.0));
     }
 
+    // Enrichment data
+    if let Some(pe_ttm) = item.fundamental_snapshot.pe_ttm {
+        evidence.push(format!("PE TTM {:.1}x", pe_ttm));
+    }
+    if let Some(pb) = item.fundamental_snapshot.pb {
+        evidence.push(format!("PB {:.1}x", pb));
+    }
+    if let Some(rev_yoy) = item.fundamental_snapshot.revenue_yoy {
+        evidence.push(format!("Revenue YoY {:.1}%", rev_yoy * 100.0));
+    }
+    if let Some(np_yoy) = item.fundamental_snapshot.net_profit_yoy {
+        evidence.push(format!("Net Profit YoY {:.1}%", np_yoy * 100.0));
+    }
+    if let Some(flow) = item.fundamental_snapshot.fund_flow_net_ratio {
+        evidence.push(format!("Fund flow net ratio {:.2}%", flow * 100.0));
+    }
+    if let Some(count) = item.fundamental_snapshot.analyst_report_count {
+        evidence.push(format!("Analyst reports: {}", count));
+    }
+
     // Technical
     if let Some(rsi) = item.technical_snapshot.rsi {
         evidence.push(format!("RSI {:.1}", rsi));

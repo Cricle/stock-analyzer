@@ -25,6 +25,7 @@ pub(crate) struct FactorBreakdown {
     pub(crate) momentum: f64,
     pub(crate) quality: f64,
     pub(crate) value: f64,
+    pub(crate) growth: f64,
     pub(crate) profitability: f64,
     pub(crate) risk: f64,
     pub(crate) event: f64,
@@ -48,6 +49,18 @@ pub(crate) struct CandidateEvidenceRecord {
     pub(crate) dedupe_key: String,
 }
 
+#[derive(Debug, Clone, Default)]
+pub(crate) struct EnrichmentData {
+    pub(crate) pe_ttm: Option<f64>,
+    pub(crate) pb: Option<f64>,
+    pub(crate) peg: Option<f64>,
+    pub(crate) ps: Option<f64>,
+    pub(crate) revenue_yoy: Option<f64>,
+    pub(crate) net_profit_yoy: Option<f64>,
+    pub(crate) gross_margin: Option<f64>,
+    pub(crate) fund_flow_net_ratio: Option<f64>,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct EnrichedCandidate {
     pub(crate) symbol: String,
@@ -60,6 +73,7 @@ pub(crate) struct EnrichedCandidate {
     pub(crate) market_cap: Option<f64>,
     pub(crate) theme_key: String,
     pub(crate) fundamentals: Option<FundamentalsSnapshot>,
+    pub(crate) enrichment: EnrichmentData,
     pub(crate) news: Vec<NewsItem>,
     pub(crate) evidence_records: Vec<CandidateEvidenceRecord>,
     pub(crate) candles: Vec<crate::data::CandlePoint>,

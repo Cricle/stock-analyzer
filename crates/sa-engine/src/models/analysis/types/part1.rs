@@ -83,6 +83,8 @@ pub struct StockPickFactorBreakdown {
     #[serde(default)]
     pub value: f64,
     #[serde(default)]
+    pub growth: f64,
+    #[serde(default)]
     pub profitability: f64,
     #[serde(default)]
     pub risk: f64,
@@ -176,6 +178,21 @@ pub struct StockPickFundamentalSnapshot {
     pub roe: Option<f64>,
     #[serde(default)]
     pub leverage: Option<f64>,
+    // Enriched from akshare-rs
+    #[serde(default)]
+    pub pe_ttm: Option<f64>,
+    #[serde(default)]
+    pub pb: Option<f64>,
+    #[serde(default)]
+    pub peg: Option<f64>,
+    #[serde(default)]
+    pub revenue_yoy: Option<f64>,
+    #[serde(default)]
+    pub net_profit_yoy: Option<f64>,
+    #[serde(default)]
+    pub gross_margin: Option<f64>,
+    #[serde(default)]
+    pub fund_flow_net_ratio: Option<f64>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

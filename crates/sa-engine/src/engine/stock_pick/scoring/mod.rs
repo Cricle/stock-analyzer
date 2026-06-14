@@ -89,6 +89,10 @@ async fn light_enrich_candidate(
 ) -> EnrichedCandidate {
     let quote = market_data.fetch_quote(&candidate.symbol).await.ok();
     let fundamentals = market_data.fetch_fundamentals(&candidate.symbol).await.ok();
+    let enrichment = market_data
+        .fetch_enrichment(&candidate.symbol)
+        .await
+        .unwrap_or_default();
     let candles = market_data
         .fetch_candles(&candidate.symbol, "qfq", 260)
         .await
@@ -118,6 +122,16 @@ async fn light_enrich_candidate(
         market_cap,
         theme_key: infer_theme_key(&candidate.name, fundamentals.as_ref(), &[]),
         fundamentals,
+        enrichment: crate::engine::stock_pick::types::EnrichmentData {
+            pe_ttm: enrichment.pe_ttm,
+            pb: enrichment.pb,
+            peg: enrichment.peg,
+            ps: enrichment.ps,
+            revenue_yoy: enrichment.revenue_yoy,
+            net_profit_yoy: enrichment.net_profit_yoy,
+            gross_margin: enrichment.gross_margin,
+            fund_flow_net_ratio: enrichment.fund_flow_net_ratio,
+        },
         news: Vec::new(),
         evidence_records: Vec::new(),
         candles,
@@ -205,19 +219,21 @@ mod factors {
         let momentum = momentum_score(item);
         let quality = quality_score(item);
         let value = value_score(item);
+        let growth = growth_score(item);
         let profitability = profitability_score(item);
         let risk = risk_score(item);
         let event = event_score(item);
         let evidence = evidence_score(item);
         let history = history_score(item);
         let penalty = penalty_score(item);
-        let total = (0.22 * momentum
-            + 0.16 * quality
+        let total = (0.18 * momentum
+            + 0.14 * quality
             + 0.12 * value
-            + 0.12 * profitability
+            + 0.12 * growth
+            + 0.10 * profitability
             + 0.10 * risk
-            + 0.10 * event
-            + 0.10 * evidence
+            + 0.08 * event
+            + 0.08 * evidence
             + 0.08 * history
             + penalty)
             .clamp(0.0, 100.0);
@@ -226,6 +242,7 @@ mod factors {
             momentum,
             quality,
             value,
+            growth,
             profitability,
             risk,
             event,
@@ -269,24 +286,103 @@ mod factors {
     fn quality_score(item: &EnrichedCandidate) -> f64 {
         let roe = item.fundamental_snapshot.roe.unwrap_or(0.0);
         let leverage = item.fundamental_snapshot.leverage.unwrap_or(1.0);
-        (55.0 + roe.clamp(-0.2, 0.4) * 80.0 - leverage.clamp(0.0, 3.0) * 8.0).clamp(0.0, 100.0)
+        let mut score = 55.0 + roe.clamp(-0.2, 0.4) * 80.0 - leverage.clamp(0.0, 3.0) * 8.0;
+        // Bonus for high gross margin (pricing power indicator)
+        if let Some(gm) = item.fundamental_snapshot.gross_margin {
+            if gm > 0.4 {
+                score += 6.0;
+            } else if gm > 0.25 {
+                score += 3.0;
+            }
+        }
+        score.clamp(0.0, 100.0)
     }
 
     fn value_score(item: &EnrichedCandidate) -> f64 {
-        let pe_like = item.fundamental_snapshot.pe_like.unwrap_or(40.0);
-        let ps_like = item.fundamental_snapshot.ps_like.unwrap_or(10.0);
+        // Prefer PE TTM from enrichment, fallback to computed PE
+        let pe = item
+            .fundamental_snapshot
+            .pe_ttm
+            .filter(|v| *v > 0.0)
+            .or(item.fundamental_snapshot.pe_like)
+            .unwrap_or(40.0);
+        let ps = item
+            .enrichment
+            .ps
+            .filter(|v| *v > 0.0)
+            .or(item.fundamental_snapshot.ps_like)
+            .unwrap_or(10.0);
         let mut score: f64 = 50.0;
-        if pe_like < 15.0 {
+        if pe < 15.0 {
             score += 18.0;
-        } else if pe_like < 25.0 {
+        } else if pe < 25.0 {
             score += 10.0;
-        } else if pe_like > 60.0 {
+        } else if pe > 60.0 {
             score -= 15.0;
         }
-        if ps_like < 2.0 {
+        if ps < 2.0 {
             score += 12.0;
-        } else if ps_like > 8.0 {
+        } else if ps > 8.0 {
             score -= 10.0;
+        }
+        // PB bonus for asset-backed value
+        if let Some(pb) = item.fundamental_snapshot.pb {
+            if pb < 1.0 {
+                score += 10.0;
+            } else if pb < 2.0 {
+                score += 5.0;
+            } else if pb > 8.0 {
+                score -= 5.0;
+            }
+        }
+        score.clamp(0.0, 100.0)
+    }
+
+    fn growth_score(item: &EnrichedCandidate) -> f64 {
+        let mut score: f64 = 45.0;
+        // Revenue growth
+        if let Some(rev_yoy) = item.fundamental_snapshot.revenue_yoy {
+            if rev_yoy > 0.3 {
+                score += 18.0;
+            } else if rev_yoy > 0.15 {
+                score += 12.0;
+            } else if rev_yoy > 0.0 {
+                score += 5.0;
+            } else if rev_yoy < -0.15 {
+                score -= 12.0;
+            }
+        }
+        // Net profit growth
+        if let Some(np_yoy) = item.fundamental_snapshot.net_profit_yoy {
+            if np_yoy > 0.5 {
+                score += 20.0;
+            } else if np_yoy > 0.2 {
+                score += 12.0;
+            } else if np_yoy > 0.0 {
+                score += 5.0;
+            } else if np_yoy < -0.2 {
+                score -= 15.0;
+            }
+        }
+        // PEG: lower is better (< 1 is undervalued growth)
+        if let Some(peg) = item.fundamental_snapshot.peg {
+            if peg > 0.0 && peg < 1.0 {
+                score += 10.0;
+            } else if peg > 0.0 && peg < 2.0 {
+                score += 5.0;
+            } else if peg > 3.0 {
+                score -= 5.0;
+            }
+        }
+        // Fund flow: positive net buying is bullish
+        if let Some(flow) = item.fundamental_snapshot.fund_flow_net_ratio {
+            if flow > 0.1 {
+                score += 8.0;
+            } else if flow > 0.0 {
+                score += 4.0;
+            } else if flow < -0.1 {
+                score -= 6.0;
+            }
         }
         score.clamp(0.0, 100.0)
     }
@@ -432,6 +528,11 @@ mod normalize {
         );
         normalize_factor(
             items,
+            |item| item.factor.growth,
+            |item, value| item.factor.growth = value,
+        );
+        normalize_factor(
+            items,
             |item| item.factor.profitability,
             |item, value| item.factor.profitability = value,
         );
@@ -457,13 +558,14 @@ mod normalize {
         );
 
         for item in items.iter_mut() {
-            item.factor.total = (0.22 * item.factor.momentum
-                + 0.16 * item.factor.quality
+            item.factor.total = (0.18 * item.factor.momentum
+                + 0.14 * item.factor.quality
                 + 0.12 * item.factor.value
-                + 0.12 * item.factor.profitability
+                + 0.12 * item.factor.growth
+                + 0.10 * item.factor.profitability
                 + 0.10 * item.factor.risk
-                + 0.10 * item.factor.event
-                + 0.10 * item.factor.evidence
+                + 0.08 * item.factor.event
+                + 0.08 * item.factor.evidence
                 + 0.08 * item.factor.history
                 + item.factor.penalty)
                 .clamp(0.0, 100.0);
@@ -577,6 +679,7 @@ mod normalize {
                     market_cap: Some(1_000_000_000.0),
                     theme_key: theme_key.to_string(),
                     fundamentals: None,
+                    enrichment: crate::engine::stock_pick::types::EnrichmentData::default(),
                     news: Vec::new(),
                     evidence_records: Vec::new(),
                     candles: Vec::new(),
@@ -639,7 +742,7 @@ mod snapshots {
             .collect::<Vec<_>>()
             .join("\n");
         format!(
-            "Symbol: {}\nName: {}\nMarket: {} {}\nIndustry: {}\nPrice: {:?}\nDay Change: {:?}\nReturn Window: {:?}\nMarket Cap: {:?}\nVolume Ratio: {:?}\nFactor Scores: total={:.2}, momentum={:.2}, quality={:.2}, value={:.2}, profitability={:.2}, risk={:.2}, event={:.2}, evidence={:.2}, history={:.2}, penalty={:.2}\nTechnical: ema10={:?}, sma50={:?}, sma200={:?}, rsi={:?}, macd_hist={:?}, atr={:?}, adx={:?}, obv={:?}, vwap={:?}\nEvidence Count: {}\nHistory Samples: {}\nRejected Reasons: {}\nEvidence Headlines:\n{}",
+            "Symbol: {}\nName: {}\nMarket: {} {}\nIndustry: {}\nPrice: {:?}\nDay Change: {:?}\nReturn Window: {:?}\nMarket Cap: {:?}\nVolume Ratio: {:?}\nFactor Scores: total={:.2}, momentum={:.2}, quality={:.2}, value={:.2}, growth={:.2}, profitability={:.2}, risk={:.2}, event={:.2}, evidence={:.2}, history={:.2}, penalty={:.2}\nTechnical: ema10={:?}, sma50={:?}, sma200={:?}, rsi={:?}, macd_hist={:?}, atr={:?}, adx={:?}, obv={:?}, vwap={:?}\nEvidence Count: {}\nHistory Samples: {}\nRejected Reasons: {}\nEvidence Headlines:\n{}",
             item.symbol,
             item.name,
             item.market,
@@ -653,6 +756,7 @@ mod snapshots {
             factor.momentum,
             factor.quality,
             factor.value,
+            factor.growth,
             factor.profitability,
             factor.risk,
             factor.event,
@@ -772,6 +876,13 @@ mod snapshots {
             ps_like,
             roe,
             leverage,
+            pe_ttm: item.enrichment.pe_ttm,
+            pb: item.enrichment.pb,
+            peg: item.enrichment.peg,
+            revenue_yoy: item.enrichment.revenue_yoy,
+            net_profit_yoy: item.enrichment.net_profit_yoy,
+            gross_margin: item.enrichment.gross_margin,
+            fund_flow_net_ratio: item.enrichment.fund_flow_net_ratio,
         }
     }
 
@@ -880,7 +991,11 @@ mod snapshots {
         if liquidity_warning {
             signal_codes.push("liquidity_warning".to_string());
         }
-        let valuation_stretched = fundamental.pe_like.is_some_and(|value| value >= 45.0)
+        let pe_for_risk = fundamental
+            .pe_ttm
+            .filter(|v| *v > 0.0)
+            .or(fundamental.pe_like);
+        let valuation_stretched = pe_for_risk.is_some_and(|value| value >= 45.0)
             || fundamental.ps_like.is_some_and(|value| value >= 10.0);
         if valuation_stretched {
             signal_codes.push("valuation_stretched".to_string());

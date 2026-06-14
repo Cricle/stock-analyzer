@@ -83,6 +83,19 @@ impl MarketDataClient {
         }.instrument(span).await
     }
 
+    pub(crate) async fn fetch_enrichment(
+        &self,
+        symbol: &str,
+    ) -> anyhow::Result<super::a_share::AShareEnrichmentData> {
+        let span = tracing::info_span!("market_data.fetch", data_type = "enrichment", symbol);
+        async {
+            match self.detect_market(symbol) {
+                MarketKind::AShare => self.fetch_a_share_enrichment(symbol).await,
+                _ => Ok(super::a_share::AShareEnrichmentData::default()),
+            }
+        }.instrument(span).await
+    }
+
     pub async fn fetch_quotes_batch(
         &self,
         symbols: &[&str],

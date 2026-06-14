@@ -120,6 +120,100 @@ impl MarketDataClient {
             .collect())
     }
 }
+
+/// Enrichment data fetched from akshare-rs for scoring.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct AShareEnrichmentData {
+    pub pe_ttm: Option<f64>,
+    pub pb: Option<f64>,
+    pub peg: Option<f64>,
+    pub ps: Option<f64>,
+    pub revenue_yoy: Option<f64>,
+    pub net_profit_yoy: Option<f64>,
+    pub gross_margin: Option<f64>,
+    pub fund_flow_net_ratio: Option<f64>,
+}
+
+impl MarketDataClient {
+    /// Fetch enrichment data (valuation, earnings, fund flow) for A-share scoring.
+    pub(crate) async fn fetch_a_share_enrichment(
+        &self,
+        symbol: &str,
+    ) -> anyhow::Result<AShareEnrichmentData> {
+        let code = symbol.split_once('.').map(|(c, _)| c).unwrap_or(symbol);
+        // Fetch valuation, earnings, and fund flow in parallel
+        let (valuation, earnings, fund_flow) = tokio::join!(
+            self.fetch_a_share_valuation(code),
+            self.fetch_a_share_latest_earnings(code),
+            self.fetch_a_share_fund_flow(code),
+        );
+        let val = valuation.unwrap_or_default();
+        let earn = earnings.unwrap_or_default();
+        let flow = fund_flow.unwrap_or_default();
+        Ok(AShareEnrichmentData {
+            pe_ttm: val.pe_ttm,
+            pb: val.pb,
+            peg: val.peg,
+            ps: val.ps,
+            revenue_yoy: earn.revenue_yoy,
+            net_profit_yoy: earn.net_profit_yoy,
+            gross_margin: earn.gross_margin,
+            fund_flow_net_ratio: flow,
+        })
+    }
+
+    async fn fetch_a_share_valuation(
+        &self,
+        code: &str,
+    ) -> anyhow::Result<AShareEnrichmentData> {
+        let items = self.ak.stock_value_em(code).await?;
+        let first = items.first().context("stock_value_em returned no rows")?;
+        Ok(AShareEnrichmentData {
+            pe_ttm: if first.pe_ttm != 0.0 { Some(first.pe_ttm) } else { None },
+            pb: if first.pb != 0.0 { Some(first.pb) } else { None },
+            peg: if first.peg != 0.0 { Some(first.peg) } else { None },
+            ps: if first.ps != 0.0 { Some(first.ps) } else { None },
+            ..AShareEnrichmentData::default()
+        })
+    }
+
+    async fn fetch_a_share_latest_earnings(
+        &self,
+        code: &str,
+    ) -> anyhow::Result<AShareEnrichmentData> {
+        // Try current year, fallback to last year
+        let current_year = chrono::Utc::now().format("%Y").to_string();
+        let dates = [format!("{current_year}-12-31"), format!("{}-12-31", current_year.parse::<i32>().unwrap_or(2025) - 1)];
+        for date in &dates {
+            if let Ok(items) = self.ak.stock_yjbb_em(date).await
+                && let Some(item) = items.iter().find(|i| i.code == code)
+            {
+                return Ok(AShareEnrichmentData {
+                    revenue_yoy: if item.total_revenue_yoy != 0.0 { Some(item.total_revenue_yoy) } else { None },
+                    net_profit_yoy: if item.net_profit_yoy != 0.0 { Some(item.net_profit_yoy) } else { None },
+                    gross_margin: if item.gross_margin != 0.0 { Some(item.gross_margin) } else { None },
+                    ..AShareEnrichmentData::default()
+                });
+            }
+        }
+        Ok(AShareEnrichmentData::default())
+    }
+
+    async fn fetch_a_share_fund_flow(
+        &self,
+        code: &str,
+    ) -> anyhow::Result<Option<f64>> {
+        let items = self.ak.stock_fund_flow_individual(code).await?;
+        let Some(first) = items.first() else {
+            return Ok(None);
+        };
+        // Net flow ratio = net_flow / amount (how much of total volume is net buying)
+        match (first.net_flow, first.amount) {
+            (Some(net), Some(amt)) if amt > 0.0 => Ok(Some(net / amt)),
+            _ => Ok(None),
+        }
+    }
+}
 impl MarketDataClient {
     pub(crate) fn a_share_fiscal_year_end_candidate(value: Option<String>) -> Option<String> {
         let raw = value?;

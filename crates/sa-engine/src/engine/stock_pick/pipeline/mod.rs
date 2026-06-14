@@ -313,6 +313,7 @@ pub async fn run(
                     momentum: item.factor.momentum,
                     quality: item.factor.quality,
                     value: item.factor.value,
+                    growth: item.factor.growth,
                     profitability: item.factor.profitability,
                     risk: item.factor.risk,
                     event: item.factor.event,

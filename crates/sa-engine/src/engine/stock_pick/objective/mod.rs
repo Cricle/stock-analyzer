@@ -377,9 +377,9 @@ pub(crate) fn default_thesis(item: &EnrichedCandidate) -> String {
 
     // Factor breakdown
     parts.push(format!(
-        "Factor scores: momentum {:.0}, quality {:.0}, value {:.0}, profitability {:.0}, risk {:.0}.",
+        "Factor scores: momentum {:.0}, quality {:.0}, value {:.0}, growth {:.0}, profitability {:.0}, risk {:.0}.",
         item.factor.momentum, item.factor.quality, item.factor.value,
-        item.factor.profitability, item.factor.risk
+        item.factor.growth, item.factor.profitability, item.factor.risk
     ));
 
     parts.join(" ")
@@ -1196,8 +1196,9 @@ pub(crate) fn default_evidence(item: &EnrichedCandidate) -> Vec<String> {
 
     // Factor scores
     evidence.push(format!(
-        "Factor: total {:.1}, momentum {:.1}, quality {:.1}, value {:.1}",
-        item.factor.total, item.factor.momentum, item.factor.quality, item.factor.value
+        "Factor: total {:.1}, momentum {:.1}, quality {:.1}, value {:.1}, growth {:.1}",
+        item.factor.total, item.factor.momentum, item.factor.quality, item.factor.value,
+        item.factor.growth
     ));
 
     // Additional factor details

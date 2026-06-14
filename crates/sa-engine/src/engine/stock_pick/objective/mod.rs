@@ -1405,6 +1405,13 @@ fn stock_pick_objective_gaps(pick: &StockPickItem, item: &EnrichedCandidate) -> 
     if pick.evidence_points.len() < 4 {
         gaps.push("thin_evidence_points".to_string());
     }
+    // Enrichment gaps
+    if item.enrichment.pe_ttm.is_none() && item.enrichment.pb.is_none() {
+        gaps.push("missing_valuation_enrichment".to_string());
+    }
+    if item.enrichment.revenue_yoy.is_none() && item.enrichment.net_profit_yoy.is_none() {
+        gaps.push("missing_earnings_growth".to_string());
+    }
     gaps
 }
 

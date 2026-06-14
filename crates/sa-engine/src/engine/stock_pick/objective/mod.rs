@@ -51,6 +51,20 @@ impl Default for IndustryAverages {
     }
 }
 
+/// Look up industry averages with fallback to "default" for "Unknown" industries.
+pub(crate) fn lookup_industry_avg<'a>(
+    averages: &'a HashMap<String, IndustryAverages>,
+    industry: &str,
+) -> Option<&'a IndustryAverages> {
+    averages.get(industry).or_else(|| {
+        if industry == "Unknown" {
+            averages.get("default")
+        } else {
+            None
+        }
+    })
+}
+
 pub(crate) fn compute_industry_averages(
     all_candidates: &[EnrichedCandidate],
 ) -> HashMap<String, IndustryAverages> {
@@ -61,11 +75,21 @@ pub(crate) fn compute_industry_averages(
     let mut pb_sums: HashMap<String, Vec<f64>> = HashMap::new();
     let mut gm_sums: HashMap<String, Vec<f64>> = HashMap::new();
 
+    // If all candidates have "Unknown" industry, group them under "default"
+    // so cross-sectional z-scores can still be computed.
+    let all_unknown = all_candidates
+        .iter()
+        .all(|c| c.industry == "Unknown");
+    let default_key = "default".to_string();
+
     for candidate in all_candidates {
-        let industry = &candidate.industry;
-        if industry == "Unknown" {
+        let industry = if candidate.industry == "Unknown" && all_unknown {
+            &default_key
+        } else if candidate.industry == "Unknown" {
             continue;
-        }
+        } else {
+            &candidate.industry
+        };
         if let Some(pe) = candidate.fundamental_snapshot.pe_like {
             pe_sums
                 .entry(industry.clone())

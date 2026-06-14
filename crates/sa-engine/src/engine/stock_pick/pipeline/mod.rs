@@ -21,7 +21,7 @@ use crate::engine::stock_pick::{
 };
 
 use crate::engine::stock_pick::objective::{
-    AdvancedMetrics, build_prompt, compute_industry_averages,
+    AdvancedMetrics, build_prompt, compute_industry_averages, lookup_industry_avg,
     default_catalysts, default_evidence, default_risks, default_thesis,
     evaluate_stock_pick_objective_assessment, stock_pick_priority_label, stock_pick_priority_rank,
     stock_pick_sort_key, summarize_stock_pick_objective_overview,
@@ -342,11 +342,10 @@ pub async fn run(
                     item.fundamental_snapshot.pe_ttm,
                     item.fundamental_snapshot.pb,
                     item.fundamental_snapshot.gross_margin,
-                    industry_averages.get(&item.industry),
+                    lookup_industry_avg(&industry_averages, &item.industry),
                 )
             });
-            let industry_avg = industry_averages
-                .get(&item.industry)
+            let industry_avg = lookup_industry_avg(&industry_averages, &item.industry)
                 .cloned()
                 .unwrap_or_default();
             pick.objective_assessment = evaluate_stock_pick_objective_assessment(

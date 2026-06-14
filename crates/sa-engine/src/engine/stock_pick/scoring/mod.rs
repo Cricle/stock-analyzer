@@ -351,7 +351,16 @@ mod factors {
             }
         }
 
-        score.clamp(0.0, 100.0)
+        // Absolute cap: declining stocks shouldn't get top momentum scores
+        let return_pct = item
+            .candles
+            .first()
+            .zip(item.candles.last())
+            .filter(|(f, _)| f.close > 0.0)
+            .map(|(f, l)| ((l.close / f.close) - 1.0) * 100.0)
+            .unwrap_or(0.0);
+        let cap = if return_pct < -5.0 { 60.0 } else { 100.0 };
+        score.clamp(0.0, cap)
     }
 
     fn quality_score(item: &EnrichedCandidate) -> f64 {
@@ -758,7 +767,7 @@ mod normalize {
         if items.len() <= 1 {
             return;
         }
-        let values = items.iter().map(&getter).collect::<Vec<_>>();
+        let values: Vec<f64> = items.iter().map(&getter).collect();
         let min = values
             .iter()
             .copied()
@@ -767,14 +776,17 @@ mod normalize {
             .iter()
             .copied()
             .fold(f64::NEG_INFINITY, |left, right| left.max(right));
-        for item in items.iter_mut() {
-            let value = getter(item);
-            let normalized = if (max - min).abs() <= f64::EPSILON {
+        // Blend weight: small pools lean on absolute score, large pools on relative
+        let abs_weight = if items.len() < 5 { 0.6 } else { 0.2 };
+        let rel_weight = 1.0 - abs_weight;
+        for (item, &raw) in items.iter_mut().zip(&values) {
+            let relative = if (max - min).abs() <= f64::EPSILON {
                 50.0
             } else {
-                ((value - min) / (max - min) * 100.0).clamp(0.0, 100.0)
+                ((raw - min) / (max - min) * 100.0).clamp(0.0, 100.0)
             };
-            setter(item, normalized);
+            let blended = (abs_weight * raw + rel_weight * relative).clamp(0.0, 100.0);
+            setter(item, blended);
         }
     }
 

@@ -32,6 +32,8 @@ enum Commands {
         market: MarketArg,
         #[arg(long)]
         date: Option<String>,
+        #[arg(long, value_delimiter = ',')]
+        candidate_symbols: Option<Vec<String>>,
         #[arg(long, value_enum)]
         lang: Option<LangArg>,
     },
@@ -195,7 +197,7 @@ async fn main() {
             }
         }
 
-        Commands::StockPick { market, date, lang } => {
+        Commands::StockPick { market, date, candidate_symbols, lang } => {
             let market_data = bin_helpers::build_market_data_client()
                 .await
                 .unwrap_or_else(|e| error_exit("init_failed", &e.to_string()));
@@ -207,7 +209,7 @@ async fn main() {
                 analysis_date: date,
                 language: Some("zh-CN".to_string()),
                 strategy: None,
-                candidate_symbols: None,
+                candidate_symbols,
                 sector_type: None,
                 candidate_limit: None,
                 pick_count: None,

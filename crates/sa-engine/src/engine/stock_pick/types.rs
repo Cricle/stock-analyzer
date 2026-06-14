@@ -59,6 +59,15 @@ pub(crate) struct EnrichmentData {
     pub(crate) net_profit_yoy: Option<f64>,
     pub(crate) gross_margin: Option<f64>,
     pub(crate) fund_flow_net_ratio: Option<f64>,
+    // Chip distribution
+    pub(crate) chip_benefit_ratio: Option<f64>,
+    pub(crate) chip_avg_cost: Option<f64>,
+    pub(crate) chip_concentration_90: Option<f64>,
+    // Dividend
+    pub(crate) dividend_yield: Option<f64>,
+    // Analyst coverage
+    pub(crate) analyst_report_count: Option<i64>,
+    pub(crate) analyst_buy_ratio: Option<f64>,
 }
 
 #[derive(Debug, Clone)]

@@ -132,24 +132,39 @@ pub(crate) struct AShareEnrichmentData {
     pub net_profit_yoy: Option<f64>,
     pub gross_margin: Option<f64>,
     pub fund_flow_net_ratio: Option<f64>,
+    // Chip distribution
+    pub chip_benefit_ratio: Option<f64>,
+    pub chip_avg_cost: Option<f64>,
+    pub chip_concentration_90: Option<f64>,
+    // Dividend
+    pub dividend_yield: Option<f64>,
+    // Analyst coverage
+    pub analyst_report_count: Option<i64>,
+    pub analyst_buy_ratio: Option<f64>,
 }
 
 impl MarketDataClient {
-    /// Fetch enrichment data (valuation, earnings, fund flow) for A-share scoring.
+    /// Fetch enrichment data (valuation, earnings, fund flow, chip, dividend, analyst) for A-share scoring.
     pub(crate) async fn fetch_a_share_enrichment(
         &self,
         symbol: &str,
     ) -> anyhow::Result<AShareEnrichmentData> {
         let code = symbol.split_once('.').map(|(c, _)| c).unwrap_or(symbol);
-        // Fetch valuation, earnings, and fund flow in parallel
-        let (valuation, earnings, fund_flow) = tokio::join!(
+        // Fetch all enrichment data in parallel
+        let (valuation, earnings, fund_flow, chip, dividend, analyst) = tokio::join!(
             self.fetch_a_share_valuation(code),
             self.fetch_a_share_latest_earnings(code),
             self.fetch_a_share_fund_flow(code),
+            self.fetch_a_share_chip(code),
+            self.fetch_a_share_dividend(code),
+            self.fetch_a_share_analyst(code),
         );
         let val = valuation.unwrap_or_default();
         let earn = earnings.unwrap_or_default();
         let flow = fund_flow.unwrap_or_default();
+        let chip_data = chip.unwrap_or_default();
+        let div_data = dividend.unwrap_or_default();
+        let analyst_data = analyst.unwrap_or_default();
         Ok(AShareEnrichmentData {
             pe_ttm: val.pe_ttm,
             pb: val.pb,
@@ -159,6 +174,12 @@ impl MarketDataClient {
             net_profit_yoy: earn.net_profit_yoy,
             gross_margin: earn.gross_margin,
             fund_flow_net_ratio: flow,
+            chip_benefit_ratio: chip_data.chip_benefit_ratio,
+            chip_avg_cost: chip_data.chip_avg_cost,
+            chip_concentration_90: chip_data.chip_concentration_90,
+            dividend_yield: div_data.dividend_yield,
+            analyst_report_count: analyst_data.analyst_report_count,
+            analyst_buy_ratio: analyst_data.analyst_buy_ratio,
         })
     }
 
@@ -212,6 +233,66 @@ impl MarketDataClient {
             (Some(net), Some(amt)) if amt > 0.0 => Ok(Some(net / amt)),
             _ => Ok(None),
         }
+    }
+
+    async fn fetch_a_share_chip(
+        &self,
+        code: &str,
+    ) -> anyhow::Result<AShareEnrichmentData> {
+        let items = self.ak.stock_cyq_em(code, "qfq").await?;
+        let Some(latest) = items.last() else {
+            return Ok(AShareEnrichmentData::default());
+        };
+        Ok(AShareEnrichmentData {
+            chip_benefit_ratio: if latest.benefit_part != 0.0 { Some(latest.benefit_part) } else { None },
+            chip_avg_cost: if latest.avg_cost != 0.0 { Some(latest.avg_cost) } else { None },
+            chip_concentration_90: if latest.pct_90_concentration != 0.0 { Some(latest.pct_90_concentration) } else { None },
+            ..AShareEnrichmentData::default()
+        })
+    }
+
+    async fn fetch_a_share_dividend(
+        &self,
+        code: &str,
+    ) -> anyhow::Result<AShareEnrichmentData> {
+        let items = self.ak.stock_fhps_detail_em(code).await?;
+        // Find the most recent dividend with a yield
+        let best = items.iter().find_map(|item| {
+            let yield_val = item.dividend_yield?;
+            if yield_val > 0.0 { Some(yield_val) } else { None }
+        });
+        Ok(AShareEnrichmentData {
+            dividend_yield: best,
+            ..AShareEnrichmentData::default()
+        })
+    }
+
+    async fn fetch_a_share_analyst(
+        &self,
+        code: &str,
+    ) -> anyhow::Result<AShareEnrichmentData> {
+        let items = self.ak.stock_research_report_em(code).await?;
+        let report_count = items.len() as i64;
+        // Count buy/strong-buy ratings vs total ratings
+        let (buy_count, total_rated) = items.iter().fold((0i64, 0i64), |(buy, total), item| {
+            if let Some(ref rating) = item.rating {
+                let r = rating.trim();
+                if !r.is_empty() {
+                    let is_buy = r.contains("买入") || r.contains("增持") || r.to_lowercase().contains("buy") || r.to_lowercase().contains("overweight");
+                    (buy + i64::from(is_buy), total + 1)
+                } else {
+                    (buy, total)
+                }
+            } else {
+                (buy, total)
+            }
+        });
+        let buy_ratio = if total_rated > 0 { Some(buy_count as f64 / total_rated as f64) } else { None };
+        Ok(AShareEnrichmentData {
+            analyst_report_count: if report_count > 0 { Some(report_count) } else { None },
+            analyst_buy_ratio: buy_ratio,
+            ..AShareEnrichmentData::default()
+        })
     }
 }
 impl MarketDataClient {

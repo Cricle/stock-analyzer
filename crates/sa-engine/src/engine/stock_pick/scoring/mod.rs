@@ -131,6 +131,12 @@ async fn light_enrich_candidate(
             net_profit_yoy: enrichment.net_profit_yoy,
             gross_margin: enrichment.gross_margin,
             fund_flow_net_ratio: enrichment.fund_flow_net_ratio,
+            chip_benefit_ratio: enrichment.chip_benefit_ratio,
+            chip_avg_cost: enrichment.chip_avg_cost,
+            chip_concentration_90: enrichment.chip_concentration_90,
+            dividend_yield: enrichment.dividend_yield,
+            analyst_report_count: enrichment.analyst_report_count,
+            analyst_buy_ratio: enrichment.analyst_buy_ratio,
         },
         news: Vec::new(),
         evidence_records: Vec::new(),
@@ -384,6 +390,29 @@ mod factors {
                 score -= 6.0;
             }
         }
+        // Analyst coverage & consensus
+        if let Some(count) = item.fundamental_snapshot.analyst_report_count {
+            if count >= 10 {
+                score += 6.0;
+            } else if count >= 3 {
+                score += 3.0;
+            }
+        }
+        if let Some(buy_ratio) = item.fundamental_snapshot.analyst_buy_ratio {
+            if buy_ratio > 0.7 {
+                score += 8.0;
+            } else if buy_ratio > 0.5 {
+                score += 4.0;
+            }
+        }
+        // Dividend yield: income signal
+        if let Some(dy) = item.fundamental_snapshot.dividend_yield {
+            if dy > 0.03 {
+                score += 6.0;
+            } else if dy > 0.01 {
+                score += 3.0;
+            }
+        }
         score.clamp(0.0, 100.0)
     }
 
@@ -425,8 +454,22 @@ mod factors {
             .last()
             .map(|item| item.turnover_pct)
             .unwrap_or(0.0);
-        (75.0 - avg_abs_change.clamp(0.0, 18.0) * 2.0 - latest_turnover.clamp(0.0, 40.0) * 0.5)
-            .clamp(0.0, 100.0)
+        let mut score = 75.0 - avg_abs_change.clamp(0.0, 18.0) * 2.0 - latest_turnover.clamp(0.0, 40.0) * 0.5;
+        // Chip benefit: high benefit ratio means most holders are in profit → less selloff risk
+        if let Some(benefit) = item.fundamental_snapshot.chip_benefit_ratio {
+            if benefit > 0.9 {
+                score += 5.0; // Almost everyone profitable, low panic selling risk
+            } else if benefit < 0.2 {
+                score -= 5.0; // Most holders underwater, higher panic risk
+            }
+        }
+        // Low chip concentration = more stable holder base
+        if let Some(conc) = item.fundamental_snapshot.chip_concentration_90
+            && conc < 0.15
+        {
+            score += 3.0; // Chips spread out, less whale manipulation
+        }
+        score.clamp(0.0, 100.0)
     }
 
     fn event_score(item: &EnrichedCandidate) -> f64 {
@@ -883,6 +926,12 @@ mod snapshots {
             net_profit_yoy: item.enrichment.net_profit_yoy,
             gross_margin: item.enrichment.gross_margin,
             fund_flow_net_ratio: item.enrichment.fund_flow_net_ratio,
+            chip_benefit_ratio: item.enrichment.chip_benefit_ratio,
+            chip_avg_cost: item.enrichment.chip_avg_cost,
+            chip_concentration_90: item.enrichment.chip_concentration_90,
+            dividend_yield: item.enrichment.dividend_yield,
+            analyst_report_count: item.enrichment.analyst_report_count,
+            analyst_buy_ratio: item.enrichment.analyst_buy_ratio,
         }
     }
 

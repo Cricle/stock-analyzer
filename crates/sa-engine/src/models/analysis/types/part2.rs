@@ -52,6 +52,12 @@ pub struct StockPickItem {
     pub rejection_risk_flags: Vec<String>,
     #[serde(default)]
     pub evidence_quality_score: i32,
+    /// i18n keys for catalysts (resolved by frontend or resolve_output).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub catalyst_keys: Vec<serde_json::Value>,
+    /// i18n keys for risks (resolved by frontend or resolve_output).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub risk_keys: Vec<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

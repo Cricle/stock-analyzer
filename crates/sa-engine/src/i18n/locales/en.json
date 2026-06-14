@@ -97,6 +97,48 @@
       "no_sector_trend": "No dominant sector trend."
     }
   },
-  "stock_pick": { "title": "Stock Picks" },
+  "stock_pick": {
+    "title": "Stock Picks",
+    "catalyst": {
+      "strong_return": "Strong period return of {pct:.1}%",
+      "rsi_bullish": "RSI at {rsi:.1} indicates bullish momentum without overbought risk",
+      "macd_positive": "MACD histogram positive, confirming uptrend",
+      "pe_reasonable": "PE ratio {pe:.1}x is reasonable for growth potential",
+      "roe_strong": "ROE of {roe:.1}% demonstrates efficient capital utilization",
+      "revenue_growth": "Revenue YoY growth of {pct:.1}% shows strong demand",
+      "profit_growth": "Net profit YoY growth of {pct:.1}% demonstrates earnings acceleration",
+      "peg_undervalued": "PEG ratio {peg:.2}x indicates undervalued growth",
+      "analyst_bullish": "Strong analyst consensus with {pct:.0}% buy/overweight ratings",
+      "dividend_yield": "Dividend yield of {pct:.1}% provides income support",
+      "fund_flow_positive": "Positive fund flow indicates institutional accumulation",
+      "news_catalyst": "{count} positive news catalysts identified",
+      "factor_strong": "Strong composite factor score of {score:.1} indicates favorable risk-reward",
+      "quality_strong": "Quality metrics support sustained fundamental strength",
+      "profitability_strong": "Profitability indicators suggest earnings resilience",
+      "value_attractive": "Value metrics indicate attractive entry point relative to peers",
+      "growth_confirmed": "Growth metrics confirm expansion trajectory",
+      "default_1": "Composite factor score leads the candidate pool",
+      "default_2": "Technical and fundamental alignment supports the selection thesis",
+      "systematic": "Systematic factor analysis confirms selection rationale"
+    },
+    "risk": {
+      "high_pe": "High PE of {pe:.1}x implies elevated valuation risk",
+      "high_ps": "PS ratio {ps:.1}x suggests premium pricing",
+      "high_volatility": "Elevated ATR/price ratio indicates above-average volatility",
+      "rsi_overbought": "RSI at {rsi:.1} suggests overbought conditions",
+      "single_day_surge": "Large single-day gain increases near-term pullback risk",
+      "high_leverage": "Debt/equity ratio of {ratio:.2} implies higher financial leverage",
+      "chip_underwater": "Only {pct:.0}% of holders in profit, elevated selloff pressure",
+      "profit_decline": "Net profit declined {pct:.1}% YoY, earnings deterioration risk",
+      "high_pb": "PB ratio {pb:.1}x indicates premium asset valuation",
+      "chip_concentrated": "High chip concentration increases volatility on large trades",
+      "fund_flow_negative": "Negative fund flow indicates institutional distribution",
+      "risk_low_score": "Risk factor score is low ({score:.1})",
+      "risk_elevated": "Overall risk assessment is elevated",
+      "momentum_weak": "Momentum factor is weak ({score:.1}), upward momentum lacking",
+      "quality_weak": "Quality factor is low ({score:.1})",
+      "value_expensive": "Valuation factor is high ({score:.1}), expensive relative to peers"
+    }
+  },
   "error": { "section_failed": "Section generation failed: {reason}" }
 }

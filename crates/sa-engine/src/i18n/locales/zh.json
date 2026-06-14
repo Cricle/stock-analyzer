@@ -97,6 +97,48 @@
       "no_sector_trend": "无明显板块趋势。"
     }
   },
-  "stock_pick": { "title": "选股结果" },
+  "stock_pick": {
+    "title": "选股结果",
+    "catalyst": {
+      "strong_return": "区间涨幅达{pct:.1}%，动量强劲",
+      "rsi_bullish": "RSI为{rsi:.1}，显示看多动量且未超买",
+      "macd_positive": "MACD柱状图为正，确认上升趋势",
+      "pe_reasonable": "PE为{pe:.1}x，估值合理",
+      "roe_strong": "ROE达{roe:.1}%，资本利用效率高",
+      "revenue_growth": "营收同比增长{pct:.1}%，需求强劲",
+      "profit_growth": "净利润同比增长{pct:.1}%，盈利加速",
+      "peg_undervalued": "PEG为{peg:.2}x，成长性被低估",
+      "analyst_bullish": "分析师看涨{pct:.0}%",
+      "dividend_yield": "股息率{pct:.1}%，提供收益支撑",
+      "fund_flow_positive": "资金净流入，机构在建仓",
+      "news_catalyst": "发现{count}条正面新闻催化剂",
+      "factor_strong": "综合因子得分{score:.1}，风险收益比佳",
+      "quality_strong": "质量指标支撑基本面持续强劲",
+      "profitability_strong": "盈利指标显示业绩韧性",
+      "value_attractive": "估值指标显示相对同行有吸引力的入场点",
+      "growth_confirmed": "成长指标确认扩张轨迹",
+      "default_1": "综合因子得分领先候选池",
+      "default_2": "技术面与基本面共振支撑选股逻辑",
+      "systematic": "系统化因子分析确认选股逻辑"
+    },
+    "risk": {
+      "high_pe": "PE为{pe:.1}x，估值偏高",
+      "high_ps": "PS为{ps:.1}x，定价偏贵",
+      "high_volatility": "ATR/价格比偏高，波动性较大",
+      "rsi_overbought": "RSI为{rsi:.1}，存在超买风险",
+      "single_day_surge": "单日涨幅较大，短期回调风险增加",
+      "high_leverage": "资产负债率{ratio:.2}，财务杠杆偏高",
+      "chip_underwater": "仅{pct:.0}%持仓盈利，抛压较大",
+      "profit_decline": "净利润同比下降{pct:.1}%，业绩下滑风险",
+      "high_pb": "PB为{pb:.1}x，资产估值偏贵",
+      "chip_concentrated": "筹码集中度高，大单交易易引发波动",
+      "fund_flow_negative": "资金净流出，机构在派发",
+      "risk_low_score": "风险因子得分偏低({score:.1})",
+      "risk_elevated": "综合风险评估偏高",
+      "momentum_weak": "动量因子偏弱({score:.1})，上涨动力不足",
+      "quality_weak": "质量因子偏低({score:.1})",
+      "value_expensive": "估值因子偏高({score:.1})，相对同行偏贵"
+    }
+  },
   "error": { "section_failed": "板块生成失败: {reason}" }
 }

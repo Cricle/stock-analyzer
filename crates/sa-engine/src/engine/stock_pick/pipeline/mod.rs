@@ -22,9 +22,9 @@ use crate::engine::stock_pick::{
 
 use crate::engine::stock_pick::objective::{
     AdvancedMetrics, build_prompt, compute_industry_averages, lookup_industry_avg,
-    default_catalysts, default_evidence, default_risks, default_thesis,
-    evaluate_stock_pick_objective_assessment, stock_pick_priority_label, stock_pick_priority_rank,
-    stock_pick_sort_key, summarize_stock_pick_objective_overview,
+    default_catalysts, default_catalyst_keys, default_evidence, default_risks, default_risk_keys,
+    default_thesis, evaluate_stock_pick_objective_assessment, stock_pick_priority_label,
+    stock_pick_priority_rank, stock_pick_sort_key, summarize_stock_pick_objective_overview,
 };
 
 pub async fn run(
@@ -332,6 +332,8 @@ pub async fn run(
                 selection_reason_codes,
                 rejection_risk_flags,
                 evidence_quality_score,
+                catalyst_keys: default_catalyst_keys(&item),
+                risk_keys: default_risk_keys(&item),
             };
             let metrics = item.fundamentals.as_ref().map(|f| {
                 AdvancedMetrics::compute_with_enrichment(

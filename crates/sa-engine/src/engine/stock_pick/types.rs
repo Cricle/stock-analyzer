@@ -111,6 +111,12 @@ pub(crate) struct GeneratedStockPickItem {
     pub(crate) decision_reason_codes: Vec<String>,
     #[serde(default)]
     pub(crate) data_gaps: Vec<String>,
+    /// i18n keys for catalysts (resolved by frontend or resolve_output).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) catalyst_keys: Vec<Value>,
+    /// i18n keys for risks (resolved by frontend or resolve_output).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) risk_keys: Vec<Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -167,6 +173,8 @@ impl GeneratedStockPickResponse {
                         map.get("data_gaps").cloned(),
                         &[],
                     ),
+                    catalyst_keys: Vec::new(),
+                    risk_keys: Vec::new(),
                 })
                 .collect(),
             _ => Vec::new(),

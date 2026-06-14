@@ -744,6 +744,223 @@ pub(crate) fn default_risks(item: &EnrichedCandidate) -> Vec<String> {
     risks
 }
 
+/// Generate i18n keys for catalysts with parameters.
+pub(crate) fn default_catalyst_keys(item: &EnrichedCandidate) -> Vec<serde_json::Value> {
+    let mut keys = Vec::new();
+    let mk = |key: &str, params: serde_json::Value| -> serde_json::Value {
+        let mut obj = params.as_object().cloned().unwrap_or_default();
+        obj.insert("i18n_key".to_string(), serde_json::json!(key));
+        serde_json::Value::Object(obj)
+    };
+
+    // Price momentum
+    if let (Some(first), Some(last)) = (item.candles.first(), item.candles.last())
+        && first.close > 0.0
+    {
+        let ret = ((last.close / first.close) - 1.0) * 100.0;
+        if ret > 5.0 {
+            keys.push(mk("stock_pick.catalyst.strong_return", serde_json::json!({"pct": ret})));
+        }
+    }
+
+    // Technical signals
+    if let Some(rsi) = item.technical_snapshot.rsi
+        && (50.0..70.0).contains(&rsi)
+    {
+        keys.push(mk("stock_pick.catalyst.rsi_bullish", serde_json::json!({"rsi": rsi})));
+    }
+    if let Some(macd_hist) = item.technical_snapshot.macd_hist
+        && macd_hist > 0.0
+    {
+        keys.push(mk("stock_pick.catalyst.macd_positive", serde_json::json!({})));
+    }
+
+    // Valuation
+    if let Some(pe) = item.fundamental_snapshot.pe_like
+        && pe < 25.0
+    {
+        keys.push(mk("stock_pick.catalyst.pe_reasonable", serde_json::json!({"pe": pe})));
+    }
+
+    // Earnings
+    if let Some(roe) = item.fundamental_snapshot.roe
+        && roe > 0.08
+    {
+        keys.push(mk("stock_pick.catalyst.roe_strong", serde_json::json!({"roe": roe * 100.0})));
+    }
+
+    // Growth catalysts
+    if let Some(rev_yoy) = item.fundamental_snapshot.revenue_yoy
+        && rev_yoy > 0.15
+    {
+        keys.push(mk("stock_pick.catalyst.revenue_growth", serde_json::json!({"pct": rev_yoy * 100.0})));
+    }
+    if let Some(np_yoy) = item.fundamental_snapshot.net_profit_yoy
+        && np_yoy > 0.2
+    {
+        keys.push(mk("stock_pick.catalyst.profit_growth", serde_json::json!({"pct": np_yoy * 100.0})));
+    }
+    if let Some(peg) = item.fundamental_snapshot.peg
+        && (0.0..1.0).contains(&peg)
+    {
+        keys.push(mk("stock_pick.catalyst.peg_undervalued", serde_json::json!({"peg": peg})));
+    }
+
+    // Analyst consensus
+    if let Some(buy_ratio) = item.fundamental_snapshot.analyst_buy_ratio
+        && buy_ratio > 0.6
+    {
+        keys.push(mk("stock_pick.catalyst.analyst_bullish", serde_json::json!({"pct": buy_ratio * 100.0})));
+    }
+
+    // Dividend
+    if let Some(dy) = item.fundamental_snapshot.dividend_yield
+        && dy > 0.02
+    {
+        keys.push(mk("stock_pick.catalyst.dividend_yield", serde_json::json!({"pct": dy * 100.0})));
+    }
+
+    // Fund flow
+    if let Some(flow) = item.fundamental_snapshot.fund_flow_net_ratio
+        && flow > 0.05
+    {
+        keys.push(mk("stock_pick.catalyst.fund_flow_positive", serde_json::json!({})));
+    }
+
+    // News catalysts
+    if item.news_snapshot.catalyst_count > 0 {
+        keys.push(mk("stock_pick.catalyst.news_catalyst", serde_json::json!({"count": item.news_snapshot.catalyst_count})));
+    }
+
+    // Factor-based catalysts
+    if item.factor.total >= 60.0 {
+        keys.push(mk("stock_pick.catalyst.factor_strong", serde_json::json!({"score": item.factor.total})));
+    }
+    if item.factor.quality >= 60.0 {
+        keys.push(mk("stock_pick.catalyst.quality_strong", serde_json::json!({})));
+    }
+    if item.factor.profitability >= 60.0 {
+        keys.push(mk("stock_pick.catalyst.profitability_strong", serde_json::json!({})));
+    }
+    if item.factor.value >= 60.0 {
+        keys.push(mk("stock_pick.catalyst.value_attractive", serde_json::json!({})));
+    }
+    if item.factor.growth >= 60.0 {
+        keys.push(mk("stock_pick.catalyst.growth_confirmed", serde_json::json!({})));
+    }
+
+    // Ensure at least 2 catalysts
+    if keys.is_empty() {
+        keys.push(mk("stock_pick.catalyst.default_1", serde_json::json!({})));
+        keys.push(mk("stock_pick.catalyst.default_2", serde_json::json!({})));
+    } else if keys.len() == 1 {
+        keys.push(mk("stock_pick.catalyst.systematic", serde_json::json!({})));
+    }
+    keys
+}
+
+/// Generate i18n keys for risks with parameters.
+pub(crate) fn default_risk_keys(item: &EnrichedCandidate) -> Vec<serde_json::Value> {
+    let mut keys = Vec::new();
+    let mk = |key: &str, params: serde_json::Value| -> serde_json::Value {
+        let mut obj = params.as_object().cloned().unwrap_or_default();
+        obj.insert("i18n_key".to_string(), serde_json::json!(key));
+        serde_json::Value::Object(obj)
+    };
+
+    // Valuation risk
+    if let Some(pe) = item.fundamental_snapshot.pe_like
+        && pe > 50.0
+    {
+        keys.push(mk("stock_pick.risk.high_pe", serde_json::json!({"pe": pe})));
+    }
+    if let Some(ps) = item.fundamental_snapshot.ps_like
+        && ps > 8.0
+    {
+        keys.push(mk("stock_pick.risk.high_ps", serde_json::json!({"ps": ps})));
+    }
+
+    // Volatility risk
+    if let Some(atr) = item.technical_snapshot.atr
+        && let Some(price) = item.price
+        && price > 0.0
+        && atr / price > 0.03
+    {
+        keys.push(mk("stock_pick.risk.high_volatility", serde_json::json!({})));
+    }
+
+    // Overbought risk
+    if let Some(rsi) = item.technical_snapshot.rsi
+        && rsi > 70.0
+    {
+        keys.push(mk("stock_pick.risk.rsi_overbought", serde_json::json!({"rsi": rsi})));
+    }
+
+    // Recent surge risk
+    if item.change_pct.unwrap_or_default() >= 9.5 {
+        keys.push(mk("stock_pick.risk.single_day_surge", serde_json::json!({})));
+    }
+
+    // Leverage risk
+    if let Some(lev) = item.fundamental_snapshot.leverage
+        && lev > 1.5
+    {
+        keys.push(mk("stock_pick.risk.high_leverage", serde_json::json!({"ratio": lev})));
+    }
+
+    // Chip risk: low benefit ratio means most holders underwater
+    if let Some(benefit) = item.fundamental_snapshot.chip_benefit_ratio
+        && benefit < 0.3
+    {
+        keys.push(mk("stock_pick.risk.chip_underwater", serde_json::json!({"pct": benefit * 100.0})));
+    }
+
+    // Growth risk: declining earnings
+    if let Some(np_yoy) = item.fundamental_snapshot.net_profit_yoy
+        && np_yoy < -0.2
+    {
+        keys.push(mk("stock_pick.risk.profit_decline", serde_json::json!({"pct": np_yoy * 100.0})));
+    }
+
+    // PB valuation risk
+    if let Some(pb) = item.fundamental_snapshot.pb
+        && pb > 8.0
+    {
+        keys.push(mk("stock_pick.risk.high_pb", serde_json::json!({"pb": pb})));
+    }
+
+    // Chip concentration risk: high concentration = more volatile on large trades
+    if let Some(conc) = item.fundamental_snapshot.chip_concentration_90
+        && conc > 0.7
+    {
+        keys.push(mk("stock_pick.risk.chip_concentrated", serde_json::json!({})));
+    }
+
+    // Fund flow risk: heavy outflows
+    if let Some(flow) = item.fundamental_snapshot.fund_flow_net_ratio
+        && flow < -0.1
+    {
+        keys.push(mk("stock_pick.risk.fund_flow_negative", serde_json::json!({})));
+    }
+
+    // Factor-based risks
+    if item.factor.risk < 50.0 {
+        keys.push(mk("stock_pick.risk.risk_low_score", serde_json::json!({"score": item.factor.risk})));
+    }
+    if item.factor.momentum < 40.0 {
+        keys.push(mk("stock_pick.risk.momentum_weak", serde_json::json!({"score": item.factor.momentum})));
+    }
+    if item.factor.growth < 40.0 {
+        keys.push(mk("stock_pick.risk.quality_weak", serde_json::json!({"score": item.factor.growth})));
+    }
+
+    // Ensure at least 2 risks
+    if keys.len() < 2 {
+        keys.push(mk("stock_pick.risk.risk_elevated", serde_json::json!({})));
+    }
+    keys
+}
+
 pub(crate) fn evaluate_stock_pick_objective_assessment(
     pick: &StockPickItem,
     item: &EnrichedCandidate,

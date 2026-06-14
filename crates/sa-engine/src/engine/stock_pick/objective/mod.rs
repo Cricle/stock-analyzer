@@ -246,8 +246,46 @@ pub(crate) fn build_prompt(
         .iter()
         .enumerate()
         .map(|(index, item)| {
+            // Build enrichment line for prompt
+            let mut enrich_parts = Vec::new();
+            if let Some(pe_ttm) = item.fundamental_snapshot.pe_ttm {
+                enrich_parts.push(format!("pe_ttm={:.1}", pe_ttm));
+            }
+            if let Some(pb) = item.fundamental_snapshot.pb {
+                enrich_parts.push(format!("pb={:.1}", pb));
+            }
+            if let Some(peg) = item.fundamental_snapshot.peg {
+                enrich_parts.push(format!("peg={:.2}", peg));
+            }
+            if let Some(rev_yoy) = item.fundamental_snapshot.revenue_yoy {
+                enrich_parts.push(format!("rev_yoy={:.1}%", rev_yoy * 100.0));
+            }
+            if let Some(np_yoy) = item.fundamental_snapshot.net_profit_yoy {
+                enrich_parts.push(format!("np_yoy={:.1}%", np_yoy * 100.0));
+            }
+            if let Some(gm) = item.fundamental_snapshot.gross_margin {
+                enrich_parts.push(format!("gross_margin={:.1}%", gm * 100.0));
+            }
+            if let Some(flow) = item.fundamental_snapshot.fund_flow_net_ratio {
+                enrich_parts.push(format!("fund_flow={:.2}%", flow * 100.0));
+            }
+            if let Some(br) = item.fundamental_snapshot.analyst_buy_ratio {
+                enrich_parts.push(format!("analyst_buy={:.0}%", br * 100.0));
+            }
+            if let Some(dy) = item.fundamental_snapshot.dividend_yield {
+                enrich_parts.push(format!("div_yield={:.2}%", dy * 100.0));
+            }
+            if let Some(chip) = item.fundamental_snapshot.chip_benefit_ratio {
+                enrich_parts.push(format!("chip_benefit={:.0}%", chip * 100.0));
+            }
+            let enrich_line = if enrich_parts.is_empty() {
+                "none".to_string()
+            } else {
+                enrich_parts.join(", ")
+            };
+
             format!(
-                "Candidate {}\nSymbol: {}\nName: {}\nFactor Total: {:.2}\nMarket Snapshot: price={:?}, change_pct={:?}, period_return_pct={:?}, volume_ratio={:?}\nTechnical Snapshot: rsi={:?}, macd_hist={:?}, ema10={:?}, sma50={:?}, sma200={:?}, atr={:?}, adx={:?}\nFundamental Snapshot: market_cap={:?}, pe_like={:?}, ps_like={:?}, roe={:?}, leverage={:?}\nNews Snapshot: deep_items={}, unique_sources={}, latest_published_at={}\nHistory Snapshot: samples={}, hit_rate={:?}, avg_alpha={:?}\nRisk Flags: {}\nData Gaps: {}\n",
+                "Candidate {}\nSymbol: {}\nName: {}\nFactor Total: {:.2}\nMarket Snapshot: price={:?}, change_pct={:?}, period_return_pct={:?}, volume_ratio={:?}\nTechnical Snapshot: rsi={:?}, macd_hist={:?}, ema10={:?}, sma50={:?}, sma200={:?}, atr={:?}, adx={:?}\nFundamental Snapshot: market_cap={:?}, pe_like={:?}, ps_like={:?}, roe={:?}, leverage={:?}\nEnrichment: {}\nNews Snapshot: deep_items={}, unique_sources={}, latest_published_at={}\nHistory Snapshot: samples={}, hit_rate={:?}, avg_alpha={:?}\nRisk Flags: {}\nData Gaps: {}\n",
                 index + 1,
                 item.symbol,
                 item.name,
@@ -268,6 +306,7 @@ pub(crate) fn build_prompt(
                 item.fundamental_snapshot.ps_like,
                 item.fundamental_snapshot.roe,
                 item.fundamental_snapshot.leverage,
+                enrich_line,
                 item.news_snapshot.deep_item_count,
                 item.news_snapshot.unique_source_count,
                 item.news_snapshot.latest_published_at,

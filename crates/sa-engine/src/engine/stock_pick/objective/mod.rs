@@ -218,6 +218,20 @@ fn build_valuation_vs_industry_block(
         ) {
             parts.push(line);
         }
+        if let Some(line) = format_valuation_line(
+            "PE_TTM",
+            candidate.fundamental_snapshot.pe_ttm.filter(|v| *v > 0.0),
+            avg.pe_ttm_avg,
+        ) {
+            parts.push(line);
+        }
+        if let Some(line) = format_valuation_line(
+            "PB",
+            candidate.fundamental_snapshot.pb.filter(|v| *v > 0.0),
+            avg.pb_avg,
+        ) {
+            parts.push(line);
+        }
         if !parts.is_empty() {
             lines.push(format!(
                 "{} ({}): {}",

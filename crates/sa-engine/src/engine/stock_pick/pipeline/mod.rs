@@ -1054,6 +1054,9 @@ fn default_selection_reason_codes(item: &EnrichedCandidate) -> Vec<String> {
     if item.factor.quality >= 60.0 || item.factor.profitability >= 60.0 {
         codes.push("fundamental_support".to_string());
     }
+    if item.factor.growth >= 60.0 {
+        codes.push("growth_support".to_string());
+    }
     if item.factor.evidence >= 55.0 {
         codes.push("evidence_support".to_string());
     }
@@ -1074,8 +1077,19 @@ fn score_evidence_quality(item: &EnrichedCandidate) -> i32 {
     } else {
         0
     };
+    // Enrichment data bonus
+    let enrichment_score = [
+        item.enrichment.pe_ttm.is_some(),
+        item.enrichment.revenue_yoy.is_some(),
+        item.enrichment.fund_flow_net_ratio.is_some(),
+        item.enrichment.analyst_report_count.is_some(),
+    ]
+    .iter()
+    .filter(|v| **v)
+    .count() as i32
+        * 5;
     let penalty = item.news_snapshot.hard_negative_count.min(3) as i32 * 5;
-    (source_score + evidence_score + history_score - penalty).clamp(0, 100)
+    (source_score + evidence_score + history_score + enrichment_score - penalty).clamp(0, 100)
 }
 
 fn summarize_history_matches(picks: &[StockPickItem]) -> StockPickHistoryMatchSnapshot {

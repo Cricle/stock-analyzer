@@ -164,6 +164,36 @@ impl MarketDataClient {
         })
     }
 
+    /// Fetch enrichment data for US stocks.
+    /// Tries Yahoo Finance key stats first, falls back to computing PE from fundamentals.
+    pub(crate) async fn fetch_us_enrichment(
+        &self,
+        symbol: &str,
+    ) -> anyhow::Result<super::a_share::AShareEnrichmentData> {
+        // Try Yahoo Finance first
+        if let Ok(stats) = self.ak.us_stock_key_stats(symbol).await {
+            return Ok(super::a_share::AShareEnrichmentData {
+                pe_ttm: stats.trailing_pe,
+                pb: stats.price_to_book,
+                gross_margin: stats.gross_margin,
+                dividend_yield: stats.dividend_yield,
+                ..super::a_share::AShareEnrichmentData::default()
+            });
+        }
+        // Fallback: compute PE from fundamentals (market_cap / net_income)
+        let fundamentals = self.fetch_us_fundamentals(symbol).await.ok();
+        let pe_ttm = fundamentals.as_ref().and_then(|f| {
+            let mc = f.market_cap?;
+            let ni = f.net_income_usd?;
+            if ni > 0.0 { Some(mc / ni) } else { None }
+        });
+        tracing::debug!(symbol, ?pe_ttm, "us_enrichment fallback from fundamentals");
+        Ok(super::a_share::AShareEnrichmentData {
+            pe_ttm,
+            ..super::a_share::AShareEnrichmentData::default()
+        })
+    }
+
     pub(super) async fn fetch_us_news(
         &self,
         symbol: &str,

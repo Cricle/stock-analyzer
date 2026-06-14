@@ -249,16 +249,10 @@ impl MarketDataClient {
                 let Some(last) = items.last() else {
                     return Ok(None);
                 };
-                // kline format: "date,main_in,main_out,main_net,super_large_net,large_net,ratio"
-                let kline_str = last.data.as_str().unwrap_or("");
-                let ratio = kline_str
-                    .split(',')
-                    .last()
-                    .and_then(|s| s.parse::<f64>().ok());
-                // API returns percentage (e.g. 1.07 = 1.07%), convert to ratio
-                let result = ratio.map(|v| v / 100.0);
-                tracing::debug!(code, ?result, "fund_flow from main_fund_flow");
-                Ok(result)
+                // net_ratio_pct is percentage (e.g. 1.07 = 1.07%), convert to ratio
+                let result = last.net_ratio_pct / 100.0;
+                tracing::debug!(code, ratio = result, date = %last.date, "fund_flow parsed");
+                Ok(Some(result))
             }
             Err(e) => {
                 tracing::warn!(code, error = %e, "main_fund_flow failed");

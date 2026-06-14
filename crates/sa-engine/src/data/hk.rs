@@ -353,4 +353,48 @@ impl MarketDataClient {
         let secid = format!("116.{code}");
         self.ak.stock_info_by_secid(&secid).await.ok().flatten()
     }
+
+    /// Fetch enrichment data for HK stocks.
+    /// Tries Baidu valuation API for PE and PB, falls back to computing PE from fundamentals.
+    pub(crate) async fn fetch_hk_enrichment(
+        &self,
+        symbol: &str,
+    ) -> anyhow::Result<super::a_share::AShareEnrichmentData> {
+        let code = self.hk_standard_code(symbol)?;
+        // Try Baidu valuation API for PE and PB
+        let pe = self
+            .ak
+            .stock_hk_valuation_baidu(&code, "pe_ttm", "monthly")
+            .await
+            .ok()
+            .and_then(|items| items.last().map(|v| v.value))
+            .filter(|v| *v != 0.0);
+        let pb = self
+            .ak
+            .stock_hk_valuation_baidu(&code, "pb", "monthly")
+            .await
+            .ok()
+            .and_then(|items| items.last().map(|v| v.value))
+            .filter(|v| *v != 0.0);
+        if pe.is_some() || pb.is_some() {
+            tracing::debug!(symbol, ?pe, ?pb, "hk_enrichment from baidu");
+            return Ok(super::a_share::AShareEnrichmentData {
+                pe_ttm: pe,
+                pb,
+                ..super::a_share::AShareEnrichmentData::default()
+            });
+        }
+        // Fallback: compute PE from fundamentals
+        let fundamentals = self.fetch_hk_fundamentals(symbol).await.ok();
+        let pe_ttm = fundamentals.as_ref().and_then(|f| {
+            let mc = f.market_cap?;
+            let ni = f.net_income_usd?;
+            if ni > 0.0 { Some(mc / ni) } else { None }
+        });
+        tracing::debug!(symbol, ?pe_ttm, "hk_enrichment fallback from fundamentals");
+        Ok(super::a_share::AShareEnrichmentData {
+            pe_ttm,
+            ..super::a_share::AShareEnrichmentData::default()
+        })
+    }
 }

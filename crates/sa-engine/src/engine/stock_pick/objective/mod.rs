@@ -424,6 +424,44 @@ pub(crate) fn default_catalysts(item: &EnrichedCandidate) -> Vec<String> {
         catalysts.push(format!("ROE of {:.1}% demonstrates efficient capital utilization", roe * 100.0));
     }
 
+    // Growth catalysts
+    if let Some(rev_yoy) = item.fundamental_snapshot.revenue_yoy
+        && rev_yoy > 0.15
+    {
+        catalysts.push(format!("Revenue YoY growth of {:.1}% shows strong demand", rev_yoy * 100.0));
+    }
+    if let Some(np_yoy) = item.fundamental_snapshot.net_profit_yoy
+        && np_yoy > 0.2
+    {
+        catalysts.push(format!("Net profit YoY growth of {:.1}% demonstrates earnings acceleration", np_yoy * 100.0));
+    }
+    if let Some(peg) = item.fundamental_snapshot.peg
+        && (0.0..1.0).contains(&peg)
+    {
+        catalysts.push(format!("PEG ratio {:.2}x indicates undervalued growth", peg));
+    }
+
+    // Analyst consensus
+    if let Some(buy_ratio) = item.fundamental_snapshot.analyst_buy_ratio
+        && buy_ratio > 0.6
+    {
+        catalysts.push(format!("Strong analyst consensus with {:.0}% buy/overweight ratings", buy_ratio * 100.0));
+    }
+
+    // Dividend
+    if let Some(dy) = item.fundamental_snapshot.dividend_yield
+        && dy > 0.02
+    {
+        catalysts.push(format!("Dividend yield of {:.1}% provides income support", dy * 100.0));
+    }
+
+    // Fund flow
+    if let Some(flow) = item.fundamental_snapshot.fund_flow_net_ratio
+        && flow > 0.05
+    {
+        catalysts.push("Positive fund flow indicates institutional accumulation".to_string());
+    }
+
     // News catalysts
     if item.news_snapshot.catalyst_count > 0 {
         catalysts.push(format!("{} positive news catalysts identified", item.news_snapshot.catalyst_count));
@@ -441,6 +479,9 @@ pub(crate) fn default_catalysts(item: &EnrichedCandidate) -> Vec<String> {
     }
     if item.factor.value >= 60.0 {
         catalysts.push("Value metrics indicate attractive entry point relative to peers".to_string());
+    }
+    if item.factor.growth >= 60.0 {
+        catalysts.push("Growth metrics confirm expansion trajectory".to_string());
     }
 
     // Ensure at least 2 catalysts
@@ -496,12 +537,36 @@ pub(crate) fn default_risks(item: &EnrichedCandidate) -> Vec<String> {
         risks.push(format!("Debt/equity ratio of {:.2} implies higher financial leverage", lev));
     }
 
+    // Chip risk: low benefit ratio means most holders underwater
+    if let Some(benefit) = item.fundamental_snapshot.chip_benefit_ratio
+        && benefit < 0.3
+    {
+        risks.push(format!("Only {:.0}% of holders in profit, elevated selloff pressure", benefit * 100.0));
+    }
+
+    // Growth risk: declining earnings
+    if let Some(np_yoy) = item.fundamental_snapshot.net_profit_yoy
+        && np_yoy < -0.2
+    {
+        risks.push(format!("Net profit declined {:.1}% YoY, earnings deterioration risk", np_yoy * 100.0));
+    }
+
+    // Fund flow risk: heavy outflows
+    if let Some(flow) = item.fundamental_snapshot.fund_flow_net_ratio
+        && flow < -0.1
+    {
+        risks.push("Negative fund flow indicates institutional distribution".to_string());
+    }
+
     // Factor-based risks
     if item.factor.risk < 50.0 {
         risks.push("Risk factor score below average warrants position sizing caution".to_string());
     }
     if item.factor.momentum < 40.0 {
         risks.push("Weak momentum signals suggest potential for continued underperformance".to_string());
+    }
+    if item.factor.growth < 40.0 {
+        risks.push("Growth metrics below average raises sustainability concerns".to_string());
     }
 
     // Data quality risks

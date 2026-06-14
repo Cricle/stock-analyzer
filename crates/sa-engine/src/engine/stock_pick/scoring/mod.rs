@@ -282,11 +282,46 @@ mod factors {
             .count() as f64
             / item.candles.windows(2).count().max(1) as f64;
 
-        (45.0
+        let mut score = 45.0
             + return_pct.clamp(-10.0, 25.0) * 1.2
             + (volume_ratio.min(4.0) - 1.0).max(0.0) * 8.0
-            + smoothness * 12.0)
-            .clamp(0.0, 100.0)
+            + smoothness * 12.0;
+
+        // RSI bonus: 50-70 is bullish momentum without overbought
+        if let Some(rsi) = item.technical_snapshot.rsi {
+            if (55.0..70.0).contains(&rsi) {
+                score += 6.0;
+            } else if rsi > 75.0 {
+                score -= 4.0; // Overbought penalty
+            } else if rsi < 30.0 {
+                score -= 6.0; // Oversold, potential reversal risk
+            }
+        }
+        // MACD histogram positive = uptrend confirmation
+        if let Some(macd) = item.technical_snapshot.macd_hist {
+            if macd > 0.0 {
+                score += 5.0;
+            } else if macd < -0.5 {
+                score -= 3.0;
+            }
+        }
+        // ADX: strong trend (>25) is good for momentum strategies
+        if let Some(adx) = item.technical_snapshot.adx {
+            if adx > 30.0 {
+                score += 4.0;
+            } else if adx < 15.0 {
+                score -= 2.0; // No clear trend
+            }
+        }
+        // Price above 50-day SMA = medium-term uptrend
+        if let (Some(price), Some(sma50)) = (item.price, item.technical_snapshot.close_50_sma)
+            && price > sma50
+            && sma50 > 0.0
+        {
+            score += 3.0;
+        }
+
+        score.clamp(0.0, 100.0)
     }
 
     fn quality_score(item: &EnrichedCandidate) -> f64 {

@@ -278,6 +278,8 @@ pub struct StockPickDataQualitySnapshot {
     #[serde(default)]
     pub redis_ready: bool,
     #[serde(default)]
+    pub enrichment_ready: bool,
+    #[serde(default)]
     pub completeness_score: i32,
     #[serde(default)]
     pub gaps: Vec<String>,

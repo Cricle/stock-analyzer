@@ -336,6 +336,18 @@ mod factors {
                 score += 3.0;
             }
         }
+        // FCF yield: FCF / market cap (higher is better, indicates cash generation efficiency)
+        if let (Some(fcf), Some(mc)) = (
+            item.fundamental_snapshot.free_cash_flow_usd.filter(|v| *v > 0.0),
+            item.fundamental_snapshot.market_cap.filter(|v| *v > 0.0),
+        ) {
+            let fcf_yield = fcf / mc;
+            if fcf_yield > 0.08 {
+                score += 8.0;
+            } else if fcf_yield > 0.04 {
+                score += 4.0;
+            }
+        }
         score.clamp(0.0, 100.0)
     }
 
@@ -470,8 +482,16 @@ mod factors {
             }
             None => 0.0,
         };
-        (48.0 + margin.clamp(-0.2, 0.3) * 90.0 + cash_conversion.clamp(-1.0, 2.0) * 8.0)
-            .clamp(0.0, 100.0)
+        let mut score = 48.0 + margin.clamp(-0.2, 0.3) * 90.0 + cash_conversion.clamp(-1.0, 2.0) * 8.0;
+        // Gross margin bonus (from enrichment)
+        if let Some(gm) = item.fundamental_snapshot.gross_margin {
+            if gm > 0.5 {
+                score += 8.0;
+            } else if gm > 0.3 {
+                score += 4.0;
+            }
+        }
+        score.clamp(0.0, 100.0)
     }
 
     fn risk_score(item: &EnrichedCandidate) -> f64 {
@@ -1113,6 +1133,10 @@ mod snapshots {
             !item.history_match_snapshot.enabled || item.history_match_snapshot.vector_hit_count > 0;
         let redis_ready =
             !item.history_match_snapshot.enabled || item.history_match_snapshot.sample_count > 0;
+        let enrichment_ready = item.enrichment.pe_ttm.is_some()
+            || item.enrichment.pb.is_some()
+            || item.enrichment.revenue_yoy.is_some()
+            || item.enrichment.fund_flow_net_ratio.is_some();
         let mut gaps = Vec::new();
         if !quote_ready {
             gaps.push("quote_missing".to_string());
@@ -1129,6 +1153,9 @@ mod snapshots {
         if !history_ready {
             gaps.push("history_missing".to_string());
         }
+        if !enrichment_ready {
+            gaps.push("enrichment_missing".to_string());
+        }
         let completeness_score = [
             quote_ready,
             fundamentals_ready,
@@ -1137,11 +1164,12 @@ mod snapshots {
             history_ready,
             vector_store_ready,
             redis_ready,
+            enrichment_ready,
         ]
         .into_iter()
         .filter(|value| *value)
         .count() as i32
-            * 14;
+            * 12;
         StockPickDataQualitySnapshot {
             quote_ready,
             fundamentals_ready,
@@ -1150,6 +1178,7 @@ mod snapshots {
             history_ready,
             vector_store_ready,
             redis_ready,
+            enrichment_ready,
             completeness_score,
             gaps,
         }

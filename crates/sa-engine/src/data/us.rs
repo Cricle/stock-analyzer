@@ -165,31 +165,71 @@ impl MarketDataClient {
     }
 
     /// Fetch enrichment data for US stocks.
-    /// Tries Yahoo Finance key stats first, falls back to computing PE from fundamentals.
+    /// Fetches Yahoo Finance stats and Eastmoney income sheet data in parallel.
     pub(crate) async fn fetch_us_enrichment(
         &self,
         symbol: &str,
     ) -> anyhow::Result<super::a_share::AShareEnrichmentData> {
-        // Try Yahoo Finance first
-        if let Ok(stats) = self.ak.us_stock_key_stats(symbol).await {
-            return Ok(super::a_share::AShareEnrichmentData {
-                pe_ttm: stats.trailing_pe,
-                pb: stats.price_to_book,
-                gross_margin: stats.gross_margin,
-                dividend_yield: stats.dividend_yield,
-                ..super::a_share::AShareEnrichmentData::default()
-            });
-        }
-        // Fallback: compute PE from fundamentals (market_cap / net_income)
-        let fundamentals = self.fetch_us_fundamentals(symbol).await.ok();
-        let pe_ttm = fundamentals.as_ref().and_then(|f| {
-            let mc = f.market_cap?;
-            let ni = f.net_income_usd?;
-            if ni > 0.0 { Some(mc / ni) } else { None }
-        });
-        tracing::debug!(symbol, ?pe_ttm, "us_enrichment fallback from fundamentals");
+        // Fetch Yahoo Finance stats and income sheet in parallel
+        let (yf_stats, income_sheets) = tokio::join!(
+            self.ak.us_stock_key_stats(symbol),
+            self.ak.stock_financial_us_income_sheet_typed(symbol, "年报"),
+        );
+
+        // Yahoo Finance: PE, PB, gross_margin, dividend_yield
+        let (pe_ttm, pb, gross_margin_yf, dividend_yield) = match yf_stats {
+            Ok(stats) => {
+                tracing::debug!(symbol, "us_enrichment from yahoo finance");
+                (stats.trailing_pe, stats.price_to_book, stats.gross_margin, stats.dividend_yield)
+            }
+            Err(e) => {
+                tracing::debug!(symbol, error = %e, "yahoo finance key_stats failed");
+                (None, None, None, None)
+            }
+        };
+
+        // Income sheet: revenue_yoy, net_profit_yoy, gross_margin
+        let (revenue_yoy, net_profit_yoy, gross_margin_em) = match income_sheets {
+            Ok(sheets) => {
+                let first = sheets.first();
+                let rev_yoy = first.and_then(|s| s.total_revenue_yoy).filter(|v| *v != 0.0);
+                let np_yoy = first.and_then(|s| s.net_profit_yoy).filter(|v| *v != 0.0);
+                let gm = first.and_then(|s| s.gross_margin).filter(|v| *v != 0.0);
+                tracing::debug!(symbol, ?rev_yoy, ?np_yoy, ?gm, "us_enrichment earnings from eastmoney");
+                (rev_yoy, np_yoy, gm)
+            }
+            Err(e) => {
+                tracing::debug!(symbol, error = %e, "us income sheet failed");
+                (None, None, None)
+            }
+        };
+
+        // Use Yahoo gross_margin if available, otherwise Eastmoney
+        let gross_margin = gross_margin_yf.or(gross_margin_em);
+
+        // Fallback: if PE still missing, compute from fundamentals
+        let pe_ttm = if pe_ttm.is_some() {
+            pe_ttm
+        } else {
+            let fundamentals = self.fetch_us_fundamentals(symbol).await.ok();
+            fundamentals.as_ref().and_then(|f| {
+                let mc = f.market_cap?;
+                let ni = f.net_income_usd?;
+                if ni > 0.0 { Some(mc / ni) } else { None }
+            })
+        };
+
+        // Industry from Yahoo Finance
+        let industry = self.resolve_us_industry(symbol).await;
+
         Ok(super::a_share::AShareEnrichmentData {
             pe_ttm,
+            pb,
+            revenue_yoy,
+            net_profit_yoy,
+            gross_margin,
+            dividend_yield,
+            industry,
             ..super::a_share::AShareEnrichmentData::default()
         })
     }

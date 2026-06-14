@@ -355,65 +355,95 @@ impl MarketDataClient {
     }
 
     /// Fetch enrichment data for HK stocks.
-    /// Tries Tencent financial API for PE and PB, then Baidu, then fundamentals fallback.
+    /// Fetches PE/PB from Tencent, earnings data from Eastmoney income sheet.
     pub(crate) async fn fetch_hk_enrichment(
         &self,
         symbol: &str,
     ) -> anyhow::Result<super::a_share::AShareEnrichmentData> {
-        // Primary: Tencent financial API (PE_TTM, PB, EPS, BVPS)
-        match self.ak.hk_financial(symbol).await {
+        let code = self.hk_standard_code(symbol)?;
+
+        // Fetch PE/PB and income sheet data in parallel
+        let (financial, income_sheets) = tokio::join!(
+            self.ak.hk_financial(symbol),
+            self.ak.stock_financial_hk_income_sheet_typed(&code, "报告期"),
+        );
+
+        // PE/PB from Tencent financial API
+        let (pe_ttm, pb) = match financial {
             Ok(fin) => {
                 let pe = fin.pe_ttm.filter(|v| *v > 0.0);
                 let pb = fin.pb.filter(|v| *v > 0.0);
-                if pe.is_some() || pb.is_some() {
-                    tracing::debug!(symbol, ?pe, ?pb, "hk_enrichment from tencent");
-                    return Ok(super::a_share::AShareEnrichmentData {
-                        pe_ttm: pe,
-                        pb,
-                        ..super::a_share::AShareEnrichmentData::default()
-                    });
-                }
+                tracing::debug!(symbol, ?pe, ?pb, "hk_enrichment from tencent");
+                (pe, pb)
             }
             Err(e) => {
                 tracing::debug!(symbol, error = %e, "tencent hk_financial failed");
+                (None, None)
             }
-        }
+        };
 
-        // Fallback: Baidu valuation API
-        let code = self.hk_standard_code(symbol)?;
-        let pe = self
-            .ak
-            .stock_hk_valuation_baidu(&code, "pe_ttm", "monthly")
-            .await
-            .ok()
-            .and_then(|items| items.last().map(|v| v.value))
-            .filter(|v| *v != 0.0);
-        let pb = self
-            .ak
-            .stock_hk_valuation_baidu(&code, "pb", "monthly")
-            .await
-            .ok()
-            .and_then(|items| items.last().map(|v| v.value))
-            .filter(|v| *v != 0.0);
-        if pe.is_some() || pb.is_some() {
-            tracing::debug!(symbol, ?pe, ?pb, "hk_enrichment from baidu");
-            return Ok(super::a_share::AShareEnrichmentData {
-                pe_ttm: pe,
-                pb,
-                ..super::a_share::AShareEnrichmentData::default()
-            });
-        }
+        // Revenue YoY, Net Profit YoY, Gross Margin from income sheet
+        let (revenue_yoy, net_profit_yoy, gross_margin) = match income_sheets {
+            Ok(sheets) => {
+                let first = sheets.first();
+                let rev_yoy = first.and_then(|s| s.total_revenue_yoy).filter(|v| *v != 0.0);
+                let np_yoy = first.and_then(|s| s.net_profit_yoy).filter(|v| *v != 0.0);
+                let gm = first.and_then(|s| s.gross_margin).filter(|v| *v != 0.0);
+                tracing::debug!(symbol, ?rev_yoy, ?np_yoy, ?gm, "hk_enrichment earnings from eastmoney");
+                (rev_yoy, np_yoy, gm)
+            }
+            Err(e) => {
+                tracing::debug!(symbol, error = %e, "hk income sheet failed");
+                (None, None, None)
+            }
+        };
 
-        // Last resort: compute PE from fundamentals
-        let fundamentals = self.fetch_hk_fundamentals(symbol).await.ok();
-        let pe_ttm = fundamentals.as_ref().and_then(|f| {
-            let mc = f.market_cap?;
-            let ni = f.net_income_usd?;
-            if ni > 0.0 { Some(mc / ni) } else { None }
-        });
-        tracing::debug!(symbol, ?pe_ttm, "hk_enrichment fallback from fundamentals");
+        // Industry from search
+        let industry = self.resolve_hk_industry(&code).await;
+
+        // Fallback: if PE/PB still missing, try Baidu then fundamentals
+        let pe_ttm = if pe_ttm.is_some() {
+            pe_ttm
+        } else {
+            // Try Baidu
+            let baidu_pe = self
+                .ak
+                .stock_hk_valuation_baidu(&code, "pe_ttm", "monthly")
+                .await
+                .ok()
+                .and_then(|items| items.last().map(|v| v.value))
+                .filter(|v| *v != 0.0);
+            if baidu_pe.is_some() {
+                baidu_pe
+            } else {
+                // Last resort: compute from fundamentals
+                let fundamentals = self.fetch_hk_fundamentals(symbol).await.ok();
+                fundamentals.as_ref().and_then(|f| {
+                    let mc = f.market_cap?;
+                    let ni = f.net_income_usd?;
+                    if ni > 0.0 { Some(mc / ni) } else { None }
+                })
+            }
+        };
+
+        let pb = if pb.is_some() {
+            pb
+        } else {
+            self.ak
+                .stock_hk_valuation_baidu(&code, "pb", "monthly")
+                .await
+                .ok()
+                .and_then(|items| items.last().map(|v| v.value))
+                .filter(|v| *v != 0.0)
+        };
+
         Ok(super::a_share::AShareEnrichmentData {
             pe_ttm,
+            pb,
+            revenue_yoy,
+            net_profit_yoy,
+            gross_margin,
+            industry,
             ..super::a_share::AShareEnrichmentData::default()
         })
     }

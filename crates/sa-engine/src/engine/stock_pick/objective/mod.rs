@@ -708,9 +708,26 @@ fn score_pick_data_completeness(pick: &StockPickItem, item: &EnrichedCandidate) 
         score += 5;
         covered.push("balance_sheet");
     }
+    // Enrichment data bonus
+    if item.enrichment.pe_ttm.is_some() || item.enrichment.pb.is_some() {
+        score += 2;
+        covered.push("valuation_enrichment");
+    }
+    if item.enrichment.revenue_yoy.is_some() || item.enrichment.net_profit_yoy.is_some() {
+        score += 2;
+        covered.push("earnings_growth");
+    }
+    if item.enrichment.fund_flow_net_ratio.is_some() {
+        score += 1;
+        covered.push("fund_flow");
+    }
+    if item.enrichment.analyst_report_count.is_some() {
+        score += 1;
+        covered.push("analyst_coverage");
+    }
     ScoreDimension {
         score,
-        max_score: 25,
+        max_score: 31,
         rationale: LocalText::new("pick_data_completeness_rationale")
             .with_str("covered_fields", covered.join(", ")),
     }

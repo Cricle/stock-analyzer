@@ -919,8 +919,37 @@ mod snapshots {
             })
             .collect::<Vec<_>>()
             .join("\n");
+        // Build enrichment line
+        let mut enrich_parts = Vec::new();
+        if let Some(pe_ttm) = item.fundamental_snapshot.pe_ttm {
+            enrich_parts.push(format!("pe_ttm={:.1}", pe_ttm));
+        }
+        if let Some(pb) = item.fundamental_snapshot.pb {
+            enrich_parts.push(format!("pb={:.1}", pb));
+        }
+        if let Some(peg) = item.fundamental_snapshot.peg {
+            enrich_parts.push(format!("peg={:.2}", peg));
+        }
+        if let Some(rev_yoy) = item.fundamental_snapshot.revenue_yoy {
+            enrich_parts.push(format!("rev_yoy={:.1}%", rev_yoy * 100.0));
+        }
+        if let Some(np_yoy) = item.fundamental_snapshot.net_profit_yoy {
+            enrich_parts.push(format!("np_yoy={:.1}%", np_yoy * 100.0));
+        }
+        if let Some(flow) = item.fundamental_snapshot.fund_flow_net_ratio {
+            enrich_parts.push(format!("fund_flow={:.2}%", flow * 100.0));
+        }
+        if let Some(br) = item.fundamental_snapshot.analyst_buy_ratio {
+            enrich_parts.push(format!("analyst_buy={:.0}%", br * 100.0));
+        }
+        let enrich_line = if enrich_parts.is_empty() {
+            "none".to_string()
+        } else {
+            enrich_parts.join(", ")
+        };
+
         format!(
-            "Symbol: {}\nName: {}\nMarket: {} {}\nIndustry: {}\nPrice: {:?}\nDay Change: {:?}\nReturn Window: {:?}\nMarket Cap: {:?}\nVolume Ratio: {:?}\nFactor Scores: total={:.2}, momentum={:.2}, quality={:.2}, value={:.2}, growth={:.2}, profitability={:.2}, risk={:.2}, event={:.2}, evidence={:.2}, history={:.2}, penalty={:.2}\nTechnical: ema10={:?}, sma50={:?}, sma200={:?}, rsi={:?}, macd_hist={:?}, atr={:?}, adx={:?}, obv={:?}, vwap={:?}\nEvidence Count: {}\nHistory Samples: {}\nRejected Reasons: {}\nEvidence Headlines:\n{}",
+            "Symbol: {}\nName: {}\nMarket: {} {}\nIndustry: {}\nPrice: {:?}\nDay Change: {:?}\nReturn Window: {:?}\nMarket Cap: {:?}\nVolume Ratio: {:?}\nFactor Scores: total={:.2}, momentum={:.2}, quality={:.2}, value={:.2}, growth={:.2}, profitability={:.2}, risk={:.2}, event={:.2}, evidence={:.2}, history={:.2}, penalty={:.2}\nTechnical: ema10={:?}, sma50={:?}, sma200={:?}, rsi={:?}, macd_hist={:?}, atr={:?}, adx={:?}, obv={:?}, vwap={:?}\nEnrichment: {}\nEvidence Count: {}\nHistory Samples: {}\nRejected Reasons: {}\nEvidence Headlines:\n{}",
             item.symbol,
             item.name,
             item.market,
@@ -951,6 +980,7 @@ mod snapshots {
             technical.adx,
             technical.obv,
             technical.vwap,
+            enrich_line,
             item.evidence_records.len(),
             item.history_match_snapshot.sample_count,
             if item.rejected_reasons.is_empty() {

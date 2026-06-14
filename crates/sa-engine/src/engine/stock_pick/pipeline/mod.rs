@@ -1083,14 +1083,19 @@ fn score_evidence_quality(item: &EnrichedCandidate) -> i32 {
     // Enrichment data bonus
     let enrichment_score = [
         item.enrichment.pe_ttm.is_some(),
+        item.enrichment.pb.is_some(),
         item.enrichment.revenue_yoy.is_some(),
+        item.enrichment.net_profit_yoy.is_some(),
         item.enrichment.fund_flow_net_ratio.is_some(),
         item.enrichment.analyst_report_count.is_some(),
+        item.enrichment.gross_margin.is_some(),
+        item.enrichment.dividend_yield.is_some(),
+        item.enrichment.chip_benefit_ratio.is_some(),
     ]
     .iter()
     .filter(|v| **v)
     .count() as i32
-        * 5;
+        * 4;
     let penalty = item.news_snapshot.hard_negative_count.min(3) as i32 * 5;
     (source_score + evidence_score + history_score + enrichment_score - penalty).clamp(0, 100)
 }

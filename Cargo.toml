@@ -1,10 +1,52 @@
-[workspace]
-members = ["crates/sa-engine"]
-resolver = "2"
-
-[workspace.package]
+[package]
+name = "sa-engine"
+version = "0.1.0"
 edition = "2024"
 license = "MIT"
+
+[[bin]]
+name = "sa-engine"
+path = "src/bin/sa-engine.rs"
+
+[[bin]]
+name = "sa-engine-mcp"
+path = "src/bin/sa-engine-mcp.rs"
+
+[features]
+default = []
+
+[dependencies]
+# Core
+adk-graph = { version = "0.8.0" }
+akshare = { git = "https://github.com/Cricle/akshare-rs.git", tag = "v0.1.4" }
+anyhow = "1"
+async-openai = { version = "0.41", features = ["chat-completion", "model"] }
+async-trait = "0.1"
+backoff = { version = "0.4", features = ["tokio"] }
+calamine = "0.31"
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4", features = ["derive"] }
+futures = "0.3"
+hex = "0.4"
+quick-xml = "0.38"
+regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+rmcp = { version = "0.1", features = ["server", "transport-io", "transport-sse"] }
+schemars = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tempfile = "3"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+uuid = { version = "1", features = ["v4"] }
+zeroize = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+axum = "0.8"
+tracing-subscriber = "0.3"
 
 [profile.dev]
 debug = 0

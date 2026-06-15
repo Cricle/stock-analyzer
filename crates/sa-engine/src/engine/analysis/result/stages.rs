@@ -514,8 +514,9 @@ impl crate::TaskManager {
                     "LLM output has quality issues, retrying"
                 );
             }
-            let research_manager = research_manager.expect("at least one LLM attempt must succeed");
+            let research_manager = research_manager.ok_or_else(|| anyhow::anyhow!("research_manager LLM failed after all retries"))?;
             result.agent_state.sender = "Research Manager".to_string();
+            result.agent_state.sender_key = Some("report.agent.research_manager".to_string());
             result.agent_state.investment_plan = research_manager.rendered_plan();
             result.agent_state.structured_research_plan = crate::models::StructuredResearchPlan {
                 recommendation: research_manager.recommendation.clone().into(),
@@ -643,8 +644,9 @@ impl crate::TaskManager {
                     "LLM output has quality issues, retrying"
                 );
             }
-            let trader = trader.expect("at least one LLM attempt must succeed");
+            let trader = trader.ok_or_else(|| anyhow::anyhow!("trader LLM failed after all retries"))?;
             result.agent_state.sender = "Trader".to_string();
+            result.agent_state.sender_key = Some("report.agent.trader".to_string());
             result.agent_state.trader_investment_plan = trader.trader_plan.clone();
             result.agent_state.structured_trader_plan = crate::models::StructuredTraderPlan {
                 action: trader.action.clone().into(),
@@ -786,8 +788,9 @@ impl crate::TaskManager {
                     "LLM output has quality issues, retrying"
                 );
             }
-            let portfolio_decision = portfolio_decision.expect("at least one LLM attempt must succeed");
+            let portfolio_decision = portfolio_decision.ok_or_else(|| anyhow::anyhow!("portfolio_decision LLM failed after all retries"))?;
             result.agent_state.sender = "Portfolio Manager".to_string();
+            result.agent_state.sender_key = Some("report.agent.portfolio_manager".to_string());
             result.agent_state.final_trade_decision = portfolio_decision.rendered_decision();
             result.agent_state.structured_portfolio_decision =
                 crate::models::StructuredPortfolioDecision {

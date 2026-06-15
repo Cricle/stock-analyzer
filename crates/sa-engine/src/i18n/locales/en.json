@@ -8,7 +8,14 @@
     "diagnostics": { "title": "Diagnostics" },
     "probability": { "title": "Probability Assessment" },
     "trader_plan": { "title": "Trader Plan" },
-    "header": { "for_symbol": "Analysis Report for {symbol}" }
+    "header": { "for_symbol": "Analysis Report for {symbol}" },
+    "agent": {
+      "research_manager": "Research Manager",
+      "trader": "Trader",
+      "portfolio_manager": "Portfolio Manager",
+      "bull_researcher": "Bull Researcher",
+      "bear_researcher": "Bear Researcher"
+    }
   },
   "guidance": {
     "title": "Daily Guidance",
@@ -36,6 +43,14 @@
       "aggressive": "aggressive"
     },
     "rationale": "Based on {total} news items: {pos} positive, {neg} negative, {neutral} neutral for {market} market",
+    "sector": {
+      "technology": "technology",
+      "finance": "finance",
+      "healthcare": "healthcare",
+      "energy": "energy",
+      "consumer": "consumer",
+      "real_estate": "real estate"
+    },
     "drivers": {
       "positive": "positive: {events}",
       "negative": "negative: {events}"
@@ -45,11 +60,13 @@
       "negative_news": "Multiple negative news items ({count}): {titles}. Monitor for systemic risks.",
       "high_negative_sentiment": "Average news impact is negative ({avg}) with {count} negative items. Sentiment deterioration warrants caution.",
       "sector_divergence": "Market indices diverging: {up_names} rising while {down_names} falling. Indicates sector rotation or market fragmentation.",
+      "index_volatility": "{index} moved {change_pct:.2}% today. Significant intraday movement increases risk.",
       "mitigation": {
         "review_stoploss": "Review stop-loss levels and position sizing.",
         "diversify": "Diversify holdings and avoid concentrated positions.",
         "reduce_position": "Consider reducing position sizes and tightening stop-losses.",
-        "hedge": "Review portfolio concentration and consider hedging."
+        "hedge": "Review portfolio concentration and consider hedging.",
+        "wait_volatility": "Avoid chasing momentum; wait for volatility to subside."
       }
     },
     "guide": {
@@ -89,16 +106,85 @@
         "maintain_allocation": "Maintain current allocation",
         "consider_sector_rotation": "Consider sector rotation"
       },
-      "sector_strong": "Strong sectors: {sectors}",
-      "sector_weak": "Weak sectors: {sectors}",
       "sector_info_strong": "Strong: {info}",
       "sector_info_weak": "Weak: {info}",
       "sector_info_both": "Strong: {strong}. Weak: {weak}",
+      "sector_label": "{name} sector",
       "no_sector_trend": "No dominant sector trend."
     }
   },
   "stock_pick": {
     "title": "Stock Picks",
+    "fallback": {
+      "no_thesis": "No thesis returned.",
+      "no_catalyst": "No catalyst returned",
+      "no_risk": "No risk returned",
+      "no_evidence": "No evidence returned",
+      "no_summary": "No stock picking summary returned."
+    },
+    "thesis": {
+      "market_context": "Market context: {name} ({symbol}) listed on {market}, part of {industry} sector.",
+      "price_action": "Price action: {name} ({symbol}) moved from {start_price:.2} to {end_price:.2} ({ret:+.1}%) during the analysis period, {direction}.",
+      "no_candles": "{name} shows a composite factor score of {total:.1}, with momentum at {momentum:.1} and quality at {quality:.1}.",
+      "valuation_metrics": "Valuation metrics: {metrics}.",
+      "growth_metrics": "Growth metrics: {metrics}.",
+      "technical_indicators": "Technical indicators: {metrics}.",
+      "factor_scores": "Factor scores: momentum {momentum:.0}, quality {quality:.0}, value {value:.0}, growth {growth:.0}, profitability {profitability:.0}, risk {risk:.0}.",
+      "direction": {
+        "strong_bullish": "strong bullish",
+        "moderate": "moderate",
+        "bearish": "bearish"
+      }
+    },
+    "evidence": {
+      "price_range": "{start_date} to {end_date} price {start_price:.2} → {end_price:.2} ({ret:+.1}%)",
+      "latest": "Latest: change {change_pct:.2}%, volume {volume}",
+      "market_cap_t": "Market cap {cap:.0}T yuan",
+      "market_cap_b": "Market cap {cap:.0}B yuan",
+      "pe": "PE {pe:.1}x",
+      "roe": "ROE {roe:.1}%",
+      "pe_ttm": "PE TTM {pe_ttm:.1}x",
+      "pb": "PB {pb:.1}x",
+      "ps": "PS {ps:.1}x",
+      "revenue_yoy": "Revenue YoY {pct:.1}%",
+      "net_profit_yoy": "Net Profit YoY {pct:.1}%",
+      "fund_flow": "Fund flow net ratio {pct:.2}%",
+      "analyst_reports": "Analyst reports: {count}",
+      "gross_margin": "Gross margin {pct:.1}%",
+      "peg": "PEG {peg:.2}x",
+      "dividend_yield": "Dividend yield {pct:.2}%",
+      "chip_benefit": "Chip benefit ratio {pct:.0}%",
+      "rsi": "RSI {rsi:.1}",
+      "macd_hist": "MACD hist {macd:.2}",
+      "factor_summary": "Factor: total {total:.1}, momentum {momentum:.1}, quality {quality:.1}, value {value:.1}, growth {growth:.1}",
+      "factor_details": "Factor: profitability {profitability:.1}, risk {risk:.1}, event {event:.1}",
+      "news_items": "{count} recent news items from {sources} unique sources",
+      "candle_stats": "{count} candles with {ratio:.0}% up-day ratio",
+      "industry": "Industry: {industry}"
+    },
+    "valuation_vs_industry": {
+      "header": "Valuation vs Industry:\n",
+      "line": "{label} {value:.1}x vs industry avg {avg:.1}x ({premium:.1}x {direction})",
+      "premium": "premium",
+      "discount": "discount"
+    },
+    "headline": {
+      "high_quality": "High-quality candidate with broad evidence coverage.",
+      "usable": "Usable candidate with acceptable evidence depth.",
+      "mixed": "Evidence is mixed and still needs confirmation.",
+      "not_ready": "Not fully ready: {gaps}."
+    },
+    "gap": {
+      "missing_fundamentals": "missing fundamentals data",
+      "missing_industry": "missing industry classification",
+      "missing_income_statement": "missing income statement",
+      "missing_balance_sheet": "missing balance sheet",
+      "thin_news_coverage": "thin news coverage",
+      "short_price_history": "short price history",
+      "thin_evidence_points": "insufficient evidence points",
+      "missing_valuation_enrichment": "missing valuation data",
+      "missing_earnings_growth": "missing earnings growth data"
+    },
     "catalyst": {
       "strong_return": "Strong period return of {pct:.1}%",
       "rsi_bullish": "RSI at {rsi:.1} indicates bullish momentum without overbought risk",
@@ -134,11 +220,83 @@
       "chip_concentrated": "High chip concentration increases volatility on large trades",
       "fund_flow_negative": "Negative fund flow indicates institutional distribution",
       "risk_low_score": "Risk factor score is low ({score:.1})",
-      "risk_elevated": "Overall risk assessment is elevated",
       "momentum_weak": "Momentum factor is weak ({score:.1}), upward momentum lacking",
-      "quality_weak": "Quality factor is low ({score:.1})",
-      "value_expensive": "Valuation factor is high ({score:.1}), expensive relative to peers"
+      "growth_weak": "Growth metrics below average raises sustainability concerns",
+      "limited_data": "Limited fundamental data availability constrains valuation confidence",
+      "short_history": "Short price history limits statistical reliability of technical signals",
+      "macro_uncertainty": "Macroeconomic conditions and sector rotation dynamics remain key uncertainties",
+      "monitor_dynamics": "Monitor price-volume dynamics and upcoming earnings announcements"
     }
   },
-  "error": { "section_failed": "Section generation failed: {reason}" }
+  "llm": {
+    "fallback": {
+      "no_summary": "Model did not return summary for this role.",
+      "no_detail": "Model did not return detailed analysis for this role.",
+      "no_rationale": "Model did not return rationale for this role.",
+      "no_reasoning": "Model did not return analyst action reasoning.",
+      "no_debate": "Model did not return debate content.",
+      "no_research_manager": "Model did not return research manager conclusion.",
+      "no_trader_plan": "Model did not return trader plan.",
+      "no_portfolio_decision": "Model did not return portfolio manager decision.",
+      "no_evidence": "Missing structured evidence items",
+      "no_risk": "Monitor core assumption invalidation",
+      "no_risk_alt": "Monitor information gaps and market volatility",
+      "no_next_steps": "Continue tracking follow-up data",
+      "overview": "Overview",
+      "comprehensive_agent": "Comprehensive Analysis Agent",
+      "no_research_rationale": "Model did not return research manager rationale.",
+      "no_research_action": "Model did not return research manager action plan.",
+      "no_risk_assessment": "Model did not return risk assessment.",
+      "no_executive_summary": "Model did not return portfolio manager executive summary.",
+      "no_investment_logic": "Model did not return portfolio manager investment logic.",
+      "no_trader_reasoning": "Model did not return trade reasoning."
+    }
+  },
+  "memory": {
+    "no_reflections": "No reflections yet"
+  },
+  "error": { "section_failed": "Section generation failed: {reason}" },
+  "score": {
+    "fundamental": {
+      "negative_pe": "Negative PE, earnings under pressure",
+      "pe_low": "PE {pe:.1} undervalued",
+      "pe_high": "PE {pe:.1} overvalued",
+      "pe_too_high": "PE {pe:.1} extremely overvalued",
+      "roe_excellent": "ROE {roe:.1}% excellent",
+      "roe_loss": "ROE {roe:.1}% loss",
+      "low_leverage": "Low leverage",
+      "leverage_high": "Debt ratio {lev:.1} elevated",
+      "leverage_too_high": "Debt ratio {lev:.1} excessive",
+      "revenue_profit_positive": "Revenue and profit positive",
+      "revenue_positive_net_loss": "Revenue positive but net loss",
+      "revenue_missing": "Revenue data missing or zero",
+      "insufficient_data": "Insufficient fundamental data, neutral score assigned"
+    },
+    "technical": {
+      "rsi_oversold": "RSI {rsi:.0} oversold",
+      "rsi_low": "RSI {rsi:.0} low",
+      "rsi_high": "RSI {rsi:.0} high",
+      "rsi_overbought": "RSI {rsi:.0} overbought",
+      "macd_golden_cross": "MACD golden cross",
+      "macd_death_cross": "MACD death cross",
+      "ma_bullish": "MA bullish alignment",
+      "ma_bearish": "MA bearish alignment",
+      "volume_up_rise": "Volume surge on rally",
+      "volume_up_drop": "Volume surge on decline",
+      "neutral": "Technical signals neutral"
+    },
+    "llm_analysis": {
+      "consensus": "Consensus {consensus:.0}%, {detail}",
+      "signal_llm": "LLM",
+      "signal_technical": "Tech",
+      "signal_history": "History",
+      "signal_news": "News",
+      "signal_market": "Market"
+    },
+    "sentiment": {
+      "no_news": "No news data, sentiment neutral",
+      "llm_failed": "Sentiment LLM call failed: {error}",
+      "parse_failed": "Sentiment parse failed, using neutral score"
+    }
+  }
 }

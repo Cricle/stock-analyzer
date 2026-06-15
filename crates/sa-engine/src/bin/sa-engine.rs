@@ -82,6 +82,14 @@ impl LangArg {
             LangArg::En => "en",
         }
     }
+
+    /// Language string for the LLM request (e.g. "zh-CN", "en").
+    fn as_llm_lang(self) -> &'static str {
+        match self {
+            LangArg::Zh => "zh-CN",
+            LangArg::En => "en",
+        }
+    }
 }
 
 fn error_exit(code: &str, message: &str) -> ! {
@@ -92,68 +100,6 @@ fn error_exit(code: &str, message: &str) -> ! {
     std::process::exit(1);
 }
 
-fn resolve_output(value: serde_json::Value, i18n: &I18n, lang: &str) -> serde_json::Value {
-    match value {
-        serde_json::Value::Object(map) => {
-            let mut resolved = serde_json::Map::new();
-            for (k, v) in map {
-                if k == "i18n_key" {
-                    if let Some(key) = v.as_str()
-                        && let Some(text) = i18n.resolve(key, lang)
-                    {
-                        resolved.insert("text".to_string(), json!(text));
-                        resolved.insert("key".to_string(), json!(key));
-                    }
-                } else if k.ends_with("_key") {
-                    // Handle `*_key` fields: resolve and populate the base field.
-                    let base = k.strip_suffix("_key").unwrap();
-                    match &v {
-                        serde_json::Value::String(key) => {
-                            if let Some(text) = i18n.resolve(key, lang) {
-                                resolved.insert(base.to_string(), json!(text));
-                            }
-                            resolved.insert(k, v);
-                        }
-                        serde_json::Value::Object(obj) => {
-                            if let Some(key) = obj.get("i18n_key").and_then(|v| v.as_str()) {
-                                let params = obj.iter()
-                                    .filter(|(name, _)| *name != "i18n_key")
-                                    .map(|(name, val)| (name.clone(), val.clone()))
-                                    .collect::<serde_json::Map<String, serde_json::Value>>();
-                                if let Some(text) = i18n.resolve_with_params(key, lang, &params) {
-                                    resolved.insert(base.to_string(), json!(text));
-                                }
-                            }
-                            resolved.insert(k, resolve_output(v, i18n, lang));
-                        }
-                        serde_json::Value::Array(arr) => {
-                            // Array of i18n keys (e.g. action_keys).
-                            let texts: Vec<String> = arr.iter()
-                                .filter_map(|item| {
-                                    item.as_str().and_then(|key| i18n.resolve(key, lang))
-                                })
-                                .collect();
-                            if !texts.is_empty() {
-                                resolved.insert(base.to_string(), json!(texts));
-                            }
-                            resolved.insert(k, serde_json::Value::Array(arr.clone()));
-                        }
-                        _ => {
-                            resolved.insert(k, v);
-                        }
-                    }
-                } else {
-                    resolved.insert(k, resolve_output(v, i18n, lang));
-                }
-            }
-            serde_json::Value::Object(resolved)
-        }
-        serde_json::Value::Array(arr) => {
-            serde_json::Value::Array(arr.into_iter().map(|v| resolve_output(v, i18n, lang)).collect())
-        }
-        other => other,
-    }
-}
 
 #[tokio::main]
 async fn main() {
@@ -182,6 +128,7 @@ async fn main() {
                 market: Some(market.as_str().to_string()),
                 tickers: None,
                 refresh: None,
+                lang: lang.as_ref().map(|l| l.as_str().to_string()),
             };
 
             match generator.generate(&request).await {
@@ -189,7 +136,7 @@ async fn main() {
                     let mut out = json!(report);
                     if let Some(l) = lang {
                         let i18n = I18n::new();
-                        out = resolve_output(out, &i18n, l.as_str());
+                        out = bin_helpers::resolve_output(out, &i18n, l.as_str());
                     }
                     println!("{}", serde_json::to_string_pretty(&out).unwrap());
                 }
@@ -204,10 +151,11 @@ async fn main() {
             let llm = bin_helpers::build_llm_client()
                 .unwrap_or_else(|e| error_exit("init_failed", &e.to_string()));
 
+            let llm_lang = lang.map(|l| l.as_llm_lang().to_string());
             let request = StockPickRequest {
                 market: market.as_str().to_string(),
                 analysis_date: date,
-                language: Some("zh-CN".to_string()),
+                language: llm_lang.or_else(|| Some("zh-CN".to_string())),
                 strategy: None,
                 candidate_symbols,
                 sector_type: None,
@@ -223,7 +171,7 @@ async fn main() {
                     let mut out = json!(response);
                     if let Some(l) = lang {
                         let i18n = I18n::new();
-                        out = resolve_output(out, &i18n, l.as_str());
+                        out = bin_helpers::resolve_output(out, &i18n, l.as_str());
                     }
                     println!("{}", serde_json::to_string_pretty(&out).unwrap());
                 }
@@ -246,6 +194,7 @@ async fn main() {
                 market: Some(market.as_str().to_string()),
                 tickers: Some(vec![symbol.clone()]),
                 refresh: None,
+                lang: lang.as_ref().map(|l| l.as_str().to_string()),
             };
 
             let mut result = json!({
@@ -264,11 +213,12 @@ async fn main() {
             }
 
             // Run stock pick for this symbol
+            let llm_lang = lang.map(|l| l.as_llm_lang().to_string());
             let pick_req = StockPickRequest {
                 market: market.as_str().to_string(),
                 candidate_symbols: Some(vec![symbol.clone()]),
                 pick_count: Some(1),
-                language: Some("zh-CN".to_string()),
+                language: llm_lang.or_else(|| Some("zh-CN".to_string())),
                 strategy: None,
                 sector_type: None,
                 candidate_limit: None,
@@ -293,7 +243,7 @@ async fn main() {
 
             if let Some(l) = lang {
                 let i18n = I18n::new();
-                result = resolve_output(result, &i18n, l.as_str());
+                result = bin_helpers::resolve_output(result, &i18n, l.as_str());
             }
 
             println!("{}", serde_json::to_string_pretty(&result).unwrap());

@@ -5,6 +5,23 @@ pub fn text_or_default(value: Option<Value>, default: &str) -> String {
         .unwrap_or_else(|| default.to_string())
 }
 
+/// Like [`text_or_default`], but also returns the i18n key when the fallback
+/// is used.  The second element is `Some(key)` when the LLM did not provide a
+/// value and the default placeholder was substituted.
+pub fn text_or_default_with_key(
+    value: Option<Value>,
+    default: &str,
+    key: &str,
+) -> (String, Option<String>) {
+    let text = value
+        .map(|value| normalize_value(&value))
+        .filter(|value| !value.is_empty());
+    match text {
+        Some(t) => (t, None),
+        None => (default.to_string(), Some(key.to_string())),
+    }
+}
+
 pub fn first_non_empty(values: &[Option<&Value>], default: &str) -> String {
     values
         .iter()
@@ -12,6 +29,24 @@ pub fn first_non_empty(values: &[Option<&Value>], default: &str) -> String {
         .map(normalize_value)
         .find(|value| !value.is_empty())
         .unwrap_or_else(|| default.to_string())
+}
+
+/// Like [`first_non_empty`], but also returns the i18n key when the fallback
+/// is used.
+pub fn first_non_empty_with_key(
+    values: &[Option<&Value>],
+    default: &str,
+    key: &str,
+) -> (String, Option<String>) {
+    let text = values
+        .iter()
+        .filter_map(|value| *value)
+        .map(normalize_value)
+        .find(|value| !value.is_empty());
+    match text {
+        Some(t) => (t, None),
+        None => (default.to_string(), Some(key.to_string())),
+    }
 }
 
 pub fn string_list_or_default(value: Option<Value>, defaults: &[&str]) -> Vec<String> {
@@ -41,6 +76,27 @@ pub fn string_list_or_default(value: Option<Value>, defaults: &[&str]) -> Vec<St
             }
         }
         None => defaults.iter().map(|item| item.to_string()).collect(),
+    }
+}
+
+/// Like [`string_list_or_default`], but also returns the i18n key when the
+/// fallback is used.  The second element is `Some(key)` when the LLM did not
+/// provide a value and the default placeholders were substituted.
+pub fn string_list_or_default_with_key(
+    value: Option<Value>,
+    defaults: &[&str],
+    key: &str,
+) -> (Vec<String>, Option<String>) {
+    let result = string_list_or_default(value, defaults);
+    let used_default = result.len() == defaults.len()
+        && result
+            .iter()
+            .zip(defaults.iter())
+            .all(|(a, b)| a == *b);
+    if used_default {
+        (result, Some(key.to_string()))
+    } else {
+        (result, None)
     }
 }
 
@@ -227,7 +283,7 @@ fn normalize_inline_value(value: &Value) -> String {
     }
 }
 
-fn is_default_text(value: &str) -> bool {
+pub(crate) fn is_default_text(value: &str) -> bool {
     matches!(
         value,
         "模型未返回该角色摘要。"

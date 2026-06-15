@@ -12,10 +12,14 @@ impl GeneratedRoleReport {
     pub(crate) fn from_value(raw: Value) -> Self {
         let object = raw.as_object();
         let field = |key: &str| object.and_then(|map| map.get(key)).cloned();
-        let summary = parse::text_or_default(field("summary"), "模型未返回该角色摘要。");
-        let detail = parse::text_or_default(field("detail"), "模型未返回该角色详细分析。");
-        let rationale = parse::text_or_default(field("rationale"), "模型未返回该角色依据。");
-        let next_steps = parse::string_list_or_default(field("next_steps"), &["继续跟踪后续数据"]);
+        let (summary, summary_key) =
+            parse::text_or_default_with_key(field("summary"), "模型未返回该角色摘要。", "llm.fallback.no_summary");
+        let (detail, detail_key) =
+            parse::text_or_default_with_key(field("detail"), "模型未返回该角色详细分析。", "llm.fallback.no_detail");
+        let (rationale, rationale_key) =
+            parse::text_or_default_with_key(field("rationale"), "模型未返回该角色依据。", "llm.fallback.no_rationale");
+        let (next_steps, next_steps_key) =
+            parse::string_list_or_default_with_key(field("next_steps"), &["继续跟踪后续数据"], "llm.fallback.no_next_steps");
         let (up_probability, down_probability, sideways_probability) = role_report_probabilities(
             field("up_probability"),
             field("down_probability"),
@@ -25,23 +29,36 @@ impl GeneratedRoleReport {
             &rationale,
             &next_steps,
         );
+        let (evidence_points, evidence_points_key) = parse::string_list_or_default_with_key(
+            field("evidence_points"),
+            &["缺少结构化证据条目"],
+            "llm.fallback.no_evidence",
+        );
+        let (risks, risks_key) = parse::string_list_or_default_with_key(
+            field("risks"),
+            &["需关注信息缺口与市场波动"],
+            "llm.fallback.no_risk_alt",
+        );
         Self {
             key: parse::text_or_default(field("key"), "overview"),
             title: parse::text_or_default(field("title"), "总览"),
             agent: parse::text_or_default(field("agent"), "综合分析 Agent"),
             summary,
+            summary_key,
             detail,
-            evidence_points: parse::string_list_or_default(
-                field("evidence_points"),
-                &["缺少结构化证据条目"],
-            ),
+            detail_key,
+            evidence_points,
+            evidence_points_key,
             up_probability,
             down_probability,
             sideways_probability,
             confidence: field("confidence").unwrap_or(Value::String("unknown".to_string())),
             rationale,
+            rationale_key,
             next_steps,
-            risks: parse::string_list_or_default(field("risks"), &["需关注信息缺口与市场波动"]),
+            next_steps_key,
+            risks,
+            risks_key,
         }
     }
 }
@@ -50,9 +67,15 @@ impl GeneratedAnalystDecision {
     pub(crate) fn from_value(raw: Value) -> Self {
         let object = raw.as_object();
         let field = |key: &str| object.and_then(|map| map.get(key)).cloned();
+        let (reasoning, reasoning_key) = parse::text_or_default_with_key(
+            field("reasoning"),
+            "模型未返回分析师动作原因。",
+            "llm.fallback.no_reasoning",
+        );
         Self {
             action: parse::text_or_default(field("action"), "finalize"),
-            reasoning: parse::text_or_default(field("reasoning"), "模型未返回分析师动作原因。"),
+            reasoning,
+            reasoning_key,
             final_report: field("final_report").map(GeneratedRoleReport::from_value),
             tool_name: field("tool_name")
                 .map(|value| parse::normalize_value(&value))

@@ -6,6 +6,10 @@ use serde::{Deserialize, Serialize};
 pub struct DimensionScore {
     pub score: u8,
     pub reason: String,
+    /// I18n key(s) for the reason, joined by the same separator as `reason`.
+    /// The rendering layer can resolve each key to produce a localized reason.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason_key: Option<String>,
 }
 
 /// Full score for a single stock.

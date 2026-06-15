@@ -24,6 +24,7 @@ pub(crate) fn parse_generated_analyst_decision(
             action: "finalize".to_string(),
             reasoning: "normalized legacy role-report response into analyst finalize decision"
                 .to_string(),
+            reasoning_key: None,
             final_report: Some(report),
             tool_name: None,
             tool_arguments: None,

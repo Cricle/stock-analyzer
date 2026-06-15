@@ -7,13 +7,13 @@ pub(crate) fn validate_research_manager(parsed: &super::GeneratedResearchManager
             "recommendation defaulted to Hold (field missing)",
         ));
     }
-    if is_default_text(&parsed.rationale) {
+    if parsed.rationale_key.is_some() {
         issues.push(DiagnosisIssue::error(
             "research_manager", "rationale",
             "rationale is default placeholder",
         ));
     }
-    if is_default_text(&parsed.risk_assessment) {
+    if parsed.risk_assessment_key.is_some() {
         issues.push(DiagnosisIssue::error(
             "research_manager", "risk_assessment",
             "risk_assessment is default placeholder",
@@ -31,7 +31,7 @@ pub(crate) fn validate_research_manager(parsed: &super::GeneratedResearchManager
 
 pub fn validate_analyst_decision(parsed: &super::GeneratedAnalystDecision, raw: &str) -> Vec<DiagnosisIssue> {
     let mut issues = Vec::new();
-    if is_default_text(&parsed.reasoning) {
+    if parsed.reasoning_key.is_some() {
         issues.push(DiagnosisIssue::error(
             "analyst_decision", "reasoning",
             "reasoning is default placeholder",
@@ -64,7 +64,7 @@ pub fn validate_analyst_decision(parsed: &super::GeneratedAnalystDecision, raw: 
 
 pub(crate) fn validate_debate_turn(parsed: &super::GeneratedDebateTurn, raw: &str) -> Vec<DiagnosisIssue> {
     let mut issues = Vec::new();
-    if is_default_text(&parsed.response) {
+    if parsed.response_key.is_some() {
         issues.push(DiagnosisIssue::error(
             "debate_turn", "response",
             "response is default placeholder",
@@ -76,8 +76,7 @@ pub(crate) fn validate_debate_turn(parsed: &super::GeneratedDebateTurn, raw: &st
             "speaker defaulted to Unknown",
         ));
     }
-    if parsed.evidence_points.len() == 1 && parsed.evidence_points[0] == "缺少结构化证据条目"
-    {
+    if parsed.evidence_points_key.is_some() {
         issues.push(DiagnosisIssue::warning(
             "debate_turn", "evidence_points",
             "evidence_points is default placeholder",
@@ -96,13 +95,13 @@ pub(crate) fn validate_debate_turn(parsed: &super::GeneratedDebateTurn, raw: &st
 
 pub(crate) fn validate_trader_decision(parsed: &super::GeneratedTraderDecision, raw: &str) -> Vec<DiagnosisIssue> {
     let mut issues = Vec::new();
-    if is_default_text(&parsed.trader_plan) {
+    if parsed.trader_plan.is_empty() || is_default_text(&parsed.trader_plan) {
         issues.push(DiagnosisIssue::error(
             "trader_decision", "trader_plan",
             "trader_plan is default placeholder",
         ));
     }
-    if is_default_text(&parsed.reasoning) {
+    if parsed.reasoning_key.is_some() {
         issues.push(DiagnosisIssue::error(
             "trader_decision", "reasoning",
             "reasoning is default placeholder",
@@ -121,13 +120,13 @@ pub(crate) fn validate_trader_decision(parsed: &super::GeneratedTraderDecision, 
 
 pub(crate) fn validate_portfolio_decision(parsed: &super::GeneratedPortfolioDecision, raw: &str) -> Vec<DiagnosisIssue> {
     let mut issues = Vec::new();
-    if is_default_text(&parsed.executive_summary) {
+    if parsed.executive_summary_key.is_some() {
         issues.push(DiagnosisIssue::error(
             "portfolio_decision", "executive_summary",
             "executive_summary is default placeholder",
         ));
     }
-    if is_default_text(&parsed.rationale) {
+    if parsed.rationale_key.is_some() {
         issues.push(DiagnosisIssue::error(
             "portfolio_decision", "rationale",
             "rationale is default placeholder",

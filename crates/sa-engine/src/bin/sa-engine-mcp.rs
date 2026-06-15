@@ -118,6 +118,7 @@ impl ServerHandler for StockAnalyzerServer {
         match name {
             "generate_guidance" => {
                 let market = args.get("market").and_then(|v| v.as_str()).unwrap_or("a-share");
+                let lang = args.get("lang").and_then(|v| v.as_str()).unwrap_or("zh");
                 let memory = bin_helpers::build_memory();
                 let generator = DailyGuidanceGenerator::new(self.market_data.clone(), memory)
                     .with_llm(self.llm.clone());
@@ -125,19 +126,26 @@ impl ServerHandler for StockAnalyzerServer {
                     market: Some(market.to_string()),
                     tickers: None,
                     refresh: None,
+                    lang: Some(lang.to_string()),
                 };
                 match generator.generate(&req).await {
-                    Ok(report) => Ok(CallToolResult::success(success_content(&serde_json::json!(report)))),
+                    Ok(report) => {
+                        let mut out = serde_json::json!(report);
+                        let i18n = sa_engine::i18n::I18n::new();
+                        out = bin_helpers::resolve_output(out, &i18n, lang);
+                        Ok(CallToolResult::success(success_content(&out)))
+                    },
                     Err(e) => Ok(CallToolResult::success(error_content("guidance_failed", &e.to_string()))),
                 }
             }
             "stock_pick" => {
                 let market = args.get("market").and_then(|v| v.as_str()).unwrap_or("a-share");
+                let lang = args.get("lang").and_then(|v| v.as_str()).unwrap_or("zh");
                 let date = args.get("date").and_then(|v| v.as_str()).map(String::from);
                 let req = StockPickRequest {
                     market: market.to_string(),
                     analysis_date: date,
-                    language: Some("zh-CN".to_string()),
+                    language: Some(lang.to_string()),
                     strategy: None,
                     candidate_symbols: None,
                     sector_type: None,
@@ -148,7 +156,12 @@ impl ServerHandler for StockAnalyzerServer {
                     history_retrieval: None,
                 };
                 match stock_pick::run(&self.market_data, &self.llm, &req).await {
-                    Ok(response) => Ok(CallToolResult::success(success_content(&serde_json::json!(response)))),
+                    Ok(response) => {
+                        let mut out = serde_json::json!(response);
+                        let i18n = sa_engine::i18n::I18n::new();
+                        out = bin_helpers::resolve_output(out, &i18n, lang);
+                        Ok(CallToolResult::success(success_content(&out)))
+                    },
                     Err(e) => Ok(CallToolResult::success(error_content("stock_pick_failed", &e.to_string()))),
                 }
             }
@@ -158,6 +171,7 @@ impl ServerHandler for StockAnalyzerServer {
                     None => return Ok(CallToolResult::success(error_content("missing_param", "symbol is required"))),
                 };
                 let market = args.get("market").and_then(|v| v.as_str()).unwrap_or("a-share");
+                let lang = args.get("lang").and_then(|v| v.as_str()).unwrap_or("zh");
 
                 let memory = bin_helpers::build_memory();
                 let generator = DailyGuidanceGenerator::new(self.market_data.clone(), memory)
@@ -166,6 +180,7 @@ impl ServerHandler for StockAnalyzerServer {
                     market: Some(market.to_string()),
                     tickers: Some(vec![symbol.clone()]),
                     refresh: None,
+                    lang: Some(lang.to_string()),
                 };
 
                 let mut result = serde_json::json!({"symbol": symbol, "market": market});
@@ -179,7 +194,7 @@ impl ServerHandler for StockAnalyzerServer {
                     market: market.to_string(),
                     candidate_symbols: Some(vec![symbol.clone()]),
                     pick_count: Some(1),
-                    language: Some("zh-CN".to_string()),
+                    language: Some(lang.to_string()),
                     strategy: None,
                     sector_type: None,
                     candidate_limit: None,
@@ -198,7 +213,9 @@ impl ServerHandler for StockAnalyzerServer {
                     result["requested_sections"] = serde_json::json!(sections);
                 }
 
-                Ok(CallToolResult::success(success_content(&result)))
+                let i18n = sa_engine::i18n::I18n::new();
+                let resolved = bin_helpers::resolve_output(result, &i18n, lang);
+                Ok(CallToolResult::success(success_content(&resolved)))
             }
             _ => Err(McpError::invalid_params(format!("unknown tool: {name}"), None)),
         }

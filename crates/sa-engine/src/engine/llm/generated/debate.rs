@@ -14,16 +14,31 @@ impl GeneratedDebateTurn {
     pub(crate) fn from_value(raw: Value) -> Self {
         let object = raw.as_object();
         let field = |key: &str| object.and_then(|map| map.get(key)).cloned();
+        let (response, response_key) = parse::text_or_default_with_key(
+            field("response"),
+            "模型未返回辩论内容。",
+            "llm.fallback.no_debate",
+        );
+        let (evidence_points, evidence_points_key) = parse::string_list_or_default_with_key(
+            field("evidence_points"),
+            &["缺少结构化证据条目"],
+            "llm.fallback.no_evidence",
+        );
+        let (risks, risks_key) = parse::string_list_or_default_with_key(
+            field("risks"),
+            &["需关注核心假设失效"],
+            "llm.fallback.no_risk",
+        );
         Self {
             speaker: parse::text_or_default(field("speaker"), "Unknown"),
             stance: parse::text_or_default(field("stance"), "neutral"),
-            response: parse::text_or_default(field("response"), "模型未返回辩论内容。"),
+            response,
+            response_key,
             confidence: field("confidence").unwrap_or(Value::String("unknown".to_string())),
-            evidence_points: parse::string_list_or_default(
-                field("evidence_points"),
-                &["缺少结构化证据条目"],
-            ),
-            risks: parse::string_list_or_default(field("risks"), &["需关注核心假设失效"]),
+            evidence_points,
+            evidence_points_key,
+            risks,
+            risks_key,
         }
     }
 }
@@ -61,17 +76,19 @@ impl GeneratedResearchManager {
             &[field("recommendation").as_ref(), field("rating").as_ref()],
             "Hold",
         );
-        let rationale = parse::first_non_empty(
+        let (rationale, rationale_key) = parse::first_non_empty_with_key(
             &[
                 field("rationale").as_ref(),
                 field("summary").as_ref(),
                 field("investment_plan").as_ref(),
             ],
             "模型未返回研究经理依据。",
+            "llm.fallback.no_research_rationale",
         );
-        let strategic_actions = parse::text_or_default(
+        let (strategic_actions, strategic_actions_key) = parse::text_or_default_with_key(
             strategic_actions_raw.clone(),
             "模型未返回研究经理行动方案。",
+            "llm.fallback.no_research_action",
         );
         let trigger_checklist = parse::string_list_or_default(field("trigger_checklist"), &[]);
         let trigger_checklist = if trigger_checklist.is_empty() {
@@ -87,15 +104,20 @@ impl GeneratedResearchManager {
         } else {
             trigger_checklist
         };
+        let (risk_assessment, risk_assessment_key) = parse::text_or_default_with_key(
+            risk_assessment_raw.clone(),
+            "模型未返回风险评估。",
+            "llm.fallback.no_risk_assessment",
+        );
         Self {
             recommendation,
             confidence: field("confidence").unwrap_or(Value::String("unknown".to_string())),
-            risk_assessment: parse::text_or_default(
-                risk_assessment_raw.clone(),
-                "模型未返回风险评估。",
-            ),
+            risk_assessment,
+            risk_assessment_key,
             rationale,
+            rationale_key,
             strategic_actions,
+            strategic_actions_key,
             missing_evidence_ladder: GeneratedMissingEvidenceLadder::from_value(
                 meaningful_value(field("missing_evidence_ladder")).or_else(|| {
                     extract_object_value(

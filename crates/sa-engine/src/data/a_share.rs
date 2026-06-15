@@ -221,11 +221,10 @@ impl MarketDataClient {
             match self.ak.stock_yjbb_em(date).await {
                 Ok(items) => {
                     if let Some(item) = items.iter().find(|i| i.code == code) {
-                        tracing::info!(code, date, "found earnings data");
                         return Ok(AShareEnrichmentData {
                             revenue_yoy: if item.total_revenue_yoy != 0.0 { Some(item.total_revenue_yoy) } else { None },
                             net_profit_yoy: if item.net_profit_yoy != 0.0 { Some(item.net_profit_yoy) } else { None },
-                            gross_margin: if item.gross_margin != 0.0 { Some(item.gross_margin) } else { None },
+                            gross_margin: if item.gross_margin != 0.0 { Some(item.gross_margin / 100.0) } else { None },
                             industry: item.industry.clone().filter(|s| !s.is_empty()),
                             ..AShareEnrichmentData::default()
                         });

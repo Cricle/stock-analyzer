@@ -13,6 +13,7 @@ pub async fn score_sentiment(
         return DimensionScore {
             score: 50,
             reason: "无新闻数据，情绪中性".into(),
+            reason_key: Some("score.sentiment.no_news".into()),
         };
     }
 
@@ -32,6 +33,7 @@ pub async fn score_sentiment(
             return DimensionScore {
                 score: 50,
                 reason: format!("情绪分析LLM调用失败: {e}"),
+                reason_key: Some("score.sentiment.llm_failed".into()),
             };
         }
     };
@@ -57,12 +59,14 @@ fn parse_sentiment_response(content: &str) -> DimensionScore {
         Ok(resp) => DimensionScore {
             score: resp.score.clamp(0, 100),
             reason: resp.reason,
+            reason_key: None,
         },
         Err(e) => {
             tracing::warn!(error = %e, raw = %content, "failed to parse sentiment JSON");
             DimensionScore {
                 score: 50,
                 reason: "情绪分析解析失败，使用中性评分".into(),
+                reason_key: Some("score.sentiment.parse_failed".into()),
             }
         }
     }

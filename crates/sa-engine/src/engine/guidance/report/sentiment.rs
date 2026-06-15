@@ -63,6 +63,7 @@ impl DailyGuidanceGenerator {
 
         // Extract specific events as drivers
         let mut drivers = Vec::new();
+        let mut driver_keys = Vec::new();
         let pos_events: Vec<&str> = news
             .iter()
             .filter(|n| n.impact == "positive")
@@ -77,10 +78,20 @@ impl DailyGuidanceGenerator {
             .collect();
 
         if !pos_events.is_empty() {
-            drivers.push(format!("positive: {}", truncate_titles(&pos_events, 80)));
+            let events = truncate_titles(&pos_events, 80);
+            drivers.push(format!("positive: {events}"));
+            driver_keys.push(serde_json::json!({
+                "i18n_key": "guidance.drivers.positive",
+                "events": events,
+            }));
         }
         if !neg_events.is_empty() {
-            drivers.push(format!("negative: {}", truncate_titles(&neg_events, 80)));
+            let events = truncate_titles(&neg_events, 80);
+            drivers.push(format!("negative: {events}"));
+            driver_keys.push(serde_json::json!({
+                "i18n_key": "guidance.drivers.negative",
+                "events": events,
+            }));
         }
 
         let neutral_count = total - pos - neg;
@@ -103,6 +114,7 @@ impl DailyGuidanceGenerator {
             ),
             rationale_key: Some(rationale_key),
             drivers,
+            driver_keys,
         }
     }
 
@@ -251,6 +263,7 @@ impl DailyGuidanceGenerator {
 
             highlights.push(SectorHighlight {
                 sector_name: sector_name.to_string(),
+                sector_key: Some(format!("guidance.sector.{}", sector_name)),
                 direction: direction.to_string(),
                 direction_key: Some(direction_key.to_string()),
                 key_driver,

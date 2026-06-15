@@ -388,7 +388,26 @@ impl MarketDataClient {
                 let first = sheets.first();
                 let rev_yoy = first.and_then(|s| s.total_revenue_yoy).filter(|v| *v != 0.0);
                 let np_yoy = first.and_then(|s| s.net_profit_yoy).filter(|v| *v != 0.0);
-                let gm = first.and_then(|s| s.gross_margin).filter(|v| *v != 0.0);
+                // Eastmoney HK income sheet has inconsistent units between line items
+                // (e.g. revenue in 万元, gross_profit in 元 → ratio is 100x too large).
+                // Recalculate from gp/rev; if the result is >1, units are mismatched → divide by 100.
+                let gm = first.and_then(|s| {
+                    let computed = match (s.gross_profit, s.total_revenue) {
+                        (Some(gp), Some(rev)) if rev > 0.0 => {
+                            let ratio = gp / rev;
+                            if ratio > 0.0 && ratio <= 1.0 {
+                                Some(ratio)
+                            } else if ratio > 1.0 {
+                                Some(ratio / 100.0)
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    };
+                    // Fallback to pre-computed value if gp/rev unavailable
+                    computed.or_else(|| s.gross_margin.filter(|v| *v != 0.0).map(|v| v / 100.0))
+                });
                 tracing::debug!(symbol, ?rev_yoy, ?np_yoy, ?gm, "hk_enrichment earnings from eastmoney");
                 (rev_yoy, np_yoy, gm)
             }

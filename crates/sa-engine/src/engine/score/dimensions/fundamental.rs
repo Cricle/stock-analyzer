@@ -14,6 +14,7 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
     let mut total: f64 = 0.0;
     let mut weight_sum: f64 = 0.0;
     let mut reasons: Vec<String> = Vec::new();
+    let mut reason_keys: Vec<String> = Vec::new();
 
     // PE valuation (weight 25)
     if let Some(pe) = input.pe_like {
@@ -21,17 +22,21 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
         if pe < 0.0 {
             total += 12.5;
             reasons.push("PE为负，盈利承压".into());
+            reason_keys.push("score.fundamental.negative_pe".into());
         } else if pe < 15.0 {
             total += 25.0;
             reasons.push(format!("PE {:.1} 估值偏低", pe));
+            reason_keys.push("score.fundamental.pe_low".into());
         } else if pe < 25.0 {
             total += 18.0;
         } else if pe < 40.0 {
             total += 10.0;
             reasons.push(format!("PE {:.1} 估值偏高", pe));
+            reason_keys.push("score.fundamental.pe_high".into());
         } else {
             total += 3.0;
             reasons.push(format!("PE {:.1} 估值过高", pe));
+            reason_keys.push("score.fundamental.pe_too_high".into());
         }
     }
 
@@ -41,6 +46,7 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
         if roe > 20.0 {
             total += 25.0;
             reasons.push(format!("ROE {:.1}% 优秀", roe));
+            reason_keys.push("score.fundamental.roe_excellent".into());
         } else if roe > 10.0 {
             total += 18.0;
         } else if roe > 0.0 {
@@ -48,6 +54,7 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
         } else {
             total += 2.0;
             reasons.push(format!("ROE {:.1}% 亏损", roe));
+            reason_keys.push("score.fundamental.roe_loss".into());
         }
     }
 
@@ -57,14 +64,17 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
         if lev < 1.0 {
             total += 25.0;
             reasons.push("低负债".into());
+            reason_keys.push("score.fundamental.low_leverage".into());
         } else if lev < 2.0 {
             total += 18.0;
         } else if lev < 3.0 {
             total += 10.0;
             reasons.push(format!("负债率 {:.1} 偏高", lev));
+            reason_keys.push("score.fundamental.leverage_high".into());
         } else {
             total += 3.0;
             reasons.push(format!("负债率 {:.1} 过高", lev));
+            reason_keys.push("score.fundamental.leverage_too_high".into());
         }
     }
 
@@ -76,9 +86,11 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
                 if ni > 0.0 {
                     total += 22.0;
                     reasons.push("营收盈利为正".into());
+                    reason_keys.push("score.fundamental.revenue_profit_positive".into());
                 } else {
                     total += 12.0;
                     reasons.push("营收为正但净利亏损".into());
+                    reason_keys.push("score.fundamental.revenue_positive_net_loss".into());
                 }
             } else {
                 total += 15.0;
@@ -86,6 +98,7 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
         } else {
             total += 3.0;
             reasons.push("营收数据缺失或为零".into());
+            reason_keys.push("score.fundamental.revenue_missing".into());
         }
     }
 
@@ -95,13 +108,22 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
         50
     };
 
+    let reason = if reasons.is_empty() {
+        "基本面数据不足，给予中性评分".into()
+    } else {
+        reasons.join("；")
+    };
+
+    let reason_key = if reason_keys.is_empty() {
+        Some("score.fundamental.insufficient_data".into())
+    } else {
+        Some(reason_keys.join("；"))
+    };
+
     DimensionScore {
         score,
-        reason: if reasons.is_empty() {
-            "基本面数据不足，给予中性评分".into()
-        } else {
-            reasons.join("；")
-        },
+        reason,
+        reason_key,
     }
 }
 

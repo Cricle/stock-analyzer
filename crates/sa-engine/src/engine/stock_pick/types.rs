@@ -117,6 +117,12 @@ pub(crate) struct GeneratedStockPickItem {
     /// i18n keys for risks (resolved by frontend or resolve_output).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) risk_keys: Vec<Value>,
+    /// i18n key for thesis (resolved by frontend or resolve_output).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) thesis_key: Option<Value>,
+    /// i18n keys for evidence points (resolved by frontend or resolve_output).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) evidence_point_keys: Vec<Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -135,6 +141,9 @@ pub(crate) struct GeneratedStockPickResponse {
     pub(crate) agreement_with_system_rank: String,
     #[serde(default)]
     pub(crate) override_actions: Vec<GeneratedOverrideAction>,
+    /// i18n key for summary (resolved by frontend or resolve_output).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) summary_key: Option<String>,
 }
 
 impl GeneratedStockPickResponse {
@@ -146,45 +155,85 @@ impl GeneratedStockPickResponse {
             Some(Value::Array(items)) => items
                 .into_iter()
                 .filter_map(|item| item.as_object().cloned())
-                .map(|map| GeneratedStockPickItem {
-                    symbol: llm::parse::text_or_default(map.get("symbol").cloned(), "UNKNOWN"),
-                    confidence: map.get("confidence").cloned().unwrap_or(Value::from(0.0)),
-                    thesis: llm::parse::text_or_default(
-                        map.get("thesis").cloned(),
-                        "No thesis returned.",
-                    ),
-                    catalysts: llm::parse::string_list_or_default(
+                .map(|map| {
+                    let has_thesis = map
+                        .get("thesis")
+                        .and_then(|v| llm::parse::normalize_value(v).into())
+                        .map(|s: String| !s.is_empty())
+                        .unwrap_or(false);
+                    let catalysts = llm::parse::string_list_or_default(
                         map.get("catalysts").cloned(),
                         &["No catalyst returned"],
-                    ),
-                    risks: llm::parse::string_list_or_default(
+                    );
+                    let risks = llm::parse::string_list_or_default(
                         map.get("risks").cloned(),
                         &["No risk returned"],
-                    ),
-                    evidence_points: llm::parse::string_list_or_default(
+                    );
+                    let evidence_points = llm::parse::string_list_or_default(
                         map.get("evidence_points").cloned(),
                         &["No evidence returned"],
-                    ),
-                    decision_reason_codes: llm::parse::string_list_or_default(
-                        map.get("decision_reason_codes").cloned(),
-                        &[],
-                    ),
-                    data_gaps: llm::parse::string_list_or_default(
-                        map.get("data_gaps").cloned(),
-                        &[],
-                    ),
-                    catalyst_keys: Vec::new(),
-                    risk_keys: Vec::new(),
+                    );
+
+                    GeneratedStockPickItem {
+                        symbol: llm::parse::text_or_default(map.get("symbol").cloned(), "UNKNOWN"),
+                        confidence: map.get("confidence").cloned().unwrap_or(Value::from(0.0)),
+                        thesis: if has_thesis {
+                            llm::parse::text_or_default(map.get("thesis").cloned(), "")
+                        } else {
+                            "No thesis returned.".to_string()
+                        },
+                        catalysts,
+                        risks,
+                        evidence_points,
+                        decision_reason_codes: llm::parse::string_list_or_default(
+                            map.get("decision_reason_codes").cloned(),
+                            &[],
+                        ),
+                        data_gaps: llm::parse::string_list_or_default(
+                            map.get("data_gaps").cloned(),
+                            &[],
+                        ),
+                        catalyst_keys: Vec::new(),
+                        risk_keys: Vec::new(),
+                        thesis_key: if has_thesis {
+                            None
+                        } else {
+                            Some(Value::String("stock_pick.fallback.no_thesis".to_string()))
+                        },
+                        evidence_point_keys: if map
+                            .get("evidence_points")
+                            .and_then(|v| v.as_array())
+                            .is_some_and(|a| !a.is_empty())
+                        {
+                            Vec::new()
+                        } else {
+                            vec![Value::String(
+                                "stock_pick.fallback.no_evidence".to_string(),
+                            )]
+                        },
+                    }
                 })
                 .collect(),
             _ => Vec::new(),
         };
 
+        let summary_field = field("summary");
+        let has_summary = summary_field
+            .as_ref()
+            .map(|v| !llm::parse::normalize_value(v).is_empty())
+            .unwrap_or(false);
+
         Self {
-            summary: llm::parse::text_or_default(
-                field("summary"),
-                "No stock picking summary returned.",
-            ),
+            summary: if has_summary {
+                llm::parse::text_or_default(summary_field, "")
+            } else {
+                "No stock picking summary returned.".to_string()
+            },
+            summary_key: if has_summary {
+                None
+            } else {
+                Some("stock_pick.fallback.no_summary".to_string())
+            },
             picks,
             rejected_symbols: llm::parse::string_list_or_default(field("rejected_symbols"), &[]),
             agreement_with_system_rank: llm::parse::text_or_default(

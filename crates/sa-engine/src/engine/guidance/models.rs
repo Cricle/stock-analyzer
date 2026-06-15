@@ -68,6 +68,9 @@ pub struct MarketSentiment {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rationale_key: Option<serde_json::Value>,
     pub drivers: Vec<String>,
+    /// i18n keys for `drivers` (resolved by frontend or resolve_output).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub driver_keys: Vec<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -84,6 +87,9 @@ pub struct GuidanceNewsItem {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SectorHighlight {
     pub sector_name: String,
+    /// i18n key for `sector_name` (e.g. `"guidance.sector.technology"`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sector_key: Option<String>,
     pub direction: String,
     /// i18n key for `direction` (e.g. `"guidance.direction.positive"`).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -143,9 +149,15 @@ pub struct UserProfileGuide {
     pub recommended_actions: Vec<String>,
     /// i18n keys for each action in `recommended_actions`.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub action_keys: Option<Vec<String>>,
+    pub recommended_action_keys: Option<Vec<String>>,
+    /// Original English action strings (fallback when i18n is not available).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub action_texts: Vec<String>,
     pub watch_list: Vec<String>,
     pub avoid_list: Vec<String>,
+    /// i18n key + params for sector info embedded in `summary`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sector_info_key: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -165,6 +177,9 @@ pub struct DailyGuidanceRequest {
     pub market: Option<String>,
     pub tickers: Option<Vec<String>>,
     pub refresh: Option<bool>,
+    /// Language for LLM output (e.g. "zh", "en").
+    #[serde(default)]
+    pub lang: Option<String>,
 }
 
 impl DailyGuidanceRequest {

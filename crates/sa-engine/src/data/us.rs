@@ -194,8 +194,7 @@ impl MarketDataClient {
                 let first = sheets.first();
                 let rev_yoy = first.and_then(|s| s.total_revenue_yoy).filter(|v| *v != 0.0);
                 let np_yoy = first.and_then(|s| s.net_profit_yoy).filter(|v| *v != 0.0);
-                let gm = first.and_then(|s| s.gross_margin).filter(|v| *v != 0.0);
-                tracing::debug!(symbol, ?rev_yoy, ?np_yoy, ?gm, "us_enrichment earnings from eastmoney");
+                let gm = first.and_then(|s| s.gross_margin).filter(|v| *v != 0.0).map(|v| v / 100.0);
                 (rev_yoy, np_yoy, gm)
             }
             Err(e) => {
@@ -207,16 +206,45 @@ impl MarketDataClient {
         // Use Yahoo gross_margin if available, otherwise Eastmoney
         let gross_margin = gross_margin_yf.or(gross_margin_em);
 
-        // Fallback: if PE still missing, compute from fundamentals
+        // Fallback: if PE still missing, try Baidu then fundamentals
         let pe_ttm = if pe_ttm.is_some() {
             pe_ttm
         } else {
-            let fundamentals = self.fetch_us_fundamentals(symbol).await.ok();
-            fundamentals.as_ref().and_then(|f| {
-                let mc = f.market_cap?;
-                let ni = f.net_income_usd?;
-                if ni > 0.0 { Some(mc / ni) } else { None }
-            })
+            let baidu_pe = self
+                .ak
+                .stock_us_valuation_baidu(symbol, "pe_ttm", "monthly")
+                .await
+                .ok()
+                .and_then(|items| items.last().map(|v| v.value))
+                .filter(|v| *v != 0.0);
+            if baidu_pe.is_some() {
+                tracing::debug!(symbol, ?baidu_pe, "us_enrichment pe from baidu");
+                baidu_pe
+            } else {
+                let fundamentals = self.fetch_us_fundamentals(symbol).await.ok();
+                fundamentals.as_ref().and_then(|f| {
+                    let mc = f.market_cap?;
+                    let ni = f.net_income_usd?;
+                    if ni > 0.0 { Some(mc / ni) } else { None }
+                })
+            }
+        };
+
+        // Fallback: if PB still missing, try Baidu
+        let pb = if pb.is_some() {
+            pb
+        } else {
+            let baidu_pb = self
+                .ak
+                .stock_us_valuation_baidu(symbol, "pb", "monthly")
+                .await
+                .ok()
+                .and_then(|items| items.last().map(|v| v.value))
+                .filter(|v| *v != 0.0);
+            if baidu_pb.is_some() {
+                tracing::debug!(symbol, ?baidu_pb, "us_enrichment pb from baidu");
+            }
+            baidu_pb
         };
 
         // Industry from Yahoo Finance

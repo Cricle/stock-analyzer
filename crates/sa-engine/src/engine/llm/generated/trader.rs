@@ -92,7 +92,11 @@ impl GeneratedTraderDecision {
         let object = raw.as_object();
         let field = |key: &str| object.and_then(|map| map.get(key)).cloned();
         let action = parse::text_or_default(field("action"), "Hold");
-        let reasoning = parse::text_or_default(field("reasoning"), "模型未返回交易推理。");
+        let (reasoning, reasoning_key) = parse::text_or_default_with_key(
+            field("reasoning"),
+            "模型未返回交易推理。",
+            "llm.fallback.no_trader_reasoning",
+        );
         let trader_plan = parse::text_or_default(field("trader_plan"), "");
         let entry_price = meaningful_value(field("entry_price"))
             .or_else(|| {
@@ -237,6 +241,7 @@ impl GeneratedTraderDecision {
         let mut result = Self {
             action,
             reasoning,
+            reasoning_key,
             trader_plan,
             entry_price,
             stop_loss,

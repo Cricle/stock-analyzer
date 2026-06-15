@@ -8,7 +8,14 @@
     "diagnostics": { "title": "诊断信息" },
     "probability": { "title": "概率评估" },
     "trader_plan": { "title": "交易计划" },
-    "header": { "for_symbol": "{symbol} 的分析报告" }
+    "header": { "for_symbol": "{symbol} 的分析报告" },
+    "agent": {
+      "research_manager": "研究经理",
+      "trader": "交易员",
+      "portfolio_manager": "投资组合经理",
+      "bull_researcher": "多头研究员",
+      "bear_researcher": "空头研究员"
+    }
   },
   "guidance": {
     "title": "每日指引",
@@ -36,6 +43,14 @@
       "aggressive": "激进型"
     },
     "rationale": "基于 {total} 条新闻：{pos} 条正面，{neg} 条负面，{neutral} 条中性，市场：{market}",
+    "sector": {
+      "technology": "科技",
+      "finance": "金融",
+      "healthcare": "医疗",
+      "energy": "能源",
+      "consumer": "消费",
+      "real_estate": "房地产"
+    },
     "drivers": {
       "positive": "正面：{events}",
       "negative": "负面：{events}"
@@ -45,11 +60,13 @@
       "negative_news": "多条负面新闻（{count} 条）：{titles}，注意系统性风险。",
       "high_negative_sentiment": "平均新闻影响为负（{avg}），{count} 条负面新闻，情绪恶化需警惕。",
       "sector_divergence": "市场指数分化：{up_names} 上涨，{down_names} 下跌，表明板块轮动或市场碎片化。",
+      "index_volatility": "{index} 今日波动 {change_pct:.2}%，盘中大幅波动增加风险。",
       "mitigation": {
         "review_stoploss": "检查止损位和仓位大小。",
         "diversify": "分散持仓，避免集中持仓。",
         "reduce_position": "考虑减仓和收紧止损。",
-        "hedge": "审查投资组合集中度，考虑对冲。"
+        "hedge": "审查投资组合集中度，考虑对冲。",
+        "wait_volatility": "避免追涨杀跌，等待波动性消退。"
       }
     },
     "guide": {
@@ -89,16 +106,85 @@
         "maintain_allocation": "维持当前配置",
         "consider_sector_rotation": "考虑板块轮动"
       },
-      "sector_strong": "强势板块：{sectors}",
-      "sector_weak": "弱势板块：{sectors}",
       "sector_info_strong": "强势：{info}",
       "sector_info_weak": "弱势：{info}",
       "sector_info_both": "强势：{strong}。弱势：{weak}",
+      "sector_label": "{name}板块",
       "no_sector_trend": "无明显板块趋势。"
     }
   },
   "stock_pick": {
     "title": "选股结果",
+    "fallback": {
+      "no_thesis": "未返回分析论点。",
+      "no_catalyst": "未返回催化剂",
+      "no_risk": "未返回风险",
+      "no_evidence": "未返回证据",
+      "no_summary": "未返回选股摘要。"
+    },
+    "thesis": {
+      "market_context": "市场背景：{name}（{symbol}）在{market}上市，属于{industry}板块。",
+      "price_action": "价格走势：{name}（{symbol}）分析期内从{start_price:.2}到{end_price:.2}（{ret:+.1}%），{direction}。",
+      "no_candles": "{name}综合因子得分{total:.1}，动量{momentum:.1}，质量{quality:.1}。",
+      "valuation_metrics": "估值指标：{metrics}。",
+      "growth_metrics": "成长指标：{metrics}。",
+      "technical_indicators": "技术指标：{metrics}。",
+      "factor_scores": "因子得分：动量{momentum:.0}，质量{quality:.0}，价值{value:.0}，成长{growth:.0}，盈利{profitability:.0}，风险{risk:.0}。",
+      "direction": {
+        "strong_bullish": "强势看多",
+        "moderate": "温和",
+        "bearish": "看空"
+      }
+    },
+    "evidence": {
+      "price_range": "{start_date} 至 {end_date} 股价 {start_price:.2} → {end_price:.2}（{ret:+.1}%）",
+      "latest": "最新：涨跌{change_pct:.2}%，成交量{volume}",
+      "market_cap_t": "市值{cap:.0}万亿",
+      "market_cap_b": "市值{cap:.0}亿",
+      "pe": "PE {pe:.1}x",
+      "roe": "ROE {roe:.1}%",
+      "pe_ttm": "PE TTM {pe_ttm:.1}x",
+      "pb": "PB {pb:.1}x",
+      "ps": "PS {ps:.1}x",
+      "revenue_yoy": "营收同比{pct:.1}%",
+      "net_profit_yoy": "净利润同比{pct:.1}%",
+      "fund_flow": "资金净流入比{pct:.2}%",
+      "analyst_reports": "分析师报告：{count}份",
+      "gross_margin": "毛利率{pct:.1}%",
+      "peg": "PEG {peg:.2}x",
+      "dividend_yield": "股息率{pct:.2}%",
+      "chip_benefit": "筹码获利比{pct:.0}%",
+      "rsi": "RSI {rsi:.1}",
+      "macd_hist": "MACD柱 {macd:.2}",
+      "factor_summary": "因子：总分{total:.1}，动量{momentum:.1}，质量{quality:.1}，价值{value:.1}，成长{growth:.1}",
+      "factor_details": "因子：盈利{profitability:.1}，风险{risk:.1}，事件{event:.1}",
+      "news_items": "{count}条近期新闻，{sources}个来源",
+      "candle_stats": "{count}根K线，上涨占比{ratio:.0}%",
+      "industry": "行业：{industry}"
+    },
+    "valuation_vs_industry": {
+      "header": "估值 vs 行业：\n",
+      "line": "{label} {value:.1}x vs 行业均值 {avg:.1}x（{premium:.1}x {direction}）",
+      "premium": "溢价",
+      "discount": "折价"
+    },
+    "headline": {
+      "high_quality": "高质量候选，证据覆盖充分。",
+      "usable": "可用候选，证据深度可接受。",
+      "mixed": "证据尚需确认。",
+      "not_ready": "尚未就绪：{gaps}。"
+    },
+    "gap": {
+      "missing_fundamentals": "基本面数据缺失",
+      "missing_industry": "行业分类缺失",
+      "missing_income_statement": "利润表数据缺失",
+      "missing_balance_sheet": "资产负债表缺失",
+      "thin_news_coverage": "新闻覆盖不足",
+      "short_price_history": "价格历史较短",
+      "thin_evidence_points": "证据条目不足",
+      "missing_valuation_enrichment": "估值数据缺失",
+      "missing_earnings_growth": "盈利增长数据缺失"
+    },
     "catalyst": {
       "strong_return": "区间涨幅达{pct:.1}%，动量强劲",
       "rsi_bullish": "RSI为{rsi:.1}，显示看多动量且未超买",
@@ -134,11 +220,83 @@
       "chip_concentrated": "筹码集中度高，大单交易易引发波动",
       "fund_flow_negative": "资金净流出，机构在派发",
       "risk_low_score": "风险因子得分偏低({score:.1})",
-      "risk_elevated": "综合风险评估偏高",
       "momentum_weak": "动量因子偏弱({score:.1})，上涨动力不足",
-      "quality_weak": "质量因子偏低({score:.1})",
-      "value_expensive": "估值因子偏高({score:.1})，相对同行偏贵"
+      "growth_weak": "成长指标偏低，可持续性存疑",
+      "limited_data": "基本面数据有限，估值信心受限",
+      "short_history": "价格历史较短，技术信号统计可靠性较低",
+      "macro_uncertainty": "宏观经济和板块轮动仍是关键不确定因素",
+      "monitor_dynamics": "关注价量动态和即将到来的财报发布"
     }
   },
-  "error": { "section_failed": "板块生成失败: {reason}" }
+  "llm": {
+    "fallback": {
+      "no_summary": "模型未返回该角色摘要。",
+      "no_detail": "模型未返回该角色详细分析。",
+      "no_rationale": "模型未返回该角色依据。",
+      "no_reasoning": "模型未返回分析师动作原因。",
+      "no_debate": "模型未返回辩论内容。",
+      "no_research_manager": "模型未返回研究经理结论。",
+      "no_trader_plan": "模型未返回交易员计划。",
+      "no_portfolio_decision": "模型未返回组合经理决策。",
+      "no_evidence": "缺少结构化证据条目",
+      "no_risk": "需关注核心假设失效",
+      "no_risk_alt": "需关注信息缺口与市场波动",
+      "no_next_steps": "继续跟踪后续数据",
+      "overview": "总览",
+      "comprehensive_agent": "综合分析 Agent",
+      "no_research_rationale": "模型未返回研究经理依据。",
+      "no_research_action": "模型未返回研究经理行动方案。",
+      "no_risk_assessment": "模型未返回风险评估。",
+      "no_executive_summary": "模型未返回组合经理执行摘要。",
+      "no_investment_logic": "模型未返回组合经理投资逻辑。",
+      "no_trader_reasoning": "模型未返回交易推理。"
+    }
+  },
+  "memory": {
+    "no_reflections": "暂无反思记录"
+  },
+  "error": { "section_failed": "板块生成失败: {reason}" },
+  "score": {
+    "fundamental": {
+      "negative_pe": "PE为负，盈利承压",
+      "pe_low": "PE {pe:.1} 估值偏低",
+      "pe_high": "PE {pe:.1} 估值偏高",
+      "pe_too_high": "PE {pe:.1} 估值过高",
+      "roe_excellent": "ROE {roe:.1}% 优秀",
+      "roe_loss": "ROE {roe:.1}% 亏损",
+      "low_leverage": "低负债",
+      "leverage_high": "负债率 {lev:.1} 偏高",
+      "leverage_too_high": "负债率 {lev:.1} 过高",
+      "revenue_profit_positive": "营收盈利为正",
+      "revenue_positive_net_loss": "营收为正但净利亏损",
+      "revenue_missing": "营收数据缺失或为零",
+      "insufficient_data": "基本面数据不足，给予中性评分"
+    },
+    "technical": {
+      "rsi_oversold": "RSI {rsi:.0} 超卖",
+      "rsi_low": "RSI {rsi:.0} 偏低",
+      "rsi_high": "RSI {rsi:.0} 偏高",
+      "rsi_overbought": "RSI {rsi:.0} 超买",
+      "macd_golden_cross": "MACD 金叉",
+      "macd_death_cross": "MACD 死叉",
+      "ma_bullish": "均线多头排列",
+      "ma_bearish": "均线空头排列",
+      "volume_up_rise": "放量上涨",
+      "volume_up_drop": "放量下跌",
+      "neutral": "技术面信号中性"
+    },
+    "llm_analysis": {
+      "consensus": "共识度 {consensus:.0}%，{detail}",
+      "signal_llm": "LLM",
+      "signal_technical": "技术",
+      "signal_history": "历史",
+      "signal_news": "新闻",
+      "signal_market": "市场"
+    },
+    "sentiment": {
+      "no_news": "无新闻数据，情绪中性",
+      "llm_failed": "情绪分析LLM调用失败: {error}",
+      "parse_failed": "情绪分析解析失败，使用中性评分"
+    }
+  }
 }

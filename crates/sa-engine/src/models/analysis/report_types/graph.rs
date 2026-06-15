@@ -17,6 +17,9 @@ pub struct AgentStateSnapshot {
     pub company_of_interest: String,
     pub trade_date: String,
     pub sender: String,
+    /// i18n key for `sender`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sender_key: Option<String>,
     pub market_report: String,
     pub sentiment_report: String,
     pub news_report: String,

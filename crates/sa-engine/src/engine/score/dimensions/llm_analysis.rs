@@ -36,10 +36,22 @@ pub fn score_llm_analysis(input: &LlmAnalysisInput) -> DimensionScore {
     let score = raw.clamp(0.0, 100.0) as u8;
 
     let signal_names = ["LLM", "技术", "历史", "新闻", "市场"];
+    let signal_keys = [
+        "score.llm_analysis.signal_llm",
+        "score.llm_analysis.signal_technical",
+        "score.llm_analysis.signal_history",
+        "score.llm_analysis.signal_news",
+        "score.llm_analysis.signal_market",
+    ];
     let detail: Vec<String> = signal_names
         .iter()
         .zip(signals.iter())
         .map(|(name, val)| format!("{}:{:.0}", name, val))
+        .collect();
+    let detail_keys: Vec<String> = signal_keys
+        .iter()
+        .zip(signals.iter())
+        .map(|(key, val)| format!("{}:{:.0}", key, val))
         .collect();
 
     DimensionScore {
@@ -49,6 +61,11 @@ pub fn score_llm_analysis(input: &LlmAnalysisInput) -> DimensionScore {
             consensus * 100.0,
             detail.join(" ")
         ),
+        reason_key: Some(format!(
+            "score.llm_analysis.consensus|consensus={:.0}|{}",
+            consensus * 100.0,
+            detail_keys.join(" ")
+        )),
     }
 }
 

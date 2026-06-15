@@ -127,14 +127,36 @@ impl DailyGuidanceGenerator {
         };
 
         // Balanced profile
-        let sector_info = if !bullish_summary.is_empty() && !bearish_summary.is_empty() {
-            format!("Strong: {}. Weak: {}.", bullish_summary, bearish_summary)
+        let (sector_info, sector_info_key) = if !bullish_summary.is_empty() && !bearish_summary.is_empty() {
+            (
+                format!("Strong: {}. Weak: {}.", bullish_summary, bearish_summary),
+                serde_json::json!({
+                    "i18n_key": "guidance.guide.sector_info_both",
+                    "strong": bullish_summary,
+                    "weak": bearish_summary,
+                }),
+            )
         } else if !bullish_summary.is_empty() {
-            format!("Strong sectors: {}.", bullish_summary)
+            (
+                format!("Strong sectors: {}.", bullish_summary),
+                serde_json::json!({
+                    "i18n_key": "guidance.guide.sector_info_strong",
+                    "info": bullish_summary,
+                }),
+            )
         } else if !bearish_summary.is_empty() {
-            format!("Weak sectors: {}.", bearish_summary)
+            (
+                format!("Weak sectors: {}.", bearish_summary),
+                serde_json::json!({
+                    "i18n_key": "guidance.guide.sector_info_weak",
+                    "info": bearish_summary,
+                }),
+            )
         } else {
-            "No dominant sector trend.".to_string()
+            (
+                "No dominant sector trend.".to_string(),
+                serde_json::json!({"i18n_key": "guidance.guide.no_sector_trend"}),
+            )
         };
         let (bal_summary, bal_summary_key) = (
             format!("Sentiment: {}{}. {}", sentiment.label, index_context, sector_info),
@@ -235,8 +257,9 @@ impl DailyGuidanceGenerator {
                 profile_key: Some("guidance.profile.conservative".to_string()),
                 summary: cons_summary,
                 summary_key: Some(cons_summary_key),
-                action_keys: Some(cons_actions.iter().map(|a| action_i18n_key(a).to_string()).collect()),
-                recommended_actions: cons_actions,
+                recommended_actions: cons_actions.iter().map(|a| action_i18n_key(a).to_string()).collect(),
+                recommended_action_keys: Some(cons_actions.iter().map(|a| action_i18n_key(a).to_string()).collect()),
+                action_texts: cons_actions,
                 watch_list: stock_guidances
                     .iter()
                     .filter(|g| g.confidence > 60)
@@ -248,14 +271,16 @@ impl DailyGuidanceGenerator {
                     .map(|g| g.symbol.clone())
                     .chain(bearish_sectors.iter().map(|(s, _)| format!("{} sector", s)))
                     .collect(),
+                sector_info_key: None,
             },
             UserProfileGuide {
                 profile: "balanced".to_string(),
                 profile_key: Some("guidance.profile.balanced".to_string()),
                 summary: bal_summary,
                 summary_key: Some(bal_summary_key),
-                action_keys: Some(bal_actions.iter().map(|a| action_i18n_key(a).to_string()).collect()),
-                recommended_actions: bal_actions,
+                recommended_actions: bal_actions.iter().map(|a| action_i18n_key(a).to_string()).collect(),
+                recommended_action_keys: Some(bal_actions.iter().map(|a| action_i18n_key(a).to_string()).collect()),
+                action_texts: bal_actions,
                 watch_list: stock_guidances
                     .iter()
                     .filter(|g| g.memory_relevance > 0.4)
@@ -265,19 +290,22 @@ impl DailyGuidanceGenerator {
                     .iter()
                     .map(|(s, _)| format!("{} sector", s))
                     .collect(),
+                sector_info_key: Some(sector_info_key),
             },
             UserProfileGuide {
                 profile: "aggressive".to_string(),
                 profile_key: Some("guidance.profile.aggressive".to_string()),
                 summary: agg_summary,
                 summary_key: Some(agg_summary_key),
-                action_keys: Some(agg_actions.iter().map(|a| action_i18n_key(a).to_string()).collect()),
-                recommended_actions: agg_actions,
+                recommended_actions: agg_actions.iter().map(|a| action_i18n_key(a).to_string()).collect(),
+                recommended_action_keys: Some(agg_actions.iter().map(|a| action_i18n_key(a).to_string()).collect()),
+                action_texts: agg_actions,
                 watch_list: stock_guidances.iter().map(|g| g.symbol.clone()).collect(),
                 avoid_list: bearish_sectors
                     .iter()
                     .map(|(s, _)| format!("{} sector", s))
                     .collect(),
+                sector_info_key: None,
             },
         ]
     }

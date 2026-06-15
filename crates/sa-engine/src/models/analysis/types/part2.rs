@@ -58,6 +58,12 @@ pub struct StockPickItem {
     /// i18n keys for risks (resolved by frontend or resolve_output).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub risk_keys: Vec<serde_json::Value>,
+    /// i18n key for thesis (resolved by frontend or resolve_output).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thesis_key: Option<serde_json::Value>,
+    /// i18n keys for evidence points (resolved by frontend or resolve_output).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_point_keys: Vec<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -147,6 +153,9 @@ pub struct StockPickObjectiveAssessment {
     pub ready: bool,
     #[serde(default)]
     pub headline: String,
+    /// i18n key for headline (resolved by frontend or resolve_output).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub headline_key: Option<serde_json::Value>,
     #[serde(default)]
     pub gaps: Vec<String>,
     #[serde(default)]

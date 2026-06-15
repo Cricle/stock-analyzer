@@ -123,20 +123,29 @@ impl GeneratedPortfolioDecision {
             &[field("rating").as_ref(), field("recommendation").as_ref()],
             "Hold",
         );
-        let executive_summary = parse::first_non_empty(
+        let (executive_summary, executive_summary_key) = parse::first_non_empty_with_key(
             &[
                 field("executive_summary").as_ref(),
                 field("summary").as_ref(),
             ],
             "模型未返回组合经理执行摘要。",
+            "llm.fallback.no_executive_summary",
         );
-        let investment_thesis = parse::text_or_default(
+        let (investment_thesis, investment_thesis_key) = parse::text_or_default_with_key(
             field("investment_thesis").or_else(|| field("portfolio_decision")),
             "模型未返回组合经理投资逻辑。",
+            "llm.fallback.no_investment_logic",
         );
-        let rationale = parse::text_or_default(field("rationale"), investment_thesis.as_str());
-        let risk_assessment =
-            parse::text_or_default(risk_assessment_raw.clone(), "模型未返回风险评估。");
+        let (rationale, rationale_key) = parse::text_or_default_with_key(
+            field("rationale"),
+            investment_thesis.as_str(),
+            "llm.fallback.no_investment_logic",
+        );
+        let (risk_assessment, risk_assessment_key) = parse::text_or_default_with_key(
+            risk_assessment_raw.clone(),
+            "模型未返回风险评估。",
+            "llm.fallback.no_risk_assessment",
+        );
         let trigger_checklist = parse::string_list_or_default(field("trigger_checklist"), &[]);
         let trigger_checklist = if trigger_checklist.is_empty() {
             let object_triggers = extract_object_string_list(
@@ -245,10 +254,14 @@ impl GeneratedPortfolioDecision {
             rating,
             confidence: field("confidence").unwrap_or(Value::String("unknown".to_string())),
             risk_assessment,
+            risk_assessment_key,
             summary: executive_summary.clone(),
             rationale,
+            rationale_key,
             executive_summary,
+            executive_summary_key,
             investment_thesis,
+            investment_thesis_key,
             price_target: inferred_price_target,
             confirmation_level: inferred_confirmation_level,
             invalidation_level: inferred_invalidation_level,

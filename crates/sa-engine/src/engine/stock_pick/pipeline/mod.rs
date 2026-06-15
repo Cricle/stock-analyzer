@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use anyhow::Context;
 use futures::{StreamExt, stream};
 
+use crate::i18n::I18n;
 use crate::data::{BillboardEntry, CapitalFlowPoint, MarketDataClient, MarketKind, NewsItem};
 use crate::engine::llm::{self as llm, LlmClient};
 use crate::models::{
@@ -22,8 +23,9 @@ use crate::engine::stock_pick::{
 
 use crate::engine::stock_pick::objective::{
     AdvancedMetrics, build_prompt, compute_industry_averages, lookup_industry_avg,
-    default_catalysts, default_catalyst_keys, default_evidence, default_risks, default_risk_keys,
-    default_thesis, evaluate_stock_pick_objective_assessment, stock_pick_priority_label,
+    default_catalyst_keys, default_evidence, default_evidence_keys,
+    default_risk_keys, default_thesis, default_thesis_key,
+    evaluate_stock_pick_objective_assessment, stock_pick_priority_label,
     stock_pick_priority_rank, stock_pick_sort_key, summarize_stock_pick_objective_overview,
 };
 
@@ -40,7 +42,9 @@ pub async fn run(
         .strategy
         .clone()
         .unwrap_or_else(|| "balanced swing selection".to_string());
-    let language = "zh-CN".to_string();
+    let language = request.language.clone().unwrap_or_else(|| "zh-CN".to_string());
+    let i18n = I18n::new();
+    let lang = if language.starts_with("zh") { "zh" } else { "en" };
     let search_depth = normalize_stock_pick_search_depth(request.search_depth.as_deref());
     let history_retrieval = request.history_retrieval.unwrap_or(true);
     let target_output_mode = normalize_target_output_mode(request.target_output_mode.as_deref());
@@ -197,6 +201,8 @@ pub async fn run(
         &language,
         &llm_selected,
         &enriched,
+        &i18n,
+        lang,
     );
     // Query memory system for cross-ticker lessons
     let memory_log = crate::engine::memory::TradingMemoryLog::with_filesystem(
@@ -292,16 +298,16 @@ pub async fn run(
                     .unwrap_or((55.0 + item.factor.total * 0.35).clamp(0.0, 100.0)),
                 thesis: explanation
                     .map(|value| value.thesis.clone())
-                    .unwrap_or_else(|| default_thesis(&item)),
+                    .unwrap_or_else(|| default_thesis(&item, &i18n, lang)),
                 catalysts: explanation
                     .map(|value| value.catalysts.clone())
-                    .unwrap_or_else(|| default_catalysts(&item)),
+                    .unwrap_or_default(),
                 risks: explanation
                     .map(|value| value.risks.clone())
-                    .unwrap_or_else(|| default_risks(&item)),
+                    .unwrap_or_default(),
                 evidence_points: explanation
                     .map(|value| value.evidence_points.clone())
-                    .unwrap_or_else(|| default_evidence(&item)),
+                    .unwrap_or_else(|| default_evidence(&item, &i18n, lang)),
                 price: item.price,
                 change_pct: item.change_pct,
                 market_cap: item.market_cap,
@@ -334,6 +340,8 @@ pub async fn run(
                 evidence_quality_score,
                 catalyst_keys: default_catalyst_keys(&item),
                 risk_keys: default_risk_keys(&item),
+                thesis_key: Some(default_thesis_key(&item, &i18n, lang)),
+                evidence_point_keys: default_evidence_keys(&item),
             };
             let metrics = item.fundamentals.as_ref().map(|f| {
                 AdvancedMetrics::compute_with_enrichment(
@@ -355,6 +363,8 @@ pub async fn run(
                 &item,
                 metrics.as_ref().unwrap_or(&AdvancedMetrics::default()),
                 &industry_avg,
+                &i18n,
+                lang,
             );
             pick.priority_rank = stock_pick_priority_rank(&pick);
             pick.priority_label = stock_pick_priority_label(pick.priority_rank).to_string();

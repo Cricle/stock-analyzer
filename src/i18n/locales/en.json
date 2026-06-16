@@ -143,6 +143,7 @@
       "market_cap_b": "Market cap {cap:.0}B yuan",
       "pe": "PE {pe:.1}x",
       "roe": "ROE {roe:.1}%",
+      "negative_equity": "negative equity",
       "pe_ttm": "PE TTM {pe_ttm:.1}x",
       "pb": "PB {pb:.1}x",
       "ps": "PS {ps:.1}x",

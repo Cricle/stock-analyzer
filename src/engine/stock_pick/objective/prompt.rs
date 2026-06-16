@@ -344,7 +344,8 @@ pub(crate) fn default_thesis(item: &EnrichedCandidate, i18n: &I18n, lang: &str) 
         let mut p = serde_json::Map::new();
         // Annotate extreme ROE values that likely indicate negative equity
         if roe_pct.abs() > 100.0 {
-            p.insert("roe".to_string(), serde_json::json!(format!("{:.1}% (负净资产)", roe_pct)));
+            let annotation = i18n.resolve("stock_pick.evidence.negative_equity", lang).unwrap_or_default();
+            p.insert("roe".to_string(), serde_json::json!(format!("{:.1}% ({annotation})", roe_pct)));
         } else {
             p.insert("roe".to_string(), serde_json::json!(roe_pct));
         }
@@ -699,7 +700,8 @@ pub(crate) fn default_thesis_key(item: &EnrichedCandidate, i18n: &I18n, lang: &s
     let roe_raw = item.fundamental_snapshot.roe.unwrap_or(0.0) * 100.0;
     // Annotate extreme ROE values that likely indicate negative equity
     let roe = if roe_raw.abs() > 100.0 {
-        format!("{:.1}% (负净资产)", roe_raw)
+        let annotation = i18n.resolve("stock_pick.evidence.negative_equity", lang).unwrap_or_default();
+        format!("{:.1}% ({annotation})", roe_raw)
     } else {
         format!("{:.1}", roe_raw)
     };

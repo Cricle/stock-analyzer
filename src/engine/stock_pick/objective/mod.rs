@@ -511,7 +511,8 @@ pub(crate) fn default_evidence(item: &EnrichedCandidate, i18n: &I18n, lang: &str
         p = serde_json::Map::new();
         let roe_pct = roe * 100.0;
         if roe_pct.abs() > 100.0 {
-            p.insert("roe".to_string(), serde_json::json!(format!("{:.1}% (负净资产)", roe_pct)));
+            let annotation = i18n.resolve("stock_pick.evidence.negative_equity", lang).unwrap_or_default();
+            p.insert("roe".to_string(), serde_json::json!(format!("{:.1}% ({annotation})", roe_pct)));
         } else {
             p.insert("roe".to_string(), serde_json::json!(roe_pct));
         }

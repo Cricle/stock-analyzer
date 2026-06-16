@@ -143,6 +143,7 @@
       "market_cap_b": "市值{cap:.0}亿",
       "pe": "PE {pe:.1}x",
       "roe": "ROE {roe:.1}%",
+      "negative_equity": "负净资产",
       "pe_ttm": "PE TTM {pe_ttm:.1}x",
       "pb": "PB {pb:.1}x",
       "ps": "PS {ps:.1}x",

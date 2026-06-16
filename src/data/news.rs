@@ -113,39 +113,6 @@ pub(crate) fn is_junk_news(item: &NewsItem) -> bool {
 // Sentiment classification
 // ---------------------------------------------------------------------------
 
-const HARD_NEGATIVE_KEYWORDS: &[&str] = &[
-    "investigation",
-    "fraud",
-    "default",
-    "bankruptcy",
-    "delist",
-    "downgrade",
-    "lawsuit",
-    "recall",
-    "probe",
-];
-
-/// Check if a single news item contains hard negative keywords.
-pub(crate) fn is_hard_negative(item: &NewsItem) -> bool {
-    let title = item.title.to_ascii_lowercase();
-    let summary = item.summary.to_ascii_lowercase();
-    HARD_NEGATIVE_KEYWORDS
-        .iter()
-        .any(|keyword| title.contains(keyword) || summary.contains(keyword))
-}
-
-/// Check if any news item contains hard negative keywords.
-#[cfg(test)]
-pub(crate) fn has_hard_negative_news(news: &[NewsItem]) -> bool {
-    news.iter().any(|item| {
-        let title = item.title.to_ascii_lowercase();
-        let summary = item.summary.to_ascii_lowercase();
-        HARD_NEGATIVE_KEYWORDS
-            .iter()
-            .any(|keyword| title.contains(keyword) || summary.contains(keyword))
-    })
-}
-
 // ---------------------------------------------------------------------------
 // Deduplication
 // ---------------------------------------------------------------------------
@@ -680,30 +647,6 @@ pub(crate) fn normalize_relative_news_date(value: &str, now: DateTime<Utc>) -> O
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn hard_negative_detects_fraud() {
-        let news = vec![NewsItem {
-            title: "Company under investigation for fraud".to_string(),
-            summary: String::new(),
-            source: "Reuters".to_string(),
-            published_at: "2024-01-15".to_string(),
-            url: None,
-        }];
-        assert!(has_hard_negative_news(&news));
-    }
-
-    #[test]
-    fn hard_negative_no_false_positive() {
-        let news = vec![NewsItem {
-            title: "Company reports strong earnings".to_string(),
-            summary: String::new(),
-            source: "Reuters".to_string(),
-            published_at: "2024-01-15".to_string(),
-            url: None,
-        }];
-        assert!(!has_hard_negative_news(&news));
-    }
 
     #[test]
     fn dedupe_removes_duplicates() {

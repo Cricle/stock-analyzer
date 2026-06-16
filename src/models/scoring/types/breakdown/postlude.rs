@@ -172,17 +172,11 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
             reason: LocalText::new("fundamentals_period_mixed_reason"),
         });
     }
-    if result
+    if !result
         .structured_portfolio_decision()
         .missing_evidence_ladder
         .blocking_gaps
-        .iter()
-        .any(|gap| {
-            let lower = gap.to_lowercase();
-            gap.contains("突破") || gap.contains("催化")
-                || lower.contains("breakout") || lower.contains("catalyst")
-                || lower.contains("resistance")
-        })
+        .is_empty()
     {
         caps.push(ConfidenceCap {
             key: "near_resistance_without_fresh_catalyst".to_string(),

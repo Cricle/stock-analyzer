@@ -269,8 +269,7 @@ impl StructuredReport {
                 .unwrap_or_default();
         }
         if portfolio_decision.target_type.trim().is_empty() {
-            portfolio_decision.target_type =
-                infer_target_type(&portfolio_decision, execution_boundary_complete).to_string();
+            portfolio_decision.target_type = "unknown".to_string();
         }
         if portfolio_decision.target_condition.trim().is_empty() {
             portfolio_decision.target_condition =

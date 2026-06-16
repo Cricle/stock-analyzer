@@ -159,6 +159,9 @@ impl LlmClient {
              `price_target` must be a single numeric target price whenever the evidence supports any directional view other than Hold; do not leave it null for Buy, Overweight, Underweight, or Sell unless evidence is genuinely insufficient.\n\
              If the real output is conditional rather than immediately executable, you may keep `price_target` empty while still filling `target_reference` and `target_condition`.\n\
              `time_horizon` must be a concise horizon label such as `2-6 weeks`, `1-3 months`, or `3-6 months`, not a long paragraph.\n\
+             `timeframe_type` must be exactly one of: `short_term` (days to weeks), `swing` (weeks to months), `position` (months to quarters).\n\
+             `target_type` must be exactly one of: `point` (single price), `range` (price range like 180-200), `conditional` (depends on confirmation level), `open` (no specific target), `unknown`.\n\
+             `is_conditional_hold` must be `true` if the Hold rating is conditional pending a confirmation level or specific trigger; `false` if Hold is a firm stance with no expected upgrade path.\n\
              If your call is Underweight or Sell, the price target should normally be below the current market price anchor implied by the analyst evidence.\n\
              `trigger_checklist` must be a concise array of 2-6 concrete conditions that would justify upgrading a cautious/Hold stance into action or confirm the active stance.\n\
              `missing_evidence_ladder` must mirror the three missing-evidence buckets as arrays for machine use.\n\
@@ -168,7 +171,7 @@ impl LlmClient {
              `time_stop_deadline` should specify a time-based exit rule when a catalyst event is pending, e.g. 10 trading days after earnings call, or 5 trading days after earnings release. Use empty string if no time stop applies.\n\
              `time_stop_reason` should explain what happens when the time stop triggers, e.g. close probe position and return to cash after catalyst fails.\n\n\
              Required top-level JSON fields only:\n\
-             rating, recommendation, confidence, risk_assessment, summary, rationale, executive_summary, investment_thesis, price_target, confirmation_level, invalidation_level, target_reference, target_condition, time_horizon, missing_evidence_ladder, trigger_checklist, scenario_paths, time_stop_deadline, time_stop_reason, reflection.\n\
+             rating, recommendation, confidence, risk_assessment, summary, rationale, executive_summary, investment_thesis, price_target, confirmation_level, invalidation_level, target_type, target_reference, target_condition, time_horizon, timeframe_type, is_conditional_hold, missing_evidence_ladder, trigger_checklist, scenario_paths, time_stop_deadline, time_stop_reason, reflection.\n\
              `rating` or `recommendation` must be exactly one of Buy, Overweight, Hold, Underweight, Sell.",
             instrument = Self::instrument_context(params.symbol, params.market_type),
             rating_scale = Self::rating_scale_block(),

@@ -156,8 +156,10 @@ fn build_decision_view(
     } else {
         DecisionConfidenceBand::Low
     };
-    let timeframe = infer_timeframe(portfolio_decision.time_horizon.as_str());
-    let target_type = infer_target_type(portfolio_decision, execution_boundary_complete);
+    let timeframe = serde_json::from_str(&format!("\"{}\"", portfolio_decision.timeframe_type))
+        .unwrap_or_default();
+    let target_type = serde_json::from_str(&format!("\"{}\"", portfolio_decision.target_type))
+        .unwrap_or_default();
     let reader_summary = LocalText::new("reader_summary_text")
         .with_str("text", portfolio_decision.executive_summary.trim());
     let decision_mode = if forced_hold {
@@ -367,8 +369,7 @@ fn derive_core_research_call(
         raw_llm_recommendation,
         portfolio_decision,
     );
-    let confirmation_gated_bullish_hold =
-        hold_language_implies_buy_on_confirmation(research_plan, portfolio_decision);
+    let confirmation_gated_bullish_hold = portfolio_decision.is_conditional_hold;
     if research_anchor.is_bearish() || direction_score <= -45 {
         if !portfolio_decision.invalidation_level.trim().is_empty() {
             return CoreResearchCall::SellOnBreak;

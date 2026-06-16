@@ -17,35 +17,20 @@ fn compact_decision_context(text: &str, max_chars: usize) -> String {
         .filter(|line| !line.is_empty())
         .collect::<Vec<_>>();
 
-    let priority_line = |line: &str| -> usize {
-        let lower = line.to_ascii_lowercase();
-        usize::from(lower.contains("recommend"))
-            + usize::from(lower.contains("rating"))
-            + usize::from(lower.contains("confidence"))
-            + usize::from(lower.contains("risk"))
-            + usize::from(lower.contains("trigger"))
-            + usize::from(lower.contains("invalidation"))
-            + usize::from(lower.contains("stop"))
-            + usize::from(lower.contains("target"))
-            + usize::from(lower.contains("entry"))
-            + usize::from(lower.contains("price"))
-            + usize::from(lower.contains("support"))
-            + usize::from(lower.contains("resistance"))
-            + usize::from(lower.contains("cash"))
-            + usize::from(lower.contains("debt"))
-            + usize::from(lower.contains("margin"))
-            + usize::from(lower.contains("profit"))
-            + usize::from(lower.contains("gap"))
-            + usize::from(lower.contains("gap"))
-            + usize::from(lower.contains("risk"))
-            + usize::from(lower.contains("trigger"))
-            + usize::from(lower.contains("stop-loss"))
-            + usize::from(lower.contains("target"))
+    // Prioritize earlier lines (structured LLM output puts conclusions first)
+    // and longer lines (more information density).
+    let line_score = |idx: usize, line: &str| -> usize {
+        let position_bonus = lines.len().saturating_sub(idx) * 2;
+        let length_bonus = line.chars().count().min(80);
+        position_bonus + length_bonus
     };
+
+    let mut scored: Vec<(usize, &str)> = lines.iter().copied().enumerate().collect();
+    scored.sort_by(|a, b| line_score(b.0, b.1).cmp(&line_score(a.0, a.1)));
 
     let mut selected = Vec::new();
     let mut used = 0usize;
-    for line in lines.iter().filter(|line| priority_line(line) > 0) {
+    for (_idx, line) in scored.iter() {
         let len = line.chars().count() + 1;
         if used + len > max_chars.saturating_sub(32) {
             break;
@@ -827,6 +812,8 @@ impl crate::TaskManager {
                         .clone()
                         .unwrap_or_default(),
                     time_horizon: portfolio_decision.time_horizon.clone().unwrap_or_default(),
+                    timeframe_type: String::new(),
+                    is_conditional_hold: false,
                     missing_evidence_ladder: crate::models::MissingEvidenceLadder {
                         tolerable_gaps: portfolio_decision
                             .missing_evidence_ladder

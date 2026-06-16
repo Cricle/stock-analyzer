@@ -106,6 +106,7 @@ pub struct StructuredPortfolioDecision {
     pub confirmation_level: String,
     #[serde(default)]
     pub invalidation_level: String,
+    /// LLM-returned: "point", "range", "conditional", "open", "unknown"
     #[serde(default)]
     pub target_type: String,
     #[serde(default)]
@@ -113,6 +114,12 @@ pub struct StructuredPortfolioDecision {
     #[serde(default)]
     pub target_condition: String,
     pub time_horizon: String,
+    /// LLM-returned: "short_term", "swing", "position"
+    #[serde(default)]
+    pub timeframe_type: String,
+    /// LLM-returned: true if Hold is conditional pending confirmation
+    #[serde(default)]
+    pub is_conditional_hold: bool,
     #[serde(default)]
     pub missing_evidence_ladder: MissingEvidenceLadder,
     #[serde(default)]

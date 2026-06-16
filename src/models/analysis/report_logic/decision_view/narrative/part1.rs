@@ -1,63 +1,4 @@
 
-fn hold_language_implies_buy_on_confirmation(
-    research_plan: &StructuredResearchPlan,
-    portfolio_decision: &StructuredPortfolioDecision,
-) -> bool {
-    if primary_research_rating(research_plan, "", portfolio_decision) != Rating::Hold
-        || portfolio_decision.confirmation_level.trim().is_empty()
-    {
-        return false;
-    }
-
-    let combined = [
-        research_plan.rationale.as_str(),
-        portfolio_decision.executive_summary.as_str(),
-        portfolio_decision.investment_thesis.as_str(),
-        portfolio_decision.rationale.as_str(),
-        portfolio_decision.risk_assessment.as_str(),
-    ]
-    .join(" ")
-    .to_lowercase();
-
-    let has_confirmation_language = [
-        "等待确认",
-        "等待更优确认",
-        "等待确认门槛",
-        "条件式跟踪",
-        "条件性偏多",
-        "不追价",
-        "确认后",
-        "站稳",
-        "突破",
-        "回踩确认",
-        "等待交易确认",
-        "等待更优确认再行动",
-        "升级为buy",
-        "升级为overweight",
-    ]
-    .iter()
-    .any(|needle| combined.contains(needle));
-    let has_constructive_language = [
-        "不该悲观",
-        "还不该激进",
-        "公司质量没有被破坏",
-        "修复结构成立",
-        "长期逻辑依然扎实",
-        "应当等待",
-        "中期框架仍偏多",
-        "方向偏正",
-        "高质量基本面支撑",
-        "中期修复标的",
-        "不是应当规避的资产",
-        "多头赢在长期质量",
-        "修复向重估过渡",
-    ]
-    .iter()
-    .any(|needle| combined.contains(needle));
-
-    has_confirmation_language && has_constructive_language
-}
-
 fn primary_research_rating(
     research_plan: &StructuredResearchPlan,
     raw_llm_recommendation: &str,
@@ -264,24 +205,5 @@ fn normalize_reference_phrase(value: &str) -> String {
 
 fn is_publishable_summary_reference(value: &str) -> bool {
     let normalized = normalize_reference_phrase(value);
-    if normalized.is_empty() {
-        return false;
-    }
-    if normalized.chars().count() <= 1 {
-        return false;
-    }
-    if normalized.contains("确认后")
-        || normalized.contains("再评估")
-        || normalized.contains("若补齐数据")
-        || normalized.contains("升级为可执行")
-        || normalized.contains("当前主张需要下修")
-    {
-        return false;
-    }
-    parse_first_numeric(&normalized).is_some()
-        || normalized.contains("站稳")
-        || normalized.contains("突破")
-        || normalized.contains("跌破")
-        || normalized.contains("失守")
-        || normalized.contains("量价")
+    normalized.chars().count() > 1
 }

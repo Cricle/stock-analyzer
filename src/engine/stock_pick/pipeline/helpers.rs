@@ -215,11 +215,11 @@ pub(crate) fn news_items_to_evidence_records(
         if !dedup.insert(dedupe_key.clone()) {
             continue;
         }
-        let hard_negative_flag = crate::data::news::is_hard_negative(item);
         // Use LLM-classified sentiment; default to "neutral" if LLM didn't classify
         let sentiment_hint = sentiment_map
             .and_then(|m| m.get(&dedupe_key).cloned())
             .unwrap_or_else(|| "neutral".to_string());
+        let hard_negative_flag = sentiment_hint == "negative";
         records.push(CandidateEvidenceRecord {
             query: query.clone(),
             published_at: item.published_at.clone(),

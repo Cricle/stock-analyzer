@@ -49,65 +49,15 @@ fn sentiment_label(score: i32) -> (&'static str, &'static str) {
     }
 }
 
-/// Keyword-based sentiment fallback when LLM classifies all items as neutral.
-/// Updates items' impact field in-place and returns (positive_count, negative_count).
-fn keyword_sentiment_update(news: &mut [GuidanceNewsItem]) -> (usize, usize) {
-    let pos_keywords = [
-        "surge", "rally", "beat", "upgrade", "stimulus", "growth", "record high",
-        "bullish", "outperform", "buy", "buyback", "gain", "profit", "revenue up", "jump", "soar",
-        "peace deal", "boost", "strong data", "institutional buying",
-        "上涨", "涨停", "利好", "增长", "突破", "新高", "增持", "买入", "回购", "大涨", "净买入",
-    ];
-    let neg_keywords = [
-        "crash", "plunge", "miss", "downgrade", "recession", "decline", "record low",
-        "bearish", "underperform", "sell-off", "loss", "layoff", "scandal", "fraud", "fine", "penalty",
-        "tariff", "sanctions", "bankruptcy", "default", "delisting",
-        "下跌", "跌停", "利空", "下滑", "暴跌", "净卖出", "亏损", "爆雷", "罚款", "处罚",
-        "制裁", "退市", "破产", "违约",
-    ];
-
-    let mut pos = 0usize;
-    let mut neg = 0usize;
-
-    for item in news.iter_mut() {
-        let text = format!("{} {}", item.title, item.summary).to_ascii_lowercase();
-        let has_pos = pos_keywords.iter().any(|kw| text.contains(kw));
-        let has_neg = neg_keywords.iter().any(|kw| text.contains(kw));
-        if has_pos && !has_neg {
-            item.impact = "positive".to_string();
-            pos += 1;
-        } else if has_neg && !has_pos {
-            item.impact = "negative".to_string();
-            neg += 1;
-        }
-    }
-
-    (pos, neg)
-}
-
 impl DailyGuidanceGenerator {
     pub(super) async fn assess_market_sentiment(
         &self,
         news: &mut [GuidanceNewsItem],
         market: &GuidanceMarket,
     ) -> MarketSentiment {
-        let mut pos = news.iter().filter(|n| n.impact == "positive").count();
-        let mut neg = news.iter().filter(|n| n.impact == "negative").count();
+        let pos = news.iter().filter(|n| n.impact == "positive").count();
+        let neg = news.iter().filter(|n| n.impact == "negative").count();
         let total = news.len();
-
-        // Fallback: if LLM classified everything as neutral, try keyword-based detection
-        // and update the items' impact so downstream (drivers, sector highlights) sees them
-        if pos == 0 && neg == 0 && total >= 2 {
-            let (kw_pos, kw_neg) = keyword_sentiment_update(news);
-            if kw_pos > 0 || kw_neg > 0 {
-                tracing::info!(
-                    kw_pos, kw_neg,
-                    "LLM classified all news as neutral, using keyword-based fallback sentiment"
-                );
-                pos = kw_pos;
-                neg = kw_neg;
-            }
-        }
 
         let score = sentiment_score(pos, neg, total);
         let (label, label_key) = sentiment_label(score);

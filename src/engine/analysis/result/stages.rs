@@ -26,7 +26,7 @@ fn compact_decision_context(text: &str, max_chars: usize) -> String {
     };
 
     let mut scored: Vec<(usize, &str)> = lines.iter().copied().enumerate().collect();
-    scored.sort_by(|a, b| line_score(b.0, b.1).cmp(&line_score(a.0, a.1)));
+    scored.sort_by_key(|b| std::cmp::Reverse(line_score(b.0, b.1)));
 
     let mut selected = Vec::new();
     let mut used = 0usize;

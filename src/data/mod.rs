@@ -12,8 +12,8 @@ pub use crate::types::{
 pub(crate) fn news_item_from_stock_news(n: akshare::stock::feature::StockNews) -> NewsItem {
     NewsItem {
         published_at: n.publish_time,
-        title: n.title.clone(),
-        summary: n.content.unwrap_or(n.title),
+        title: n.title,
+        summary: n.content.unwrap_or_default(),
         source: n.source.unwrap_or_else(|| "Eastmoney".to_string()),
         url: n.url,
     }
@@ -25,8 +25,8 @@ pub(crate) fn news_item_from_news_entry_with_source(
 ) -> NewsItem {
     NewsItem {
         published_at: n.time,
-        title: n.title.clone(),
-        summary: n.summary.unwrap_or(n.title),
+        title: n.title,
+        summary: n.summary.unwrap_or_default(),
         source: source.to_string(),
         url: n.url,
     }
@@ -35,8 +35,8 @@ pub(crate) fn news_item_from_news_entry_with_source(
 pub(crate) fn news_item_from_announcement(a: akshare::AnnouncementItem) -> NewsItem {
     NewsItem {
         published_at: a.published_at,
-        title: a.title.clone(),
-        summary: a.title,
+        title: a.title,
+        summary: String::new(),
         source: a.source,
         url: a.url,
     }
@@ -53,9 +53,79 @@ mod hk;
 pub(crate) mod news;
 mod us;
 
+// ---------------------------------------------------------------------------
+// API Key Pool (environment variables + config file)
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Default, serde::Deserialize)]
+struct ConfigFile {
+    api_keys: Option<ConfigApiKeys>,
+}
+
+#[derive(Clone, Default, serde::Deserialize)]
+struct ConfigApiKeys {
+    finnhub: Option<Vec<String>>,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct ApiKeyPool {
+    finnhub_keys: Vec<String>,
+}
+
+impl ApiKeyPool {
+    pub fn load() -> Self {
+        // 1. Try config file
+        let config_path = std::env::var("SA_ENGINE_CONFIG").unwrap_or_else(|_| {
+            let home = std::env::var("HOME").unwrap_or_default();
+            format!("{home}/.config/sa-engine/config.toml")
+        });
+        let file_config: ConfigFile = std::fs::read_to_string(&config_path)
+            .ok()
+            .and_then(|s| toml::from_str(&s).ok())
+            .unwrap_or_default();
+
+        // 2. Env vars override config file
+        let finnhub_keys = std::env::var("FINNHUB_API_KEY")
+            .ok()
+            .map(|v| Self::parse_keys(&v))
+            .filter(|v| !v.is_empty())
+            .or(file_config.api_keys.as_ref().and_then(|c| c.finnhub.clone()))
+            .unwrap_or_default();
+
+        if !finnhub_keys.is_empty() {
+            tracing::info!(
+                finnhub_keys = finnhub_keys.len(),
+                "API key pool loaded"
+            );
+        }
+        Self { finnhub_keys }
+    }
+
+    fn parse_keys(value: &str) -> Vec<String> {
+        value
+            .split(',')
+            .map(|k| k.trim().to_string())
+            .filter(|k| !k.is_empty())
+            .collect()
+    }
+
+    pub fn next_finnhub_key(&self) -> Option<&str> {
+        if self.finnhub_keys.is_empty() {
+            return None;
+        }
+        let idx = (chrono::Utc::now().timestamp() / 60) as usize % self.finnhub_keys.len();
+        Some(&self.finnhub_keys[idx])
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MarketDataClient
+// ---------------------------------------------------------------------------
+
 #[derive(Clone)]
 pub struct MarketDataClient {
     ak: akshare::AkShareClient,
+    pub(crate) api_keys: ApiKeyPool,
 }
 
 #[derive(Debug)]

@@ -239,7 +239,7 @@ impl MarketDataClient {
         look_back_days: usize,
         limit: usize,
     ) -> anyhow::Result<crate::types::NewsFetchResult> {
-        use super::news::within_date_window;
+        use super::news::{is_junk_news, within_date_window};
         use crate::types::{NewsFetchAttempt, NewsFetchResult};
 
         let end = chrono::NaiveDate::parse_from_str(curr_date, "%Y-%m-%d")
@@ -247,36 +247,110 @@ impl MarketDataClient {
         let start = end - chrono::Days::new(look_back_days as u64);
         let start_text = start.to_string();
 
-        let queries: &[(&str, Option<&str>)] = &[
-            ("Hong Kong stock market", Some("en")),
-            ("Hang Seng index", Some("en")),
-            ("港股 恒生", None),
-            ("HK stocks earnings", Some("en")),
-        ];
-
         let mut attempts = Vec::new();
         let mut items: Vec<NewsItem> = Vec::new();
-        let mut existing_titles: std::collections::HashSet<String> =
-            items.iter().map(|i| i.title.to_lowercase()).collect();
+        let mut existing_titles: std::collections::HashSet<String> = std::collections::HashSet::new();
 
-        for &(query, lang) in queries {
-            if let Ok(rss_items) = self.ak.bing_news_rss_with_lang(query, 10, lang).await {
-                let count = rss_items.len();
-                for item in rss_items.into_iter() {
-                    if within_date_window(&item.published_at, Some(&start_text), Some(curr_date))
-                        && !existing_titles.contains(&item.title.to_lowercase())
+        // Primary: Eastmoney HK news for major stocks
+        let major_hk = ["00700", "09988", "03690", "01810", "09999"];
+        for code in &major_hk {
+            if let Ok(em_items) = self.ak.stock_news_em_hk(code).await {
+                let count = em_items.len();
+                let mut added = 0usize;
+                for item in em_items.into_iter() {
+                    let converted = super::news_item_from_stock_news(item);
+                    if within_date_window(&converted.published_at, Some(&start_text), Some(curr_date))
+                        && !existing_titles.contains(&converted.title.to_lowercase())
                     {
-                        existing_titles.insert(item.title.to_lowercase());
-                        items.push(item);
+                        existing_titles.insert(converted.title.to_lowercase());
+                        items.push(converted);
+                        added += 1;
                     }
                 }
                 attempts.push(NewsFetchAttempt {
-                    source: "bing_rss".to_string(),
-                    query: Some(query.to_string()),
-                    success: true,
+                    source: "eastmoney_hk".to_string(),
+                    query: Some(code.to_string()),
+                    success: added > 0,
                     item_count: count,
                     error: None,
                 });
+            }
+        }
+
+        // Fallback: Bing RSS
+        if items.len() < limit.min(8) {
+            let queries: &[(&str, Option<&str>)] = &[
+                ("Hong Kong stock market", Some("en")),
+                ("港股 恒生", None),
+            ];
+            for &(query, lang) in queries {
+                if let Ok(rss_items) = self.ak.bing_news_rss_with_lang(query, 10, lang).await {
+                    let count = rss_items.len();
+                    let mut kept = 0usize;
+                    for item in rss_items.into_iter() {
+                        if is_junk_news(&item) {
+                            continue;
+                        }
+                        if within_date_window(
+                            &item.published_at,
+                            Some(&start_text),
+                            Some(curr_date),
+                        ) && !existing_titles.contains(&item.title.to_lowercase())
+                        {
+                            existing_titles.insert(item.title.to_lowercase());
+                            items.push(item);
+                            kept += 1;
+                        }
+                    }
+                    attempts.push(NewsFetchAttempt {
+                        source: "bing_rss".to_string(),
+                        query: Some(query.to_string()),
+                        success: kept > 0,
+                        item_count: count,
+                        error: if kept == 0 {
+                            Some("all items filtered as junk".to_string())
+                        } else {
+                            None
+                        },
+                    });
+                }
+            }
+        }
+
+        // Fallback: Google News RSS
+        if items.len() < limit.min(8) {
+            let google_queries = ["Hong Kong stock market"];
+            for query in &google_queries {
+                if let Ok(google_items) = self.ak.google_news_rss(query, 10).await {
+                    let count = google_items.len();
+                    let mut kept = 0usize;
+                    for item in google_items.into_iter() {
+                        if is_junk_news(&item) {
+                            continue;
+                        }
+                        if within_date_window(
+                            &item.published_at,
+                            Some(&start_text),
+                            Some(curr_date),
+                        ) && !existing_titles.contains(&item.title.to_lowercase())
+                        {
+                            existing_titles.insert(item.title.to_lowercase());
+                            items.push(item);
+                            kept += 1;
+                        }
+                    }
+                    attempts.push(NewsFetchAttempt {
+                        source: "google_news_rss".to_string(),
+                        query: Some(query.to_string()),
+                        success: kept > 0,
+                        item_count: count,
+                        error: if kept == 0 {
+                            Some("no usable Google News results".to_string())
+                        } else {
+                            None
+                        },
+                    });
+                }
             }
         }
 

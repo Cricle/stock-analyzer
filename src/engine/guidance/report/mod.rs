@@ -129,6 +129,7 @@ impl DailyGuidanceGenerator {
             },
             key_news: components.news_items,
             historical_insights: components.historical_insights,
+            llm_token_usage: None,
         }
     }
 
@@ -171,13 +172,13 @@ impl DailyGuidanceGenerator {
         );
 
         // 1. Fetch news from searxng
-        let (news_items, news_sources) = self.fetch_guidance_news(&market, &date).await;
+        let (mut news_items, news_sources) = self.fetch_guidance_news(&market, &date).await;
 
         // 2. Query historical patterns from memory
         let historical_insights = self.query_historical_patterns(&market, &date).await;
 
         // 3. Build market sentiment from news + memory
-        let market_sentiment = self.assess_market_sentiment(&news_items, &market).await;
+        let market_sentiment = self.assess_market_sentiment(&mut news_items, &market).await;
 
         // 4. Generate stock guidances for specific tickers if requested
         let mut stock_guidances = if let Some(tickers) = &request.tickers {
@@ -221,6 +222,9 @@ impl DailyGuidanceGenerator {
             historical_insights,
         });
 
+        // Attach LLM token usage
+        self.attach_token_usage(&mut report).await;
+
         // Enrich with latest stock pick results
         report.recent_stock_picks = self.fetch_recent_stock_picks(&market).await;
 
@@ -235,6 +239,13 @@ impl DailyGuidanceGenerator {
         );
 
         Ok(report)
+    }
+
+    /// Attach LLM token usage to a report if an LLM client is available.
+    pub async fn attach_token_usage(&self, report: &mut DailyGuidanceReport) {
+        if let Some(ref llm) = self.llm {
+            report.llm_token_usage = Some(llm.usage_summary().await);
+        }
     }
 
     /// Stage 1: Pre-fetch data and store in Redis for later assembly.
@@ -305,7 +316,7 @@ impl DailyGuidanceGenerator {
             .ok_or_else(|| anyhow::anyhow!("no prepared data found for {}:{}", market, date))?;
 
         // Deserialize pre-fetched data
-        let news_items: Vec<GuidanceNewsItem> =
+        let mut news_items: Vec<GuidanceNewsItem> =
             serde_json::from_str(&prepared.news_json).unwrap_or_default();
         let historical_insights: Vec<HistoricalInsight> =
             serde_json::from_str(&prepared.historical_insights_json).unwrap_or_default();
@@ -318,7 +329,7 @@ impl DailyGuidanceGenerator {
 
         // LLM-dependent steps
         let market_sentiment = self
-            .assess_market_sentiment(&news_items, &market_enum)
+            .assess_market_sentiment(&mut news_items, &market_enum)
             .await;
 
         let mut stock_guidances = if let Some(ref tickers) = tickers {
@@ -342,7 +353,7 @@ impl DailyGuidanceGenerator {
 
         let elapsed = started.elapsed().as_millis() as u64;
 
-        let report = Self::build_report(ReportComponents {
+        let mut report = Self::build_report(ReportComponents {
             date: date.to_string(),
             market: market.to_string(),
             elapsed_ms: elapsed,
@@ -357,6 +368,9 @@ impl DailyGuidanceGenerator {
             market_indices,
             historical_insights,
         });
+
+        // Attach LLM token usage
+        self.attach_token_usage(&mut report).await;
 
         self.persist_report(&report, date, market).await;
 

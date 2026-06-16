@@ -186,7 +186,7 @@
       "missing_earnings_growth": "missing earnings growth data"
     },
     "catalyst": {
-      "strong_return": "Strong period return of {pct:.1}%",
+      "strong_return": "Strong {days}-day return of {pct:.1}%",
       "rsi_bullish": "RSI at {rsi:.1} indicates bullish momentum without overbought risk",
       "macd_positive": "MACD histogram positive, confirming uptrend",
       "pe_reasonable": "PE ratio {pe:.1}x is reasonable for growth potential",

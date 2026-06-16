@@ -50,12 +50,16 @@ jobs:
         if: matrix.archive == 'tar.gz'
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../sa-engine-${{ github.ref_name }}-${{ matrix.target }}.tar.gz sa-engine sa-engine-mcp
+          cp ../../../config.example.toml .
+          cp ../../../README.md .
+          tar czf ../../../sa-engine-${{ github.ref_name }}-${{ matrix.target }}.tar.gz sa-engine sa-engine-mcp config.example.toml README.md
       - name: Package (windows)
         if: matrix.archive == 'zip'
         run: |
           cd target/${{ matrix.target }}/release
-          zip ../../../sa-engine-${{ github.ref_name }}-${{ matrix.target }}.zip sa-engine.exe sa-engine-mcp.exe
+          cp ../../../config.example.toml .
+          cp ../../../README.md .
+          zip ../../../sa-engine-${{ github.ref_name }}-${{ matrix.target }}.zip sa-engine.exe sa-engine-mcp.exe config.example.toml README.md
       - uses: actions/upload-artifact@v4
         with:
           name: sa-engine-${{ matrix.target }}

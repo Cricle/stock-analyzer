@@ -65,8 +65,8 @@ impl DailyGuidanceGenerator {
                         Some(StockPickGuidanceEntry {
                             symbol: pick.get("symbol")?.as_str()?.to_string(),
                             name: pick.get("name")?.as_str().unwrap_or("").to_string(),
-                            score: pick.get("score")?.as_f64().unwrap_or(0.0),
-                            confidence: pick.get("confidence")?.as_f64().unwrap_or(0.0),
+                            score: (pick.get("score")?.as_f64().unwrap_or(0.0) * 10.0).round() / 10.0,
+                            confidence: (pick.get("confidence")?.as_f64().unwrap_or(0.0) * 10.0).round() / 10.0,
                             thesis: pick.get("thesis")?.as_str().unwrap_or("").to_string(),
                             current_price: pick.get("price")?.as_f64(),
                             alpha_return: None,
@@ -77,7 +77,7 @@ impl DailyGuidanceGenerator {
             .unwrap_or_default();
 
         let average_score = if !picks.is_empty() {
-            picks.iter().map(|p| p.score).sum::<f64>() / picks.len() as f64
+            (picks.iter().map(|p| p.score).sum::<f64>() / picks.len() as f64 * 10.0).round() / 10.0
         } else {
             0.0
         };

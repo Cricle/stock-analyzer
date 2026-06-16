@@ -25,12 +25,16 @@ struct Cli {
     transport: String,
     #[arg(long, default_value_t = 3000)]
     port: u16,
+    /// Output compact JSON in tool responses instead of pretty-printed.
+    #[arg(long, global = true)]
+    json: bool,
 }
 
 #[derive(Clone)]
 struct StockAnalyzerServer {
     market_data: MarketDataClient,
     llm: LlmClient,
+    compact_json: bool,
 }
 
 fn make_schema(
@@ -50,8 +54,13 @@ fn make_schema(
     schema
 }
 
-fn success_content(value: &serde_json::Value) -> Vec<Content> {
-    vec![Content::text(serde_json::to_string_pretty(value).unwrap())]
+fn success_content(value: &serde_json::Value, compact: bool) -> Vec<Content> {
+    let text = if compact {
+        serde_json::to_string(value).unwrap()
+    } else {
+        serde_json::to_string_pretty(value).unwrap()
+    };
+    vec![Content::text(text)]
 }
 
 fn error_content(code: &str, message: &str) -> Vec<Content> {
@@ -61,26 +70,27 @@ fn error_content(code: &str, message: &str) -> Vec<Content> {
 
 fn tool_generate_guidance() -> Tool {
     let mut props = serde_json::Map::new();
-    props.insert(
-        "market".into(),
-        serde_json::json!({"type": "string", "default": "a-share", "description": "Target market"}),
-    );
-    Tool::new("generate_guidance", "Generate daily market guidance", Arc::new(make_schema(props, &[])))
+    props.insert("market".into(), serde_json::json!({"type": "string", "default": "a-share", "description": "Market: a-share, hk, us"}));
+    props.insert("lang".into(), serde_json::json!({"type": "string", "default": "zh", "description": "Output language: zh or en"}));
+    Tool::new("generate_guidance", "Generate daily market guidance: sentiment, sector highlights, risk alerts, key news.", Arc::new(make_schema(props, &[])))
 }
 
 fn tool_stock_pick() -> Tool {
     let mut props = serde_json::Map::new();
-    props.insert("market".into(), serde_json::json!({"type": "string", "default": "a-share"}));
-    props.insert("date".into(), serde_json::json!({"type": "string", "description": "YYYY-MM-DD"}));
-    Tool::new("stock_pick", "Pick stocks for a market", Arc::new(make_schema(props, &[])))
+    props.insert("market".into(), serde_json::json!({"type": "string", "default": "a-share", "description": "Market: a-share, hk, us"}));
+    props.insert("lang".into(), serde_json::json!({"type": "string", "default": "zh", "description": "Output language: zh or en"}));
+    props.insert("date".into(), serde_json::json!({"type": "string", "description": "Analysis date YYYY-MM-DD (default: today)"}));
+    props.insert("candidate_symbols".into(), serde_json::json!({"type": "array", "items": {"type": "string"}, "description": "Explicit stock symbols to evaluate"}));
+    Tool::new("stock_pick", "Run multi-factor stock selection with LLM analysis. Returns ranked picks with score, thesis, catalysts, and risks.", Arc::new(make_schema(props, &[])))
 }
 
 fn tool_generate_report() -> Tool {
     let mut props = serde_json::Map::new();
-    props.insert("symbol".into(), serde_json::json!({"type": "string", "description": "Stock symbol"}));
-    props.insert("market".into(), serde_json::json!({"type": "string", "description": "Market (optional)"}));
-    props.insert("sections".into(), serde_json::json!({"type": "array", "items": {"type": "string"}}));
-    Tool::new("generate_report", "Generate analysis report for a stock", Arc::new(make_schema(props, &["symbol"])))
+    props.insert("symbol".into(), serde_json::json!({"type": "string", "description": "Stock symbol (e.g. 600519.SH, 00700.HK, AAPL)"}));
+    props.insert("market".into(), serde_json::json!({"type": "string", "description": "Market: a-share, hk, us"}));
+    props.insert("lang".into(), serde_json::json!({"type": "string", "default": "zh", "description": "Output language: zh or en"}));
+    props.insert("sections".into(), serde_json::json!({"type": "array", "items": {"type": "string"}, "description": "Report sections to include"}));
+    Tool::new("generate_report", "Generate per-symbol analysis report combining guidance context and stock pick evaluation.", Arc::new(make_schema(props, &["symbol"])))
 }
 
 impl ServerHandler for StockAnalyzerServer {
@@ -92,7 +102,7 @@ impl ServerHandler for StockAnalyzerServer {
                 name: "sa-engine-mcp".to_string(),
                 version: env!("CARGO_PKG_VERSION").to_string(),
             },
-            instructions: Some("Stock Analyzer MCP server. Tools: generate_guidance, stock_pick, generate_report".into()),
+            instructions: Some("Stock analysis engine. generate_guidance: daily market overview. stock_pick: multi-factor stock selection. report: per-symbol analysis. All tools accept market (a-share/hk/us) and lang (zh/en).".into()),
         }
     }
 
@@ -133,7 +143,7 @@ impl ServerHandler for StockAnalyzerServer {
                         let mut out = serde_json::json!(report);
                         let i18n = sa_engine::i18n::I18n::new();
                         out = bin_helpers::resolve_output(out, &i18n, lang);
-                        Ok(CallToolResult::success(success_content(&out)))
+                        Ok(CallToolResult::success(success_content(&out, self.compact_json)))
                     },
                     Err(e) => Ok(CallToolResult::success(error_content("guidance_failed", &e.to_string()))),
                 }
@@ -160,7 +170,7 @@ impl ServerHandler for StockAnalyzerServer {
                         let mut out = serde_json::json!(response);
                         let i18n = sa_engine::i18n::I18n::new();
                         out = bin_helpers::resolve_output(out, &i18n, lang);
-                        Ok(CallToolResult::success(success_content(&out)))
+                        Ok(CallToolResult::success(success_content(&out, self.compact_json)))
                     },
                     Err(e) => Ok(CallToolResult::success(error_content("stock_pick_failed", &e.to_string()))),
                 }
@@ -215,7 +225,7 @@ impl ServerHandler for StockAnalyzerServer {
 
                 let i18n = sa_engine::i18n::I18n::new();
                 let resolved = bin_helpers::resolve_output(result, &i18n, lang);
-                Ok(CallToolResult::success(success_content(&resolved)))
+                Ok(CallToolResult::success(success_content(&resolved, self.compact_json)))
             }
             _ => Err(McpError::invalid_params(format!("unknown tool: {name}"), None)),
         }
@@ -233,7 +243,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let market_data = bin_helpers::build_market_data_client().await?;
     let llm = bin_helpers::build_llm_client()?;
 
-    let server = StockAnalyzerServer { market_data, llm };
+    let server = StockAnalyzerServer { market_data, llm, compact_json: cli.json };
 
     match cli.transport.as_str() {
         "stdio" => {

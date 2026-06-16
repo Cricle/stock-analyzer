@@ -221,9 +221,19 @@ impl MarketDataClient {
             match self.ak.stock_yjbb_em(date).await {
                 Ok(items) => {
                     if let Some(item) = items.iter().find(|i| i.code == code) {
+                        let revenue_yoy = if item.total_revenue_yoy != 0.0 { Some(item.total_revenue_yoy) } else { None };
+                        let net_profit_yoy = if item.net_profit_yoy != 0.0 { Some(item.net_profit_yoy) } else { None };
+                        // Warn on abnormally high YoY values (>500%)
+                        for (label, val) in [("revenue_yoy", revenue_yoy), ("net_profit_yoy", net_profit_yoy)] {
+                            if let Some(v) = val {
+                                if v.abs() > 5.0 {
+                                    tracing::warn!(code, date, label, value = %v, "abnormally high YoY value, data may be unreliable");
+                                }
+                            }
+                        }
                         return Ok(AShareEnrichmentData {
-                            revenue_yoy: if item.total_revenue_yoy != 0.0 { Some(item.total_revenue_yoy) } else { None },
-                            net_profit_yoy: if item.net_profit_yoy != 0.0 { Some(item.net_profit_yoy) } else { None },
+                            revenue_yoy,
+                            net_profit_yoy,
                             gross_margin: if item.gross_margin != 0.0 { Some(item.gross_margin / 100.0) } else { None },
                             industry: item.industry.clone().filter(|s| !s.is_empty()),
                             ..AShareEnrichmentData::default()
@@ -446,15 +456,19 @@ impl MarketDataClient {
         symbol: &str,
         ts_code: &str,
     ) -> anyhow::Result<FundamentalsSnapshot> {
+        // Strip exchange suffix for APIs that expect bare code (e.g. "600519" not "600519.SH")
+        let bare_code = symbol.split_once('.').map(|(c, _)| c).unwrap_or(symbol);
         let mut search_items = self
-            .ak.a_share_search(symbol.trim(), Some("A股"), 8)
+            .ak.a_share_search(bare_code, Some("A股"), 8)
             .await
             .unwrap_or_default();
+        tracing::debug!(symbol, bare_code, search_count = search_items.len(), search_symbols = ?search_items.iter().map(|i| &i.symbol).collect::<Vec<_>>(), "a_share_search results");
         let search_match = search_items
             .drain(..)
-            .find(|item| item.symbol == symbol.trim())
+            .find(|item| item.symbol == bare_code || item.symbol == symbol.trim())
             .or(None);
-        let info = self.fetch_a_share_individual_info(symbol).await.ok();
+        tracing::debug!(symbol, search_match = ?search_match.as_ref().map(|m| &m.name), "search_match result");
+        let info = self.fetch_a_share_individual_info(bare_code).await.ok();
         let spot_quote = self.fetch_a_share_spot_quote(symbol).await.ok();
         let quote = self.fetch_a_share_quote_from_eastmoney(symbol).await.ok();
         let eastmoney_main = self.fetch_eastmoney_main_finance_indicator(ts_code).await.ok();
@@ -896,8 +910,10 @@ impl MarketDataClient {
         let find_value = |label: &str| -> Option<&serde_json::Value> {
             items.iter().find(|item| item.item == label).map(|item| &item.value)
         };
+        let stock_name = find_value("股票简称").and_then(|v| v.as_str()).map(String::from);
+        tracing::debug!(symbol, items_count = items.len(), stock_name = ?stock_name, "individual_info result");
         Ok(AkshareIndividualInfo {
-            stock_name: find_value("股票简称").and_then(|v| v.as_str()).map(String::from),
+            stock_name,
             total_share: find_value("总股本").and_then(|v| v.as_f64()).map(|v| v as i64),
             market_cap: find_value("总市值").and_then(|v| v.as_f64()),
             industry: find_value("行业").and_then(|v| v.as_str()).map(String::from),

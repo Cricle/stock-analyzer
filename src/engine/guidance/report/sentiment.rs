@@ -24,11 +24,11 @@ fn truncate_titles(titles: &[&str], max_chars: usize) -> String {
 
 /// Compute sentiment score from positive/negative/total counts.
 ///
-/// Enforces a minimum sample threshold: with fewer than 3 news items the
+/// Enforces a minimum sample threshold: with fewer than 2 news items the
 /// formula would be overly volatile (e.g. 1 positive item = score 100),
 /// so we return 0 (neutral) instead.
 fn sentiment_score(pos: usize, neg: usize, total: usize) -> i32 {
-    if total < 3 {
+    if total < 2 {
         return 0;
     }
     let ratio = (pos as f64 - neg as f64) / total.max(1) as f64;
@@ -49,15 +49,114 @@ fn sentiment_label(score: i32) -> (&'static str, &'static str) {
     }
 }
 
+/// Keyword-based sentiment fallback when LLM classifies all items as neutral.
+/// Updates items' impact field in-place and returns (positive_count, negative_count).
+fn keyword_sentiment_update(news: &mut [GuidanceNewsItem]) -> (usize, usize) {
+    let pos_keywords = [
+        "surge", "rally", "beat", "upgrade", "stimulus", "growth", "record high",
+        "bullish", "outperform", "buy", "buyback", "gain", "profit", "revenue up", "jump", "soar",
+        "peace deal", "boost", "strong data", "institutional buying",
+        "上涨", "涨停", "利好", "增长", "突破", "新高", "增持", "买入", "回购", "大涨", "净买入",
+    ];
+    let neg_keywords = [
+        "crash", "plunge", "miss", "downgrade", "recession", "decline", "record low",
+        "bearish", "underperform", "sell-off", "loss", "layoff", "scandal", "fraud", "fine", "penalty",
+        "tariff", "sanctions", "bankruptcy", "default", "delisting",
+        "下跌", "跌停", "利空", "下滑", "暴跌", "净卖出", "亏损", "爆雷", "罚款", "处罚",
+        "制裁", "退市", "破产", "违约",
+    ];
+
+    let mut pos = 0usize;
+    let mut neg = 0usize;
+
+    for item in news.iter_mut() {
+        let text = format!("{} {}", item.title, item.summary).to_ascii_lowercase();
+        let has_pos = pos_keywords.iter().any(|kw| text.contains(kw));
+        let has_neg = neg_keywords.iter().any(|kw| text.contains(kw));
+        if has_pos && !has_neg {
+            item.impact = "positive".to_string();
+            pos += 1;
+        } else if has_neg && !has_pos {
+            item.impact = "negative".to_string();
+            neg += 1;
+        }
+    }
+
+    (pos, neg)
+}
+
+/// Keyword-based sector assignment fallback when LLM doesn't assign sectors.
+fn keyword_sector_assignment<'a>(news: &'a [GuidanceNewsItem]) -> Vec<(String, &'a GuidanceNewsItem)> {
+    let sector_rules: &[(&str, &[&str])] = &[
+        ("technology", &[
+            "芯片", "半导体", "AI", "人工智能", "GPU", "云计算", "软件", "互联网",
+            "chip", "semiconductor", "tech", "cloud", "software", "robotics", "EV",
+        ]),
+        ("finance", &[
+            "银行", "保险", "证券", "金融", "贷款", "利率", "央行",
+            "bank", "insurance", "financial", "lending", "interest rate", "fed",
+        ]),
+        ("healthcare", &[
+            "医药", "生物", "医疗", "疫苗", "制药", "医院",
+            "pharma", "biotech", "healthcare", "drug", "vaccine", "FDA",
+        ]),
+        ("energy", &[
+            "石油", "天然气", "能源", "光伏", "风电", "锂电", "新能源",
+            "oil", "gas", "energy", "solar", "wind", "lithium", "OPEC",
+        ]),
+        ("consumer", &[
+            "消费", "零售", "电商", "品牌", "奢侈品", "食品", "饮料",
+            "consumer", "retail", "e-commerce", "luxury", "food", "beverage",
+        ]),
+        ("real_estate", &[
+            "房地产", "地产", "楼市", "房价", "物业",
+            "real estate", "property", "housing", "REIT",
+        ]),
+        ("industrial", &[
+            "制造", "工业", "机械", "航空", "军工", "基建",
+            "industrial", "manufacturing", "aerospace", "defense", "infrastructure",
+        ]),
+    ];
+
+    let mut results = Vec::new();
+
+    for item in news {
+        let text = format!("{} {}", item.title, item.summary).to_ascii_lowercase();
+        for (sector, keywords) in sector_rules {
+            if keywords.iter().any(|kw| text.contains(&kw.to_ascii_lowercase())) {
+                results.push((sector.to_string(), item));
+                break; // assign first matching sector per item
+            }
+        }
+    }
+
+    results
+}
+
 impl DailyGuidanceGenerator {
     pub(super) async fn assess_market_sentiment(
         &self,
-        news: &[GuidanceNewsItem],
+        news: &mut [GuidanceNewsItem],
         market: &GuidanceMarket,
     ) -> MarketSentiment {
-        let pos = news.iter().filter(|n| n.impact == "positive").count();
-        let neg = news.iter().filter(|n| n.impact == "negative").count();
+        let mut pos = news.iter().filter(|n| n.impact == "positive").count();
+        let mut neg = news.iter().filter(|n| n.impact == "negative").count();
         let total = news.len();
+
+        // Fallback: if LLM classified everything as neutral, try keyword-based detection
+        // and update the items' impact so downstream (drivers, sector highlights) sees them
+        if pos == 0 && neg == 0 && total >= 2 {
+            let (kw_pos, kw_neg) = keyword_sentiment_update(news);
+            if kw_pos > 0 || kw_neg > 0 {
+                tracing::info!(
+                    kw_pos, kw_neg,
+                    "LLM classified all news as neutral, using keyword-based fallback sentiment"
+                );
+                pos = kw_pos;
+                neg = kw_neg;
+            }
+        }
+
         let score = sentiment_score(pos, neg, total);
         let (label, label_key) = sentiment_label(score);
 
@@ -122,73 +221,30 @@ impl DailyGuidanceGenerator {
         &self,
         news: &[GuidanceNewsItem],
     ) -> Vec<SectorHighlight> {
-        let sector_keywords = [
-            (
-                "technology",
-                vec![
-                    "tech", "ai", "semiconductor", "chip", "科技", "人工智能", "芯片",
-                    "nvidia", "apple", "microsoft", "google", "tesla", "英伟达", "苹果",
-                ],
-            ),
-            (
-                "finance",
-                vec![
-                    "bank", "insurance", "金融", "银行", "保险", "券商", "基金",
-                    "jpmorgan", "goldman", "berkshire",
-                ],
-            ),
-            (
-                "healthcare",
-                vec![
-                    "pharma", "biotech", "health", "医药", "生物", "医疗",
-                    "pfizer", "johnson", "unitedhealth",
-                ],
-            ),
-            (
-                "energy",
-                vec![
-                    "oil", "gas", "energy", "renewable", "能源", "石油", "光伏",
-                    "exxon", "chevron", "宁德时代", "比亚迪",
-                ],
-            ),
-            (
-                "consumer",
-                vec![
-                    "retail", "consumer", "luxury", "消费", "零售", "白酒", "茅台",
-                    "walmart", "costco", "lvmh",
-                ],
-            ),
-            (
-                "real_estate",
-                vec![
-                    "property", "real estate", "房地产", "地产", "物业",
-                ],
-            ),
-        ];
-
-        // Step 1: Assign each news item to its best-matching sector
-        let mut sector_news: std::collections::HashMap<&str, Vec<&GuidanceNewsItem>> =
+        // Aggregate news by LLM-assigned sector
+        let mut sector_news: std::collections::HashMap<String, Vec<&GuidanceNewsItem>> =
             std::collections::HashMap::new();
 
         for item in news {
-            let text = format!("{} {}", item.title, item.summary).to_ascii_lowercase();
-            let mut best_sector = None;
-            let mut best_score = 0usize;
-
-            for (sector_name, keywords) in &sector_keywords {
-                let score = keywords.iter().filter(|kw| text.contains(*kw)).count();
-                if score > best_score {
-                    best_score = score;
-                    best_sector = Some(*sector_name);
-                }
-            }
-
-            if let Some(sector) = best_sector {
-                sector_news.entry(sector).or_default().push(item);
+            if let Some(ref sector) = item.sector {
+                sector_news.entry(sector.clone()).or_default().push(item);
             }
         }
 
-        // Step 2: Build SectorHighlight for each sector with news
+        // Fallback: if LLM assigned no sectors, use keyword-based detection
+        if sector_news.is_empty() && !news.is_empty() {
+            let keyword_sectors = keyword_sector_assignment(news);
+            for (sector, item) in keyword_sectors {
+                sector_news.entry(sector).or_default().push(item);
+            }
+            if !sector_news.is_empty() {
+                tracing::info!(
+                    sector_count = sector_news.len(),
+                    "LLM assigned no sectors, using keyword-based fallback"
+                );
+            }
+        }
+
         let mut highlights = Vec::new();
         for (sector_name, matching) in &sector_news {
             let pos = matching.iter().filter(|n| n.impact == "positive").count();
@@ -201,7 +257,6 @@ impl DailyGuidanceGenerator {
                 ("mixed", "guidance.direction.mixed")
             };
 
-            // Pick key_driver: prefer non-neutral news, then most recent
             let key_driver = matching
                 .iter()
                 .filter(|n| n.impact != "neutral")
@@ -211,7 +266,7 @@ impl DailyGuidanceGenerator {
                 .unwrap_or("")
                 .to_string();
 
-            // Extract representative stock names
+            // Collect representative stocks from LLM-assigned entities
             let mut stocks: Vec<String> = Vec::new();
             for item in matching {
                 for entity in &item.affected_entities {
@@ -221,39 +276,6 @@ impl DailyGuidanceGenerator {
                     let e = entity.trim().to_uppercase();
                     if !e.is_empty() && !stocks.contains(&e) {
                         stocks.push(e);
-                    }
-                }
-                let title_lower = item.title.to_ascii_lowercase();
-                let known_stocks: &[(&str, &str)] = match *sector_name {
-                    "technology" => &[
-                        ("nvidia", "NVDA"), ("apple", "AAPL"), ("microsoft", "MSFT"),
-                        ("google", "GOOGL"), ("tesla", "TSLA"), ("meta", "META"),
-                        ("英伟达", "NVDA"), ("苹果", "AAPL"), ("特斯拉", "TSLA"),
-                    ],
-                    "finance" => &[
-                        ("jpmorgan", "JPM"), ("goldman", "GS"), ("berkshire", "BRK"),
-                        ("汇丰", "00005.HK"), ("渣打", "2888.HK"), ("平安", "601318"),
-                    ],
-                    "energy" => &[
-                        ("exxon", "XOM"), ("chevron", "CVX"),
-                        ("宁德时代", "300750"), ("比亚迪", "002594"),
-                        ("中石油", "601857"), ("中石化", "600028"),
-                    ],
-                    "consumer" => &[
-                        ("walmart", "WMT"), ("costco", "COST"), ("lvmh", "MC"),
-                        ("茅台", "600519"), ("五粮液", "000858"),
-                    ],
-                    "healthcare" => &[
-                        ("pfizer", "PFE"), ("johnson", "JNJ"), ("unitedhealth", "UNH"),
-                    ],
-                    _ => &[],
-                };
-                for (pattern, ticker) in known_stocks {
-                    if stocks.len() >= 3 {
-                        break;
-                    }
-                    if title_lower.contains(pattern) && !stocks.contains(&ticker.to_string()) {
-                        stocks.push(ticker.to_string());
                     }
                 }
                 if stocks.len() >= 3 {
@@ -286,13 +308,15 @@ mod tests {
 
     #[test]
     fn single_positive_news_neutral_due_to_threshold() {
-        // With only 1 item total < 3, score must be 0 regardless of polarity.
+        // With only 1 item total < 2, score must be 0 regardless of polarity.
         assert_eq!(sentiment_score(1, 0, 1), 0);
     }
 
     #[test]
-    fn two_items_still_below_threshold() {
-        assert_eq!(sentiment_score(2, 0, 2), 0);
+    fn two_items_at_threshold_now_scored() {
+        // With 2 items (>= threshold of 2), sentiment is now computed.
+        // 2 positive / 2 total => ratio = 1.0 => score = 100
+        assert_eq!(sentiment_score(2, 0, 2), 100);
     }
 
     #[test]

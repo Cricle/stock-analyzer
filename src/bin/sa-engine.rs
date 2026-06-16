@@ -12,41 +12,45 @@ use sa_engine::models::StockPickRequest;
 #[derive(Parser, Debug)]
 #[command(name = "sa-engine", version, about = "Stock analysis engine CLI")]
 struct Cli {
+    /// Output compact JSON (single line) instead of pretty-printed.
+    #[arg(long, global = true)]
+    json: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Generate daily market guidance.
+    /// Generate daily market guidance: sentiment, sectors, risks, key news.
     Guidance {
-        #[arg(long, value_enum, default_value_t = MarketArg::AShare)]
+        #[arg(long, value_enum, default_value_t = MarketArg::AShare, help = "Target market")]
         market: MarketArg,
-        #[arg(long, value_enum)]
+        #[arg(long, value_enum, help = "Output language")]
         lang: Option<LangArg>,
     },
 
-    /// Run stock selection.
+    /// Run multi-factor stock selection with LLM analysis.
     StockPick {
-        #[arg(long, value_enum, default_value_t = MarketArg::AShare)]
+        #[arg(long, value_enum, default_value_t = MarketArg::AShare, help = "Target market")]
         market: MarketArg,
-        #[arg(long)]
+        #[arg(long, help = "Analysis date (YYYY-MM-DD, default: today)")]
         date: Option<String>,
-        #[arg(long, value_delimiter = ',')]
+        #[arg(long, value_delimiter = ',', help = "Explicit symbols to evaluate")]
         candidate_symbols: Option<Vec<String>>,
-        #[arg(long, value_enum)]
+        #[arg(long, value_enum, help = "Output language")]
         lang: Option<LangArg>,
     },
 
-    /// Generate analysis report.
+    /// Generate per-symbol analysis report.
     Report {
-        #[arg(long)]
+        #[arg(long, help = "Stock symbol (e.g. 600519.SH, 00700.HK, AAPL)")]
         symbol: String,
-        #[arg(long, value_enum, default_value_t = MarketArg::AShare)]
+        #[arg(long, value_enum, default_value_t = MarketArg::AShare, help = "Target market")]
         market: MarketArg,
-        #[arg(long, value_delimiter = ',')]
+        #[arg(long, value_delimiter = ',', help = "Report sections to include")]
         sections: Option<Vec<String>>,
-        #[arg(long, value_enum)]
+        #[arg(long, value_enum, help = "Output language")]
         lang: Option<LangArg>,
     },
 }
@@ -100,6 +104,14 @@ fn error_exit(code: &str, message: &str) -> ! {
     std::process::exit(1);
 }
 
+fn print_json(value: &serde_json::Value, compact: bool) {
+    if compact {
+        println!("{}", serde_json::to_string(value).unwrap());
+    } else {
+        println!("{}", serde_json::to_string_pretty(value).unwrap());
+    }
+}
+
 
 #[tokio::main]
 async fn main() {
@@ -108,6 +120,7 @@ async fn main() {
         .init();
 
     let cli = Cli::parse();
+    let compact_json = cli.json;
 
     match cli.command {
         Commands::Guidance { market, lang } => {
@@ -138,7 +151,7 @@ async fn main() {
                         let i18n = I18n::new();
                         out = bin_helpers::resolve_output(out, &i18n, l.as_str());
                     }
-                    println!("{}", serde_json::to_string_pretty(&out).unwrap());
+                    print_json(&out, compact_json);
                 }
                 Err(e) => error_exit("guidance_failed", &e.to_string()),
             }
@@ -173,7 +186,7 @@ async fn main() {
                         let i18n = I18n::new();
                         out = bin_helpers::resolve_output(out, &i18n, l.as_str());
                     }
-                    println!("{}", serde_json::to_string_pretty(&out).unwrap());
+                    print_json(&out, compact_json);
                 }
                 Err(e) => error_exit("stock_pick_failed", &e.to_string()),
             }
@@ -246,7 +259,7 @@ async fn main() {
                 result = bin_helpers::resolve_output(result, &i18n, l.as_str());
             }
 
-            println!("{}", serde_json::to_string_pretty(&result).unwrap());
+            print_json(&result, compact_json);
         }
     }
 }

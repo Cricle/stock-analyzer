@@ -9,6 +9,105 @@ use chrono::{DateTime, Duration as ChronoDuration, NaiveDate, Utc};
 use super::NewsItem;
 
 // ---------------------------------------------------------------------------
+// Junk news filtering
+// ---------------------------------------------------------------------------
+
+/// Domains that are not financial news sources.
+const PORTAL_DOMAINS: &[&str] = &[
+    "baike.baidu.com",
+    "jingyan.baidu.com",
+    "iciba.com",
+    "eastmoney.com",
+    "sina.com.cn/stock/",
+    "finance.qq.com",
+    "investing.com/equities",
+    "github.com",
+    "stock.sina.com.cn",
+];
+
+/// Check if a news item is junk (dictionary entries, portal pages, non-financial content).
+pub(crate) fn is_junk_news(item: &NewsItem) -> bool {
+    let url = item.url.as_deref().unwrap_or("");
+    if PORTAL_DOMAINS.iter().any(|d| url.contains(d)) {
+        return true;
+    }
+
+    let title = &item.title;
+    let lower = title.to_ascii_lowercase();
+
+    // Chinese junk patterns
+    if title.contains("是什么意思")
+        || title.contains("翻译")
+        || title.contains("的用法")
+        || title.contains("百度经验")
+        || title.contains("百度百科")
+        || title.contains("百度知道")
+        || title.contains("首页")
+        || title.contains("官网")
+        || title.contains("实时行情走势")
+        || title.contains("行情中心")
+        || title.contains("行情_")
+        || title.contains("披露易")
+        || title.contains("聪明的投资者")
+        || title.contains("财经网")
+        || title.contains("交易所")
+        || title.contains("汇率")
+        || title.contains("兑换")
+        || title.contains("兌換")
+        || title.contains("外币")
+    {
+        return true;
+    }
+    // English junk patterns — encyclopedia, how-to, homepages
+    if lower.contains("how to")
+        || lower.contains("what is")
+        || lower.contains("wikipedia")
+        || lower.contains("britannica")
+        || lower.contains("meaning of")
+        || lower.contains("google hangouts")
+    {
+        return true;
+    }
+    // Homepage patterns: title is just "{Brand} - Home" or "{Brand} Home"
+    if lower.ends_with(" - home")
+        || lower.ends_with(" | home")
+        || lower == "home"
+        || (lower.contains("home") && lower.len() < 30 && !lower.contains("stock"))
+    {
+        return true;
+    }
+    // Very short titles are not real news articles
+    if title.trim().len() < 10 {
+        return true;
+    }
+    // Index/quote pages (Chinese + English)
+    if title.contains("恒生指数")
+        || title.contains("恒生指數")
+        || title.contains("恒生综合指数")
+        || title.contains("经济通")
+        || title.contains("經濟通")
+        || lower.contains("hang seng index")
+        || lower.contains("hsi)")
+    {
+        return true;
+    }
+    // Portal pages, bank portals, currency converters
+    if lower.ends_with(" - select your location")
+        || lower.contains("personal banking services")
+        || lower.contains("global tire supply")
+        || lower.contains("online banking")
+        || lower.contains("currency converter")
+        || lower.contains("exchange rate")
+        || lower.contains("convert ") && lower.contains(" to ")
+        || lower.contains("汇率")
+    {
+        return true;
+    }
+
+    false
+}
+
+// ---------------------------------------------------------------------------
 // Sentiment classification
 // ---------------------------------------------------------------------------
 
@@ -23,82 +122,6 @@ const HARD_NEGATIVE_KEYWORDS: &[&str] = &[
     "recall",
     "probe",
 ];
-
-const POSITIVE_KEYWORDS: &[&str] = &[
-    "surge", "rally", "gain", "rise", "bullish", "upgrade", "outperform",
-    "上涨", "大涨", "利好", "突破", "增长", "看多", "上调", "反弹", "走强",
-    "涨停", "新高", "放量", "资金流入", "机构买入", "增持", "回购",
-];
-
-const NEGATIVE_KEYWORDS: &[&str] = &[
-    "crash", "plunge", "drop", "fall", "bearish", "downgrade", "underperform",
-    "下跌", "暴跌", "利空", "跌破", "下滑", "看空", "下调", "回调", "走弱",
-    "跌停", "新低", "缩量", "资金流出", "机构卖出", "减持", "爆雷",
-];
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum NewsSentiment {
-    Positive,
-    Negative,
-    Neutral,
-}
-
-impl NewsSentiment {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Positive => "positive",
-            Self::Negative => "negative",
-            Self::Neutral => "neutral",
-        }
-    }
-}
-
-/// Check whether a keyword is preceded by a negation word within the
-/// preceding 10 characters of `text`.
-fn has_negation_before(text: &str, keyword: &str) -> bool {
-    if let Some(pos) = text.find(keyword) {
-        let target = pos.saturating_sub(10);
-        let start = text.floor_char_boundary(target);
-        let prefix = &text[start..pos];
-        ["not ", "no ", "\u{975e}", "\u{4e0d}", "\u{65e0}"]
-            .iter()
-            .any(|n| prefix.contains(n))
-    } else {
-        false
-    }
-}
-
-/// Keyword-based news sentiment classification with negation detection.
-pub(crate) fn classify_news_sentiment(title: &str, summary: &str) -> NewsSentiment {
-    let text = format!("{} {}", title, summary).to_ascii_lowercase();
-    let mut pos = 0usize;
-    let mut neg = 0usize;
-    for w in POSITIVE_KEYWORDS {
-        if text.contains(w) {
-            if has_negation_before(&text, w) {
-                neg += 1;
-            } else {
-                pos += 1;
-            }
-        }
-    }
-    for w in NEGATIVE_KEYWORDS {
-        if text.contains(w) {
-            if has_negation_before(&text, w) {
-                pos += 1;
-            } else {
-                neg += 1;
-            }
-        }
-    }
-    if pos > neg {
-        NewsSentiment::Positive
-    } else if neg > pos {
-        NewsSentiment::Negative
-    } else {
-        NewsSentiment::Neutral
-    }
-}
 
 /// Check if a single news item contains hard negative keywords.
 pub(crate) fn is_hard_negative(item: &NewsItem) -> bool {
@@ -655,46 +678,6 @@ pub(crate) fn normalize_relative_news_date(value: &str, now: DateTime<Utc>) -> O
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn crash_is_negative() {
-        assert_eq!(
-            classify_news_sentiment("Stock crash wipes billions", ""),
-            NewsSentiment::Negative
-        );
-    }
-
-    #[test]
-    fn not_bullish_detects_negation() {
-        assert_eq!(
-            classify_news_sentiment("Analysts not bullish on tech sector", ""),
-            NewsSentiment::Negative
-        );
-    }
-
-    #[test]
-    fn empty_text_is_neutral() {
-        assert_eq!(
-            classify_news_sentiment("", ""),
-            NewsSentiment::Neutral
-        );
-    }
-
-    #[test]
-    fn plain_positive() {
-        assert_eq!(
-            classify_news_sentiment("Markets rally on strong earnings", ""),
-            NewsSentiment::Positive
-        );
-    }
-
-    #[test]
-    fn negation_of_negative_flips_to_positive() {
-        assert_eq!(
-            classify_news_sentiment("Analysts say not bearish outlook", ""),
-            NewsSentiment::Positive
-        );
-    }
 
     #[test]
     fn hard_negative_detects_fraud() {

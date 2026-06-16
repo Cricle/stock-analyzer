@@ -141,6 +141,9 @@ pub struct StockPickResponse {
     pub storage_write_summary: StockPickStorageWriteSummary,
     #[serde(default)]
     pub failure: Option<StockPickFailureInfo>,
+    /// LLM token usage for this stock pick run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub llm_token_usage: Option<crate::models::LlmTokenUsageSummary>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

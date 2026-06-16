@@ -85,7 +85,7 @@ impl StockPickHistoryStore {
     ) -> anyhow::Result<StockPickHistoryMatchSnapshot> {
         // Vector-based history search removed with RAG system.
         Ok(StockPickHistoryMatchSnapshot {
-            enabled: true,
+            enabled: false,
             sample_count: 0,
             vector_hit_count: 0,
             average_score: None,

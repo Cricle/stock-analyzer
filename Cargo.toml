@@ -18,7 +18,7 @@ default = []
 [dependencies]
 # Core
 adk-graph = { version = "0.8.0" }
-akshare = { git = "https://github.com/Cricle/akshare-rs.git", tag = "v0.1.4" }
+akshare = { git = "https://github.com/Cricle/akshare-rs.git", tag = "v0.1.5" }
 anyhow = "1"
 async-openai = { version = "0.41", features = ["chat-completion", "model"] }
 async-trait = "0.1"
@@ -38,6 +38,7 @@ serde_json = "1"
 sha2 = "0.10"
 tempfile = "3"
 tokio = { version = "1", features = ["full"] }
+toml = "0.8"
 tokio-stream = "0.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }

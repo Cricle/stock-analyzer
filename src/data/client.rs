@@ -25,7 +25,10 @@ impl MarketDataClient {
         if let Some(proxy_url) = outbound_proxy_url.as_deref() {
             ak_builder = ak_builder.proxy(proxy_url);
         }
-        Self { ak: ak_builder.build() }
+        Self {
+            ak: ak_builder.build(),
+            api_keys: super::ApiKeyPool::load(),
+        }
     }
 
     pub fn detect_market(&self, symbol: &str) -> MarketKind {

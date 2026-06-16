@@ -6,39 +6,54 @@ use crate::types::{NewsFetchAttempt, NewsFetchResult};
 use super::news::within_date_window;
 
 impl MarketDataClient {
+    /// Fetch US company name from Eastmoney using secid format.
+    /// Tries NASDAQ (105) then NYSE (106). Has a 5-second timeout.
+    async fn fetch_us_company_name(&self, symbol: &str) -> Option<String> {
+        let timeout = std::time::Duration::from_secs(5);
+        for market_code in &["105", "106"] {
+            let secid = format!("{}.{}", market_code, symbol.to_uppercase());
+            let result = tokio::time::timeout(
+                timeout,
+                self.ak.stock_individual_info_em(&secid),
+            ).await;
+            if let Ok(Ok(info)) = result {
+                for item in &info {
+                    if item.item == "股票简称" {
+                        if let Some(name) = item.value.as_str() {
+                            if !name.is_empty() {
+                                return Some(name.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
     pub(super) async fn fetch_us_fundamentals(
         &self,
         symbol: &str,
     ) -> anyhow::Result<FundamentalsSnapshot> {
         let t0 = std::time::Instant::now();
 
-        // Fetch typed APIs
-        let indicators = self
-            .ak
-            .stock_financial_us_analysis_indicator_em_typed(symbol, "年报")
-            .await
-            .unwrap_or_default();
+        // Fetch typed APIs + company name in parallel
+        let (indicators, balance_sheets, income_sheets, cashflow_sheets, company_name) =
+            tokio::join!(
+                self.ak.stock_financial_us_analysis_indicator_em_typed(symbol, "年报"),
+                self.ak.stock_financial_us_balance_sheet_typed(symbol, "年报"),
+                self.ak.stock_financial_us_income_sheet_typed(symbol, "年报"),
+                self.ak.stock_financial_us_cashflow_sheet_typed(symbol, "年报"),
+                self.fetch_us_company_name(symbol),
+            );
+
+        let indicators = indicators.unwrap_or_default();
         let main = indicators.first();
-
-        let balance_sheets = self
-            .ak
-            .stock_financial_us_balance_sheet_typed(symbol, "年报")
-            .await
-            .unwrap_or_default();
+        let balance_sheets = balance_sheets.unwrap_or_default();
         let bs = balance_sheets.first();
-
-        let income_sheets = self
-            .ak
-            .stock_financial_us_income_sheet_typed(symbol, "年报")
-            .await
-            .unwrap_or_default();
+        let income_sheets = income_sheets.unwrap_or_default();
         let is = income_sheets.first();
-
-        let cashflow_sheets = self
-            .ak
-            .stock_financial_us_cashflow_sheet_typed(symbol, "年报")
-            .await
-            .unwrap_or_default();
+        let cashflow_sheets = cashflow_sheets.unwrap_or_default();
         let cf = cashflow_sheets.first();
 
         tracing::debug!(
@@ -50,12 +65,8 @@ impl MarketDataClient {
             t0.elapsed().as_millis()
         );
 
-        // Extract company name
-        let company_name = main
-            .and_then(|m| m.report_date.as_ref())
-            .map(|_| symbol) // indicators don't have company name; use symbol
-            .unwrap_or(symbol)
-            .to_string();
+        // Use Eastmoney name if available, otherwise fall back to symbol
+        let company_name = company_name.unwrap_or_else(|| symbol.to_string());
 
         // From main indicator (may be empty for some US stocks)
         let net_income = main
@@ -269,113 +280,81 @@ impl MarketDataClient {
         start_date: Option<&str>,
         end_date: Option<&str>,
     ) -> anyhow::Result<NewsFetchResult> {
+        use super::news::is_junk_news;
+
         let mut attempts = Vec::new();
         let mut items: Vec<NewsItem> = Vec::new();
+        let mut existing_titles: std::collections::HashSet<String> = std::collections::HashSet::new();
 
-        // Primary source: Bing RSS
-        // Filter out portal pages and non-news results
-        let portal_domains = [
-            "baike.baidu.com", "iciba.com", "eastmoney.com",
-            "sina.com.cn/stock/", "finance.qq.com", "investing.com/equities",
-            "github.com", "stock.sina.com.cn",
-        ];
-        let queries = [
-            format!("{} stock news today", symbol),
-            format!("{} earnings report", symbol),
-        ];
-        let mut bing_added = 0usize;
-        for query in &queries {
-            if let Ok(rss_items) = self.ak.bing_news_rss_with_lang(query, 10, Some("en")).await {
-                for item in rss_items.into_iter() {
-                    if !within_date_window(&item.published_at, start_date, end_date) {
-                        continue;
+        // Primary source: Finnhub
+        if let Some(api_key) = self.api_keys.next_finnhub_key() {
+            let from = start_date.unwrap_or("2020-01-01");
+            let to = end_date.unwrap_or("2099-12-31");
+            match self.ak.finnhub_company_news(symbol, from, to, api_key).await {
+                Ok(finnhub_items) => {
+                    let count = finnhub_items.len();
+                    for item in finnhub_items.into_iter() {
+                        if !existing_titles.contains(&item.title.to_lowercase()) {
+                            existing_titles.insert(item.title.to_lowercase());
+                            items.push(item);
+                        }
                     }
-                    // Filter out portal pages and non-news
-                    let url = item.url.as_deref().unwrap_or("");
-                    let is_portal = portal_domains.iter().any(|d| url.contains(d));
-                    let is_dictionary = item.title.contains("是什么意思")
-                        || item.title.contains("翻译")
-                        || item.title.contains("的用法");
-                    if is_portal || is_dictionary {
-                        continue;
-                    }
-                    bing_added += 1;
-                    items.push(item);
-                }
-            }
-        }
-        attempts.push(NewsFetchAttempt {
-            source: "bing_rss".to_string(),
-            query: Some(format!("{} stock news/earnings", symbol)),
-            success: bing_added > 0,
-            item_count: bing_added,
-            error: if bing_added == 0 { Some("no usable Bing RSS results".to_string()) } else { None },
-        });
-
-        // Secondary: Google News RSS
-        if items.len() < limit.min(6) {
-            let existing_titles: std::collections::HashSet<String> =
-                items.iter().map(|i| i.title.to_lowercase()).collect();
-            let google_query = format!("{} stock", symbol);
-            match self.ak.google_news_rss(&google_query, 15).await {
-                Ok(google_items) => {
-                    let count = google_items.len();
-                    let filtered: Vec<NewsItem> = google_items
-                        .into_iter()
-                        .filter(|item| {
-                            within_date_window(&item.published_at, start_date, end_date)
-                                && !existing_titles.contains(&item.title.to_lowercase())
-                                && !portal_domains.iter().any(|d| {
-                                    item.url.as_deref().unwrap_or("").contains(d)
-                                })
-                        })
-                        .collect();
-                    let added = filtered.len();
-                    items.extend(filtered);
+                    let added = items.len();
                     attempts.push(NewsFetchAttempt {
-                        source: "google_news_rss".to_string(),
-                        query: Some(google_query),
+                        source: "finnhub".to_string(),
+                        query: Some(symbol.to_string()),
                         success: added > 0,
                         item_count: count,
-                        error: if added == 0 { Some("no usable Google News results".to_string()) } else { None },
+                        error: if added == 0 {
+                            Some("no Finnhub results".to_string())
+                        } else {
+                            None
+                        },
                     });
                 }
                 Err(error) => {
+                    tracing::warn!(symbol, error = %error, "finnhub_company_news failed");
                     attempts.push(NewsFetchAttempt {
-                        source: "google_news_rss".to_string(),
-                        query: Some(google_query),
+                        source: "finnhub".to_string(),
+                        query: Some(symbol.to_string()),
                         success: false,
                         item_count: 0,
                         error: Some(error.to_string()),
                     });
                 }
             }
+        } else {
+            tracing::debug!("no Finnhub API key configured, skipping");
         }
 
-        // Fallback: Eastmoney US stock news
-        if items.len() < limit.min(4) {
+        // Secondary: Eastmoney US stock news
+        if items.len() < limit.min(6) {
             match self.ak.stock_news_em_us(symbol).await {
                 Ok(ak_news) => {
                     let count = ak_news.len();
-                    let existing_titles: std::collections::HashSet<String> =
-                        items.iter().map(|i| i.title.to_lowercase()).collect();
                     let converted: Vec<NewsItem> = ak_news
                         .into_iter()
                         .map(super::news_item_from_stock_news)
                         .filter(|item| {
                             within_date_window(&item.published_at, start_date, end_date)
                                 && !existing_titles.contains(&item.title.to_lowercase())
-                                && !portal_domains.iter().any(|d| {
-                                    item.url.as_deref().unwrap_or("").contains(d)
-                                })
+                                && !is_junk_news(item)
                         })
                         .collect();
+                    let added = converted.len();
+                    for item in &converted {
+                        existing_titles.insert(item.title.to_lowercase());
+                    }
                     attempts.push(NewsFetchAttempt {
                         source: "eastmoney_us".to_string(),
                         query: Some(symbol.to_string()),
-                        success: true,
+                        success: added > 0,
                         item_count: count,
-                        error: None,
+                        error: if added == 0 {
+                            Some("no usable Eastmoney US results".to_string())
+                        } else {
+                            None
+                        },
                     });
                     items.extend(converted);
                 }
@@ -389,6 +368,44 @@ impl MarketDataClient {
                     });
                 }
             }
+        }
+
+        // Fallback: Bing RSS
+        if items.len() < limit.min(4) {
+            let queries = [
+                format!("{} stock news today", symbol),
+                format!("{} earnings report", symbol),
+            ];
+            let mut bing_added = 0usize;
+            for query in &queries {
+                if let Ok(rss_items) =
+                    self.ak.bing_news_rss_with_lang(query, 10, Some("en")).await
+                {
+                    for item in rss_items.into_iter() {
+                        if is_junk_news(&item) {
+                            continue;
+                        }
+                        if within_date_window(&item.published_at, start_date, end_date)
+                            && !existing_titles.contains(&item.title.to_lowercase())
+                        {
+                            existing_titles.insert(item.title.to_lowercase());
+                            items.push(item);
+                            bing_added += 1;
+                        }
+                    }
+                }
+            }
+            attempts.push(NewsFetchAttempt {
+                source: "bing_rss".to_string(),
+                query: Some(format!("{} stock news/earnings", symbol)),
+                success: bing_added > 0,
+                item_count: bing_added,
+                error: if bing_added == 0 {
+                    Some("no usable Bing RSS results".to_string())
+                } else {
+                    None
+                },
+            });
         }
 
         if items.is_empty() {
@@ -410,41 +427,96 @@ impl MarketDataClient {
         look_back_days: usize,
         limit: usize,
     ) -> anyhow::Result<NewsFetchResult> {
+        use super::news::is_junk_news;
+
         let end = NaiveDate::parse_from_str(curr_date, "%Y-%m-%d")
             .context("invalid curr_date for global news")?;
         let start = end - chrono::Days::new(look_back_days as u64);
         let start_text = start.to_string();
 
-        let queries = [
-            "stock market economy",
-            "Federal Reserve interest rates",
-            "inflation economic outlook",
-            "global markets trading",
-            "AI semiconductor megacap market outlook",
-        ];
-
         let mut attempts = Vec::new();
         let mut items: Vec<NewsItem> = Vec::new();
-        let existing_titles: std::collections::HashSet<String> =
-            items.iter().map(|i| i.title.to_lowercase()).collect();
+        let mut existing_titles: std::collections::HashSet<String> = std::collections::HashSet::new();
 
-        for query in &queries {
-            if let Ok(rss_items) = self.ak.bing_news_rss(query, 10).await {
-                let count = rss_items.len();
-                for item in rss_items.into_iter() {
-                    if within_date_window(&item.published_at, Some(&start_text), Some(curr_date))
-                        && !existing_titles.contains(&item.title.to_lowercase())
-                    {
-                        items.push(item);
+        // Primary: Finnhub for major market ETFs
+        if let Some(api_key) = self.api_keys.next_finnhub_key() {
+            let major_symbols = ["SPY", "QQQ", "DIA"];
+            for sym in &major_symbols {
+                match self
+                    .ak
+                    .finnhub_company_news(sym, &start_text, curr_date, api_key)
+                    .await
+                {
+                    Ok(finnhub_items) => {
+                        let count = finnhub_items.len();
+                        let mut added = 0usize;
+                        for item in finnhub_items.into_iter() {
+                            if !existing_titles.contains(&item.title.to_lowercase()) {
+                                existing_titles.insert(item.title.to_lowercase());
+                                items.push(item);
+                                added += 1;
+                            }
+                        }
+                        attempts.push(NewsFetchAttempt {
+                            source: "finnhub".to_string(),
+                            query: Some(sym.to_string()),
+                            success: added > 0,
+                            item_count: count,
+                            error: None,
+                        });
+                    }
+                    Err(error) => {
+                        tracing::warn!(symbol = sym, error = %error, "finnhub global news failed");
+                        attempts.push(NewsFetchAttempt {
+                            source: "finnhub".to_string(),
+                            query: Some(sym.to_string()),
+                            success: false,
+                            item_count: 0,
+                            error: Some(error.to_string()),
+                        });
                     }
                 }
-                attempts.push(NewsFetchAttempt {
-                    source: "bing_rss".to_string(),
-                    query: Some(query.to_string()),
-                    success: true,
-                    item_count: count,
-                    error: None,
-                });
+            }
+        }
+
+        // Fallback: Bing RSS
+        if items.len() < limit.min(8) {
+            let queries = [
+                "stock market economy",
+                "Federal Reserve interest rates",
+                "global markets trading",
+            ];
+            for query in &queries {
+                if let Ok(rss_items) = self.ak.bing_news_rss(query, 10).await {
+                    let count = rss_items.len();
+                    let mut kept = 0usize;
+                    for item in rss_items.into_iter() {
+                        if is_junk_news(&item) {
+                            continue;
+                        }
+                        if within_date_window(
+                            &item.published_at,
+                            Some(&start_text),
+                            Some(curr_date),
+                        ) && !existing_titles.contains(&item.title.to_lowercase())
+                        {
+                            existing_titles.insert(item.title.to_lowercase());
+                            items.push(item);
+                            kept += 1;
+                        }
+                    }
+                    attempts.push(NewsFetchAttempt {
+                        source: "bing_rss".to_string(),
+                        query: Some(query.to_string()),
+                        success: kept > 0,
+                        item_count: count,
+                        error: if kept == 0 {
+                            Some("all items filtered as junk".to_string())
+                        } else {
+                            None
+                        },
+                    });
+                }
             }
         }
 

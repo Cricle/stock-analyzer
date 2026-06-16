@@ -54,6 +54,9 @@ pub struct DailyGuidanceReport {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub executive_summary_key: Option<serde_json::Value>,
     pub metadata: GuidanceMetadata,
+    /// LLM token usage for this report generation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub llm_token_usage: Option<crate::models::LlmTokenUsageSummary>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -82,6 +85,7 @@ pub struct GuidanceNewsItem {
     pub url: Option<String>,
     pub impact: String,
     pub affected_entities: Vec<String>,
+    pub sector: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

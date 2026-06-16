@@ -186,7 +186,7 @@
       "missing_earnings_growth": "盈利增长数据缺失"
     },
     "catalyst": {
-      "strong_return": "区间涨幅达{pct:.1}%，动量强劲",
+      "strong_return": "近{days}日区间涨幅达{pct:.1}%，动量强劲",
       "rsi_bullish": "RSI为{rsi:.1}，显示看多动量且未超买",
       "macd_positive": "MACD柱状图为正，确认上升趋势",
       "pe_reasonable": "PE为{pe:.1}x，估值合理",

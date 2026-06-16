@@ -1,0 +1,8 @@
+# sa-engine configuration
+# Copy to ~/.config/sa-engine/config.toml or set SA_ENGINE_CONFIG path.
+
+[api_keys]
+# Finnhub API keys for US stock news (free tier: 60 req/min).
+# Supports multiple keys for round-robin rotation.
+# Override with FINNHUB_API_KEY env var (comma-separated).
+finnhub = []

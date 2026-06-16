@@ -263,27 +263,6 @@ impl TaskManager {
         }
     }
 
-    pub async fn execute_existing_task(
-        &self,
-        task_id: String,
-        params: TaskRunParams,
-    ) -> anyhow::Result<()> {
-        let this = self.clone();
-        let running_task_id = task_id.clone();
-        let handle = tokio::spawn(async move {
-            if let Err(error) = this.run_task(task_id.clone(), params).await {
-                tracing::error!("worker task {} failed: {:?}", task_id, error);
-                let _ = this
-                    .publish_failure(&task_id, format!("Analysis task failed: {error:#}"))
-                    .await;
-            }
-        });
-        self.running_tasks
-            .write()
-            .await
-            .insert(running_task_id, handle.abort_handle());
-        Ok(())
-    }
 }
 impl TaskManager {
     /// Fetch core market data (quote, fundamentals, news, candles) for a fresh run.

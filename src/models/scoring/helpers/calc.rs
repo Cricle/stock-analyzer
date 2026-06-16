@@ -175,7 +175,7 @@ fn semantic_direction(rating: &Rating) -> i32 {
 }
 
 fn bool_text(value: bool) -> &'static str {
-    if value { "是" } else { "否" }
+    if value { "common.yes" } else { "common.no" }
 }
 
 fn count_numeric_levels(text: &str) -> i32 {

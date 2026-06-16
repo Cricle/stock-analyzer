@@ -53,34 +53,6 @@ impl GuidanceStore {
             .await;
     }
 
-    fn prepared_key(date: &str, market: &str) -> String {
-        format!(
-            "{GUIDANCE_CACHE_PREFIX}:prepared:{}:{}",
-            date.trim(),
-            market.trim().to_ascii_lowercase()
-        )
-    }
-
-    /// Store pre-fetched data for later report assembly.
-    pub async fn store_prepared(&self, data: &PreparedData) {
-        let Ok(payload) = serde_json::to_vec(data) else {
-            return;
-        };
-        let key = Self::prepared_key(&data.date, &data.market);
-        // 30 min TTL — prepared data is transient
-        let _ = self.cache.set(&key, &payload, Some(30 * 60)).await;
-    }
-
-    /// Retrieve pre-fetched data.
-    pub async fn get_prepared(&self, date: &str, market: &str) -> Option<PreparedData> {
-        let key = Self::prepared_key(date, market);
-        if let Ok(Some(raw)) = self.cache.get(&key).await {
-            serde_json::from_slice(&raw).ok()
-        } else {
-            None
-        }
-    }
-
     /// Fetch the latest stock pick summary for a market.
     ///
     /// TODO: This previously used Redis SCAN which is not available via CacheStore trait.

@@ -10,18 +10,6 @@ const GUIDANCE_CACHE_PREFIX: &str = "tradingagents:guidance";
 const GUIDANCE_CACHE_TTL_SECS: u64 = 4 * 60 * 60; // 4 hours
 const GUIDANCE_STALE_TTL_SECS: u64 = 24 * 60 * 60; // 24 hours
 
-/// Pre-fetched data for two-phase report generation.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct PreparedData {
-    pub market: String,
-    pub date: String,
-    pub news_json: String,
-    pub news_sources: Vec<String>,
-    pub historical_insights_json: String,
-    pub market_indices_json: String,
-    pub recent_stock_picks_json: Option<String>,
-    pub prepared_at: String,
-}
 
 #[derive(Clone)]
 pub struct GuidanceStore {

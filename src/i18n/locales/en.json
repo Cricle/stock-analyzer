@@ -255,6 +255,45 @@
   "memory": {
     "no_reflections": "No reflections yet"
   },
+  "common": {
+    "yes": "yes",
+    "no": "no",
+    "priority_high": "high",
+    "priority_medium": "medium",
+    "priority_low": "low"
+  },
+  "decision": {
+    "no_position_sizing": "0% — key evidence not yet complete, no new directional exposure",
+    "upgrade_block_reason": "Direct reason conclusion cannot be upgraded:",
+    "scenario_blocker": "Scenario-level blockers",
+    "reward_risk_strong": "favorable reward-risk",
+    "reward_risk_ok": "acceptable reward-risk",
+    "reward_risk_weak": "weak reward-risk",
+    "reward_risk_poor": "poor reward-risk",
+    "section_market": "Market Technicals",
+    "section_fundamentals": "Fundamentals",
+    "section_news": "News Events",
+    "section_sentiment": "Fund Flow & Sentiment",
+    "section_bull": "Bull Research",
+    "section_bear": "Bear Research",
+    "section_research_plan": "Research Plan",
+    "section_trader_plan": "Trader Plan",
+    "research_reliability": "Research reliability={score}/{max}; verified setups={resolved}, pending setups={pending}, hit rate ~{hit_rate:.0}%.",
+    "reward_risk_with_current": " System reward-risk (current→confirmation): {crr:.2} ({crr_label}), (current→target): {rr:.2} ({rr_label}). Code-computed values take precedence.",
+    "reward_risk_single": " System reward-risk: {rr:.2} ({rr_label}). Code-computed values take precedence."
+  },
+  "risk_section": {
+    "blocking_gaps": "Blocking gaps",
+    "key_risks": "Key risks",
+    "offsetting_supports": "Offsetting supports",
+    "invalidation_conditions": "Invalidation / review conditions",
+    "manageable_gaps": "Manageable gaps",
+    "tolerable_gaps": "Tolerable context gaps",
+    "overall_framing": "Overall assessment",
+    "blocking_prefix": "Current blocking gaps: ",
+    "risk_prefix": "Key risks include: ",
+    "support_prefix": "However, supporting factors exist: "
+  },
   "error": { "section_failed": "Section generation failed: {reason}" },
   "score": {
     "fundamental": {

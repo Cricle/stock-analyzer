@@ -100,9 +100,9 @@ fn derive_action_guides(
             audience: LocalText::new("audience_holders"),
             user_state: LocalText::new("user_state_holders"),
             priority: if blocker_present {
-                "高".to_string()
+                LocalText::new("common.priority_high")
             } else {
-                "中".to_string()
+                LocalText::new("common.priority_medium")
             },
             stance: LocalText::new(holder_stance),
             summary: LocalText::new("summary_holders"),
@@ -126,9 +126,9 @@ fn derive_action_guides(
             audience: LocalText::new("audience_buyers"),
             user_state: LocalText::new("user_state_buyers"),
             priority: if blocker_present || confidence_profile.execution_confidence.score < 65 {
-                "高".to_string()
+                LocalText::new("common.priority_high")
             } else {
-                "中".to_string()
+                LocalText::new("common.priority_medium")
             },
             stance: LocalText::new(buyer_stance),
             summary: LocalText::new("summary_buyers"),
@@ -151,7 +151,7 @@ fn derive_action_guides(
         watchers: AudienceActionGuide {
             audience: LocalText::new("audience_watchers"),
             user_state: LocalText::new("user_state_watchers"),
-            priority: if weak_history { "高".to_string() } else { "中".to_string() },
+            priority: if weak_history { LocalText::new("common.priority_high") } else { LocalText::new("common.priority_medium") },
             stance: LocalText::new(watcher_stance),
             summary: if weak_history {
                 LocalText::new("summary_watchers_weak")

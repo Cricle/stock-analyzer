@@ -248,55 +248,5 @@ impl DailyGuidanceGenerator {
         }
     }
 
-    /// Stage 1: Pre-fetch data and store in Redis for later assembly.
-    /// This does NOT call LLM — only fetches external data.
-    pub async fn prepare(
-        &self,
-        market: &str,
-        date: &str,
-        _tickers: Option<Vec<String>>,
-    ) -> anyhow::Result<()> {
-        let started = Instant::now();
-        let market_enum = GuidanceMarket::from_str(market);
-
-        // 1. Fetch news from searxng
-        let (news_items, news_sources) = self.fetch_guidance_news(&market_enum, date).await;
-
-        // 2. Query historical patterns from memory
-        let historical_insights = self.query_historical_patterns(&market_enum, date).await;
-
-        // 4. Fetch market indices
-        let market_indices = self.fetch_market_indices(&market_enum).await;
-
-        // 5. Fetch recent stock picks
-        let recent_stock_picks = self.fetch_recent_stock_picks(&market_enum).await;
-
-        let elapsed = started.elapsed().as_millis() as u64;
-
-        let prepared = crate::engine::guidance::store::PreparedData {
-            market: market.to_string(),
-            date: date.to_string(),
-            news_json: serde_json::to_string(&news_items).unwrap_or_default(),
-            news_sources,
-            historical_insights_json: serde_json::to_string(&historical_insights)
-                .unwrap_or_default(),
-            market_indices_json: serde_json::to_string(&market_indices).unwrap_or_default(),
-            recent_stock_picks_json: recent_stock_picks
-                .as_ref()
-                .map(|s| serde_json::to_string(s).unwrap_or_default()),
-            prepared_at: chrono::Utc::now().to_rfc3339(),
-        };
-
-        self.store.store_prepared(&prepared).await;
-
-        tracing::info!(
-            market = %market,
-            date = %date,
-            elapsed_ms = elapsed,
-            "guidance data prepared"
-        );
-
-        Ok(())
-    }
 
 }

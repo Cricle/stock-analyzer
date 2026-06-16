@@ -6,14 +6,6 @@ use crate::TaskManager;
 use crate::models::{PersistedTask, SingleAnalysisRequest, TaskStatus};
 
 impl TaskManager {
-    pub async fn create_task(&self, req: SingleAnalysisRequest) -> anyhow::Result<String> {
-        self.create_task_for_user("", req).await
-    }
-
-    pub async fn create_task_record(&self, req: SingleAnalysisRequest) -> anyhow::Result<String> {
-        self.create_task_record_for_user("", req).await
-    }
-
     pub async fn create_task_for_user(
         &self,
         owner_username: &str,

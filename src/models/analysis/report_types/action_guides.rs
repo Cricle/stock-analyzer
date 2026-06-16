@@ -65,7 +65,7 @@ pub struct AudienceActionGuide {
     #[serde(default)]
     pub user_state: LocalText,
     #[serde(default)]
-    pub priority: String,
+    pub priority: LocalText,
     #[serde(default)]
     pub stance: LocalText,
     #[serde(default, skip_serializing)]

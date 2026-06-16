@@ -255,6 +255,45 @@
   "memory": {
     "no_reflections": "暂无反思记录"
   },
+  "common": {
+    "yes": "是",
+    "no": "否",
+    "priority_high": "高",
+    "priority_medium": "中",
+    "priority_low": "低"
+  },
+  "decision": {
+    "no_position_sizing": "0%——关键证据尚未补齐，不新增方向性暴露",
+    "upgrade_block_reason": "当前不能升级结论的直接原因是",
+    "scenario_blocker": "场景级阻断项",
+    "reward_risk_strong": "赔率充裕",
+    "reward_risk_ok": "赔率尚可",
+    "reward_risk_weak": "赔率偏弱",
+    "reward_risk_poor": "赔率极差",
+    "section_market": "市场技术",
+    "section_fundamentals": "基本面",
+    "section_news": "新闻事件",
+    "section_sentiment": "资金情绪",
+    "section_bull": "多头研究",
+    "section_bear": "空头研究",
+    "section_research_plan": "投资计划",
+    "section_trader_plan": "交易计划",
+    "research_reliability": "研究可靠度={score} / {max}；历史已验证 setup={resolved}，待验证 setup={pending}，命中率约 {hit_rate:.0}%。",
+    "reward_risk_with_current": " 系统计算盈亏比（当前→确认位）: {crr:.2}（{crr_label}），（当前→目标位）: {rr:.2}（{rr_label}），以代码计算值为准。",
+    "reward_risk_single": " 系统计算盈亏比: {rr:.2}（{rr_label}），以代码计算值为准。"
+  },
+  "risk_section": {
+    "blocking_gaps": "当前阻断项",
+    "key_risks": "核心风险",
+    "offsetting_supports": "当前支撑",
+    "invalidation_conditions": "失效/重审条件",
+    "manageable_gaps": "可管理缺口",
+    "tolerable_gaps": "可容忍背景缺口",
+    "overall_framing": "整体判断",
+    "blocking_prefix": "当前主要阻断项是：",
+    "risk_prefix": "核心风险包括：",
+    "support_prefix": "但当前仍有支撑因素："
+  },
   "error": { "section_failed": "板块生成失败: {reason}" },
   "score": {
     "fundamental": {

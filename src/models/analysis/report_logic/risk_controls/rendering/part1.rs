@@ -342,7 +342,7 @@ fn render_single_action_guide(guide: &AudienceActionGuide) -> String {
         "### {}\n- {}: {}\n- {}: **{}**\n- {}: **{}**\n- {}: {}\n- {}: {}\n\n#### {}\n{}\n\n#### {}\n{}\n\n#### {}\n{}\n\n#### {}\n{}\n\n#### {}\n{}",
         guide.audience.key,
         LocalText::new("label_applicable_state").key, guide.user_state.key,
-        LocalText::new("label_priority").key, guide.priority,
+        LocalText::new("label_priority").key, guide.priority.key,
         LocalText::new("label_current_stance").key, guide.stance.key,
         LocalText::new("label_execution_principle").key, guide.principle.key,
         LocalText::new("label_summary").key, guide.summary.key,

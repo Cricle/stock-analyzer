@@ -283,7 +283,7 @@ impl StructuredReport {
         let has_blockers = !portfolio_decision.missing_evidence_ladder.blocking_gaps.is_empty()
             || !trader_plan.blocking_gaps.is_empty();
         if has_blockers {
-            trader_plan.position_sizing = "0%——关键证据尚未补齐，不新增方向性暴露".to_string();
+            trader_plan.position_sizing = "decision.no_position_sizing".to_string();
         }
         if Rating::parse(&portfolio_decision.raw_rating) != portfolio_decision.rating
         {
@@ -368,47 +368,47 @@ impl StructuredReport {
         append_scenario_gap_narrative(
             &mut portfolio_decision.executive_summary,
             &diagnostics,
-            "当前不能升级结论的直接原因是",
+            "decision.upgrade_block_reason",
         );
         append_scenario_gap_narrative(
             &mut portfolio_decision.risk_assessment,
             &diagnostics,
-            "场景级阻断项",
+            "decision.scenario_blocker",
         );
         // Append code-computed reward-risk ratio to executive_summary to prevent
         // the LLM's own conflicting ratio (e.g. 0.13) from appearing alongside
         // the authoritative computed value (e.g. 4.98).
         if let Some(rr) = profit_risk.reward_risk_ratio {
             let rr_label = if rr >= 2.0 {
-                "赔率充裕"
+                "decision.reward_risk_strong"
             } else if rr >= 1.2 {
-                "赔率尚可"
+                "decision.reward_risk_ok"
             } else if rr >= 0.5 {
-                "赔率偏弱"
+                "decision.reward_risk_weak"
             } else {
-                "赔率极差"
+                "decision.reward_risk_poor"
             };
             if let Some(crr) = profit_risk.current_position_reward_risk_ratio
                 && (crr - rr).abs() > 0.01
             {
                 let crr_label = if crr >= 2.0 {
-                    "赔率充裕"
+                    "decision.reward_risk_strong"
                 } else if crr >= 1.2 {
-                    "赔率尚可"
+                    "decision.reward_risk_ok"
                 } else if crr >= 0.5 {
-                    "赔率偏弱"
+                    "decision.reward_risk_weak"
                 } else {
-                    "赔率极差"
+                    "decision.reward_risk_poor"
                 };
-                portfolio_decision.executive_summary.key.push_str(&format!(
-                    " 系统计算盈亏比（当前→确认位）: {:.2}（{}），（当前→目标位）: {:.2}（{}），以代码计算值为准。",
-                    crr, crr_label, rr, rr_label
-                ));
+                portfolio_decision.executive_summary = format!(
+                    "{} 系统计算盈亏比（当前→确认位）: {:.2}（{}），（当前→目标位）: {:.2}（{}），以代码计算值为准。",
+                    portfolio_decision.executive_summary.key, crr, crr_label, rr, rr_label
+                ).into();
             } else {
-                portfolio_decision.executive_summary.key.push_str(&format!(
-                    " 系统计算盈亏比: {:.2}（{}），以代码计算值为准。",
-                    rr, rr_label
-                ));
+                portfolio_decision.executive_summary = format!(
+                    "{} 系统计算盈亏比: {:.2}（{}），以代码计算值为准。",
+                    portfolio_decision.executive_summary.key, rr, rr_label
+                ).into();
             }
         }
         let mispricing_claim = derive_mispricing_claim(
@@ -448,38 +448,38 @@ impl StructuredReport {
         let mut sections = [
             (
                 "market",
-                "市场技术",
+                "decision.section_market",
                 result.agent_state.market_report.as_str(),
             ),
             (
                 "fundamentals",
-                "基本面",
+                "decision.section_fundamentals",
                 result.agent_state.fundamentals_report.as_str(),
             ),
-            ("news", "新闻事件", result.agent_state.news_report.as_str()),
+            ("news", "decision.section_news", result.agent_state.news_report.as_str()),
             (
                 "sentiment",
-                "资金情绪",
+                "decision.section_sentiment",
                 result.agent_state.sentiment_report.as_str(),
             ),
             (
                 "bull_case",
-                "多头研究",
+                "decision.section_bull",
                 result.graph.investment_debate.bull_history.as_str(),
             ),
             (
                 "bear_case",
-                "空头研究",
+                "decision.section_bear",
                 result.graph.investment_debate.bear_history.as_str(),
             ),
             (
                 "research_plan",
-                "投资计划",
+                "decision.section_research_plan",
                 result.agent_state.investment_plan.as_str(),
             ),
             (
                 "trader_plan",
-                "交易计划",
+                "decision.section_trader_plan",
                 result.agent_state.trader_investment_plan.as_str(),
             ),
             (

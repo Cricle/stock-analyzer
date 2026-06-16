@@ -460,8 +460,9 @@ impl MarketDataClient {
         let (revenue_yoy, net_profit_yoy, gross_margin) = match income_sheets {
             Ok(sheets) => {
                 let first = sheets.first();
-                let rev_yoy = first.and_then(|s| s.total_revenue_yoy).filter(|v| *v != 0.0);
-                let np_yoy = first.and_then(|s| s.net_profit_yoy).filter(|v| *v != 0.0);
+                // Eastmoney returns YoY as percentages (15.0 = 15%), convert to decimal
+                let rev_yoy = first.and_then(|s| s.total_revenue_yoy).filter(|v| *v != 0.0).map(|v| v / 100.0);
+                let np_yoy = first.and_then(|s| s.net_profit_yoy).filter(|v| *v != 0.0).map(|v| v / 100.0);
                 // Eastmoney HK income sheet has inconsistent units between line items
                 // (e.g. revenue in 万元, gross_profit in 元 → ratio is 100x too large).
                 // Recalculate from gp/rev; if the result is >1, units are mismatched → divide by 100.

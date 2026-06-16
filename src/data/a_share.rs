@@ -221,16 +221,9 @@ impl MarketDataClient {
             match self.ak.stock_yjbb_em(date).await {
                 Ok(items) => {
                     if let Some(item) = items.iter().find(|i| i.code == code) {
-                        let revenue_yoy = if item.total_revenue_yoy != 0.0 { Some(item.total_revenue_yoy) } else { None };
-                        let net_profit_yoy = if item.net_profit_yoy != 0.0 { Some(item.net_profit_yoy) } else { None };
-                        // Warn on abnormally high YoY values (>500%)
-                        for (label, val) in [("revenue_yoy", revenue_yoy), ("net_profit_yoy", net_profit_yoy)] {
-                            if let Some(v) = val {
-                                if v.abs() > 5.0 {
-                                    tracing::warn!(code, date, label, value = %v, "abnormally high YoY value, data may be unreliable");
-                                }
-                            }
-                        }
+                        // Eastmoney returns YoY as percentages (15.0 = 15%), convert to decimal
+                        let revenue_yoy = if item.total_revenue_yoy != 0.0 { Some(item.total_revenue_yoy / 100.0) } else { None };
+                        let net_profit_yoy = if item.net_profit_yoy != 0.0 { Some(item.net_profit_yoy / 100.0) } else { None };
                         return Ok(AShareEnrichmentData {
                             revenue_yoy,
                             net_profit_yoy,

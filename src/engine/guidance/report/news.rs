@@ -118,16 +118,23 @@ impl DailyGuidanceGenerator {
             r#"You are a financial news classifier for the {market_label} market.
 For each news item, determine:
 1. **relevant**: Is this DIRECTLY about {market_label} stocks, listed companies, or macro economy? (true/false)
-2. **impact**: "positive", "negative", or "neutral"
+2. **impact**: "positive", "negative", or "neutral" (ONLY for relevant=true items)
 3. **sector**: one of "technology", "finance", "healthcare", "energy", "consumer", "real_estate", "industrial", "materials", "utilities", "telecom"
 4. **entities**: stock tickers or company names. {market_hint}
 
+CRITICAL: "neutral" means the news IS about the stock market but has no clear direction.
+"neutral" is NOT a catch-all for irrelevant news. If it's not about stocks → relevant=false.
+
 STRICT relevance — mark relevant=false for:
-- Natural disasters (earthquakes, floods) with no direct stock market impact
-- Foreign company news unrelated to {market_label} (e.g. SpaceX M&A for A-share context)
-- Sports, entertainment, pure politics with no economic angle
+- Natural disasters (earthquakes, floods, storms) with no direct stock market impact
+- Foreign politics unrelated to {market_label} (e.g. Ukraine-EU relations for A-share)
+- Sports, entertainment, celebrity news
 - Generic science/tech news not tied to listed companies
-- Foreign government actions with no impact on {market_label}
+- Foreign government actions with no economic impact on {market_label}
+- Train delays, traffic, infrastructure incidents unrelated to listed companies
+- IPO applications that are just procedural filings (not yet approved/listed)
+- ETF mechanics, fund structure articles (not stock-specific)
+- Personal finance advice, "how to invest" articles
 
 Sentiment rules — be CONSERVATIVE with "neutral":
 - "positive": earnings beat, upgrade, stimulus, rally, record high, buyback, net institutional buying

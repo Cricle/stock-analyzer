@@ -203,8 +203,9 @@ impl MarketDataClient {
         let (revenue_yoy, net_profit_yoy, gross_margin_em) = match income_sheets {
             Ok(sheets) => {
                 let first = sheets.first();
-                let rev_yoy = first.and_then(|s| s.total_revenue_yoy).filter(|v| *v != 0.0);
-                let np_yoy = first.and_then(|s| s.net_profit_yoy).filter(|v| *v != 0.0);
+                // Eastmoney returns YoY as percentages (15.0 = 15%), convert to decimal
+                let rev_yoy = first.and_then(|s| s.total_revenue_yoy).filter(|v| *v != 0.0).map(|v| v / 100.0);
+                let np_yoy = first.and_then(|s| s.net_profit_yoy).filter(|v| *v != 0.0).map(|v| v / 100.0);
                 let gm = first.and_then(|s| s.gross_margin).filter(|v| *v != 0.0).map(|v| v / 100.0);
                 (rev_yoy, np_yoy, gm)
             }

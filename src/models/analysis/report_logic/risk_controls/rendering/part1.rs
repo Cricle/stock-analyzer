@@ -4,7 +4,6 @@ fn build_scenario_paths(
     portfolio_decision: &StructuredPortfolioDecision,
     audience_mode: &str,
     blocker_present: bool,
-    weak_history: bool,
 ) -> Vec<ActionScenarioPath> {
     let confirm = visible_confirmation_reference(portfolio_decision)
         .or_else(|| {
@@ -34,7 +33,7 @@ fn build_scenario_paths(
             } else {
                 LocalText::new("path_risk_breakout_with_stop").with_str("stop", &stop)
             },
-            position_sizing: if blocker_present || weak_history {
+            position_sizing: if blocker_present {
                 match audience_mode {
                     "holder" => LocalText::new("path_sizing_breakout_blocked_holder"),
                     _ => LocalText::new("path_sizing_breakout_blocked"),
@@ -89,7 +88,7 @@ fn build_scenario_paths(
                 }
                 rb
             },
-            position_sizing: if blocker_present || weak_history {
+            position_sizing: if blocker_present {
                 match audience_mode {
                     "holder" => LocalText::new("path_sizing_retest_blocked_holder"),
                     _ => LocalText::new("path_sizing_retest_blocked"),
@@ -227,7 +226,6 @@ fn build_buyer_actions(
 fn build_watcher_actions(
     research_plan: &StructuredResearchPlan,
     portfolio_decision: &StructuredPortfolioDecision,
-    weak_history: bool,
 ) -> Vec<LocalText> {
     let mut actions = Vec::new();
     for item in portfolio_decision
@@ -240,9 +238,6 @@ fn build_watcher_actions(
     }
     for item in research_plan.trigger_checklist.iter().take(2) {
         actions.push(LocalText::new("action_watcher_trigger").with_str("trigger", item));
-    }
-    if weak_history {
-        actions.push(LocalText::new("action_watcher_weak_history"));
     }
     actions
 }

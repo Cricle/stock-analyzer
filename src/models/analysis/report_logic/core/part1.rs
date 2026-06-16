@@ -250,7 +250,6 @@ impl StructuredReport {
             &trader_plan,
             &portfolio_decision,
             &confidence_assessment.profile,
-            &confidence_assessment.caps,
         );
         trader_plan.raw_action = trader_plan.action.as_str().to_string();
         trader_plan.calibrated_action = calibration.final_action.clone();

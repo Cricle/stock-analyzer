@@ -59,7 +59,6 @@ fn derive_action_guides(
     trader_plan: &StructuredTraderPlan,
     portfolio_decision: &StructuredPortfolioDecision,
     confidence_profile: &ConfidenceProfile,
-    confidence_caps: &[ConfidenceCap],
 ) -> ReportActionGuides {
     let rating = portfolio_decision.rating.clone();
     let blocker_present = !portfolio_decision
@@ -70,9 +69,6 @@ fn derive_action_guides(
             .missing_evidence_ladder
             .blocking_gaps
             .is_empty();
-    let weak_history = confidence_caps
-        .iter()
-        .any(|item| item.key == "zero_resolved_setup_history" || item.key == "thin_setup_history");
     let key_review_points =
         collect_key_review_points(research_plan, trader_plan, portfolio_decision);
     let invalidation_reference =
@@ -89,11 +85,7 @@ fn derive_action_guides(
     } else {
         "stance_buyer_allowed"
     };
-    let watcher_stance = if weak_history {
-        "stance_watcher_weak_history"
-    } else {
-        "stance_watcher_normal"
-    };
+    let watcher_stance = "stance_watcher_normal";
 
     ReportActionGuides {
         holders: AudienceActionGuide {
@@ -120,7 +112,7 @@ fn derive_action_guides(
                 LocalText::new("avoid_holder_ignore_finance"),
             ],
             review_points: key_review_points.clone(),
-            scenario_paths: build_scenario_paths(trader_plan, portfolio_decision, "holder", blocker_present, weak_history),
+            scenario_paths: build_scenario_paths(trader_plan, portfolio_decision, "holder", blocker_present),
         },
         buyers: AudienceActionGuide {
             audience: LocalText::new("audience_buyers"),
@@ -146,18 +138,14 @@ fn derive_action_guides(
                 LocalText::new("avoid_buyer_no_confirmation"),
             ],
             review_points: key_review_points.clone(),
-            scenario_paths: build_scenario_paths(trader_plan, portfolio_decision, "buyer", blocker_present, weak_history),
+            scenario_paths: build_scenario_paths(trader_plan, portfolio_decision, "buyer", blocker_present),
         },
         watchers: AudienceActionGuide {
             audience: LocalText::new("audience_watchers"),
             user_state: LocalText::new("user_state_watchers"),
-            priority: if weak_history { LocalText::new("common.priority_high") } else { LocalText::new("common.priority_medium") },
+            priority: LocalText::new("common.priority_medium"),
             stance: LocalText::new(watcher_stance),
-            summary: if weak_history {
-                LocalText::new("summary_watchers_weak")
-            } else {
-                LocalText::new("summary_watchers_normal")
-            },
+            summary: LocalText::new("summary_watchers_normal"),
             principle: LocalText::new("principle_watchers"),
             entry_reference: trader_plan.entry_price.trim().to_string(),
             invalidation_reference,
@@ -166,13 +154,13 @@ fn derive_action_guides(
                 .unwrap_or_default(),
             time_horizon: portfolio_decision.time_horizon.trim().to_string(),
             sizing_reference: fallback_sizing_reference(&trader_plan.position_sizing, &rating, blocker_present),
-            actions: build_watcher_actions(research_plan, portfolio_decision, weak_history),
+            actions: build_watcher_actions(research_plan, portfolio_decision),
             avoid: vec![
                 LocalText::new("avoid_watcher_unvalidated_setup"),
                 LocalText::new("avoid_watcher_unverified_finance"),
             ],
             review_points: key_review_points,
-            scenario_paths: build_scenario_paths(trader_plan, portfolio_decision, "watcher", blocker_present, weak_history),
+            scenario_paths: build_scenario_paths(trader_plan, portfolio_decision, "watcher", blocker_present),
         },
     }
 }

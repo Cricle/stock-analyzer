@@ -1,5 +1,5 @@
     use super::{
-        AnalysisResult, ConfidenceCap, ConfidenceProfile, MemoryContextSnapshot,
+        AnalysisResult, ConfidenceProfile, MemoryContextSnapshot,
         MissingEvidenceLadder,
         NewsInsight, PriceContext, Rating, ReferenceFactItem, ReportDiagnosticItem,
         ReportDiagnostics, ReportReferenceSnapshot, StructuredPortfolioDecision,
@@ -53,46 +53,6 @@
         );
         assert!(explanation.fallback_used);
         assert_eq!(explanation.fallback_sample_count, 4);
-    }
-
-    #[test]
-    fn watcher_guide_calls_out_unverified_setup_history() {
-        let result = AnalysisResult {
-            task_id: "task-1".to_string(),
-            report_id: "report-1".to_string(),
-            symbol: "603629".to_string(),
-            stock_name: "demo".to_string(),
-            analysis_date: "2026-05-14".to_string(),
-            market_type: "CN".to_string(),
-            graph: Default::default(),
-            agent_state: Default::default(),
-            artifacts: Default::default(),
-            report: Default::default(),
-            ic_report: Default::default(),
-            created_at: "2026-05-14T00:00:00Z".to_string(),
-        };
-        let guides = derive_action_guides(
-            &result,
-            &StructuredResearchPlan::default(),
-            &StructuredTraderPlan::default(),
-            &StructuredPortfolioDecision {
-                rating: Rating::Hold,
-                ..Default::default()
-            },
-            &ConfidenceProfile::default(),
-            &[ConfidenceCap {
-                key: "zero_resolved_setup_history".to_string(),
-                ..Default::default()
-            }],
-        );
-        assert_eq!(guides.watchers.summary.key, "summary_watchers_weak");
-        assert!(
-            guides
-                .watchers
-                .actions
-                .iter()
-                .any(|item| item.key == "action_watcher_weak_history")
-        );
     }
 
     #[test]

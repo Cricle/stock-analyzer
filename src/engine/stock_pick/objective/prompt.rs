@@ -487,16 +487,19 @@ pub(crate) fn default_catalyst_keys(item: &EnrichedCandidate) -> Vec<serde_json:
         keys.push(mk("stock_pick.catalyst.roe_strong", serde_json::json!({"roe": roe * 100.0})));
     }
 
-    // Growth catalysts
-    if let Some(rev_yoy) = item.fundamental_snapshot.revenue_yoy
-        && rev_yoy > 0.15
-    {
-        keys.push(mk("stock_pick.catalyst.revenue_growth", serde_json::json!({"pct": rev_yoy * 100.0})));
-    }
-    if let Some(np_yoy) = item.fundamental_snapshot.net_profit_yoy
-        && np_yoy > 0.2
-    {
-        keys.push(mk("stock_pick.catalyst.profit_growth", serde_json::json!({"pct": np_yoy * 100.0})));
+    // Growth catalysts — skip if PEG is negative (low base / unsustainable)
+    let peg_is_negative = item.fundamental_snapshot.peg.is_some_and(|v| v < 0.0);
+    if !peg_is_negative {
+        if let Some(rev_yoy) = item.fundamental_snapshot.revenue_yoy
+            && rev_yoy > 0.15
+        {
+            keys.push(mk("stock_pick.catalyst.revenue_growth", serde_json::json!({"pct": rev_yoy * 100.0})));
+        }
+        if let Some(np_yoy) = item.fundamental_snapshot.net_profit_yoy
+            && np_yoy > 0.2
+        {
+            keys.push(mk("stock_pick.catalyst.profit_growth", serde_json::json!({"pct": np_yoy * 100.0})));
+        }
     }
     if let Some(peg) = item.fundamental_snapshot.peg
         && (0.0..1.0).contains(&peg)

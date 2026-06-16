@@ -62,7 +62,7 @@ impl DailyGuidanceGenerator {
 
         // LLM batch classification: relevance + sentiment + sector in one call
         if let Some(llm) = &self.llm {
-            match self.classify_news_batch_with_llm(llm, &mut guidance_items).await {
+            match self.classify_news_batch_with_llm(llm, &mut guidance_items, market).await {
                 Ok(()) => {
                     // Filter out irrelevant news as determined by LLM
                     guidance_items.retain(|item| item.impact != "irrelevant");
@@ -82,6 +82,7 @@ impl DailyGuidanceGenerator {
         &self,
         llm: &crate::engine::llm::LlmClient,
         items: &mut [GuidanceNewsItem],
+        market: &GuidanceMarket,
     ) -> anyhow::Result<()> {
         if items.is_empty() {
             return Ok(());
@@ -100,23 +101,41 @@ impl DailyGuidanceGenerator {
             })
             .collect();
 
+        let market_label = match market {
+            GuidanceMarket::AShare => "Chinese A-share (Shanghai/Shenzhen)",
+            GuidanceMarket::HongKong => "Hong Kong (HKEX)",
+            GuidanceMarket::UsEquity => "US (NYSE/NASDAQ)",
+            GuidanceMarket::All => "global",
+        };
+        let market_hint = match market {
+            GuidanceMarket::AShare => "Tickers look like 600519, 000858, 300750. Company names are in Chinese.",
+            GuidanceMarket::HongKong => "Tickers look like 00700, 09988, 03690.",
+            GuidanceMarket::UsEquity => "Tickers look like AAPL, NVDA, TSLA.",
+            GuidanceMarket::All => "",
+        };
+
         let prompt = format!(
-            r#"You are a financial news classifier. For each news item below, determine:
-1. **relevant**: Is this related to financial markets, stocks, economy, or specific companies? (true/false)
-2. **impact**: Market sentiment — "positive", "negative", or "neutral"
-3. **sector**: Best-matching sector — one of: "technology", "finance", "healthcare", "energy", "consumer", "real_estate", "industrial", "materials", "utilities", "telecom"
-4. **entities**: Array of stock tickers or company names mentioned (e.g. ["NVDA", "AAPL"]). Empty array if none.
+            r#"You are a financial news classifier for the {market_label} market.
+For each news item, determine:
+1. **relevant**: Is this DIRECTLY about {market_label} stocks, listed companies, or macro economy? (true/false)
+2. **impact**: "positive", "negative", or "neutral"
+3. **sector**: one of "technology", "finance", "healthcare", "energy", "consumer", "real_estate", "industrial", "materials", "utilities", "telecom"
+4. **entities**: stock tickers or company names. {market_hint}
 
-Classification rules — be CONSERVATIVE with "neutral", most financial news has a direction:
-- "positive" = bullish signal: earnings beat, analyst upgrade, policy stimulus, institutional buying, strong economic data, stock rally, index record high, peace deal boosting markets, buyback, net buying by institutions
-- "negative" = bearish signal: earnings miss, analyst downgrade, policy tightening, scandal, fraud, fine, weak data, stock decline, layoffs, net selling, delisting risk
-- "neutral" = truly no direction: general industry commentary with no bullish/bearish angle, factual reporting of past events without sentiment
-- Irrelevant (politics with no market angle, sports, entertainment) → relevant=false, impact="irrelevant"
-- "增长放缓" is negative despite containing "增长"
-- Stock buybacks and net institutional buying are POSITIVE signals
-- Record highs and strong rallies are POSITIVE
+STRICT relevance — mark relevant=false for:
+- Natural disasters (earthquakes, floods) with no direct stock market impact
+- Foreign company news unrelated to {market_label} (e.g. SpaceX M&A for A-share context)
+- Sports, entertainment, pure politics with no economic angle
+- Generic science/tech news not tied to listed companies
+- Foreign government actions with no impact on {market_label}
 
-Return ONLY a JSON array, no markdown, no explanation:
+Sentiment rules — be CONSERVATIVE with "neutral":
+- "positive": earnings beat, upgrade, stimulus, rally, record high, buyback, net institutional buying
+- "negative": earnings miss, downgrade, scandal, fraud, fine, delisting, decline, layoffs
+- "增长放缓" is negative
+- Buybacks and record highs are POSITIVE
+
+Return ONLY a JSON array:
 [{{"id":0,"relevant":true,"impact":"positive","sector":"technology","entities":["NVDA"]}}]
 
 News items:

@@ -227,7 +227,9 @@ fn value_score(item: &EnrichedCandidate) -> f64 {
 
 fn growth_score(item: &EnrichedCandidate) -> f64 {
     let mut score: f64 = 45.0;
-    // Revenue growth
+    let has_yoy = item.fundamental_snapshot.revenue_yoy.is_some()
+        || item.fundamental_snapshot.net_profit_yoy.is_some();
+    // Revenue growth (YoY)
     if let Some(rev_yoy) = item.fundamental_snapshot.revenue_yoy {
         if rev_yoy > 0.3 {
             score += 18.0;
@@ -239,7 +241,7 @@ fn growth_score(item: &EnrichedCandidate) -> f64 {
             score -= 12.0;
         }
     }
-    // Net profit growth
+    // Net profit growth (YoY)
     if let Some(np_yoy) = item.fundamental_snapshot.net_profit_yoy {
         if np_yoy > 0.5 {
             score += 20.0;
@@ -251,14 +253,37 @@ fn growth_score(item: &EnrichedCandidate) -> f64 {
             score -= 15.0;
         }
     }
-    // PEG: lower is better (< 1 is undervalued growth)
+    // PEG: lower is better (< 1 is undervalued growth), negative PEG is bad
     if let Some(peg) = item.fundamental_snapshot.peg {
-        if peg > 0.0 && peg < 1.0 {
+        if peg < 0.0 {
+            score -= 8.0; // Negative PEG = unsustainable or declining earnings
+        } else if peg < 1.0 {
             score += 10.0;
-        } else if peg > 0.0 && peg < 2.0 {
+        } else if peg < 2.0 {
             score += 5.0;
         } else if peg > 3.0 {
             score -= 5.0;
+        }
+    }
+    // When YoY data is missing, use absolute profitability as growth proxy
+    if !has_yoy {
+        if let (Some(ni), Some(rev)) = (
+            item.fundamental_snapshot.net_income_usd.filter(|v| *v > 0.0),
+            item.fundamental_snapshot.revenues_usd.filter(|v| *v > 0.0),
+        ) {
+            let margin = ni / rev;
+            if margin > 0.2 {
+                score += 8.0; // High absolute margin suggests growth potential
+            } else if margin > 0.1 {
+                score += 4.0;
+            }
+        }
+        if let Some(gm) = item.fundamental_snapshot.gross_margin {
+            if gm > 0.5 {
+                score += 6.0; // High gross margin = pricing power
+            } else if gm > 0.3 {
+                score += 3.0;
+            }
         }
     }
     // Fund flow: positive net buying is bullish

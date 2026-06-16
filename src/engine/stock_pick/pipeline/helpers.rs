@@ -159,11 +159,10 @@ pub(crate) fn should_skip_light_stage_search(
     request: &StockPickRequest,
     _candidates: &[CandidateContext],
 ) -> bool {
-    let has_explicit = request
+    request
         .candidate_symbols
         .as_ref()
-        .is_some_and(|items| !items.is_empty());
-    has_explicit
+        .is_some_and(|items| !items.is_empty())
 }
 
 pub(crate) fn build_candidate_search_queries(
@@ -330,10 +329,10 @@ News items:
         if idx >= items_with_keys.len() {
             continue;
         }
-        if let Some(sentiment) = entry.get("sentiment").and_then(|v| v.as_str()) {
-            if matches!(sentiment, "positive" | "negative" | "neutral") {
-                sentiment_map.insert(items_with_keys[idx].0.clone(), sentiment.to_string());
-            }
+        if let Some(sentiment) = entry.get("sentiment").and_then(|v| v.as_str())
+            && matches!(sentiment, "positive" | "negative" | "neutral")
+        {
+            sentiment_map.insert(items_with_keys[idx].0.clone(), sentiment.to_string());
         }
     }
 
@@ -349,7 +348,6 @@ News items:
 }
 
 /// Parse LLM JSON response, stripping markdown fences if present.
-
 pub(crate) fn default_selection_reason_codes(item: &EnrichedCandidate) -> Vec<String> {
     let mut codes = vec!["score_leader".to_string()];
     if item.factor.momentum >= 60.0 {

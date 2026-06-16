@@ -86,7 +86,7 @@ fn keyword_sentiment_update(news: &mut [GuidanceNewsItem]) -> (usize, usize) {
 }
 
 /// Keyword-based sector assignment fallback when LLM doesn't assign sectors.
-fn keyword_sector_assignment<'a>(news: &'a [GuidanceNewsItem]) -> Vec<(String, &'a GuidanceNewsItem)> {
+fn keyword_sector_assignment(news: &[GuidanceNewsItem]) -> Vec<(String, &GuidanceNewsItem)> {
     let sector_rules: &[(&str, &[&str])] = &[
         ("technology", &[
             "芯片", "半导体", "AI", "人工智能", "GPU", "云计算", "软件", "互联网",

@@ -18,12 +18,11 @@ impl MarketDataClient {
             ).await;
             if let Ok(Ok(info)) = result {
                 for item in &info {
-                    if item.item == "股票简称" {
-                        if let Some(name) = item.value.as_str() {
-                            if !name.is_empty() {
-                                return Some(name.to_string());
-                            }
-                        }
+                    if item.item == "股票简称"
+                        && let Some(name) = item.value.as_str()
+                        && !name.is_empty()
+                    {
+                        return Some(name.to_string());
                     }
                 }
             }

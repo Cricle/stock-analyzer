@@ -29,7 +29,7 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
         .count();
     let analyst_count = result.graph.analysts.len();
     let evidence_density = average_evidence_density(&result.graph.analysts);
-    let execution_boundary_complete = has_execution_boundary(&trader_plan, &portfolio_decision);
+    let execution_boundary = has_execution_boundary(&trader_plan, &portfolio_decision);
     let next_steps_count = result
         .graph
         .analysts
@@ -82,7 +82,7 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
         result,
         &trader_plan,
         &portfolio_decision,
-        execution_boundary_complete,
+        execution_boundary,
     );
     let evidence_completeness = derive_evidence_completeness(
         non_empty_core,
@@ -115,11 +115,18 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
                 .with_f64("evidence_density", evidence_density),
         });
     }
-    if !execution_boundary_complete {
+    if execution_boundary == ExecutionBoundaryLevel::Missing {
         caps.push(ConfidenceCap {
             key: "execution_boundary_missing".to_string(),
             label: LocalText::new("cap_label_execution_boundary_missing"),
             cap: 83,
+            reason: LocalText::new("execution_boundary_missing_reason"),
+        });
+    } else if execution_boundary == ExecutionBoundaryLevel::Partial {
+        caps.push(ConfidenceCap {
+            key: "execution_boundary_partial".to_string(),
+            label: LocalText::new("cap_label_execution_boundary_missing"),
+            cap: 90,
             reason: LocalText::new("execution_boundary_missing_reason"),
         });
     }
@@ -250,27 +257,19 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
 }
 
 fn derive_direction_confidence(
-    result: &AnalysisResult,
+    _result: &AnalysisResult,
     trend_confirmation: &ScoreDimension,
     fundamental_confirmation: &ScoreDimension,
     catalyst_quality: &ScoreDimension,
     cross_agent_consistency: &ScoreDimension,
 ) -> ScoreDimension {
-    let recommendation = &result.structured_portfolio_decision().rating;
-    let is_hold = *recommendation == Rating::Hold;
-    let score = if is_hold {
-        // Hold still benefits from cross-agent consistency — include it at half weight
-        // so that a unanimous consensus isn't completely ignored for neutral ratings.
-        trend_confirmation.score
-            + (fundamental_confirmation.score / 2)
-            + catalyst_quality.score
-            + (cross_agent_consistency.score / 2)
-    } else {
-        trend_confirmation.score
-            + fundamental_confirmation.score
-            + catalyst_quality.score
-            + cross_agent_consistency.score
-    };
+    // Use full weights regardless of raw LLM recommendation.
+    // The raw rating is already evaluated separately in calibration;
+    // penalizing confidence based on it creates a self-reinforcing Hold loop.
+    let score = trend_confirmation.score
+        + fundamental_confirmation.score
+        + catalyst_quality.score
+        + cross_agent_consistency.score;
     ScoreDimension {
         score: score.clamp(0, 100),
         max_score: 100,

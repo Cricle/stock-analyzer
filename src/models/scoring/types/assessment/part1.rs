@@ -1,13 +1,15 @@
 
 fn derive_execution_confidence(
-    result: &AnalysisResult,
+    _result: &AnalysisResult,
     trader_plan: &StructuredTraderPlan,
     portfolio_decision: &StructuredPortfolioDecision,
-    execution_boundary_complete: bool,
+    execution_boundary: ExecutionBoundaryLevel,
 ) -> ScoreDimension {
     let mut score = 48.0_f64;
-    if execution_boundary_complete {
-        score += 18.0;
+    match execution_boundary {
+        ExecutionBoundaryLevel::Complete => score += 18.0,
+        ExecutionBoundaryLevel::Partial => score += 10.0,
+        ExecutionBoundaryLevel::Missing => {}
     }
     // Trigger checklists — sigmoid (replaces min(5)*N)
     score += sigmoid(trader_plan.execution_trigger_checklist.len() as f64, 3.0, 1.0) * 15.0;
@@ -20,13 +22,6 @@ fn derive_execution_confidence(
     }
     if !portfolio_decision.time_horizon.trim().is_empty() {
         score += 5.0;
-    }
-    if result
-        .structured_portfolio_decision()
-        .rating == Rating::Hold
-        && !execution_boundary_complete
-    {
-        score = score.min(78.0);
     }
     ScoreDimension {
         score: score.clamp(0.0, 100.0) as i32,
@@ -187,12 +182,17 @@ pub fn calibrate_recommendation(
     action_score: i32,
     execution_boundary_complete: bool,
 ) -> RecommendationCalibration {
+    let level = if execution_boundary_complete {
+        ExecutionBoundaryLevel::Complete
+    } else {
+        ExecutionBoundaryLevel::Missing
+    };
     calibrate_recommendation_with_profile(
         raw_llm_recommendation,
         direction_score,
         confidence_score,
         action_score,
-        execution_boundary_complete,
+        level,
         &CalibrationProfile::default(),
         0,
         None,
@@ -205,7 +205,7 @@ pub fn calibrate_recommendation_with_profile(
     direction_score: i32,
     confidence_score: i32,
     action_score: i32,
-    execution_boundary_complete: bool,
+    execution_boundary: ExecutionBoundaryLevel,
     profile: &CalibrationProfile,
     direction_threshold_penalty: i32,
     reward_risk_hint: Option<f64>,
@@ -241,21 +241,21 @@ pub fn calibrate_recommendation_with_profile(
     }
     + direction_threshold_penalty;
     let strong_direction_abs = strong_direction_abs.clamp(24, 90);
-    let effective_action_score = if execution_boundary_complete {
-        action_score
-    } else {
-        action_score.min(profile.min_action_score + 15)
+    let effective_action_score = match execution_boundary {
+        ExecutionBoundaryLevel::Complete => action_score,
+        ExecutionBoundaryLevel::Partial => action_score.min(profile.min_action_score + 25),
+        ExecutionBoundaryLevel::Missing => action_score.min(profile.min_action_score + 15),
     };
 
     let final_score = if confidence_score < profile.min_confidence_score
         || effective_action_score < profile.min_action_score
     {
         0
-    } else if !execution_boundary_complete {
-        // Missing execution boundary forces Hold regardless of other scores.
+    } else if execution_boundary == ExecutionBoundaryLevel::Missing {
+        // Missing execution boundary forces Hold.
         0
-    } else if confidence_score >= (profile.min_confidence_score + 25).min(85)
-        && effective_action_score >= (profile.min_action_score + 30).min(85)
+    } else if confidence_score >= (profile.min_confidence_score + 15).min(75)
+        && effective_action_score >= (profile.min_action_score + 15).min(70)
         && direction_score.abs() >= strong_direction_abs
     {
         evidence_score
@@ -280,12 +280,12 @@ pub fn calibrate_recommendation_with_profile(
     } else {
         "direction_unclear"
     };
-    let execution_view_key = if execution_boundary_complete
+    let execution_view_key = if execution_boundary.is_complete()
         && confidence_score >= (profile.min_confidence_score + 3)
         && effective_action_score >= (profile.min_action_score + 10)
     {
         "execution_ready"
-    } else if execution_boundary_complete {
+    } else if execution_boundary.is_at_least_partial() {
         "execution_partial"
     } else {
         "execution_incomplete"
@@ -300,12 +300,12 @@ pub fn calibrate_recommendation_with_profile(
         .with_i32("direction_score", direction_score)
         .with_i32("confidence_score", confidence_score)
         .with_i32("action_score", action_score)
-        .with_bool("execution_boundary_complete", execution_boundary_complete)
+        .with_bool("execution_boundary_complete", execution_boundary.is_complete())
         .with_str("direction_view", direction_view_key)
         .with_str("execution_view", execution_view_key)
         .with_bool("rating_calibrated", raw_score != final_score)
         .with_str("final_rating", final_rating.to_string())
-        .with_bool("execution_blocks_upgrade", !execution_boundary_complete && final_rating == Rating::Hold)
+        .with_bool("execution_blocks_upgrade", !execution_boundary.is_complete() && final_rating == Rating::Hold)
         .with_bool("history_caution", history_requires_caution);
     let decision_narrative = if final_rating == Rating::Hold {
         if direction_score.abs() >= direction_floor_abs

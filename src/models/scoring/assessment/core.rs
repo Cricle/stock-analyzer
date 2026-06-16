@@ -290,7 +290,7 @@ fn score_risk_clarity(
         + portfolio_decision.price_target_numeric_count()
         + count_numeric_levels(portfolio_decision.risk_assessment.as_str())
         + count_numeric_levels(research_plan.risk_assessment.as_str());
-    let has_execution_boundary = has_execution_boundary(trader_plan, portfolio_decision);
+    let exec_boundary = has_execution_boundary(trader_plan, portfolio_decision);
 
     let mut score = 0.0_f64;
 
@@ -306,9 +306,18 @@ fn score_risk_clarity(
     // Numeric risk control boundaries — sigmoid (0-3 points)
     score += sigmoid(numeric_levels as f64, 2.0, 1.5) * 3.0;
 
-    // Execution boundary completeness
-    score += if has_execution_boundary { 1.0 } else { 0.0 };
+    // Execution boundary completeness — partial credit for entry+stop without full plan
+    score += match exec_boundary {
+        ExecutionBoundaryLevel::Complete => 1.0,
+        ExecutionBoundaryLevel::Partial => 0.5,
+        ExecutionBoundaryLevel::Missing => 0.0,
+    };
 
+    let exec_label = match exec_boundary {
+        ExecutionBoundaryLevel::Complete => "common.yes",
+        ExecutionBoundaryLevel::Partial => "common.partial",
+        ExecutionBoundaryLevel::Missing => "common.no",
+    };
     ScoreDimension {
         score: score.clamp(0.0, RISK_CLARITY_MAX as f64) as i32,
         max_score: RISK_CLARITY_MAX,
@@ -320,7 +329,7 @@ fn score_risk_clarity(
             ),
             risk_turns,
             numeric_levels,
-            bool_text(has_execution_boundary)
+            exec_label
         ).into(),
     }
 }

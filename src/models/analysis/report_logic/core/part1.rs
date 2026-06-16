@@ -135,7 +135,7 @@ impl StructuredReport {
             }
         }
         let execution_boundary_complete =
-            structural_execution_boundary && execution_blocking_gaps.is_empty();
+            structural_execution_boundary.is_complete() && execution_blocking_gaps.is_empty();
         let missing_execution_fields =
             collect_missing_execution_fields(&trader_plan, &portfolio_decision);
         let research_reliability = derive_research_reliability(
@@ -229,7 +229,7 @@ impl StructuredReport {
             direction_assessment.final_score,
             effective_confidence_score,
             effective_action_score,
-            execution_boundary_complete,
+            structural_execution_boundary,
             calibration_profile,
             direction_threshold_penalty,
             reward_risk_hint,

@@ -84,16 +84,39 @@ fn average_evidence_density(analysts: &[AgentReportNode]) -> f64 {
         / analysts.len() as f64
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExecutionBoundaryLevel {
+    Complete,
+    Partial,
+    Missing,
+}
+
+impl ExecutionBoundaryLevel {
+    pub fn is_complete(self) -> bool {
+        self == Self::Complete
+    }
+    pub fn is_at_least_partial(self) -> bool {
+        self != Self::Missing
+    }
+}
+
 pub fn has_execution_boundary(
     trader_plan: &StructuredTraderPlan,
     portfolio_decision: &StructuredPortfolioDecision,
-) -> bool {
+) -> ExecutionBoundaryLevel {
+    let has_entry = !trader_plan.entry_price.trim().is_empty();
+    let has_stop = !trader_plan.stop_loss.trim().is_empty();
     let has_target = !portfolio_decision.price_target.trim().is_empty();
     let has_confirmation = !portfolio_decision.confirmation_level.trim().is_empty();
-    !trader_plan.entry_price.trim().is_empty()
-        && !trader_plan.stop_loss.trim().is_empty()
-        && (has_target || has_confirmation)
-        && !portfolio_decision.time_horizon.trim().is_empty()
+    let has_horizon = !portfolio_decision.time_horizon.trim().is_empty();
+
+    if has_entry && has_stop && (has_target || has_confirmation) && has_horizon {
+        ExecutionBoundaryLevel::Complete
+    } else if has_entry && has_stop {
+        ExecutionBoundaryLevel::Partial
+    } else {
+        ExecutionBoundaryLevel::Missing
+    }
 }
 
 fn analyst_probability_quality(analyst: Option<&AgentReportNode>) -> i32 {

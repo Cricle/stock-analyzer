@@ -9,7 +9,7 @@ pub mod task;
 pub use scoring::{
     ActionAssessment, CalibrationProfile, ConfidenceAssessment, DirectionAssessment,
     RecommendationCalibration, calibrate_recommendation_with_profile, evaluate_action_score,
-    evaluate_confidence_score, evaluate_direction_score, has_execution_boundary,
+    evaluate_confidence_score, evaluate_direction_score, has_execution_boundary, ExecutionBoundaryLevel,
     history_requires_caution, score_setup_direction_alignment,
 };
 

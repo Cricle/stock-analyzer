@@ -259,6 +259,7 @@
   "common": {
     "yes": "yes",
     "no": "no",
+    "partial": "partial",
     "priority_high": "high",
     "priority_medium": "medium",
     "priority_low": "low"

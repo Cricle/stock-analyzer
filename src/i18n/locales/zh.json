@@ -259,6 +259,7 @@
   "common": {
     "yes": "是",
     "no": "否",
+    "partial": "部分",
     "priority_high": "高",
     "priority_medium": "中",
     "priority_low": "低"

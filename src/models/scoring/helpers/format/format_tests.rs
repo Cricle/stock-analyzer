@@ -228,7 +228,7 @@ fn direction_penalty_can_block_marginal_buy_upgrade() {
         16,
         70,
         65,
-        true,
+        crate::models::ExecutionBoundaryLevel::Complete,
         &profile,
         8,
         None,

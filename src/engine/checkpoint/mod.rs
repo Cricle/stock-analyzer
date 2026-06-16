@@ -98,18 +98,6 @@ impl TaskCheckpointStore {
         self.inner.delete_checkpoints(task_id).await
     }
 
-    pub async fn checkpoint_step(
-        &self,
-        task_id: &str,
-        symbol: &str,
-        analysis_date: &str,
-    ) -> anyhow::Result<Option<i64>> {
-        Ok(self
-            .load(task_id, symbol, analysis_date)
-            .await?
-            .map(|item| item.step))
-    }
-
     pub async fn clear_graph_runtime(
         &self,
         task_id: &str,

@@ -20,7 +20,7 @@ fn task_to_summary(task: crate::models::PersistedTask) -> crate::models::Analysi
 use chrono::Utc;
 
 use crate::TaskManager;
-use crate::models::{AnalysisResult, ResultStage, TaskStatus, TaskStatusResponse};
+use crate::models::{ResultStage, TaskStatus, TaskStatusResponse};
 
 impl TaskManager {
     pub async fn task_status(&self, task_id: &str) -> anyhow::Result<Option<TaskStatusResponse>> {
@@ -109,37 +109,6 @@ impl TaskManager {
             .into_iter()
             .map(task_to_summary)
             .collect())
-    }
-
-    pub async fn task_result(&self, task_id: &str) -> anyhow::Result<Option<AnalysisResult>> {
-        let task = self.analysis_store.get_task(task_id).await?;
-        let mut result = self.analysis_store.get_result(task_id).await?;
-        if result.is_none()
-            && let Some(task_meta) = task.as_ref()
-        {
-            result = self
-                .checkpoint_store
-                .load(
-                    &task_meta.task_id,
-                    &task_meta.symbol,
-                    &task_meta.analysis_date,
-                )
-                .await?
-                .map(|checkpoint| checkpoint.result);
-        }
-        if let Some(ref mut result) = result {
-            let is_terminal = matches!(
-                task.as_ref().map(|item| &item.status),
-                Some(TaskStatus::Completed) | Some(TaskStatus::Failed)
-            );
-            if is_terminal {
-                result.sync_derived_fields();
-            } else {
-                let _ = self.refresh_structured_report_snapshot(result).await;
-                Self::strip_incomplete_result_payload(result);
-            }
-        }
-        Ok(result)
     }
 
 }

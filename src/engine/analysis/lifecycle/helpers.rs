@@ -1,7 +1,7 @@
 use crate::{TaskManager, TaskRunParams};
 use crate::data::{FundamentalsSnapshot, NewsItem, QuoteSnapshot};
 use crate::models::{
-    AnalysisOutcomeRequest, AnalysisResult, AnalysisStep, ResultStage,
+    AnalysisResult, AnalysisStep, ResultStage,
     StepStatus, TaskStatus,
 };
 
@@ -301,139 +301,6 @@ impl TaskManager {
     }
 }
 impl TaskManager {
-
-    pub(super) fn strip_incomplete_result_payload(result: &mut AnalysisResult) {
-        let stage = result.report_stage();
-
-        if !stage.market {
-            result.agent_state.market_report.clear();
-        }
-        if !stage.fundamentals {
-            result.agent_state.fundamentals_report.clear();
-        }
-        if !stage.news {
-            result.agent_state.news_report.clear();
-        }
-        if !stage.sentiment {
-            result.agent_state.sentiment_report.clear();
-        }
-        if !stage.bull_research {
-            result.graph.investment_debate.bull_history.clear();
-        }
-        if !stage.bear_research {
-            result.graph.investment_debate.bear_history.clear();
-        }
-        if !stage.research_plan {
-            result.agent_state.investment_plan.clear();
-            result.agent_state.structured_research_plan = Default::default();
-        }
-        if !stage.trader_plan {
-            result.agent_state.trader_investment_plan.clear();
-            result.agent_state.structured_trader_plan = Default::default();
-        }
-        if !stage.risk_debate {
-            result.agent_state.risk_debate_state = Default::default();
-        }
-        if !stage.portfolio_decision {
-            result.agent_state.final_trade_decision.clear();
-            result.agent_state.structured_portfolio_decision = Default::default();
-            result.report = Default::default();
-        }
-        if !stage.reflection {
-            result.graph.reflection = Default::default();
-        }
-    }
-
-    pub async fn auto_reflect_outcomes(&self, holding_days: usize) -> anyhow::Result<usize> {
-        let entries = self.memory_log.load_entries().await?;
-        let mut updated = 0usize;
-        for entry in entries {
-            if !entry.pending {
-                continue;
-            }
-            let Some(outcome_return) = self
-                .market_data
-                .fetch_return_since(&entry.ticker, &entry.trade_date, holding_days)
-                .await?
-            else {
-                continue;
-            };
-            let benchmark_return = self
-                .market_data
-                .fetch_return_since("SPY", &entry.trade_date, holding_days)
-                .await?
-                .unwrap_or(0.0);
-            let llm = self
-                .resolve_llm_client(&TaskRunParams::for_reflection(
-                    entry.trade_date.clone(),
-                    "zh-CN",
-                ))
-                .await?;
-            let risk_text = format!(
-                "Actual return {:.4}; benchmark return {:.4}",
-                outcome_return, benchmark_return
-            );
-            let reflection = llm
-                .generate_reflection(crate::engine::llm::ReflectionParams {
-                    symbol: &entry.ticker,
-                    market_type: "unknown",
-                    analysis_date: &entry.trade_date,
-                    summary: &entry.final_trade_decision,
-                    recommendation: &entry.rating,
-                    rationale: &entry.final_trade_decision,
-                    risk_assessment: &risk_text,
-                })
-                .await?;
-            self.memory_log
-                .update_outcome(
-                    &entry.ticker,
-                    &entry.trade_date,
-                    outcome_return,
-                    benchmark_return,
-                    reflection,
-                )
-                .await?;
-            updated += 1;
-        }
-        Ok(updated)
-    }
-
-    pub async fn record_outcome_reflection(
-        &self,
-        request: AnalysisOutcomeRequest,
-    ) -> anyhow::Result<()> {
-        let llm = self
-            .resolve_llm_client(&TaskRunParams::for_reflection(
-                request.trade_date.clone(),
-                "zh-CN",
-            ))
-            .await?;
-        let summary_text = format!(
-            "Outcome return: {:.4}, benchmark return: {:.4}",
-            request.outcome_return, request.benchmark_return
-        );
-        let reflection = llm
-            .generate_reflection(crate::engine::llm::ReflectionParams {
-                symbol: &request.ticker,
-                market_type: "unknown",
-                analysis_date: &request.trade_date,
-                summary: &summary_text,
-                recommendation: "Outcome Review",
-                rationale: "Review strategy by comparing actual vs benchmark returns.",
-                risk_assessment: "Watch for deviation and assumption failure.",
-            })
-            .await?;
-        self.memory_log
-            .update_outcome(
-                &request.ticker,
-                &request.trade_date,
-                request.outcome_return,
-                request.benchmark_return,
-                reflection,
-            )
-            .await?;
-        Ok(())
-    }
 
     pub async fn evaluation_summary(&self) -> anyhow::Result<serde_json::Value> {
         self.memory_log.evaluation_summary().await

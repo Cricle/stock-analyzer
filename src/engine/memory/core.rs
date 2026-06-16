@@ -141,27 +141,6 @@ impl TradingMemoryLog {
         self.store.load_entries().await
     }
 
-    pub async fn past_context_async(
-        &self,
-        ticker: &str,
-        same_limit: usize,
-        cross_limit: usize,
-    ) -> anyhow::Result<String> {
-        Ok(self
-            .past_context_bundle_async_with_query(
-                &MemoryQuery {
-                    ticker: ticker.to_string(),
-                    market: String::new(),
-                    setup_tags: Vec::new(),
-                    user_id: String::new(),
-                },
-                same_limit,
-                cross_limit,
-            )
-            .await?
-            .context_text)
-    }
-
     pub async fn past_context_bundle_async(
         &self,
         ticker: &str,

@@ -32,28 +32,6 @@ impl TaskManager {
             .await
     }
 
-    pub async fn create_task_and_run_blocking(
-        &self,
-        owner_username: &str,
-        req: SingleAnalysisRequest,
-        requested_task_id: Option<String>,
-    ) -> anyhow::Result<String> {
-        let original_request = req.clone();
-        let task_id = self
-            .create_task_with_id(owner_username, req, requested_task_id, false)
-            .await?;
-        let task = self
-            .analysis_store
-            .get_task(&task_id)
-            .await?
-            .context("task not found after creation")?;
-        let params = self
-            .task_run_params_from_request(&task, &original_request)
-            .await;
-        self.execute_existing_task(task_id.clone(), params).await?;
-        Ok(task_id)
-    }
-
     pub async fn create_task_with_id(
         &self,
         owner_username: &str,

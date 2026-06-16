@@ -436,10 +436,11 @@ impl MarketDataClient {
     ) -> anyhow::Result<super::a_share::AShareEnrichmentData> {
         let code = self.hk_standard_code(symbol)?;
 
-        // Fetch PE/PB and income sheet data in parallel
-        let (financial, income_sheets) = tokio::join!(
+        // Fetch PE/PB, income sheet, and analysis indicators in parallel
+        let (financial, income_sheets, analysis_indicators) = tokio::join!(
             self.ak.hk_financial(symbol),
             self.ak.stock_financial_hk_income_sheet_typed(&code, "报告期"),
+            self.ak.stock_financial_hk_analysis_indicator_em_typed(&code, "报告期"),
         );
 
         // PE/PB from Tencent financial API
@@ -456,17 +457,10 @@ impl MarketDataClient {
             }
         };
 
-        // Revenue YoY, Net Profit YoY, Gross Margin from income sheet
-        let (revenue_yoy, net_profit_yoy, gross_margin) = match income_sheets {
+        // Gross Margin from income sheet (gp/rev ratio)
+        let gross_margin = match &income_sheets {
             Ok(sheets) => {
-                let first = sheets.first();
-                // Eastmoney returns YoY as percentages (15.0 = 15%), convert to decimal
-                let rev_yoy = first.and_then(|s| s.total_revenue_yoy).filter(|v| *v != 0.0).map(|v| v / 100.0);
-                let np_yoy = first.and_then(|s| s.net_profit_yoy).filter(|v| *v != 0.0).map(|v| v / 100.0);
-                // Eastmoney HK income sheet has inconsistent units between line items
-                // (e.g. revenue in 万元, gross_profit in 元 → ratio is 100x too large).
-                // Recalculate from gp/rev; if the result is >1, units are mismatched → divide by 100.
-                let gm = first.and_then(|s| {
+                sheets.first().and_then(|s| {
                     let computed = match (s.gross_profit, s.total_revenue) {
                         (Some(gp), Some(rev)) if rev > 0.0 => {
                             let ratio = gp / rev;
@@ -480,17 +474,81 @@ impl MarketDataClient {
                         }
                         _ => None,
                     };
-                    // Fallback to pre-computed value if gp/rev unavailable
                     computed.or_else(|| s.gross_margin.filter(|v| *v != 0.0).map(|v| v / 100.0))
+                })
+            }
+            Err(_) => None,
+        };
+
+        // Revenue YoY, Net Profit YoY from analysis indicators (main indicator table)
+        // Compute YoY by matching same period type (e.g. Q3 vs Q3 of prior year)
+        // since HK API lacks YOY_RATIO field
+        let (revenue_yoy, net_profit_yoy) = match analysis_indicators {
+            Ok(ref indicators) if indicators.len() >= 2 => {
+                let curr = &indicators[0];
+                // Find the same period from the previous year by matching month-day
+                // HK API may not have std_report_date, fall back to report_date
+                let curr_date_str = curr.std_report_date.as_deref()
+                    .or(curr.report_date.as_deref());
+                let prev = curr_date_str.and_then(|curr_date| {
+                    let curr_md = curr_date.get(5..10)?; // "MM-DD"
+                    indicators.iter().skip(1).find(|ind| {
+                        let ind_date = ind.std_report_date.as_deref()
+                            .or(ind.report_date.as_deref());
+                        ind_date.and_then(|d| d.get(5..10))
+                            .is_some_and(|md| md == curr_md)
+                    })
                 });
-                tracing::debug!(symbol, ?rev_yoy, ?np_yoy, ?gm, "hk_enrichment earnings from eastmoney");
-                (rev_yoy, np_yoy, gm)
+                match prev {
+                    Some(prev) => {
+                        let rev_yoy = match (curr.operate_income, prev.operate_income) {
+                            (Some(c), Some(p)) if p > 0.0 && c != 0.0 => Some((c - p) / p),
+                            _ => None,
+                        };
+                        let np_yoy = match (curr.holder_profit, prev.holder_profit) {
+                            (Some(c), Some(p)) if p > 0.0 && c != 0.0 => Some((c - p) / p),
+                            _ => None,
+                        };
+                        tracing::debug!(symbol, ?rev_yoy, ?np_yoy,
+                            curr_date = ?curr.std_report_date.as_deref().or(curr.report_date.as_deref()),
+                            prev_date = ?prev.std_report_date.as_deref().or(prev.report_date.as_deref()),
+                            "hk_enrichment YoY from matched periods");
+                        (rev_yoy, np_yoy)
+                    }
+                    None => {
+                        // Fallback: use consecutive periods if same-period match not found
+                        let prev = &indicators[1];
+                        let rev_yoy = match (curr.operate_income, prev.operate_income) {
+                            (Some(c), Some(p)) if p > 0.0 && c != 0.0 => Some((c - p) / p),
+                            _ => None,
+                        };
+                        let np_yoy = match (curr.holder_profit, prev.holder_profit) {
+                            (Some(c), Some(p)) if p > 0.0 && c != 0.0 => Some((c - p) / p),
+                            _ => None,
+                        };
+                        tracing::debug!(symbol, ?rev_yoy, ?np_yoy,
+                            curr_date = ?curr.std_report_date.as_deref().or(curr.report_date.as_deref()),
+                            prev_date = ?prev.std_report_date.as_deref().or(prev.report_date.as_deref()),
+                            "hk_enrichment YoY from consecutive periods (no same-period match)");
+                        (rev_yoy, np_yoy)
+                    }
+                }
+            }
+            Ok(_) => {
+                tracing::debug!(symbol, "hk analysis indicators: fewer than 2 periods, YoY unavailable");
+                (None, None)
             }
             Err(e) => {
-                tracing::debug!(symbol, error = %e, "hk income sheet failed");
-                (None, None, None)
+                tracing::debug!(symbol, error = %e, "hk analysis indicators failed");
+                (None, None)
             }
         };
+
+        if gross_margin.is_some() || revenue_yoy.is_some() || net_profit_yoy.is_some() {
+            tracing::debug!(symbol, ?revenue_yoy, ?net_profit_yoy, ?gross_margin, "hk_enrichment earnings");
+        } else if let Err(e) = &income_sheets {
+            tracing::debug!(symbol, error = %e, "hk income sheet failed");
+        }
 
         // Industry from search
         let industry = self.resolve_hk_industry(&code).await;

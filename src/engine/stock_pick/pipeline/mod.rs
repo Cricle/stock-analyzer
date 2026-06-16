@@ -9,6 +9,7 @@ pub(crate) use helpers::{
     derive_coarse_candidate_limit, derive_deep_candidate_limit, derive_llm_review_limit,
     stock_pick_search_time_range, build_light_search_queries, should_skip_light_stage_search,
     build_candidate_search_queries, news_items_to_evidence_records,
+    classify_evidence_news_sentiment,
     default_selection_reason_codes, score_evidence_quality,
     summarize_history_matches, dedup_candidates,
 };
@@ -143,15 +144,66 @@ pub async fn run(
         anyhow::bail!("all candidates were filtered out before stock selection");
     }
 
-    let mut deep_pool = apply_portfolio_constraints(filtered, deep_candidate_limit);
+    let mut deep_pool = if is_explicit_set {
+        // Explicit candidates: skip industry/theme diversity constraints
+        filtered
+    } else {
+        apply_portfolio_constraints(filtered, deep_candidate_limit)
+    };
     if deep_pool.is_empty() {
         anyhow::bail!("deep candidate pool is empty after portfolio constraints");
     }
 
+    // Fetch news for evidence pipeline concurrently
+    let news_start_date = chrono::Utc::now()
+        .checked_sub_signed(chrono::Duration::days(7))
+        .map(|d| d.format("%Y-%m-%d").to_string());
+    let news_futures: Vec<_> = deep_pool
+        .iter()
+        .enumerate()
+        .map(|(idx, candidate)| {
+            let symbol = candidate.symbol.clone();
+            let start = news_start_date.clone();
+            async move {
+                let news = market_data
+                    .fetch_news(&symbol, 10, start.as_deref(), None)
+                    .await
+                    .unwrap_or_default();
+                let filtered: Vec<_> = news
+                    .into_iter()
+                    .filter(|n| !crate::data::news::is_junk_news(n))
+                    .collect();
+                (idx, filtered)
+            }
+        })
+        .collect();
+    let news_results = futures::future::join_all(news_futures).await;
+    let mut candidate_news_map: HashMap<usize, Vec<crate::data::NewsItem>> = HashMap::new();
+    for (idx, filtered) in news_results {
+        if !filtered.is_empty() {
+            candidate_news_map.insert(idx, filtered);
+        }
+    }
+
+    // LLM batch sentiment classification for all fetched news
+    let sentiment_map = if !candidate_news_map.is_empty() {
+        match classify_evidence_news_sentiment(llm_client, &candidate_news_map).await {
+            Ok(map) => Some(map),
+            Err(e) => {
+                tracing::warn!("evidence news LLM sentiment classification failed: {e}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     let mut indexed_evidence_records = 0usize;
-    for candidate in deep_pool.iter_mut() {
+    for (candidate_idx, candidate) in deep_pool.iter_mut().enumerate() {
         let deep_queries = build_candidate_search_queries(candidate, request);
-        let search_items: Vec<crate::data::NewsItem> = Vec::new();
+        let search_items = candidate_news_map
+            .remove(&candidate_idx)
+            .unwrap_or_default();
         if !search_items.is_empty() {
             let deduped_records = news_items_to_evidence_records(
                 &candidate.symbol,
@@ -159,6 +211,7 @@ pub async fn run(
                 &candidate.theme_key,
                 &deep_queries,
                 &search_items,
+                sentiment_map.as_ref(),
             );
             indexed_evidence_records += deduped_records.len();
             candidate.news = crate::data::news::dedupe_news_items(
@@ -194,7 +247,11 @@ pub async fn run(
             .filter(|item| item.pass_filter)
             .collect()
     };
-    let preselected = apply_portfolio_constraints(deep_filtered, pick_count);
+    let preselected = if is_explicit_set {
+        deep_filtered
+    } else {
+        apply_portfolio_constraints(deep_filtered, pick_count)
+    };
     if preselected.is_empty() {
         anyhow::bail!("no winners remained after deep-stage evaluation");
     }
@@ -435,13 +492,15 @@ pub async fn run(
     // TODO: Store recommendations — previously used sa_storage::Store for PostgreSQL.
     // With trait-based architecture, this needs an AnalysisStore or similar trait.
 
-    let picks: Vec<StockPickItem> = scored_picks
+    let mut picks: Vec<StockPickItem> = scored_picks
         .into_iter()
         .map(|(pick, _score)| {
             // TODO: Persist recommendation scores when storage trait is available
             pick
         })
         .collect();
+    // Sort by system score descending
+    picks.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
 
     let explicit_rejected = generated.rejected_symbols;
     let filtered_rejected = enriched

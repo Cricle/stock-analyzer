@@ -658,13 +658,21 @@ impl MarketDataClient {
             format!("{search_match} 调研"),
         ];
 
-        // Fetch eastmoney announcements (web search removed).
-        let eastmoney_result = self.fetch_a_share_eastmoney_news(ts_code, limit).await;
+        // Fetch eastmoney announcements + stock news (by name for much better coverage) in parallel.
+        let search_match_owned = search_match.clone();
+        let (eastmoney_result, em_news_result) = tokio::join!(
+            self.fetch_a_share_eastmoney_news(ts_code, limit),
+            async {
+                self.ak.stock_news_em_by_name(&search_match_owned).await
+                    .map(|items| items.into_iter().map(super::news_item_from_stock_news).collect::<Vec<_>>())
+                    .unwrap_or_default()
+            },
+        );
         let result = Self::merge_a_share_news(
             ts_code,
             limit,
             eastmoney_result,
-            Vec::new(),
+            em_news_result,
             Vec::new(),
             query_terms,
         )?;

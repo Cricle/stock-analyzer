@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use futures::{StreamExt, stream};
 
@@ -201,6 +201,7 @@ pub(crate) fn news_items_to_evidence_records(
     theme_key: &str,
     queries: &[String],
     items: &[NewsItem],
+    sentiment_map: Option<&HashMap<String, String>>,
 ) -> Vec<CandidateEvidenceRecord> {
     let query = queries.first().cloned().unwrap_or_default();
     let mut dedup = HashSet::new();
@@ -216,7 +217,10 @@ pub(crate) fn news_items_to_evidence_records(
             continue;
         }
         let hard_negative_flag = crate::data::news::is_hard_negative(item);
-        let sentiment_hint = "neutral";
+        // Use LLM-classified sentiment; default to "neutral" if LLM didn't classify
+        let sentiment_hint = sentiment_map
+            .and_then(|m| m.get(&dedupe_key).cloned())
+            .unwrap_or_else(|| "neutral".to_string());
         records.push(CandidateEvidenceRecord {
             query: query.clone(),
             published_at: item.published_at.clone(),
@@ -229,12 +233,119 @@ pub(crate) fn news_items_to_evidence_records(
             } else {
                 format!("{}_{}_news", market.trim(), theme_key.trim())
             },
-            sentiment_hint: sentiment_hint.to_string(),
+            sentiment_hint,
             hard_negative_flag,
             dedupe_key,
         });
     }
     records
+}
+
+/// Batch-classify news sentiment using LLM. Returns a map of dedupe_key → sentiment.
+pub(crate) async fn classify_evidence_news_sentiment(
+    llm: &crate::engine::llm::LlmClient,
+    candidate_news: &HashMap<usize, Vec<NewsItem>>,
+) -> anyhow::Result<HashMap<String, String>> {
+    // Collect all news items with their dedupe keys
+    let mut items_with_keys: Vec<(String, &NewsItem)> = Vec::new();
+    for items in candidate_news.values() {
+        for item in items {
+            let key = crate::data::news::news_dedupe_key(
+                &item.title,
+                &item.source,
+                &item.published_at,
+                item.url.as_deref(),
+            );
+            items_with_keys.push((key, item));
+        }
+    }
+    if items_with_keys.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    // Limit to 30 items to avoid token overflow
+    items_with_keys.truncate(30);
+
+    let items_json: Vec<serde_json::Value> = items_with_keys
+        .iter()
+        .enumerate()
+        .map(|(idx, (_, item))| {
+            serde_json::json!({
+                "id": idx,
+                "title": item.title,
+                "summary": item.summary,
+            })
+        })
+        .collect();
+
+    let prompt = format!(
+        r#"Classify each news item's sentiment for stock investment analysis.
+Return ONLY a JSON array: [{{"id":0,"sentiment":"positive"}}]
+
+Sentiment values:
+- "positive": earnings beat, upgrade, stimulus, rally, record high, buyback, strong growth, net institutional buying
+- "negative": earnings miss, downgrade, scandal, fraud, fine, delisting, decline, layoffs, 增长放缓
+- "neutral": no clear directional impact on stock price
+
+News items:
+{}"#,
+        serde_json::to_string_pretty(&items_json)?
+    );
+
+    let response = llm.generate(&prompt).await?;
+
+    let json_str = response
+        .trim()
+        .strip_prefix("```json")
+        .or_else(|| response.trim().strip_prefix("```"))
+        .unwrap_or(response.trim())
+        .strip_suffix("```")
+        .unwrap_or(response.trim())
+        .trim();
+
+    let json_str = if json_str.starts_with('[') {
+        json_str
+    } else if let Some(start) = json_str.find('[') {
+        if let Some(end) = json_str.rfind(']') {
+            &json_str[start..=end]
+        } else {
+            json_str
+        }
+    } else {
+        json_str
+    };
+
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(json_str)
+        .map_err(|e| {
+            tracing::warn!(response = %response.chars().take(200).collect::<String>(), "LLM evidence sentiment raw response");
+            anyhow::anyhow!("failed to parse LLM evidence sentiment JSON: {e}")
+        })?;
+
+    let mut sentiment_map = HashMap::new();
+    for entry in &parsed {
+        let Some(id) = entry.get("id").and_then(|v| v.as_u64()) else {
+            continue;
+        };
+        let idx = id as usize;
+        if idx >= items_with_keys.len() {
+            continue;
+        }
+        if let Some(sentiment) = entry.get("sentiment").and_then(|v| v.as_str()) {
+            if matches!(sentiment, "positive" | "negative" | "neutral") {
+                sentiment_map.insert(items_with_keys[idx].0.clone(), sentiment.to_string());
+            }
+        }
+    }
+
+    tracing::info!(
+        total = items_with_keys.len(),
+        classified = sentiment_map.len(),
+        positive = sentiment_map.values().filter(|v| v.as_str() == "positive").count(),
+        negative = sentiment_map.values().filter(|v| v.as_str() == "negative").count(),
+        "LLM evidence sentiment classification applied"
+    );
+
+    Ok(sentiment_map)
 }
 
 /// Parse LLM JSON response, stripping markdown fences if present.

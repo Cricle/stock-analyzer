@@ -70,10 +70,10 @@ impl MarketDataClient {
 
         // From main indicator (may be empty for some US stocks)
         let net_income = main
-            .and_then(|m| m.holder_profit.or(m.parent_net_profit))
+            .and_then(|m| m.holder_profit)
             .or_else(|| is.and_then(|s| s.net_profit));
         let revenue = main
-            .and_then(|m| m.operate_income.or(m.total_operate_reve))
+            .and_then(|m| m.operate_income)
             .or_else(|| is.and_then(|s| s.total_revenue));
         // shares_outstanding: try indicator TOTAL_SHARE, then compute from equity / BPS
         let shares_outstanding = main
@@ -181,10 +181,11 @@ impl MarketDataClient {
         &self,
         symbol: &str,
     ) -> anyhow::Result<super::a_share::AShareEnrichmentData> {
-        // Fetch Yahoo Finance stats and income sheet in parallel
-        let (yf_stats, income_sheets) = tokio::join!(
+        // Fetch Yahoo Finance stats, income sheet, and analysis indicators in parallel
+        let (yf_stats, income_sheets, analysis_indicators) = tokio::join!(
             self.ak.us_stock_key_stats(symbol),
             self.ak.stock_financial_us_income_sheet_typed(symbol, "年报"),
+            self.ak.stock_financial_us_analysis_indicator_em_typed(symbol, "年报"),
         );
 
         // Yahoo Finance: PE, PB, gross_margin, dividend_yield
@@ -213,6 +214,56 @@ impl MarketDataClient {
                 tracing::debug!(symbol, error = %e, "us income sheet failed");
                 (None, None, None)
             }
+        };
+
+        // Fallback: compute YoY from analysis indicators if income sheet didn't provide it
+        let revenue_yoy = if revenue_yoy.is_some() {
+            revenue_yoy
+        } else {
+            analysis_indicators.as_ref().ok().and_then(|indicators| {
+                if indicators.len() < 2 { return None; }
+                let curr = &indicators[0];
+                let curr_date_str = curr.std_report_date.as_deref()
+                    .or(curr.report_date.as_deref());
+                let prev = curr_date_str.and_then(|curr_date| {
+                    let curr_md = curr_date.get(5..10)?;
+                    indicators.iter().skip(1).find(|ind| {
+                        let ind_date = ind.std_report_date.as_deref()
+                            .or(ind.report_date.as_deref());
+                        ind_date.and_then(|d| d.get(5..10))
+                            .is_some_and(|md| md == curr_md)
+                    })
+                }).unwrap_or(&indicators[1]);
+                match (curr.operate_income, prev.operate_income) {
+                    (Some(c), Some(p)) if p > 0.0 && c != 0.0 => Some((c - p) / p),
+                    _ => None,
+                }
+            })
+        };
+        let net_profit_yoy = if net_profit_yoy.is_some() {
+            net_profit_yoy
+        } else {
+            analysis_indicators.as_ref().ok().and_then(|indicators| {
+                if indicators.len() < 2 { return None; }
+                let curr = &indicators[0];
+                let curr_date_str = curr.std_report_date.as_deref()
+                    .or(curr.report_date.as_deref());
+                let prev = curr_date_str.and_then(|curr_date| {
+                    let curr_md = curr_date.get(5..10)?;
+                    indicators.iter().skip(1).find(|ind| {
+                        let ind_date = ind.std_report_date.as_deref()
+                            .or(ind.report_date.as_deref());
+                        ind_date.and_then(|d| d.get(5..10))
+                            .is_some_and(|md| md == curr_md)
+                    })
+                }).unwrap_or(&indicators[1]);
+                let np_curr = curr.holder_profit;
+                let np_prev = prev.holder_profit;
+                match (np_curr, np_prev) {
+                    (Some(c), Some(p)) if p > 0.0 && c != 0.0 => Some((c - p) / p),
+                    _ => None,
+                }
+            })
         };
 
         // Use Yahoo gross_margin if available, otherwise Eastmoney
@@ -538,8 +589,28 @@ impl MarketDataClient {
         &self,
         symbol: &str,
     ) -> anyhow::Result<(super::QuoteSnapshot, String)> {
-        let ak_quote = self.ak.us_quote(symbol).await?;
-        Ok((ak_quote, "akshare".to_string()))
+        match self.ak.us_quote(symbol).await {
+            Ok(quote) => Ok((quote, "akshare".to_string())),
+            Err(e) => {
+                tracing::debug!(symbol, error = %e, "us_quote failed, falling back to us_candles(2)");
+                let mut candles = self.ak.us_candles(symbol, 2).await?;
+                let last = candles
+                    .pop()
+                    .ok_or_else(|| anyhow::anyhow!("no US candle data for quote fallback"))?;
+                Ok((
+                    super::QuoteSnapshot {
+                        symbol: symbol.to_uppercase(),
+                        date: last.trade_date,
+                        open: last.open,
+                        high: last.high,
+                        low: last.low,
+                        close: last.close,
+                        volume: last.volume,
+                    },
+                    "akshare-candles".to_string(),
+                ))
+            }
+        }
     }
 
     pub(super) async fn fetch_us_candles(

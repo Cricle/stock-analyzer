@@ -18,7 +18,7 @@ default = []
 [dependencies]
 # Core
 adk-graph = { version = "0.8.0" }
-akshare = { path = "../akshare-rs/crates/akshare" }
+akshare = "0.1.6"
 anyhow = "1"
 async-openai = { version = "0.41", features = ["chat-completion", "model"] }
 async-trait = "0.1"

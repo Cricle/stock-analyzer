@@ -1,13 +1,11 @@
 #[cfg(test)]
-mod tests {
-    use super::*;
+use super::*;
 
-    #[test]
-    fn resolve_zh_key() {
-        let i18n = I18n::new();
-        let result = i18n.resolve("report.summary.title", "zh");
-        assert_eq!(result.as_deref(), Some("分析摘要"));
-    }
+#[test]
+fn resolve_zh_key() {
+    let i18n = I18n::new();
+    let result = i18n.resolve("report.summary.title", "zh");
+    assert_eq!(result.as_deref(), Some("分析摘要"));
 
     #[test]
     fn resolve_en_key() {

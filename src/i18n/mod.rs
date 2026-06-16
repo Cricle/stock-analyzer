@@ -112,4 +112,5 @@ fn format_value(value: &Value, fmt: Option<&str>) -> String {
 }
 
 #[cfg(test)]
+#[cfg(test)]
 mod tests;

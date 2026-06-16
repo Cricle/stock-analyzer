@@ -295,7 +295,7 @@
             .report
             .portfolio_decision
             .executive_summary
-            .contains("当前不能升级结论的直接原因是"));
+            .contains("decision.upgrade_block_reason"));
         assert!(result
             .report
             .portfolio_decision

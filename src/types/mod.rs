@@ -139,4 +139,5 @@ pub struct NewsFetchResult {
 }
 
 #[cfg(test)]
+#[cfg(test)]
 mod tests;

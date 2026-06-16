@@ -85,54 +85,6 @@ fn keyword_sentiment_update(news: &mut [GuidanceNewsItem]) -> (usize, usize) {
     (pos, neg)
 }
 
-/// Keyword-based sector assignment fallback when LLM doesn't assign sectors.
-fn keyword_sector_assignment(news: &[GuidanceNewsItem]) -> Vec<(String, &GuidanceNewsItem)> {
-    let sector_rules: &[(&str, &[&str])] = &[
-        ("technology", &[
-            "芯片", "半导体", "AI", "人工智能", "GPU", "云计算", "软件", "互联网",
-            "chip", "semiconductor", "tech", "cloud", "software", "robotics", "EV",
-        ]),
-        ("finance", &[
-            "银行", "保险", "证券", "金融", "贷款", "利率", "央行",
-            "bank", "insurance", "financial", "lending", "interest rate", "fed",
-        ]),
-        ("healthcare", &[
-            "医药", "生物", "医疗", "疫苗", "制药", "医院",
-            "pharma", "biotech", "healthcare", "drug", "vaccine", "FDA",
-        ]),
-        ("energy", &[
-            "石油", "天然气", "能源", "光伏", "风电", "锂电", "新能源",
-            "oil", "gas", "energy", "solar", "wind", "lithium", "OPEC",
-        ]),
-        ("consumer", &[
-            "消费", "零售", "电商", "品牌", "奢侈品", "食品", "饮料",
-            "consumer", "retail", "e-commerce", "luxury", "food", "beverage",
-        ]),
-        ("real_estate", &[
-            "房地产", "地产", "楼市", "房价", "物业",
-            "real estate", "property", "housing", "REIT",
-        ]),
-        ("industrial", &[
-            "制造", "工业", "机械", "航空", "军工", "基建",
-            "industrial", "manufacturing", "aerospace", "defense", "infrastructure",
-        ]),
-    ];
-
-    let mut results = Vec::new();
-
-    for item in news {
-        let text = format!("{} {}", item.title, item.summary).to_ascii_lowercase();
-        for (sector, keywords) in sector_rules {
-            if keywords.iter().any(|kw| text.contains(&kw.to_ascii_lowercase())) {
-                results.push((sector.to_string(), item));
-                break; // assign first matching sector per item
-            }
-        }
-    }
-
-    results
-}
-
 impl DailyGuidanceGenerator {
     pub(super) async fn assess_market_sentiment(
         &self,
@@ -228,20 +180,6 @@ impl DailyGuidanceGenerator {
         for item in news {
             if let Some(ref sector) = item.sector {
                 sector_news.entry(sector.clone()).or_default().push(item);
-            }
-        }
-
-        // Fallback: if LLM assigned no sectors, use keyword-based detection
-        if sector_news.is_empty() && !news.is_empty() {
-            let keyword_sectors = keyword_sector_assignment(news);
-            for (sector, item) in keyword_sectors {
-                sector_news.entry(sector).or_default().push(item);
-            }
-            if !sector_news.is_empty() {
-                tracing::info!(
-                    sector_count = sector_news.len(),
-                    "LLM assigned no sectors, using keyword-based fallback"
-                );
             }
         }
 

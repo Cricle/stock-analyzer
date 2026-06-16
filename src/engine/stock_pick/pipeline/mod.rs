@@ -843,37 +843,8 @@ async fn resolve_a_share_candidates(
         }));
     }
 
-    let mut search_candidates = Vec::new();
-    for query in [
-        "AI",
-        "Robotics",
-        "Semiconductors",
-        "Innovative Pharma",
-        "Banking",
-        "Power",
-        "Advanced Manufacturing",
-        "Consumer Electronics",
-    ] {
-        let items = market_data
-            .search_stocks(
-                query,
-                Some(MarketKind::AShare.display_label()),
-                candidate_limit.clamp(5, 8),
-            )
-            .await
-            .unwrap_or_default();
-        search_candidates.extend(items.into_iter().map(|item| CandidateContext {
-            symbol: item.symbol,
-            name: item.name,
-            market: item.market,
-            exchange: item.exchange,
-            source_score: 1.0,
-        }));
-    }
-
     let mut all_candidates = Vec::new();
     all_candidates.extend(sector_candidates);
-    all_candidates.extend(search_candidates);
     let all_candidates = dedup_candidates(all_candidates, candidate_limit.saturating_mul(4));
     let shortlist = shortlist_a_share_candidates_for_flow(all_candidates, candidate_limit);
     Ok(

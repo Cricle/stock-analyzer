@@ -58,7 +58,7 @@ impl DailyGuidanceGenerator {
                 current_price: None,
                 price_change_pct: None,
                 guidance_action: guidance_action.to_string(),
-                confidence: if memory_relevance > 0.5 { 70 } else { 40 },
+                confidence: if memory_relevance > 0.5 { 70 } else { 55 },
                 rationale: if memory_bundle.same_ticker_count > 0 {
                     format!(
                         "Found {} past analyses for this ticker. {}",
@@ -70,7 +70,7 @@ impl DailyGuidanceGenerator {
                             .unwrap_or_default()
                     )
                 } else {
-                    "Limited historical data available for this ticker.".to_string()
+                    "No prior analyses found; assessment based on current data.".to_string()
                 },
                 key_risks,
                 memory_relevance,

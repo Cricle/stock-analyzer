@@ -96,7 +96,7 @@ fn confidence_caps_missing_core_data_without_text_matching() {
 }
 
 #[test]
-fn setup_history_gap_adds_confidence_cap() {
+fn setup_history_gap_no_longer_adds_cap() {
     let mut result = empty_result();
     result.artifacts.memory_context.used_setup_filtered_retrieval = true;
     result.artifacts.memory_context.setup_match_count = 1;
@@ -105,7 +105,7 @@ fn setup_history_gap_adds_confidence_cap() {
         assessment
             .caps
             .iter()
-            .any(|item| item.key == "thin_setup_history")
+            .all(|item| item.key != "thin_setup_history")
     );
 }
 
@@ -167,19 +167,18 @@ fn single_tool_failure_does_not_trigger_missing_core_data_cap_when_core_is_prese
 }
 
 #[test]
-fn setup_history_cap_is_relaxed_when_fallback_samples_exist() {
+fn setup_history_no_cap_without_resolved_matches() {
     let mut result = empty_result();
     result.artifacts.memory_context.used_setup_filtered_retrieval = true;
     result.artifacts.memory_context.setup_match_count = 1;
     result.artifacts.memory_context.same_ticker_count = 2;
     let assessment = evaluate_confidence_score(&result);
-    let cap = assessment
-        .caps
-        .iter()
-        .find(|item| item.key == "thin_setup_history")
-        .map(|item| item.cap)
-        .unwrap_or_default();
-    assert_eq!(cap, 85);
+    assert!(
+        assessment
+            .caps
+            .iter()
+            .all(|item| item.key != "thin_setup_history" && item.key != "zero_resolved_setup_history")
+    );
 }
 
 #[test]

@@ -91,7 +91,7 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
         &research_plan,
         &portfolio_decision,
     );
-    let historical_calibration =
+    let (historical_calibration, has_history_data) =
         derive_historical_calibration(result, &historical_transferability);
 
     let mut caps = Vec::new();
@@ -137,28 +137,6 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
             cap: 85,
             reason: LocalText::new("cross_agent_divergence_reason")
                 .with_str("consistency_detail", &cross_agent_consistency.rationale.key),
-        });
-    }
-    if result.artifacts.memory_context.used_setup_filtered_retrieval
-        && (result.artifacts.memory_context.setup_resolved_match_count < 2
-            || result.artifacts.memory_context.setup_match_hit_rate < 0.5
-            || result.artifacts.memory_context.setup_match_avg_alpha_return <= 0.0)
-    {
-        caps.push(ConfidenceCap {
-            key: "thin_setup_history".to_string(),
-            label: LocalText::new("cap_label_thin_setup_history"),
-            cap: if result.artifacts.memory_context.setup_match_count > 0
-                || result.artifacts.memory_context.same_ticker_count > 0
-                || result.artifacts.memory_context.cross_ticker_count > 0
-            {
-                85
-            } else {
-                80
-            },
-            reason: LocalText::new("thin_setup_history_reason")
-                .with_i32("resolved_count", result.artifacts.memory_context.setup_resolved_match_count as i32)
-                .with_f64("hit_rate_pct", result.artifacts.memory_context.setup_match_hit_rate * 100.0)
-                .with_f64("avg_alpha_return_pct", result.artifacts.memory_context.setup_match_avg_alpha_return * 100.0),
         });
     }
     if next_steps_count == 0 {
@@ -213,20 +191,17 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
             reason: LocalText::new("near_resistance_without_fresh_catalyst_reason"),
         });
     }
-    if result.artifacts.memory_context.setup_resolved_match_count == 0 {
-        caps.push(ConfidenceCap {
-            key: "zero_resolved_setup_history".to_string(),
-            label: LocalText::new("cap_label_zero_resolved_setup_history"),
-            cap: 82,
-            reason: LocalText::new("zero_resolved_setup_history_reason"),
-        });
-    }
-
     let applied_cap = caps.iter().map(|item| item.cap).min().unwrap_or(100);
-    let pre_cap_score = (direction_confidence.score as f64 * 0.30
-        + execution_confidence.score as f64 * 0.25
-        + evidence_completeness.score as f64 * 0.25
-        + (historical_calibration.score + 10).clamp(0, 100) as f64 * 0.20)
+    // Dynamic weight: when no history data, redistribute its 20% to other dimensions.
+    let (dir_w, exec_w, evid_w, hist_w) = if has_history_data {
+        (0.30, 0.25, 0.25, 0.20)
+    } else {
+        (0.38, 0.31, 0.31, 0.0)
+    };
+    let pre_cap_score = (direction_confidence.score as f64 * dir_w
+        + execution_confidence.score as f64 * exec_w
+        + evidence_completeness.score as f64 * evid_w
+        + historical_calibration.score as f64 * hist_w)
         .round() as i32;
     let final_score = pre_cap_score.clamp(0, applied_cap);
 

@@ -67,35 +67,45 @@ fn derive_evidence_completeness(
 fn derive_historical_calibration(
     result: &AnalysisResult,
     historical_transferability: &ScoreDimension,
-) -> ScoreDimension {
+) -> (ScoreDimension, bool) {
     let memory = &result.artifacts.memory_context;
 
-    let score = if memory.setup_resolved_match_count == 0 {
-        // No verified setup history — sigmoid based on seed samples
-        let seed = (memory.same_ticker_count + memory.cross_ticker_count) as f64;
-        sigmoid(seed, 2.0, 1.0) * 25.0 + 20.0
-    } else if memory.used_setup_fallback_calibration {
-        // Weak calibration — continuous
+    if memory.setup_resolved_match_count == 0 {
+        // No history = no penalty. Return neutral with has_data=false
+        // so the confidence formula can redistribute weight to other dimensions.
+        return (
+            ScoreDimension {
+                score: 50,
+                max_score: 100,
+                rationale: LocalText::new("historical_calibration_rationale"),
+            },
+            false,
+        );
+    }
+
+    let score = if memory.used_setup_fallback_calibration {
         let hit_rate_score = sigmoid(memory.setup_match_hit_rate, 0.5, 8.0) * 12.0;
         let alpha_bonus = if memory.setup_match_avg_alpha_return > 0.0 { 4.0 } else { 0.0 };
         historical_transferability.score as f64 * 5.0 + hit_rate_score + alpha_bonus
     } else {
-        // Normal calibration — continuous
         let base = historical_transferability.score as f64 * 8.0;
         let hit_rate_bonus = sigmoid(memory.setup_match_hit_rate, 0.5, 8.0) * 20.0;
         let alpha_bonus = if memory.setup_match_avg_alpha_return > 0.0 { 10.0 } else { 0.0 };
         base + hit_rate_bonus + alpha_bonus
     };
 
-    ScoreDimension {
-        score: score.clamp(0.0, 100.0) as i32,
-        max_score: 100,
-        rationale: if memory.used_setup_fallback_calibration {
-            LocalText::new("historical_calibration_fallback_rationale")
-        } else {
-            LocalText::new("historical_calibration_rationale")
+    (
+        ScoreDimension {
+            score: score.clamp(0.0, 100.0) as i32,
+            max_score: 100,
+            rationale: if memory.used_setup_fallback_calibration {
+                LocalText::new("historical_calibration_fallback_rationale")
+            } else {
+                LocalText::new("historical_calibration_rationale")
+            },
         },
-    }
+        true,
+    )
 }
 
 pub fn evaluate_direction_score(result: &AnalysisResult) -> DirectionAssessment {

@@ -6,6 +6,7 @@ permissions:
   contents: write
 env:
   CARGO_TERM_COLOR: always
+
 jobs:
   build:
     name: Build ${{ matrix.target }}
@@ -32,64 +33,111 @@ jobs:
             archive: zip
     steps:
       - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
+
       - name: Install cross
         if: matrix.cross
-        run: cargo install cross
-      - name: Build CLI
-        run: ${{ matrix.cross && 'cross' || 'cargo' }} build --release --target ${{ matrix.target }} --bin sa-engine
-      - name: Build MCP
-        run: ${{ matrix.cross && 'cross' || 'cargo' }} build --release --target ${{ matrix.target }} --bin sa-engine-mcp
-      - name: Compress binaries with UPX -5
+        uses: taiki-e/install-action@cross
+
+      - name: Build
+        run: >-
+          ${{ matrix.cross && 'cross' || 'cargo' }}
+          build --release --locked
+          --target ${{ matrix.target }}
+          --bin sa-engine
+          --bin sa-engine-mcp
+
+      - name: Strip binaries
         if: ${{ !matrix.cross }}
         shell: bash
         run: |
-          if command -v brew &>/dev/null; then
-            brew install upx
-          elif command -v choco &>/dev/null; then
-            choco install upx -y
-          else
-            sudo apt-get update && sudo apt-get install -y upx-ucl || sudo apt-get install -y upx
-          fi
           cd target/${{ matrix.target }}/release
-          for bin in sa-engine* sa-engine-mcp*; do
-            [ -f "$bin" ] && upx -5 "$bin" || true
-          done
+          case "${{ runner.os }}" in
+            macOS) strip sa-engine sa-engine-mcp ;;
+            Linux) strip --strip-unneeded sa-engine sa-engine-mcp ;;
+          esac
+        continue-on-error: true
+
+      - name: Compress with UPX
+        if: ${{ !matrix.cross }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ runner.os }}" in
+            macOS)  brew install -q upx ;;
+            Linux)  sudo apt-get -qq update && sudo apt-get -qq install -y upx-ucl || sudo apt-get -qq install -y upx ;;
+            Windows) choco install upx -y ;;
+          esac
+          cd target/${{ matrix.target }}/release
+          upx -5 sa-engine* sa-engine-mcp* || true
+
       - name: Package (unix)
         if: matrix.archive == 'tar.gz'
+        shell: bash
         run: |
+          set -euo pipefail
           cd target/${{ matrix.target }}/release
-          cp ../../../config.example.toml .
-          cp ../../../README.md .
-          tar czf ../../../sa-engine-${{ github.ref_name }}-${{ matrix.target }}.tar.gz sa-engine sa-engine-mcp config.example.toml README.md
+          cp ../../../config.example.toml ../../../README.md ../../../CHANGELOG.md .
+          tar czf ../../../sa-engine-${{ github.ref_name }}-${{ matrix.target }}.tar.gz \
+            sa-engine sa-engine-mcp config.example.toml README.md CHANGELOG.md
+
       - name: Package (windows)
         if: matrix.archive == 'zip'
+        shell: pwsh
         run: |
-          cd target/${{ matrix.target }}/release
-          cp ../../../config.example.toml .
-          cp ../../../README.md .
-          Compress-Archive -Path sa-engine.exe, sa-engine-mcp.exe, config.example.toml, README.md -DestinationPath ../../../sa-engine-${{ github.ref_name }}-${{ matrix.target }}.zip
+          $ErrorActionPreference = 'Stop'
+          $r = "target/${{ matrix.target }}/release"
+          Copy-Item config.example.toml, README.md, CHANGELOG.md $r/
+          Compress-Archive -Path $r/sa-engine.exe,$r/sa-engine-mcp.exe,$r/config.example.toml,$r/README.md,$r/CHANGELOG.md -DestinationPath sa-engine-${{ github.ref_name }}-${{ matrix.target }}.zip
+
+      - name: Checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive=$(ls sa-engine-${{ github.ref_name }}-${{ matrix.target }}.*)
+          sha256sum "$archive" > "${archive}.sha256"
+          cat "${archive}.sha256"
+
       - uses: actions/upload-artifact@v4
         with:
           name: sa-engine-${{ matrix.target }}
-          path: sa-engine-${{ github.ref_name }}-${{ matrix.target }}.*
+          path: |
+            sa-engine-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+            sa-engine-${{ github.ref_name }}-${{ matrix.target }}.tar.gz.sha256
+            sa-engine-${{ github.ref_name }}-${{ matrix.target }}.zip
+            sa-engine-${{ github.ref_name }}-${{ matrix.target }}.zip.sha256
+          if-no-files-found: error
 
   release:
     needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           merge-multiple: true
+
+      - name: Verify checksums
+        run: |
+          set -euo pipefail
+          for f in *.sha256; do
+            echo "--- $f ---"
+            cat "$f"
+            sha256sum -c "$f"
+          done
+
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           files: |
             sa-engine-*.tar.gz
             sa-engine-*.zip
+            sa-engine-*.sha256

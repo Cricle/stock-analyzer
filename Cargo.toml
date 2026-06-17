@@ -3,6 +3,8 @@ name = "stock-analyser"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
+description = "Stock analysis engine — CLI and MCP server for market guidance, stock selection, and analysis reports"
+repository = "https://github.com/Cricle/stock-analyzer"
 
 [[bin]]
 name = "sa"

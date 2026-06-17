@@ -678,3 +678,35 @@ impl MarketDataClient {
         }
     }
 }
+
+impl MarketDataClient {
+    /// Discover US stock candidates by searching well-known names.
+    pub(crate) async fn discover_us_candidates(&self, _sector_type: &str, limit: usize) -> anyhow::Result<Vec<(String, String)>> {
+        let queries = [
+            "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN",
+            "META", "TSLA", "JPM", "V", "UNH",
+            "XOM", "JNJ", "WMT", "PG", "MA",
+            "HD", "CVX", "MRK", "ABBV", "KO",
+        ];
+        let mut seen = std::collections::HashSet::new();
+        let mut results = Vec::new();
+        for q in &queries {
+            if results.len() >= limit { break; }
+            match self.search_stocks(q, Some("美股"), 1).await {
+                Ok(items) => {
+                    for item in items {
+                        if results.len() >= limit { break; }
+                        let sym = item.symbol.trim().to_uppercase();
+                        if seen.insert(sym.clone()) {
+                            results.push((sym, item.name));
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(query = q, error = %e, "US candidate search failed");
+                }
+            }
+        }
+        Ok(results)
+    }
+}

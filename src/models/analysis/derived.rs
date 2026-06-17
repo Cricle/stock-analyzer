@@ -40,7 +40,7 @@ impl AnalysisResult {
                 research_plan.rationale.to_string()
             } else {
                 format!(
-                    "{} {} 初始状态已建立，等待分析师链路生成研究产物。",
+                    "{} {} Initial state established; waiting for analyst pipeline to generate research artifacts.",
                     self.symbol, self.analysis_date
                 )
             }
@@ -70,7 +70,7 @@ impl AnalysisResult {
             if !research_plan.risk_assessment.trim().is_empty() {
                 research_plan.risk_assessment.to_string()
             } else {
-                "待分析".to_string()
+                "Pending analysis".to_string()
             }
         }
     }
@@ -122,7 +122,7 @@ impl AnalysisResult {
             || !self.report.portfolio_decision.missing_evidence_ladder.blocking_gaps.is_empty();
         if has_blockers {
             self.report.trader_plan.position_sizing =
-                "0%——关键证据尚未补齐，不新增方向性暴露".to_string();
+                "0% - key evidence not yet complete; no additional directional exposure".to_string();
         }
         self.agent_state.structured_trader_plan = self.report.trader_plan.clone();
         self.agent_state.structured_portfolio_decision = self.report.portfolio_decision.clone();

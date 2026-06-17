@@ -26,7 +26,7 @@ fn test_oversold_rsi_bullish() {
         "expected high score for oversold+bullish, got {}",
         result.score
     );
-    assert!(result.reason.contains("超卖"));
+    assert!(result.reason.contains("oversold"));
 }
 
 #[test]
@@ -119,7 +119,7 @@ fn test_macd_death_cross() {
         latest_positive: false,
     };
     let result = score_technical(&input);
-    assert!(result.reason.contains("死叉"), "expected death cross reason, got {}", result.reason);
+    assert!(result.reason.contains("death cross"), "expected death cross reason, got {}", result.reason);
 }
 
 #[test]
@@ -139,7 +139,7 @@ fn test_ma_bearish_alignment() {
         latest_positive: false,
     };
     let result = score_technical(&input);
-    assert!(result.reason.contains("空头排列"), "expected bearish MA reason, got {}", result.reason);
+    assert!(result.reason.contains("bearish"), "expected bearish MA reason, got {}", result.reason);
 }
 
 #[test]
@@ -159,7 +159,7 @@ fn test_volume_elevated_negative() {
         latest_positive: false,
     };
     let result = score_technical(&input);
-    assert!(result.reason.contains("放量下跌"), "expected volume drop reason, got {}", result.reason);
+    assert!(result.reason.contains("Volume spike on drop"), "expected volume drop reason, got {}", result.reason);
     assert!(result.score < 50, "expected below neutral for volume drop, got {}", result.score);
 }
 
@@ -180,7 +180,7 @@ fn test_rsi_high_zone() {
         latest_positive: false,
     };
     let result = score_technical(&input);
-    assert!(result.reason.contains("偏高"), "expected high RSI reason, got {}", result.reason);
+    assert!(result.reason.contains("high"), "expected high RSI reason, got {}", result.reason);
 }
 
 #[test]
@@ -200,7 +200,7 @@ fn test_macd_golden_cross() {
         latest_positive: false,
     };
     let result = score_technical(&input);
-    assert!(result.reason.contains("金叉"), "expected golden cross reason, got {}", result.reason);
+    assert!(result.reason.contains("golden cross"), "expected golden cross reason, got {}", result.reason);
 }
 
 #[test]
@@ -220,7 +220,7 @@ fn test_ma_bullish_alignment() {
         latest_positive: false,
     };
     let result = score_technical(&input);
-    assert!(result.reason.contains("多头排列"), "expected bullish MA reason, got {}", result.reason);
+    assert!(result.reason.contains("bullish"), "expected bullish MA reason, got {}", result.reason);
 }
 
 #[test]
@@ -240,7 +240,7 @@ fn test_volume_elevated_positive() {
         latest_positive: true,
     };
     let result = score_technical(&input);
-    assert!(result.reason.contains("放量上涨"), "expected volume rise reason, got {}", result.reason);
+    assert!(result.reason.contains("Volume spike on rise"), "expected volume rise reason, got {}", result.reason);
     assert!(result.score > 50, "expected above neutral for volume rise, got {}", result.score);
 }
 

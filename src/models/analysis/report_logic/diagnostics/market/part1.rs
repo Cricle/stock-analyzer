@@ -166,7 +166,7 @@ fn derive_fundamentals_diagnostics(result: &AnalysisResult) -> Vec<ReportDiagnos
             vec![ReportDiagnosticItem {
                 code: "cashflow_quality_unresolved".to_string(),
                 severity: "warning".to_string(),
-                message: "利润与经营现金流出现背离，但缺少应收、存货、预付款等营运资本拆解，当前只能形成合理怀疑，不能直接定性为基本面恶化。".into(),
+                message: "Profit and operating cash flow diverge, but without receivables, inventory, and prepayment breakdown, this is only reasonable suspicion, not definitive fundamental deterioration.".into(),
                 details: vec![
                     "missing_working_capital_breakdown=accounts_receivable,inventory,prepayments".to_string(),
                     "follow_up_priority=separate_receivable_inventory_prepayment_drivers".to_string(),
@@ -182,7 +182,7 @@ fn derive_fundamentals_diagnostics(result: &AnalysisResult) -> Vec<ReportDiagnos
         vec![ReportDiagnosticItem {
             code: "fundamentals_period_mixed".to_string(),
             severity: "warning".to_string(),
-            message: "基本面字段之间存在期间混杂或口径冲突。".into(),
+            message: "Period mixing or methodology conflict between fundamental fields.".into(),
             details,
             ..Default::default()
         }]
@@ -224,7 +224,7 @@ fn derive_news_diagnostics(result: &AnalysisResult) -> Vec<ReportDiagnosticItem>
                 diagnostics.push(ReportDiagnosticItem {
                     code: "news_upstream_unavailable".to_string(),
                     severity: "warning".to_string(),
-                    message: "新闻或宏观上游在本次运行中不可用。".into(),
+                    message: "News or macro upstream unavailable in this run.".into(),
                     details: collect_tool_meta_details(state.key.as_str(), observation),
                 ..Default::default()
                 });
@@ -257,7 +257,7 @@ fn derive_news_diagnostics(result: &AnalysisResult) -> Vec<ReportDiagnosticItem>
         diagnostics.push(ReportDiagnosticItem {
             code: "news_source_concentration".to_string(),
             severity: "info".to_string(),
-            message: "本次新闻证据来源较单一，结论更适合当作线索而非高置信催化判断。".into(),
+            message: "News evidence sources are limited; conclusions are better treated as clues than high-confidence catalyst assessments.".into(),
             details: vec![format!(
                 "sources={}",
                 source_set.iter().cloned().collect::<Vec<_>>().join(",")
@@ -270,7 +270,7 @@ fn derive_news_diagnostics(result: &AnalysisResult) -> Vec<ReportDiagnosticItem>
         diagnostics.push(ReportDiagnosticItem {
             code: "news_fetch_coverage_weak".to_string(),
             severity: "warning".to_string(),
-            message: "本次新闻检索失败次数多于成功次数，新闻证据覆盖偏弱。".into(),
+            message: "News retrieval failures exceed successes; news evidence coverage is weak.".into(),
             details: vec![
                 format!("successful_attempts={successful_attempts}"),
                 format!("failed_attempts={failed_attempts}"),

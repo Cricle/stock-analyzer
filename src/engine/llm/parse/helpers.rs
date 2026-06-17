@@ -10,7 +10,7 @@ pub fn text_or_default(value: Option<Value>, default: &str) -> String {
 /// value and the default placeholder was substituted.
 pub fn text_or_default_with_key(
     value: Option<Value>,
-    default: &str,
+    _default: &str,
     key: &str,
 ) -> (String, Option<String>) {
     let text = value
@@ -18,7 +18,7 @@ pub fn text_or_default_with_key(
         .filter(|value| !value.is_empty());
     match text {
         Some(t) => (t, None),
-        None => (default.to_string(), Some(key.to_string())),
+        None => (String::new(), Some(key.to_string())),
     }
 }
 
@@ -35,7 +35,7 @@ pub fn first_non_empty(values: &[Option<&Value>], default: &str) -> String {
 /// is used.
 pub fn first_non_empty_with_key(
     values: &[Option<&Value>],
-    default: &str,
+    _default: &str,
     key: &str,
 ) -> (String, Option<String>) {
     let text = values
@@ -45,28 +45,23 @@ pub fn first_non_empty_with_key(
         .find(|value| !value.is_empty());
     match text {
         Some(t) => (t, None),
-        None => (default.to_string(), Some(key.to_string())),
+        None => (String::new(), Some(key.to_string())),
     }
 }
 
-pub fn string_list_or_default(value: Option<Value>, defaults: &[&str]) -> Vec<String> {
+pub fn string_list_or_default(value: Option<Value>, _defaults: &[&str]) -> Vec<String> {
     match value {
         Some(Value::Array(items)) => {
-            let values = items
+            items
                 .iter()
                 .map(normalize_inline_value)
                 .filter(|item| !item.is_empty())
-                .collect::<Vec<_>>();
-            if values.is_empty() {
-                defaults.iter().map(|item| item.to_string()).collect()
-            } else {
-                values
-            }
+                .collect::<Vec<_>>()
         }
         Some(other) => {
             let text = normalize_value(&other);
             if text.is_empty() {
-                defaults.iter().map(|item| item.to_string()).collect()
+                Vec::new()
             } else {
                 text.lines()
                     .map(str::trim)
@@ -75,7 +70,7 @@ pub fn string_list_or_default(value: Option<Value>, defaults: &[&str]) -> Vec<St
                     .collect()
             }
         }
-        None => defaults.iter().map(|item| item.to_string()).collect(),
+        None => Vec::new(),
     }
 }
 
@@ -84,16 +79,11 @@ pub fn string_list_or_default(value: Option<Value>, defaults: &[&str]) -> Vec<St
 /// provide a value and the default placeholders were substituted.
 pub fn string_list_or_default_with_key(
     value: Option<Value>,
-    defaults: &[&str],
+    _defaults: &[&str],
     key: &str,
 ) -> (Vec<String>, Option<String>) {
-    let result = string_list_or_default(value, defaults);
-    let used_default = result.len() == defaults.len()
-        && result
-            .iter()
-            .zip(defaults.iter())
-            .all(|(a, b)| a == *b);
-    if used_default {
+    let result = string_list_or_default(value, &[]);
+    if result.is_empty() {
         (result, Some(key.to_string()))
     } else {
         (result, None)
@@ -228,7 +218,7 @@ fn parse_first_numeric_token(text: &str) -> Option<f64> {
 
         // Skip numbers followed by period/MA indicator characters
         // (e.g. "200日均线" where 200 is a period, not a price)
-        if idx < chars.len() && matches!(chars[idx], '日' | '天' | '周' | '月' | '年' | '均' | '线') {
+        if idx < chars.len() && matches!(chars[idx], '日' | '天' | '周' | '月' | '年' | '均' | '线' | 'd' | 'D' | 'w' | 'W' | 'm' | 'M' | 'y' | 'Y') {
             continue;
         }
 
@@ -284,16 +274,6 @@ fn normalize_inline_value(value: &Value) -> String {
 }
 
 pub(crate) fn is_default_text(value: &str) -> bool {
-    matches!(
-        value,
-        "模型未返回该角色摘要。"
-            | "模型未返回该角色详细分析。"
-            | "模型未返回该角色依据。"
-            | "模型未返回分析师动作原因。"
-            | "模型未返回辩论内容。"
-            | "模型未返回研究经理结论。"
-            | "模型未返回交易员计划。"
-            | "模型未返回组合经理决策。"
-    )
+    value.trim().is_empty()
 }
 

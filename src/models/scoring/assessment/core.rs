@@ -28,7 +28,7 @@ fn score_data_quality(
         score: score.clamp(0.0, DATA_QUALITY_MAX as f64) as i32,
         max_score: DATA_QUALITY_MAX,
         rationale: format!(
-            "核心分析台完成数={non_empty_core}/4，结构化分析台数={analyst_count}，成功工具调用={tool_successes}，失败工具调用={tool_failures}。"
+            "Core desks completed={non_empty_core}/4，Structured analyst desks={analyst_count}，Successful tool calls={tool_successes}，Failed tool calls={tool_failures}。"
         ).into(),
     }
 }
@@ -65,7 +65,7 @@ fn score_trend_confirmation(
         score: score.clamp(0.0, TREND_CONFIRMATION_MAX as f64) as i32,
         max_score: TREND_CONFIRMATION_MAX,
         rationale: format!(
-            "市场技术报告存在={}，证据点={}，价位/指标数值锚点={}，概率闭合质量={}。",
+            "Market technical report present={}，Evidence points={}，Price/indicator numeric anchors={}，Probability closure quality={}。",
             bool_text(!market_report.trim().is_empty()),
             evidence_points,
             numeric_levels,
@@ -101,7 +101,7 @@ fn score_fundamentals(
         score: score.clamp(0.0, FUNDAMENTAL_CONFIRMATION_MAX as f64) as i32,
         max_score: FUNDAMENTAL_CONFIRMATION_MAX,
         rationale: format!(
-            "基本面报告存在={}，证据点={}，数值锚点={}，概率闭合质量={}。",
+            "Fundamentals report present={}，Evidence points={}，Numeric anchors={}，Probability closure quality={}。",
             bool_text(!fundamentals_report.trim().is_empty()),
             evidence_points,
             numeric_levels,
@@ -140,7 +140,7 @@ fn score_catalyst_quality(
         score: score.clamp(0.0, CATALYST_QUALITY_MAX as f64) as i32,
         max_score: CATALYST_QUALITY_MAX,
         rationale: format!(
-            "新闻报告存在={}，证据点={}，后续跟踪项={}，日期/时间线锚点={}。",
+            "News report present={}，Evidence points={}，Follow-up items={}，Date/timeline anchors={}。",
             bool_text(!news_report.trim().is_empty()),
             evidence_points,
             next_steps,
@@ -183,7 +183,7 @@ fn score_historical_transferability(result: &AnalysisResult) -> ScoreDimension {
         score: score.clamp(0.0, HISTORICAL_TRANSFERABILITY_MAX as f64) as i32,
         max_score: HISTORICAL_TRANSFERABILITY_MAX,
         rationale: format!(
-            "setup 过滤启用={}，fallback 弱校准={}，setup 命中数={}，已验证命中={}，命中率={:.0}%，平均超额收益={:.1}%，同票样本={}，跨票样本={}。相似历史越充分且结果越稳健，当前结论越具可迁移性。",
+            "Setup filter enabled={}，Fallback weak calibration={}，Setup matches={}，Verified matches={}，Hit rate={:.0}%，Avg alpha return={:.1}%，Same-ticker samples={}，Cross-ticker samples={}。More similar history with robust results increases conclusion transferability.",
             bool_text(memory.used_setup_filtered_retrieval),
             bool_text(memory.used_setup_fallback_calibration),
             memory.setup_match_count,
@@ -225,13 +225,13 @@ pub fn score_setup_direction_alignment(result: &AnalysisResult) -> ScoreDimensio
         score,
         max_score: HISTORICAL_TRANSFERABILITY_MAX,
         rationale: format!(
-            "当前方向={}，相似 setup 已验证样本中偏多={}，偏空={}，中性={}。历史方向分布越与当前建议一致，迁移可信度越高。",
+            "Current direction={}，Bullish in verified setup samples={}，Bearish={}，Neutral={}。Historical direction distribution aligned with current recommendation increases transfer credibility.",
             if current_direction > 0 {
-                "多头"
+                "Bull"
             } else if current_direction < 0 {
-                "空头"
+                "Bear"
             } else {
-                "中性"
+                "Neutral"
             },
             memory.setup_long_match_count,
             memory.setup_short_match_count,
@@ -251,7 +251,7 @@ fn score_cross_agent_consistency(result: &AnalysisResult) -> ScoreDimension {
         return ScoreDimension {
             score: 6,
             max_score: CROSS_AGENT_CONSISTENCY_MAX,
-            rationale: "缺少结构化概率节点，只能给基础分。".into(),
+            rationale: "No structured probability nodes; assigning base score.".into(),
         };
     }
 
@@ -273,7 +273,7 @@ fn score_cross_agent_consistency(result: &AnalysisResult) -> ScoreDimension {
         score,
         max_score: CROSS_AGENT_CONSISTENCY_MAX,
         rationale: format!(
-            "偏多={}，偏空={}，中性={}，共识比={:.0}%，平均方向强度={:.2}。",
+            "Bullish={}，Bearish={}，Neutral={}，Consensus ratio={:.0}%，Avg direction strength={:.2}。",
             positive, negative, neutral, consensus_ratio * 100.0, avg_abs
         ).into(),
     }
@@ -322,7 +322,7 @@ fn score_risk_clarity(
         score: score.clamp(0.0, RISK_CLARITY_MAX as f64) as i32,
         max_score: RISK_CLARITY_MAX,
         rationale: format!(
-            "风险结论存在={}，风险辩论轮次={}，数值风控边界={}，执行边界完整={}。",
+            "Risk conclusion present={}，Risk debate rounds={}，Numeric risk boundaries={}，Execution boundary complete={}。",
             bool_text(
                 !research_plan.risk_assessment.trim().is_empty()
                     || !portfolio_decision.risk_assessment.trim().is_empty()

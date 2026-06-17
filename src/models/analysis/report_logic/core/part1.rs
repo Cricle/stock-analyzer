@@ -276,7 +276,7 @@ impl StructuredReport {
                 infer_target_condition(&portfolio_decision, execution_boundary_complete);
         }
         // Override trader_plan.position_sizing when blocking gaps exist.
-        // Without this, the "执行计划" section renders the LLM-generated sizing
+        // Without this, the "Execution Plan" section renders the LLM-generated sizing
         // (e.g. 2%) while the decision panel and action guides correctly show 0%.
         let has_blockers = !portfolio_decision.missing_evidence_ladder.blocking_gaps.is_empty()
             || !trader_plan.blocking_gaps.is_empty();
@@ -399,12 +399,12 @@ impl StructuredReport {
                     "decision.reward_risk_poor"
                 };
                 portfolio_decision.executive_summary = format!(
-                    "{} 系统计算盈亏比（当前→确认位）: {:.2}（{}），（当前→目标位）: {:.2}（{}），以代码计算值为准。",
+                    "{} Computed R:R (current→confirmation): {:.2} ({}), (current→target): {:.2} ({}). Use code-computed values as authoritative.",
                     portfolio_decision.executive_summary.key, crr, crr_label, rr, rr_label
                 ).into();
             } else {
                 portfolio_decision.executive_summary = format!(
-                    "{} 系统计算盈亏比: {:.2}（{}），以代码计算值为准。",
+                    "{} Computed R:R: {:.2} ({}). Use code-computed values as authoritative.",
                     portfolio_decision.executive_summary.key, rr, rr_label
                 ).into();
             }
@@ -482,17 +482,17 @@ impl StructuredReport {
             ),
             (
                 "risk_debate",
-                "风险辩论",
+                "Risk Debate",
                 result.agent_state.risk_debate_state.history.as_str(),
             ),
             (
                 "portfolio_decision",
-                "综合结论",
+                "Overall Conclusion",
                 result.agent_state.final_trade_decision.as_str(),
             ),
             (
                 "reflection",
-                "复盘反思",
+                "Review Reflection",
                 result.graph.reflection.reflection.as_str(),
             ),
         ]
@@ -513,7 +513,7 @@ impl StructuredReport {
             1,
             ReportSection {
                 key: "audience_guides".to_string(),
-                title: "分场景行动建议".to_string(),
+                title: "Scenario-based Action Guidance".to_string(),
                 content: render_action_guides_markdown(&action_guides),
             },
         );

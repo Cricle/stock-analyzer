@@ -49,7 +49,7 @@ impl AnthropicResponse {
 
 impl LlmClient {
     pub(crate) async fn generate_with_anthropic(&self, prompt: &str) -> anyhow::Result<String> {
-        const MAX_ATTEMPTS: usize = 6;
+        const MAX_ATTEMPTS: usize = 10;
         let mut attempt = 0usize;
         let backoff = llm_retry_backoff();
 
@@ -166,8 +166,8 @@ pub(super) fn llm_retry_backoff() -> backoff::ExponentialBackoff {
         .with_initial_interval(std::time::Duration::from_millis(750))
         .with_multiplier(2.0)
         .with_randomization_factor(0.15)
-        .with_max_interval(std::time::Duration::from_secs(8))
-        .with_max_elapsed_time(Some(std::time::Duration::from_secs(120)))
+        .with_max_interval(std::time::Duration::from_secs(30))
+        .with_max_elapsed_time(Some(std::time::Duration::from_secs(300)))
         .build()
 }
 

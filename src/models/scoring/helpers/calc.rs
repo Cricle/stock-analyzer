@@ -37,14 +37,20 @@ fn matches_semantic_alias(candidate: &str, key: &str, title: &str, agent: &str) 
     }
     match candidate {
         "market" => {
-            title.contains("市场") || title.contains("技术")
+            let t = title.to_lowercase();
+            t.contains("market") || t.contains("technical") || t.contains("technical") || t.contains("market")
         }
         "fundamentals" | "fundamental" => {
-            title.contains("基本面")
+            let t = title.to_lowercase();
+            t.contains("fundamental") || t.contains("fundamental")
         }
-        "news" => title.contains("新闻"),
+        "news" => {
+            let t = title.to_lowercase();
+            t.contains("news") || t.contains("news")
+        }
         "sentiment" => {
-            title.contains("情绪") || title.contains("资金")
+            let t = title.to_lowercase();
+            t.contains("sentiment") || t.contains("capital flow") || t.contains("sentiment") || t.contains("capital")
         }
         _ => false,
     }

@@ -57,13 +57,9 @@ impl MarketKind {
         }
     }
 
-    /// Chinese display label: "A股", "港股", "美股".
+    /// Market label: language-neutral English identifier.
     pub fn label(&self) -> &'static str {
-        match self {
-            Self::AShare => "A股",
-            Self::HongKong => "港股",
-            Self::UsEquity => "美股",
-        }
+        self.display_label()
     }
 
     /// English display label: "A-share", "HK", "US".

@@ -105,14 +105,7 @@ impl GeneratedPortfolioDecision {
             .as_ref()
             .map(GeneratedReflection::rendered)
             .filter(|value| !value.trim().is_empty())
-            .unwrap_or_else(|| {
-                serde_json::json!({
-                    "strongest_part": "Final decision was generated from the portfolio manager evidence packet.",
-                    "weakest_uncertainty_or_missing_evidence": "No separate reflection was provided by the model.",
-                    "next_lesson_for_next_run": "Keep the next run focused on the highest-impact missing confirmation."
-                })
-                .to_string()
-            })
+            .unwrap_or_default()
     }
 
     pub(crate) fn from_value(raw: Value) -> Self {
@@ -128,12 +121,12 @@ impl GeneratedPortfolioDecision {
                 field("executive_summary").as_ref(),
                 field("summary").as_ref(),
             ],
-            "模型未返回组合经理执行摘要。",
+            "",
             "llm.fallback.no_executive_summary",
         );
         let (investment_thesis, investment_thesis_key) = parse::text_or_default_with_key(
             field("investment_thesis").or_else(|| field("portfolio_decision")),
-            "模型未返回组合经理投资逻辑。",
+            "",
             "llm.fallback.no_investment_logic",
         );
         let (rationale, rationale_key) = parse::text_or_default_with_key(
@@ -143,7 +136,7 @@ impl GeneratedPortfolioDecision {
         );
         let (risk_assessment, risk_assessment_key) = parse::text_or_default_with_key(
             risk_assessment_raw.clone(),
-            "模型未返回风险评估。",
+            "",
             "llm.fallback.no_risk_assessment",
         );
         let trigger_checklist = parse::string_list_or_default(field("trigger_checklist"), &[]);

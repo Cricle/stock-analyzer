@@ -99,6 +99,9 @@ pub struct SectorHighlight {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub direction_key: Option<String>,
     pub key_driver: String,
+    /// Average price change percentage for stocks in this sector.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub change_pct: Option<f64>,
     pub representative_stocks: Vec<String>,
 }
 

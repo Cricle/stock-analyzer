@@ -91,12 +91,8 @@ fn score_pick_data_completeness(pick: &StockPickItem, item: &EnrichedCandidate) 
         score += 3;
         covered.push("shares_outstanding");
     }
-    if item
-        .fundamentals
-        .as_ref()
-        .and_then(|value| value.industry.as_ref())
-        .is_some_and(|value| !value.trim().is_empty() && value != "Unknown")
-    {
+    // Use item.industry (includes enrichment fallback) instead of fundamentals.industry
+    if !item.industry.trim().is_empty() && item.industry != "Unknown" {
         score += 3;
         covered.push("industry");
     }
@@ -142,9 +138,15 @@ fn score_pick_data_completeness(pick: &StockPickItem, item: &EnrichedCandidate) 
         score += 1;
         covered.push("dividend");
     }
+    // Adjust max_score for non-A-share markets where fund_flow, chip, analyst, dividend
+    // enrichment data is typically unavailable
+    let is_a_share = item.market == "A-share";
+    let market_specific_fields = if is_a_share { 4 } else { 0 }; // fund_flow, analyst, chip, dividend
+    let max_score = 33 - 4 + market_specific_fields; // 29 for HK/US, 33 for A-share
+
     ScoreDimension {
         score,
-        max_score: 33,
+        max_score,
         rationale: LocalText::new("pick_data_completeness_rationale")
             .with_str("covered_fields", covered.join(", ")),
     }

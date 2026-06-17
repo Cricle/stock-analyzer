@@ -24,11 +24,11 @@ fn derive_catalyst_score_card(
         .any(|n| n.impact_strength.as_str() == "strong" || n.impact_strength.as_str() == "significant" || n.impact_strength.as_str() == "medium");
 
     items.push(CatalystScoreItem {
-        question: "近期是否存在明确的利好催化剂？".into(),
+        question: LocalText::new("catalyst.bullish_catalyst_exists"),
         score: if has_bullish_news { 1 } else { 0 },
         evidence: if has_bullish_news {
             format!(
-                "发现 {} 条利好新闻",
+                "{} bullish news items found:",
                 news_insights
                     .iter()
                     .filter(|n| n.impact_direction.as_str() == "bullish"
@@ -36,37 +36,37 @@ fn derive_catalyst_score_card(
                     .count()
             ).into()
         } else {
-            "未发现明确利好催化剂".into()
+            LocalText::new("catalyst.no_bullish_catalyst")
         },
     });
 
     items.push(CatalystScoreItem {
-        question: "催化剂是否具备足够强度驱动价格重估？".into(),
+        question: LocalText::new("catalyst.sufficient_strength"),
         score: if has_strong_news { 1 } else { 0 },
         evidence: if has_strong_news {
-            "存在强影响力催化剂".into()
+            LocalText::new("catalyst.strong_catalyst_exists")
         } else {
-            "催化剂强度不足或尚需验证".into()
+            LocalText::new("catalyst.strength_insufficient")
         },
     });
 
     // Score trigger checklist readiness
     let trigger_count = portfolio_decision.trigger_checklist.len();
     items.push(CatalystScoreItem {
-        question: "升级触发条件是否已明确列出？".into(),
+        question: LocalText::new("catalyst.triggers_listed"),
         score: if trigger_count >= 2 { 1 } else { 0 },
-        evidence: format!("已列出 {} 条触发条件", trigger_count).into(),
+        evidence: format!("Listed {} trigger conditions", trigger_count).into(),
     });
 
     // Score confirmation level
     let has_confirmation = !decision_view.confirmation_level.trim().is_empty();
     items.push(CatalystScoreItem {
-        question: "是否存在明确的价格确认位？".into(),
+        question: LocalText::new("catalyst.confirmation_level_exists"),
         score: if has_confirmation { 1 } else { 0 },
         evidence: if has_confirmation {
-            format!("确认位: {}", decision_view.confirmation_level).into()
+            format!("Confirmation: {}", decision_view.confirmation_level).into()
         } else {
-            "未设定明确确认位".into()
+            LocalText::new("catalyst.no_confirmation_level")
         },
     });
 
@@ -76,22 +76,22 @@ fn derive_catalyst_score_card(
         .blocking_gaps
         .len();
     items.push(CatalystScoreItem {
-        question: "是否存在决策阻断缺口？".into(),
+        question: LocalText::new("catalyst.blocking_gaps_exist"),
         score: if blocking_gap_count == 0 { 1 } else { 0 },
         evidence: if blocking_gap_count == 0 {
-            "无决策阻断缺口".into()
+            LocalText::new("catalyst.no_blocking_gaps")
         } else {
-            format!("存在 {} 个决策阻断缺口", blocking_gap_count).into()
+            LocalText::new("catalyst.blocking_gaps_count").with_i32("count", blocking_gap_count as i32)
         },
     });
 
     // Score bearish news as negative catalyst
     items.push(CatalystScoreItem {
-        question: "近期是否存在明确的利空催化剂？".into(),
+        question: LocalText::new("catalyst.bearish_catalyst_exists"),
         score: if has_bearish_news { 0 } else { 1 },
         evidence: if has_bearish_news {
             format!(
-                "发现 {} 条利空新闻",
+                "{} bearish news items found:",
                 news_insights
                     .iter()
                     .filter(|n| n.impact_direction.as_str() == "bearish"
@@ -100,7 +100,7 @@ fn derive_catalyst_score_card(
                     .count()
             ).into()
         } else {
-            "未发现明确利空催化剂".into()
+            LocalText::new("catalyst.no_bearish_catalyst")
         },
     });
 
@@ -109,26 +109,26 @@ fn derive_catalyst_score_card(
 
     let (event_name, interpretation, recommended_action) = if news_insights.is_empty() {
         (
-            "待观察".into(),
-            "暂无明确催化剂事件，需持续跟踪新闻和基本面变化。".into(),
-            "保持观察，等待催化剂出现后再评估升级条件。".into(),
+            "pending".to_string(),
+            LocalText::new("catalyst.no_event_interpretation"),
+            LocalText::new("catalyst.no_event_action"),
         )
     } else {
         let event_name = news_insights
             .first()
             .map(|n| n.title.chars().take(20).collect::<String>())
-            .unwrap_or_else(|| "近期事件".to_string());
+            .unwrap_or_else(|| "recent_event".to_string());
         let interpretation = match total_score {
-            5..=6 => "积极 — 催化剂条件较为完备，可关注确认信号。",
-            3..=4 => "中性 — 部分催化剂条件满足，仍需验证。",
-            _ => "谨慎 — 催化剂条件不足或存在明显利空，建议等待更多证据。",
+            5..=6 => LocalText::new("catalyst.interpretation_positive"),
+            3..=4 => LocalText::new("catalyst.interpretation_neutral"),
+            _ => LocalText::new("catalyst.interpretation_cautious"),
         };
         let recommended_action = match total_score {
-            5..=6 => "关注价格是否触及确认位，满足条件后可考虑升级。",
-            3..=4 => "继续跟踪催化剂发展，等待更多验证信号。",
-            _ => "保持观望，等待催化剂条件改善。",
+            5..=6 => LocalText::new("catalyst.action_positive"),
+            3..=4 => LocalText::new("catalyst.action_neutral"),
+            _ => LocalText::new("catalyst.action_cautious"),
         };
-        (event_name, interpretation.into(), recommended_action.into())
+        (event_name, interpretation, recommended_action)
     };
 
     CatalystScoreCard {

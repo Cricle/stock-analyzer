@@ -179,3 +179,58 @@ mod tests {
         assert_eq!(c.data, c2.data);
     }
 }
+
+/// Persisted recommendation with scoring breakdown.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PersistedRecommendation {
+    pub symbol: String,
+    pub name: String,
+    pub market: String,
+    pub analysis_date: String,
+    pub total_score: u8,
+    pub technical_score: u8,
+    pub fundamental_score: u8,
+    pub sentiment_score: u8,
+    pub llm_analysis_score: u8,
+    pub technical_reason: String,
+    pub fundamental_reason: String,
+    pub sentiment_reason: String,
+    pub llm_analysis_reason: String,
+    pub scored_at: String,
+    #[serde(default)]
+    pub price: Option<f64>,
+    #[serde(default)]
+    pub change_pct: Option<f64>,
+    #[serde(default)]
+    pub market_cap: Option<f64>,
+    #[serde(default)]
+    pub thesis: String,
+    #[serde(default)]
+    pub catalysts: Vec<String>,
+    #[serde(default)]
+    pub risks: Vec<String>,
+}
+
+/// Storage for stock-pick recommendation history.
+#[async_trait]
+pub trait RecommendationStore: Send + Sync {
+    /// Persist a scored recommendation.
+    async fn save_recommendation(&self, rec: &PersistedRecommendation) -> anyhow::Result<()>;
+
+    /// Load all recommendations for a given symbol, newest first.
+    async fn get_recommendations(&self, symbol: &str) -> anyhow::Result<Vec<PersistedRecommendation>>;
+
+    /// Load the latest N recommendations across all symbols, newest first.
+    async fn get_latest(&self, limit: usize) -> anyhow::Result<Vec<PersistedRecommendation>>;
+
+    /// Load the latest recommendation for a specific symbol.
+    async fn get_latest_for_symbol(&self, symbol: &str) -> anyhow::Result<Option<PersistedRecommendation>> {
+        Ok(self.get_recommendations(symbol).await?.into_iter().next())
+    }
+
+    /// Load the latest stock pick summary (top picks) for a market.
+    async fn get_latest_stock_pick_summary(&self, market: &str) -> anyhow::Result<Option<serde_json::Value>>;
+
+    /// Delete all recommendations for a given symbol.
+    async fn delete_recommendations(&self, symbol: &str) -> anyhow::Result<()>;
+}

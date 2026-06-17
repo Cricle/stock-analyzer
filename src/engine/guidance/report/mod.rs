@@ -195,7 +195,8 @@ impl DailyGuidanceGenerator {
         let market_indices = self.fetch_market_indices(&market).await;
 
         // 5. Derive sector highlights from news
-        let sector_highlights = self.extract_sector_highlights(&news_items);
+        let mut sector_highlights = self.extract_sector_highlights(&news_items);
+        self.enrich_sector_highlights_with_quotes(&mut sector_highlights).await;
 
         // 6. Generate risk alerts
         let risk_alerts = self.generate_risk_alerts(&news_items, &market_sentiment, &market, &market_indices);

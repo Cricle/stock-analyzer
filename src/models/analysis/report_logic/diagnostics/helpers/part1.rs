@@ -112,7 +112,7 @@ fn derive_scenario_minimum_diagnostics(result: &AnalysisResult) -> Vec<ReportDia
                 diagnostics.push(ReportDiagnosticItem {
                     code: "scenario_minimum_hk_fundamentals_soft_gap".to_string(),
                     severity: "warning".to_string(),
-                    message: "港股基础分析缺少基本面快照，当前更偏事件和价格驱动判断。".into(),
+                    message: "HK basic analysis lacks fundamentals snapshot; assessment is event and price driven.".into(),
                     details: vec![
                         "market=hk_equity".to_string(),
                         "missing=fundamentals".to_string(),
@@ -134,7 +134,7 @@ fn derive_scenario_minimum_diagnostics(result: &AnalysisResult) -> Vec<ReportDia
                 diagnostics.push(ReportDiagnosticItem {
                     code: "scenario_minimum_unknown_news_gap".to_string(),
                     severity: "warning".to_string(),
-                    message: "当前市场类型未明确，且公司级新闻证据不足。".into(),
+                    message: "Market type unclear and company-level news evidence insufficient.".into(),
                     details: vec!["market=unknown".to_string()],
                 ..Default::default()
                 });
@@ -193,7 +193,7 @@ fn collect_tool_meta_details(analyst_key: &str, observation: &ToolObservation) -
     {
         details.push(format!("fallback_kind={fallback_kind}"));
         if fallback_kind == "hkex_recent_high_value" {
-            details.push("近窗无港股公司公告，已回补最近高价值HKEX公司公告".to_string());
+            details.push("No recent HK company announcements; backfilled with latest high-value HKEX announcements".to_string());
         }
     }
     if let Some(scope) = observation.meta.get("scope").and_then(|value| value.as_str()) {
@@ -267,7 +267,7 @@ fn extract_price_like_numbers(text: &str) -> Vec<f64> {
             let end = m.end();
             if end < text.len() {
                 let next = text[end..].chars().next().unwrap_or('\0');
-                if matches!(next, '日' | '天' | '周' | '月' | '年' | '均' | '线') {
+                if matches!(next, '日' | '天' | '周' | '月' | '年' | '均' | '线' | 'd' | 'D' | 'w' | 'W' | 'm' | 'M' | 'y' | 'Y') {
                     return None;
                 }
             }

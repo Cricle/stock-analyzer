@@ -1,9 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 /// Stored recommendation for performance tracking.
-///
-/// TODO: Previously from sa_storage::pg::scoring. Needs to be reconciled with
-/// the actual storage layer when it's implemented.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredRecommendation {
     pub id: String,
@@ -89,6 +86,146 @@ pub fn compute_performance_report(
         avg_return,
         max_drawdown,
         score_vs_return,
+    }
+}
+
+
+/// Trait for persisting scoring history and price snapshots.
+#[async_trait::async_trait]
+pub trait ScoringHistoryStore: Send + Sync {
+    /// Save a recommendation.
+    async fn save_recommendation(&self, rec: &StoredRecommendation) -> anyhow::Result<()>;
+
+    /// Get all recommendations for a symbol.
+    async fn get_recommendations(&self, symbol: &str) -> anyhow::Result<Vec<StoredRecommendation>>;
+
+    /// Save a price snapshot for a recommendation.
+    async fn save_snapshot(&self, snapshot: &PriceSnapshot) -> anyhow::Result<()>;
+
+    /// Get all snapshots for a recommendation.
+    async fn get_snapshots(&self, recommendation_id: &str) -> anyhow::Result<Vec<PriceSnapshot>>;
+
+    /// Get all recommendations (for performance report).
+    async fn get_all_recommendations(&self) -> anyhow::Result<Vec<StoredRecommendation>>;
+
+    /// Get all snapshots (for performance report).
+    async fn get_all_snapshots(&self) -> anyhow::Result<Vec<PriceSnapshot>>;
+}
+
+/// Filesystem-backed scoring history store.
+///
+/// Layout:
+/// ```text
+/// {base_dir}/scoring_history/recommendations/{id}.json
+/// {base_dir}/scoring_history/snapshots/{id}.json
+/// ```
+pub struct FilesystemScoringHistoryStore {
+    base_dir: std::path::PathBuf,
+}
+
+impl FilesystemScoringHistoryStore {
+    pub fn new(base_dir: impl Into<std::path::PathBuf>) -> Self {
+        Self { base_dir: base_dir.into() }
+    }
+
+    fn rec_dir(&self) -> std::path::PathBuf {
+        self.base_dir.join("scoring_history").join("recommendations")
+    }
+
+    fn snap_dir(&self) -> std::path::PathBuf {
+        self.base_dir.join("scoring_history").join("snapshots")
+    }
+}
+
+#[async_trait::async_trait]
+impl ScoringHistoryStore for FilesystemScoringHistoryStore {
+    async fn save_recommendation(&self, rec: &StoredRecommendation) -> anyhow::Result<()> {
+        let dir = self.rec_dir();
+        tokio::fs::create_dir_all(&dir).await?;
+        let path = dir.join(format!("{}.json", rec.id));
+        let data = serde_json::to_vec_pretty(rec)?;
+        tokio::fs::write(&path, data).await?;
+        Ok(())
+    }
+
+    async fn get_recommendations(&self, symbol: &str) -> anyhow::Result<Vec<StoredRecommendation>> {
+        let dir = self.rec_dir();
+        if !dir.exists() { return Ok(Vec::new()); }
+        let mut results = Vec::new();
+        let mut entries = tokio::fs::read_dir(&dir).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let path = entry.path();
+            if path.extension().is_some_and(|ext| ext == "json")
+                && let Ok(data) = tokio::fs::read(&path).await
+                && let Ok(rec) = serde_json::from_slice::<StoredRecommendation>(&data)
+                && rec.symbol.eq_ignore_ascii_case(symbol)
+            {
+                results.push(rec);
+            }
+        }
+        results.sort_by(|a, b| b.recommended_at.cmp(&a.recommended_at));
+        Ok(results)
+    }
+
+    async fn save_snapshot(&self, snapshot: &PriceSnapshot) -> anyhow::Result<()> {
+        let dir = self.snap_dir();
+        tokio::fs::create_dir_all(&dir).await?;
+        let path = dir.join(format!("{}.json", snapshot.id));
+        let data = serde_json::to_vec_pretty(snapshot)?;
+        tokio::fs::write(&path, data).await?;
+        Ok(())
+    }
+
+    async fn get_snapshots(&self, recommendation_id: &str) -> anyhow::Result<Vec<PriceSnapshot>> {
+        let dir = self.snap_dir();
+        if !dir.exists() { return Ok(Vec::new()); }
+        let mut results = Vec::new();
+        let mut entries = tokio::fs::read_dir(&dir).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let path = entry.path();
+            if path.extension().is_some_and(|ext| ext == "json")
+                && let Ok(data) = tokio::fs::read(&path).await
+                && let Ok(snap) = serde_json::from_slice::<PriceSnapshot>(&data)
+                && snap.recommendation_id == recommendation_id
+            {
+                results.push(snap);
+            }
+        }
+        Ok(results)
+    }
+
+    async fn get_all_recommendations(&self) -> anyhow::Result<Vec<StoredRecommendation>> {
+        let dir = self.rec_dir();
+        if !dir.exists() { return Ok(Vec::new()); }
+        let mut results = Vec::new();
+        let mut entries = tokio::fs::read_dir(&dir).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let path = entry.path();
+            if path.extension().is_some_and(|ext| ext == "json")
+                && let Ok(data) = tokio::fs::read(&path).await
+                && let Ok(rec) = serde_json::from_slice::<StoredRecommendation>(&data)
+            {
+                results.push(rec);
+            }
+        }
+        Ok(results)
+    }
+
+    async fn get_all_snapshots(&self) -> anyhow::Result<Vec<PriceSnapshot>> {
+        let dir = self.snap_dir();
+        if !dir.exists() { return Ok(Vec::new()); }
+        let mut results = Vec::new();
+        let mut entries = tokio::fs::read_dir(&dir).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let path = entry.path();
+            if path.extension().is_some_and(|ext| ext == "json")
+                && let Ok(data) = tokio::fs::read(&path).await
+                && let Ok(snap) = serde_json::from_slice::<PriceSnapshot>(&data)
+            {
+                results.push(snap);
+            }
+        }
+        Ok(results)
     }
 }
 

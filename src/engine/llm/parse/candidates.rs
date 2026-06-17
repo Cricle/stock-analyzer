@@ -42,7 +42,7 @@ fn parse_generated_debate_turn_lenient_candidate(content: &str) -> Option<Genera
     let (response, response_key) = match response_raw {
         Some(r) => (r, None),
         None => (
-            "模型未返回辩论内容。".to_string(),
+            String::new(),
             Some("llm.fallback.no_debate".to_string()),
         ),
     };
@@ -53,12 +53,10 @@ fn parse_generated_debate_turn_lenient_candidate(content: &str) -> Option<Genera
         extract_json_value_before_known_field(content, "evidence_points", &["risks"]);
     let (evidence_points, evidence_points_key) = match evidence_points_raw {
         Some(value) => {
-            let list = string_list_or_default(Some(value), &["缺少结构化证据条目"]);
-            let is_default =
-                list.len() == 1 && list[0] == "缺少结构化证据条目";
+            let list = string_list_or_default(Some(value), &[]);
             (
-                list,
-                if is_default {
+                list.clone(),
+                if list.is_empty() {
                     Some("llm.fallback.no_evidence".to_string())
                 } else {
                     None
@@ -66,19 +64,17 @@ fn parse_generated_debate_turn_lenient_candidate(content: &str) -> Option<Genera
             )
         }
         None => (
-            vec!["缺少结构化证据条目".to_string()],
+            Vec::new(),
             Some("llm.fallback.no_evidence".to_string()),
         ),
     };
     let risks_raw = extract_json_value_before_known_field(content, "risks", &[]);
     let (risks, risks_key) = match risks_raw {
         Some(value) => {
-            let list = string_list_or_default(Some(value), &["需关注核心假设失效"]);
-            let is_default =
-                list.len() == 1 && list[0] == "需关注核心假设失效";
+            let list = string_list_or_default(Some(value), &[]);
             (
-                list,
-                if is_default {
+                list.clone(),
+                if list.is_empty() {
                     Some("llm.fallback.no_risk".to_string())
                 } else {
                     None
@@ -86,7 +82,7 @@ fn parse_generated_debate_turn_lenient_candidate(content: &str) -> Option<Genera
             )
         }
         None => (
-            vec!["需关注核心假设失效".to_string()],
+            Vec::new(),
             Some("llm.fallback.no_risk".to_string()),
         ),
     };

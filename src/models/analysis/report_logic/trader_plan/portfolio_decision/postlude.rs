@@ -57,29 +57,29 @@ impl StructuredPortfolioDecision {
         let execution_state = describe_execution_state(&decision_view.execution_state);
         let research_call = describe_core_research_call(core_research_call);
         let mut parts = vec![format!(
-            "当前核心研究结论为 {research_call}，执行状态是{execution_state}，当前可执行把握为 {confidence_score}/100，下一步动作是{action_label}。当前更重要的不是重复证明长期逻辑，而是确认市场是否会把主路径真正走出来。"
+            "Core research call: {research_call}, execution: {execution_state}, confidence: {confidence_score}/100, next action: {action_label}. Priority is confirming whether the market follows the primary path."
         )];
         if conditional_bullish || matches!(core_research_call, CoreResearchCall::BuyOnConfirmation) {
             parts[0] = if matches!(decision_view.action, DecisionAction::ProbePosition) {
                 format!(
-                    "当前核心研究结论仍是条件确认后偏多，执行状态仍是条件待确认。当前可执行把握为 {confidence_score}/100，下一步动作是{action_label}，重点是先围绕确认线小仓试探并严格控风险，而不是直接追价或放大暴露。"
+                    "Research call remains buy-on-confirmation, execution still conditional. Confidence: {confidence_score}/100, next: {action_label}. Focus on small probes near confirmation with strict risk control."
                 )
             } else {
                 format!(
-                    "当前核心研究结论仍是条件确认后偏多，执行状态仍是条件待确认。当前可执行把握为 {confidence_score}/100，下一步动作是{action_label}，重点是等市场把主路径走成，而不是提前追价。"
+                    "Research call remains buy-on-confirmation, execution still conditional. Confidence: {confidence_score}/100, next: {action_label}. Wait for the market to confirm the primary path."
                 )
             };
         } else if conditional_bearish || matches!(core_research_call, CoreResearchCall::SellOnBreak) {
             parts[0] = format!(
-                "当前核心研究结论已转为破位转空，执行状态仍是条件待确认。当前可执行把握为 {confidence_score}/100，下一步动作是{action_label}，重点是等待破位或风险证据真正完成，而不是过早放大防守动作。"
+                "Research call shifted to sell-on-break, execution still conditional. Confidence: {confidence_score}/100, next: {action_label}. Wait for breakdown or risk evidence to complete."
             );
         }
         parts.push(format!(
-            "当前组合执行评级仍为 {rating}，这反映的是仓位纪律，而不是方向回到中性。"
+            "Portfolio execution rating remains {rating}, reflecting position discipline, not a return to neutral direction."
         ));
         if has_override {
             parts.push(
-                "原始组合经理结论更激进，但在证据尚未完成闭环前，最终输出选择了更强的执行纪律。"
+                "Portfolio manager conclusion was more aggressive, but final output chose stronger execution discipline before evidence closure."
                     .to_string(),
             );
         }
@@ -88,7 +88,7 @@ impl StructuredPortfolioDecision {
             .filter(|level| is_publishable_summary_reference(level))
         {
             parts.push(format!(
-                "当前最值得盯住的确认位在 {}。",
+                "Key confirmation level to watch: {}.",
                 normalize_reference_phrase(level)
             ));
         }
@@ -97,24 +97,24 @@ impl StructuredPortfolioDecision {
             .map(|item| normalize_level_phrase(item))
             .filter(|level| is_publishable_summary_reference(level))
         {
-            parts.push(format!("若出现 {level}，当前主张需要下修。"));
+            parts.push(format!("If {level} is reached, current thesis needs downward revision."));
         }
         if let Some(target) = target
             .as_ref()
             .filter(|target| is_publishable_summary_reference(target))
         {
             parts.push(format!(
-                "目标参考先看 {}。",
+                "Target reference: {}.",
                 normalize_reference_phrase(target)
             ));
         }
         if let Some(thesis) = thesis.as_ref() {
-            parts.push(format!("核心判断：{thesis}"));
+            parts.push(format!("Core thesis: {thesis}"));
         }
         if let Some(risk) =
             risk.filter(|item| !is_semantically_similar(Some(item), thesis.as_ref()))
         {
-            parts.push(format!("主要风险：{risk}"));
+            parts.push(format!("Key risk: {risk}"));
         }
         parts.join(" ")
     }
@@ -134,13 +134,13 @@ impl StructuredPortfolioDecision {
         let raw_anchor = self.raw_directional_anchor();
         let support = if self.has_authoritative_override(trader_plan) {
             if raw_anchor.is_some_and(|value| Rating::parse(value).is_bullish()) {
-                "方向层面并没有转空：研究证据仍然偏正面，但当前更适合等待更清晰的确认，而不是直接扩大风险暴露。"
+                "Direction has not turned bearish: research evidence still positive, but better to wait for clearer confirmation before expanding risk exposure."
                     .to_string()
             } else if raw_anchor.is_some_and(|value| Rating::parse(value).is_bearish()) {
-                "方向层面并没有重新转多：研究证据仍然偏防守，但当前更适合等待更清晰的破位或风险确认。"
+                "Direction has not turned bullish: research evidence still defensive, but better to wait for clearer breakdown or risk confirmation."
                     .to_string()
             } else {
-                "方向证据仍然偏正面，但当前更适合等待更清晰的确认，而不是直接扩大风险暴露。"
+                "Directional evidence still positive, but better to wait for clearer confirmation before expanding risk exposure."
                     .to_string()
             }
         } else {
@@ -150,15 +150,15 @@ impl StructuredPortfolioDecision {
                 self.executive_summary.as_str(),
             ])
             .unwrap_or_else(|| {
-                "方向证据仍然偏正面，但当前更适合等待更清晰的确认，而不是直接扩大风险暴露。"
+                "Directional evidence still positive, but better to wait for clearer confirmation before expanding risk exposure."
                     .to_string()
             })
         };
         let support = strip_redundant_prefix(
             &support,
             &[
-                "方向层面并没有转空：",
-                "方向层面并没有重新转多：",
+                "Direction has not turned bearish: ",
+                "Direction has not turned bullish again: ",
                 &format!("Final stance: {rating}. Execution action: {action}."),
                 &format!(
                     "The calibrated portfolio stance stays at {rating} with execution set to {action}."
@@ -167,22 +167,22 @@ impl StructuredPortfolioDecision {
         );
         let opening = if raw_anchor.is_some_and(|value| Rating::parse(value).is_bullish()) {
             format!(
-                "方向层面并没有转空：当前组合结论维持 {rating}，执行动作保持 {action}，并不代表资产质量转弱，而是说明在当前 {confidence_score}/100 的可执行把握下，证据更支持先选定主路径，再等待市场给出足够清晰的完成式确认。"
+                "Direction has not turned bearish: maintaining {rating} with action {action} does not mean asset quality has weakened. At {confidence_score}/100 confidence, evidence supports selecting a primary path and waiting for clear market confirmation."
             )
         } else if raw_anchor.is_some_and(|value| Rating::parse(value).is_bearish()) {
             format!(
-                "方向层面并没有重新转多：当前组合结论维持 {rating}，执行动作保持 {action}，并不代表风险已经解除，而是说明在当前 {confidence_score}/100 的可执行把握下，证据更支持先守住防守框架，再等待更清晰的破位或风险确认。"
+                "Direction has not turned bullish again: maintaining {rating} with action {action} does not mean risk has been resolved. At {confidence_score}/100 confidence, evidence supports holding the defensive framework and waiting for clearer breakdown or risk confirmation."
             )
         } else {
             format!(
-                "当前维持 {rating}，执行动作保持 {action}，并不代表资产质量转弱，而是说明在当前 {confidence_score}/100 的可执行把握下，证据更支持先选定主路径，再等待市场给出足够清晰的完成式确认。"
+                "Maintaining {rating} with action {action} does not mean asset quality has weakened. At {confidence_score}/100 confidence, evidence supports selecting a primary path and waiting for clear market confirmation."
             )
         };
         format!(
-            "{opening} {} 支撑背景：{support}",
+            "{opening} {} Support context: {support}",
             confirmation
-                .map(|level| format!("如果后续价格能有效处理 {level} 这一确认位，结论才有资格升级。"))
-                .unwrap_or_else(|| "当前仍缺少一个足够可信的价格确认位，因此不宜把研究判断直接升级成仓位判断。".to_string())
+                .map(|level| format!("If price can convincingly handle the {level} confirmation level, the conclusion may be upgraded."))
+                .unwrap_or_else(|| "No sufficiently credible price confirmation level yet; research judgment should not be directly upgraded to position judgment.".to_string())
         )
     }
 
@@ -201,12 +201,12 @@ impl StructuredPortfolioDecision {
         let calibration_reason = strip_redundant_prefix(
             calibration_reason,
             &[
-                &format!("最终建议收敛为 {rating}"),
-                &format!("最终动作收敛为 {action}"),
+                &format!("Final recommendation converged to {rating}"),
+                &format!("Final action converged to {action}"),
             ],
         );
         format!(
-            "本次维持 {rating}，并把执行动作留在 {action}，重点不是回避判断，而是承认当前 {confidence_score}/100 的可执行把握还不足以支持更激进的动作。更合理的做法仍是明确当前主路径，并等待更清晰的完成式确认。{calibration_reason}"
+            "Maintaining {rating} with action {action}. This is not about avoiding judgment, but acknowledging that {confidence_score}/100 confidence is insufficient for more aggressive action. The rational approach is to define the primary path and wait for clearer confirmation. {calibration_reason}"
         )
     }
 

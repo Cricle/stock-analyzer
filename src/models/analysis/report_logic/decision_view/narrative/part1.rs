@@ -87,7 +87,7 @@ fn derive_reliability_appendix_summary(
     memory_context: &MemoryContextSnapshot,
 ) -> String {
     format!(
-        "研究可靠度={} / {}；历史已验证 setup={}，待验证 setup={}，命中率约 {:.0}%。",
+        "Research reliability={}/{}; validated setups={}, pending={}, hit rate ~{:.0}%",
         research_reliability.score,
         research_reliability.max_score,
         memory_context.setup_resolved_match_count,
@@ -160,13 +160,13 @@ fn build_decision_risk_line(portfolio_decision: &StructuredPortfolioDecision) ->
 fn normalize_level_phrase(value: &str) -> String {
     let mut normalized = value.trim().trim_matches('。').trim().to_string();
     for prefix in [
-        "价格有效突破并站稳",
-        "价格有效处理并站稳",
-        "价格有效站稳",
-        "若失守",
-        "失守",
-        "有效跌破",
-        "跌破",
+        "price breakout and hold above",
+        "price consolidation and hold above",
+        "price holds above",
+        "if lost",
+        "lost",
+        "breakdown below",
+        "breakdown",
     ] {
         if normalized.starts_with(prefix) {
             normalized = normalized[prefix.len()..].trim().to_string();
@@ -180,15 +180,14 @@ fn normalize_trigger_phrase(value: &str) -> String {
     let normalized = value
         .trim()
         .trim_matches('。')
-        .trim()
-        .replace("价格有效突破并站稳 价格有效站稳", "价格有效站稳");
-    if let Some(rest) = normalized.strip_prefix("价格有效突破并站稳") {
+        .trim();
+    if let Some(rest) = normalized.strip_prefix("price breakout and hold above") {
         let level = normalize_level_phrase(rest);
-        return format!("触发升级需要满足：{}。", level);
+        return format!("Upgrade trigger requires: {}.", level);
     }
-    if let Some(rest) = normalized.strip_prefix("若失守") {
+    if let Some(rest) = normalized.strip_prefix("if lost") {
         let level = normalize_level_phrase(rest);
-        return format!("下调条件是：{}。", level);
+        return format!("Downgrade condition: {}.", level);
     }
     normalized.trim_matches('。').trim().to_string()
 }
@@ -198,7 +197,6 @@ fn normalize_reference_phrase(value: &str) -> String {
         .trim()
         .trim_matches('。')
         .trim()
-        .trim_end_matches("一带")
         .trim()
         .to_string()
 }

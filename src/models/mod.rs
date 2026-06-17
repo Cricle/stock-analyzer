@@ -52,6 +52,7 @@ pub use analysis::{
 
 
 pub use store::{
+    RecommendationStore, PersistedRecommendation,
     AnalysisStore, CacheStore, CheckpointStore,
     CacheEntry, CheckpointInfo, StoredCheckpoint,
 };

@@ -417,15 +417,51 @@ impl MarketDataClient {
         Ok(Some((end_price - start_price) / start_price))
     }
 
-    /// Try to resolve HK stock industry from Eastmoney individual stock info API.
+    /// Try to resolve HK stock industry from Eastmoney.
     /// Uses secid format: 116.{code} for Hong Kong stocks.
+    /// Tries multiple approaches: push2 f127 field, then individual info API.
     pub(super) async fn resolve_hk_industry(&self, symbol: &str) -> Option<String> {
         // Normalize to 5-digit HK code
-        let code = symbol.trim().trim_start_matches('0');
+        let raw = symbol.trim();
+        let code = raw.trim_start_matches('0');
         let code = if code.is_empty() { "0" } else { code };
         let code = format!("{:0>5}", code);
         let secid = format!("116.{code}");
-        self.ak.stock_info_by_secid(&secid).await.ok().flatten()
+
+        // Approach 1: Direct f127 lookup (fast, single field)
+        if let Ok(Some(industry)) = self.ak.stock_info_by_secid(&secid).await {
+            return Some(industry);
+        }
+
+        // Approach 2: stock_individual_info_em_by_secid (broader fields, same push2 endpoint)
+        if let Ok(items) = self.ak.stock_individual_info_em_by_secid(&secid).await {
+            for item in &items {
+                if item.item == "行业" {
+                    if let Some(val) = item.value.as_str() {
+                        let trimmed = val.trim();
+                        if !trimmed.is_empty() {
+                            return Some(trimmed.to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Approach 3: HK security profile via datacenter.eastmoney.com (different server)
+        // The 'board' field indicates the sector/board classification on HKEX.
+        if let Ok(profiles) = self.ak.stock_hk_security_profile_em(&code).await {
+            if let Some(profile) = profiles.first() {
+                if let Some(ref board) = profile.board {
+                    let trimmed = board.trim();
+                    if !trimmed.is_empty() {
+                        return Some(trimmed.to_string());
+                    }
+                }
+            }
+        }
+
+        tracing::debug!(symbol, code = %code, "HK industry not found from any Eastmoney API");
+        None
     }
 
     /// Fetch enrichment data for HK stocks.
@@ -598,5 +634,38 @@ impl MarketDataClient {
             industry,
             ..super::a_share::AShareEnrichmentData::default()
         })
+    }
+}
+
+impl MarketDataClient {
+    /// Discover HK stock candidates by searching well-known names.
+    /// The Eastmoney search API only returns A-share for generic sector terms,
+    /// so we search for specific well-known HK companies.
+    pub(crate) async fn discover_hk_candidates(&self, limit: usize) -> anyhow::Result<Vec<(String, String)>> {
+        let queries = [
+            "腾讯", "阿里巴巴", "美团", "小米", "京东",
+            "网易", "百度", "快手", "比亚迪", "中国移动",
+            "中国海洋石油", "汇丰控股", "友邦保险", "港交所",
+        ];
+        let mut seen = std::collections::HashSet::new();
+        let mut results = Vec::new();
+        for q in &queries {
+            if results.len() >= limit { break; }
+            match self.search_stocks(q, Some("港股"), 3).await {
+                Ok(items) => {
+                    for item in items {
+                        if results.len() >= limit { break; }
+                        let sym = item.symbol.trim().to_uppercase();
+                        if seen.insert(sym.clone()) {
+                            results.push((sym, item.name));
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(query = q, error = %e, "HK candidate search failed");
+                }
+            }
+        }
+        Ok(results)
     }
 }

@@ -13,13 +13,13 @@ impl GeneratedRoleReport {
         let object = raw.as_object();
         let field = |key: &str| object.and_then(|map| map.get(key)).cloned();
         let (summary, summary_key) =
-            parse::text_or_default_with_key(field("summary"), "模型未返回该角色摘要。", "llm.fallback.no_summary");
+            parse::text_or_default_with_key(field("summary"), "", "llm.fallback.no_summary");
         let (detail, detail_key) =
-            parse::text_or_default_with_key(field("detail"), "模型未返回该角色详细分析。", "llm.fallback.no_detail");
+            parse::text_or_default_with_key(field("detail"), "", "llm.fallback.no_detail");
         let (rationale, rationale_key) =
-            parse::text_or_default_with_key(field("rationale"), "模型未返回该角色依据。", "llm.fallback.no_rationale");
+            parse::text_or_default_with_key(field("rationale"), "", "llm.fallback.no_rationale");
         let (next_steps, next_steps_key) =
-            parse::string_list_or_default_with_key(field("next_steps"), &["继续跟踪后续数据"], "llm.fallback.no_next_steps");
+            parse::string_list_or_default_with_key(field("next_steps"), &["Continue tracking follow-up data"], "llm.fallback.no_next_steps");
         let (up_probability, down_probability, sideways_probability) = role_report_probabilities(
             field("up_probability"),
             field("down_probability"),
@@ -31,18 +31,18 @@ impl GeneratedRoleReport {
         );
         let (evidence_points, evidence_points_key) = parse::string_list_or_default_with_key(
             field("evidence_points"),
-            &["缺少结构化证据条目"],
+            &["No structured evidence items"],
             "llm.fallback.no_evidence",
         );
         let (risks, risks_key) = parse::string_list_or_default_with_key(
             field("risks"),
-            &["需关注信息缺口与市场波动"],
+            &["Monitor information gaps and market volatility"],
             "llm.fallback.no_risk_alt",
         );
         Self {
             key: parse::text_or_default(field("key"), "overview"),
-            title: parse::text_or_default(field("title"), "总览"),
-            agent: parse::text_or_default(field("agent"), "综合分析 Agent"),
+            title: parse::text_or_default(field("title"), "Overview"),
+            agent: parse::text_or_default(field("agent"), "Composite Analysis Agent"),
             summary,
             summary_key,
             detail,
@@ -69,7 +69,7 @@ impl GeneratedAnalystDecision {
         let field = |key: &str| object.and_then(|map| map.get(key)).cloned();
         let (reasoning, reasoning_key) = parse::text_or_default_with_key(
             field("reasoning"),
-            "模型未返回分析师动作原因。",
+            "",
             "llm.fallback.no_reasoning",
         );
         Self {

@@ -42,9 +42,9 @@ fn derive_news_reference_facts(result: &AnalysisResult) -> Vec<ReferenceFactItem
                         .unwrap_or_default()
                         .to_string();
                     let timing_prefix = if !date.is_empty() && !analysis_date.is_empty() && *date <= *analysis_date {
-                        "[已公布] "
+                        "[Published] "
                     } else if !date.is_empty() && !analysis_date.is_empty() {
-                        "[待公布] "
+                        "[Pending] "
                     } else {
                         ""
                     };

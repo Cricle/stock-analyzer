@@ -64,3 +64,6 @@ inherits = "test"
 debug = 0
 incremental = false
 codegen-units = 4
+
+[patch.crates-io]
+akshare = { path = "../akshare-rs/crates/akshare" }

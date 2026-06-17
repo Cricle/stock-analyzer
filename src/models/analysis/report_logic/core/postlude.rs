@@ -33,7 +33,7 @@ fn extract_first_price(text: &str) -> Option<f64> {
             let end = m.end();
             if end < text.len() {
                 let next = text[end..].chars().next().unwrap_or('\0');
-                if matches!(next, '日' | '天' | '周' | '月' | '年' | '均' | '线') {
+                if matches!(next, '日' | '天' | '周' | '月' | '年' | '均' | '线' | 'd' | 'D' | 'w' | 'W' | 'm' | 'M' | 'y' | 'Y') {
                     return None;
                 }
             }

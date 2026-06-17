@@ -27,21 +27,21 @@ pub fn score_technical(input: &TechnicalInput) -> DimensionScore {
         weight_sum += 25.0;
         if rsi < 30.0 {
             total += 25.0;
-            reasons.push(format!("RSI {:.0} 超卖", rsi));
+            reasons.push(format!("RSI {:.0} oversold", rsi));
             reason_keys.push("score.technical.rsi_oversold".into());
         } else if rsi < 40.0 {
             total += 18.0;
-            reasons.push(format!("RSI {:.0} 偏低", rsi));
+            reasons.push(format!("RSI {:.0} low", rsi));
             reason_keys.push("score.technical.rsi_low".into());
         } else if rsi <= 60.0 {
             total += 12.5;
         } else if rsi <= 70.0 {
             total += 8.0;
-            reasons.push(format!("RSI {:.0} 偏高", rsi));
+            reasons.push(format!("RSI {:.0} high", rsi));
             reason_keys.push("score.technical.rsi_high".into());
         } else {
             total += 0.0;
-            reasons.push(format!("RSI {:.0} 超买", rsi));
+            reasons.push(format!("RSI {:.0} overbought", rsi));
             reason_keys.push("score.technical.rsi_overbought".into());
         }
     }
@@ -51,11 +51,11 @@ pub fn score_technical(input: &TechnicalInput) -> DimensionScore {
     let macd_bullish = match (input.macd, input.macd_signal, input.macd_hist) {
         (Some(macd), Some(sig), Some(hist)) => {
             if macd > sig && hist > 0.0 {
-                reasons.push("MACD 金叉".into());
+                reasons.push("MACD golden cross".into());
                 reason_keys.push("score.technical.macd_golden_cross".into());
                 true
             } else if macd < sig && hist < 0.0 {
-                reasons.push("MACD 死叉".into());
+                reasons.push("MACD death cross".into());
                 reason_keys.push("score.technical.macd_death_cross".into());
                 false
             } else {
@@ -73,7 +73,7 @@ pub fn score_technical(input: &TechnicalInput) -> DimensionScore {
         let above_sma50 = input.close_50_sma.map(|s| price > s).unwrap_or(false);
         let above_sma200 = input.close_200_sma.map(|s| price > s).unwrap_or(false);
         if above_ema10 && above_sma50 && above_sma200 {
-            reasons.push("均线多头排列".into());
+            reasons.push("MA bullish alignment".into());
             reason_keys.push("score.technical.ma_bullish".into());
             25.0
         } else if above_sma50 && above_sma200 {
@@ -83,7 +83,7 @@ pub fn score_technical(input: &TechnicalInput) -> DimensionScore {
         } else if above_sma50 {
             10.0
         } else {
-            reasons.push("均线空头排列".into());
+            reasons.push("MA bearish alignment".into());
             reason_keys.push("score.technical.ma_bearish".into());
             3.0
         }
@@ -95,11 +95,11 @@ pub fn score_technical(input: &TechnicalInput) -> DimensionScore {
     // Volume signal (weight 25)
     weight_sum += 25.0;
     let vol_score = if input.volume_elevated && input.latest_positive {
-        reasons.push("放量上涨".into());
+        reasons.push("Volume spike on rise".into());
         reason_keys.push("score.technical.volume_up_rise".into());
         25.0
     } else if input.volume_elevated && !input.latest_positive {
-        reasons.push("放量下跌".into());
+        reasons.push("Volume spike on drop".into());
         reason_keys.push("score.technical.volume_up_drop".into());
         5.0
     } else {
@@ -114,7 +114,7 @@ pub fn score_technical(input: &TechnicalInput) -> DimensionScore {
     };
 
     let reason = if reasons.is_empty() {
-        "技术面信号中性".into()
+        "Technical signals neutral".into()
     } else {
         reasons.join("；")
     };

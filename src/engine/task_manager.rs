@@ -106,6 +106,45 @@ pub fn memory_snapshot_from_bundle(
     }
 }
 
+
+/// Event bus for cross-instance task event delivery.
+///
+/// Implementations can use filesystem, message queues, or any pub/sub mechanism.
+#[async_trait::async_trait]
+pub trait EventBus: Send + Sync {
+    /// Publish a task event.
+    async fn publish(&self, task_id: &str, event: &crate::models::TaskEvent) -> anyhow::Result<()>;
+}
+
+/// Filesystem-backed event bus.
+///
+/// Writes events as JSON lines to `{base_dir}/events/{task_id}.jsonl`.
+pub struct FilesystemEventBus {
+    base_dir: std::path::PathBuf,
+}
+
+impl FilesystemEventBus {
+    pub fn new(base_dir: impl Into<std::path::PathBuf>) -> Self {
+        Self { base_dir: base_dir.into() }
+    }
+}
+
+#[async_trait::async_trait]
+impl EventBus for FilesystemEventBus {
+    async fn publish(&self, task_id: &str, event: &crate::models::TaskEvent) -> anyhow::Result<()> {
+        let dir = self.base_dir.join("events");
+        tokio::fs::create_dir_all(&dir).await?;
+        let path = dir.join(format!("{task_id}.jsonl"));
+        let mut line = serde_json::to_string(event)?;
+        line.push('\n');
+        use tokio::io::AsyncWriteExt;
+        let mut file = tokio::fs::OpenOptions::new()
+            .create(true).append(true).open(&path).await?;
+        file.write_all(line.as_bytes()).await?;
+        Ok(())
+    }
+}
+
 /// Central orchestrator for analysis tasks.
 ///
 /// Manages task lifecycle, LLM resolution, memory, checkpoints,
@@ -126,6 +165,7 @@ pub struct TaskManager {
     pub broadcasters:
         Arc<RwLock<HashMap<String, broadcast::Sender<crate::models::TaskEvent>>>>,
     pub running_tasks: Arc<RwLock<HashMap<String, AbortHandle>>>,
+    pub event_bus: Option<Arc<dyn EventBus>>,
 }
 
 impl TaskManager {
@@ -142,6 +182,7 @@ impl TaskManager {
         checkpoint_store: TaskCheckpointStore,
         max_debate_rounds: usize,
         max_risk_discuss_rounds: usize,
+        event_bus: Option<Arc<dyn EventBus>>,
     ) -> anyhow::Result<Self> {
         Ok(Self {
             analysis_store,
@@ -157,6 +198,7 @@ impl TaskManager {
             max_risk_discuss_rounds,
             broadcasters: Arc::new(RwLock::new(HashMap::new())),
             running_tasks: Arc::new(RwLock::new(HashMap::new())),
+            event_bus,
         })
     }
 
@@ -237,15 +279,16 @@ impl TaskManager {
     }
 
     /// Publish task event for cross-instance delivery.
-    ///
-    /// TODO: In the original codebase this used Redis pub/sub.
-    /// With trait-based storage, this needs an event bus trait or similar mechanism.
     pub async fn publish_task_event(
         &self,
-        _task_id: &str,
-        _event: &crate::models::TaskEvent,
+        task_id: &str,
+        event: &crate::models::TaskEvent,
     ) {
-        // TODO: Implement cross-instance event publishing using a trait-based approach
+        if let Some(bus) = &self.event_bus {
+            if let Err(e) = bus.publish(task_id, event).await {
+                tracing::warn!(task_id = %task_id, error = %e, "failed to publish task event");
+            }
+        }
     }
 
     /// Cache a completed analysis result.

@@ -94,7 +94,7 @@ impl GeneratedTraderDecision {
         let action = parse::text_or_default(field("action"), "Hold");
         let (reasoning, reasoning_key) = parse::text_or_default_with_key(
             field("reasoning"),
-            "模型未返回交易推理。",
+            "",
             "llm.fallback.no_trader_reasoning",
         );
         let trader_plan = parse::text_or_default(field("trader_plan"), "");

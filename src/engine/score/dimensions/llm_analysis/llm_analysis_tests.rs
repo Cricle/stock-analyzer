@@ -30,7 +30,7 @@ fn test_all_signals_agree() {
     let result = score_llm_analysis(&input);
     // High consensus, score should be close to average
     assert!(result.score >= 55, "expected high score with consensus, got {}", result.score);
-    assert!(result.reason.contains("共识度"), "expected consensus in reason");
+    assert!(result.reason.contains("Consensus"), "expected consensus in reason");
 }
 
 #[test]
@@ -116,10 +116,10 @@ fn test_reason_format() {
     let input = base_input();
     let result = score_llm_analysis(&input);
     assert!(result.reason.contains("LLM:"), "expected LLM in reason");
-    assert!(result.reason.contains("技术:"), "expected tech in reason");
-    assert!(result.reason.contains("历史:"), "expected history in reason");
-    assert!(result.reason.contains("新闻:"), "expected news in reason");
-    assert!(result.reason.contains("市场:"), "expected market in reason");
+    assert!(result.reason.contains("Technical:"), "expected tech in reason");
+    assert!(result.reason.contains("Historical:"), "expected history in reason");
+    assert!(result.reason.contains("News:"), "expected news in reason");
+    assert!(result.reason.contains("Market:"), "expected market in reason");
 }
 
 #[test]

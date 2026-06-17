@@ -101,19 +101,19 @@ impl MarketDataClient {
         Ok(items
             .into_iter()
             .map(|item| {
-                let direction = if item.direction.contains("增") || item.direction.to_uppercase() == "IN" {
-                    "增持"
+                let direction_label = if item.direction.to_uppercase().contains("IN") || item.direction.contains("增") {
+                    "Insider Buy"
                 } else {
-                    "减持"
+                    "Insider Sell"
                 };
                 NewsItem {
                     published_at: item.notice_date,
-                    title: format!("{} {} {}", item.holder_name, direction, item.name),
+                    title: format!("{} {} {}", item.holder_name, direction_label, item.name),
                     summary: format!(
-                        "变动{}股, 占总股本{:.4}%, 占流通股{:.4}%, 持股{}股",
+                        "Changed {} shares, {:.4}% of total, {:.4}% of float, holding {}",
                         item.change_amount, item.change_total_ratio, item.change_circulating_ratio, item.holding_count
                     ),
-                    source: "Eastmoney 高管持股".to_string(),
+                    source: "Eastmoney Insider".to_string(),
                     url: None,
                 }
             })
@@ -306,7 +306,8 @@ impl MarketDataClient {
             if let Some(ref rating) = item.rating {
                 let r = rating.trim();
                 if !r.is_empty() {
-                    let is_buy = r.contains("买入") || r.contains("增持") || r.to_lowercase().contains("buy") || r.to_lowercase().contains("overweight");
+                    let r_lower = r.to_lowercase();
+                    let is_buy = r_lower.contains("buy") || r_lower.contains("overweight") || r_lower.contains("outperform") || r_lower.contains("strong") || r.contains("买入") || r.contains("增持");
                     (buy + i64::from(is_buy), total + 1)
                 } else {
                     (buy, total)
@@ -340,22 +341,22 @@ impl MarketDataClient {
         vec![
             NewsItem {
                 published_at: curr_date.to_string(),
-                title: "中国宏观与政策跟踪 - 国家统计局".to_string(),
-                summary: "A股场景宏观参考页，覆盖经济数据、公报与统计发布。".to_string(),
+                title: "China Macro & Policy - NBS".to_string(),
+                summary: "A-share macro reference: economic data, bulletins, and statistical releases.".to_string(),
                 source: "stats.gov.cn".to_string(),
                 url: Some("https://www.stats.gov.cn/".to_string()),
             },
             NewsItem {
                 published_at: curr_date.to_string(),
-                title: "中国货币政策与金融数据 - 中国人民银行".to_string(),
-                summary: "A股场景宏观参考页，覆盖利率、流动性与金融统计。".to_string(),
+                title: "China Monetary Policy & Financial Data - PBOC".to_string(),
+                summary: "A-share macro reference: interest rates, liquidity, and financial statistics.".to_string(),
                 source: "pbc.gov.cn".to_string(),
                 url: Some("http://www.pbc.gov.cn/".to_string()),
             },
             NewsItem {
                 published_at: curr_date.to_string(),
-                title: "A股市场总览 - 东方财富".to_string(),
-                summary: "A股市场场景参考页，覆盖指数、板块、资金面与市场新闻入口。".to_string(),
+                title: "A-share Market Overview - Eastmoney".to_string(),
+                summary: "A-share market reference: indices, sectors, capital flows, and news.".to_string(),
                 source: "eastmoney.com".to_string(),
                 url: Some("https://www.eastmoney.com/".to_string()),
             },

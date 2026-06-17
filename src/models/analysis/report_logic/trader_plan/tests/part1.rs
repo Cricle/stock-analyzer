@@ -27,11 +27,11 @@
             0,
         );
         assert_eq!(explanation.reason_code, "no_matching_setup_history");
-        assert!(explanation.summary.contains("历史部分只能弱参考"));
+        assert!(explanation.summary.contains("history as weak reference"));
         assert!(
             explanation
                 .summary
-                .contains("主要依赖当期证据")
+                .contains("relies mainly on current evidence")
         );
     }
 

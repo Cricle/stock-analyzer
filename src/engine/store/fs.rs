@@ -460,3 +460,174 @@ impl crate::models::CheckpointStore for FilesystemCheckpointStore {
         Ok(())
     }
 }
+
+// ---------------------------------------------------------------------------
+// FilesystemRecommendationStore
+// ---------------------------------------------------------------------------
+
+/// Filesystem-backed implementation of [`crate::models::RecommendationStore`].
+///
+/// Layout:
+/// ```text
+/// {base_dir}/recommendations/{market}/{symbol}/{timestamp}.json
+/// {base_dir}/recommendations/{market}/_latest.json   (rolling summary)
+/// ```
+pub struct FilesystemRecommendationStore {
+    base_dir: PathBuf,
+}
+
+impl FilesystemRecommendationStore {
+    pub fn new(base_dir: impl Into<PathBuf>) -> Self {
+        Self {
+            base_dir: base_dir.into(),
+        }
+    }
+
+    fn rec_dir(&self, market: &str, symbol: &str) -> PathBuf {
+        self.base_dir
+            .join("recommendations")
+            .join(market)
+            .join(symbol)
+    }
+
+    fn latest_path(&self, market: &str) -> PathBuf {
+        self.base_dir
+            .join("recommendations")
+            .join(market)
+            .join("_latest.json")
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct LatestSummary {
+    market: String,
+    analysis_date: String,
+    saved_at: String,
+    picks: Vec<crate::models::PersistedRecommendation>,
+}
+
+#[async_trait]
+impl crate::models::RecommendationStore for FilesystemRecommendationStore {
+    async fn save_recommendation(&self, rec: &crate::models::PersistedRecommendation) -> anyhow::Result<()> {
+        let dir = self.rec_dir(&rec.market, &rec.symbol);
+        tokio::fs::create_dir_all(&dir).await?;
+        let ts = chrono::Utc::now().format("%Y%m%dT%H%M%S%.3f");
+        let path = dir.join(format!("{ts}.json"));
+        let data = serde_json::to_vec_pretty(rec)?;
+        tokio::fs::write(&path, data).await?;
+        Ok(())
+    }
+
+    async fn get_recommendations(&self, symbol: &str) -> anyhow::Result<Vec<crate::models::PersistedRecommendation>> {
+        // Scan all market subdirs for this symbol
+        let base = self.base_dir.join("recommendations");
+        if !base.exists() {
+            return Ok(Vec::new());
+        }
+        let mut results = Vec::new();
+        let mut markets = tokio::fs::read_dir(&base).await?;
+        while let Some(market_entry) = markets.next_entry().await? {
+            if !market_entry.file_type().await?.is_dir() {
+                continue;
+            }
+            let sym_dir = market_entry.path().join(symbol);
+            if !sym_dir.exists() {
+                continue;
+            }
+            let mut files = tokio::fs::read_dir(&sym_dir).await?;
+            while let Some(file_entry) = files.next_entry().await? {
+                let path = file_entry.path();
+                if path.extension().is_some_and(|ext| ext == "json")
+                    && let Ok(data) = tokio::fs::read(&path).await
+                    && let Ok(rec) = serde_json::from_slice::<crate::models::PersistedRecommendation>(&data)
+                {
+                    results.push(rec);
+                }
+            }
+        }
+        results.sort_by(|a, b| b.scored_at.cmp(&a.scored_at));
+        Ok(results)
+    }
+
+    async fn get_latest(&self, limit: usize) -> anyhow::Result<Vec<crate::models::PersistedRecommendation>> {
+        let base = self.base_dir.join("recommendations");
+        if !base.exists() {
+            return Ok(Vec::new());
+        }
+        let mut all = Vec::new();
+        let mut markets = tokio::fs::read_dir(&base).await?;
+        while let Some(market_entry) = markets.next_entry().await? {
+            if !market_entry.file_type().await?.is_dir() {
+                continue;
+            }
+            let mut symbols = tokio::fs::read_dir(market_entry.path()).await?;
+            while let Some(sym_entry) = symbols.next_entry().await? {
+                if !sym_entry.file_type().await?.is_dir() {
+                    continue;
+                }
+                let mut files = tokio::fs::read_dir(sym_entry.path()).await?;
+                while let Some(file_entry) = files.next_entry().await? {
+                    let path = file_entry.path();
+                    if path.extension().is_some_and(|ext| ext == "json")
+                        && let Ok(data) = tokio::fs::read(&path).await
+                        && let Ok(rec) = serde_json::from_slice::<crate::models::PersistedRecommendation>(&data)
+                    {
+                        all.push(rec);
+                    }
+                }
+            }
+        }
+        all.sort_by(|a, b| b.scored_at.cmp(&a.scored_at));
+        all.truncate(limit);
+        Ok(all)
+    }
+
+    async fn get_latest_stock_pick_summary(&self, market: &str) -> anyhow::Result<Option<serde_json::Value>> {
+        let path = self.latest_path(market);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let data = tokio::fs::read(&path).await?;
+        let summary: LatestSummary = serde_json::from_slice(&data)?;
+        Ok(Some(serde_json::to_value(summary)?))
+    }
+
+    async fn delete_recommendations(&self, symbol: &str) -> anyhow::Result<()> {
+        let base = self.base_dir.join("recommendations");
+        if !base.exists() {
+            return Ok(());
+        }
+        let mut markets = tokio::fs::read_dir(&base).await?;
+        while let Some(market_entry) = markets.next_entry().await? {
+            if !market_entry.file_type().await?.is_dir() {
+                continue;
+            }
+            let sym_dir = market_entry.path().join(symbol);
+            if sym_dir.exists() {
+                tokio::fs::remove_dir_all(&sym_dir).await?;
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Save a rolling summary of the latest picks for a market.
+pub async fn save_latest_pick_summary(
+    store: &FilesystemRecommendationStore,
+    market: &str,
+    analysis_date: &str,
+    picks: &[crate::models::PersistedRecommendation],
+) -> anyhow::Result<()> {
+    let dir = store.base_dir.join("recommendations").join(market);
+    tokio::fs::create_dir_all(&dir).await?;
+    let summary = LatestSummary {
+        market: market.to_string(),
+        analysis_date: analysis_date.to_string(),
+        saved_at: chrono::Utc::now().to_rfc3339(),
+        picks: picks.to_vec(),
+    };
+    let path = dir.join("_latest.json");
+    let data = serde_json::to_vec_pretty(&summary)?;
+    tokio::fs::write(&path, data).await?;
+    Ok(())
+}

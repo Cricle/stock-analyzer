@@ -35,7 +35,7 @@ pub fn score_llm_analysis(input: &LlmAnalysisInput) -> DimensionScore {
     let raw = avg * (0.6 + 0.4 * consensus);
     let score = raw.clamp(0.0, 100.0) as u8;
 
-    let signal_names = ["LLM", "技术", "历史", "新闻", "市场"];
+    let signal_names = ["LLM", "Technical", "Historical", "News", "Market"];
     let signal_keys = [
         "score.llm_analysis.signal_llm",
         "score.llm_analysis.signal_technical",
@@ -57,7 +57,7 @@ pub fn score_llm_analysis(input: &LlmAnalysisInput) -> DimensionScore {
     DimensionScore {
         score,
         reason: format!(
-            "共识度 {:.0}%，{}",
+            "Consensus {:.0}%，{}",
             consensus * 100.0,
             detail.join(" ")
         ),

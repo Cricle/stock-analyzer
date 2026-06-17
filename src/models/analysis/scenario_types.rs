@@ -34,10 +34,10 @@ impl AnalysisScenarioMarket {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::AShare => MarketKind::AShare.label(),
-            Self::HongKong => MarketKind::HongKong.label(),
-            Self::UsEquity => MarketKind::UsEquity.label(),
-            Self::Unknown => "未知市场",
+            Self::AShare => MarketKind::AShare.display_label(),
+            Self::HongKong => MarketKind::HongKong.display_label(),
+            Self::UsEquity => MarketKind::UsEquity.display_label(),
+            Self::Unknown => "Unknown",
         }
     }
 

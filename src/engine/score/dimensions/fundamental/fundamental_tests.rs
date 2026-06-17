@@ -59,7 +59,7 @@ fn test_negative_pe() {
     };
     let result = score_fundamental(&input);
     assert_eq!(result.score, 50); // 12.5/25 * 100 = 50
-    assert!(result.reason.contains("PE为负"), "expected negative PE reason, got {}", result.reason);
+    assert!(result.reason.contains("Negative PE"), "expected negative PE reason, got {}", result.reason);
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn test_revenue_positive_net_loss() {
     };
     let result = score_fundamental(&input);
     assert_eq!(result.score, 48); // 12/25 * 100 = 48
-    assert!(result.reason.contains("净利亏损"), "expected net loss reason, got {}", result.reason);
+    assert!(result.reason.contains("net loss"), "expected net loss reason, got {}", result.reason);
 }
 
 #[test]
@@ -106,7 +106,7 @@ fn test_high_leverage() {
     };
     let result = score_fundamental(&input);
     assert_eq!(result.score, 12); // 3/25 * 100 = 12
-    assert!(result.reason.contains("过高"), "expected high leverage reason, got {}", result.reason);
+    assert!(result.reason.contains("excessive"), "expected high leverage reason, got {}", result.reason);
 }
 
 #[test]
@@ -157,8 +157,8 @@ fn test_mixed_signals() {
     // PE: 25/25, ROE: 2/25, leverage: 25/25, revenue: 3/25
     // total=55, weight=100, score=55
     assert_eq!(result.score, 55);
-    assert!(result.reason.contains("估值偏低"), "expected low PE reason");
-    assert!(result.reason.contains("亏损"), "expected ROE loss reason");
+    assert!(result.reason.contains("undervalued"), "expected low PE reason");
+    assert!(result.reason.contains("loss"), "expected ROE loss reason");
 }
 
 #[test]

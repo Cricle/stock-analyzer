@@ -60,7 +60,7 @@ fn derive_news_quality_reference_facts(result: &AnalysisResult) -> Vec<Reference
     if total_news_items > 0 {
         facts.push(ReferenceFactItem {
             key: "news_source_diversity".to_string(),
-            label: "新闻来源数".to_string(),
+            label: "News Source Count".to_string(),
             value: source_set.len().to_string(),
             emphasis: if source_set.len() >= 3 {
                 "success".to_string()
@@ -76,28 +76,28 @@ fn derive_news_quality_reference_facts(result: &AnalysisResult) -> Vec<Reference
         });
         facts.push(ReferenceFactItem {
             key: "regulatory_news_share".to_string(),
-            label: "监管/披露线索占比".to_string(),
+            label: "Regulatory/Disclosure Clue Ratio".to_string(),
             value: format!("{}/{}", regulatory_count, total_news_items),
             emphasis: if regulatory_count * 2 >= total_news_items {
                 "warning".to_string()
             } else {
                 "info".to_string()
             },
-            summary: "占比高时，新闻更偏披露/供给复杂度线索，不等于经营催化".to_string(),
+            summary: "High ratio means news leans toward disclosure/supply complexity clues, not operational catalysts".to_string(),
             ..Default::default()
         });
     }
     if successful_attempts + failed_attempts > 0 {
         facts.push(ReferenceFactItem {
             key: "news_fetch_attempts".to_string(),
-            label: "新闻检索成功/失败".to_string(),
+            label: "News Retrieval Success/Failure".to_string(),
             value: format!("{successful_attempts}/{failed_attempts}"),
             emphasis: if failed_attempts == 0 {
                 "success".to_string()
             } else {
                 "warning".to_string()
             },
-            summary: "用于判断本次新闻证据覆盖是否完整".to_string(),
+            summary: "Determines whether news evidence coverage is complete".to_string(),
             ..Default::default()
         });
     }
@@ -111,14 +111,14 @@ fn derive_memory_reference_facts(
     let mut facts = vec![
         ReferenceFactItem {
             key: "research_raw_score".to_string(),
-            label: "研究原始分".to_string(),
+            label: "Research Raw Score".to_string(),
             value: format!("{}/100", confidence_breakdown.total_before_caps),
             emphasis: "primary".to_string(),
             ..Default::default()
         },
         ReferenceFactItem {
             key: "verified_setup_samples".to_string(),
-            label: "已验证校准样本".to_string(),
+            label: "Validated Calibration Samples".to_string(),
             value: memory_context
                 .setup_calibration_sample_count
                 .max(memory_context.setup_resolved_match_count)
@@ -128,14 +128,14 @@ fn derive_memory_reference_facts(
         },
         ReferenceFactItem {
             key: "setup_hit_rate".to_string(),
-            label: "相似样本命中率".to_string(),
+            label: "Similar Sample Hit Rate".to_string(),
             value: format!("{:.0}%", memory_context.setup_match_hit_rate * 100.0),
             emphasis: "info".to_string(),
             ..Default::default()
         },
         ReferenceFactItem {
             key: "setup_avg_alpha".to_string(),
-            label: "相似样本平均超额收益".to_string(),
+            label: "Similar Sample Avg Alpha".to_string(),
             value: format!(
                 "{:.1}%",
                 memory_context.setup_match_avg_alpha_return * 100.0
@@ -149,7 +149,7 @@ fn derive_memory_reference_facts(
         },
         ReferenceFactItem {
             key: "same_vs_cross_ticker_samples".to_string(),
-            label: "同票/跨票样本".to_string(),
+            label: "Same/Cross-Ticker Samples".to_string(),
             value: format!(
                 "{} / {}",
                 memory_context.same_ticker_count, memory_context.cross_ticker_count
@@ -162,7 +162,7 @@ fn derive_memory_reference_facts(
     for item in memory_context.historical_same_ticker_highlights.iter().take(2) {
         facts.push(ReferenceFactItem {
             key: "same_ticker_history".to_string(),
-            label: format!("同票历史 {} {}", item.trade_date, item.ticker),
+            label: format!("Same-Ticker History {} {}", item.trade_date, item.ticker),
             value: if item.summary.trim().is_empty() {
                 format!(
                     "{} / {}",
@@ -178,8 +178,8 @@ fn derive_memory_reference_facts(
             },
             emphasis: "info".to_string(),
             summary: [
-                (!item.key_risk.trim().is_empty()).then(|| format!("风险: {}", item.key_risk.trim())),
-                (!item.lesson.trim().is_empty()).then(|| format!("复盘: {}", item.lesson.trim())),
+                (!item.key_risk.trim().is_empty()).then(|| format!("Risk: {}", item.key_risk.trim())),
+                (!item.lesson.trim().is_empty()).then(|| format!("Review: {}", item.lesson.trim())),
             ]
             .into_iter()
             .flatten()
@@ -192,7 +192,7 @@ fn derive_memory_reference_facts(
     for item in memory_context.historical_cross_ticker_highlights.iter().take(2) {
         facts.push(ReferenceFactItem {
             key: "cross_ticker_lesson".to_string(),
-            label: format!("跨票样本 {} {}", item.trade_date, item.ticker),
+            label: format!("Cross-Ticker Sample {} {}", item.trade_date, item.ticker),
             value: if item.lesson.trim().is_empty() {
                 item.summary.clone()
             } else {
@@ -200,8 +200,8 @@ fn derive_memory_reference_facts(
             },
             emphasis: "info".to_string(),
             summary: [
-                (!item.summary.trim().is_empty()).then(|| format!("摘要: {}", item.summary.trim())),
-                (!item.key_risk.trim().is_empty()).then(|| format!("风险: {}", item.key_risk.trim())),
+                (!item.summary.trim().is_empty()).then(|| format!("Summary: {}", item.summary.trim())),
+                (!item.key_risk.trim().is_empty()).then(|| format!("Risk: {}", item.key_risk.trim())),
             ]
             .into_iter()
             .flatten()
@@ -231,16 +231,16 @@ fn format_number_compact(value: f64) -> String {
 
 fn humanize_setup_tag(tag: &str) -> &'static str {
     match tag.trim() {
-        "trend_confirmed" => "趋势已确认",
-        "fundamental_quality" => "基本面质量较强",
-        "event_driven" => "存在事件催化",
-        "watchlist_only" => "暂时更适合观察名单",
-        "execution_ready" => "执行条件较完整",
-        "conditional_entry" => "需要等待更好入场条件",
-        "conditional_breakout" => "等待条件突破确认",
-        "conditional_pullback_zone" => "等待条件回踩区间确认",
-        "high_crowding" => "拥挤度较高",
-        "overextended" => "价格阶段性偏热",
+        "trend_confirmed" => "Trend confirmed",
+        "fundamental_quality" => "Strong fundamentals",
+        "event_driven" => "Event catalyst present",
+        "watchlist_only" => "Better suited for watchlist",
+        "execution_ready" => "Execution conditions largely ready",
+        "conditional_entry" => "Waiting for better entry",
+        "conditional_breakout" => "Awaiting breakout confirmation",
+        "conditional_pullback_zone" => "Awaiting pullback zone confirmation",
+        "high_crowding" => "High crowding",
+        "overextended" => "Price overheated near-term",
         _ => "",
     }
 }
@@ -262,19 +262,19 @@ fn derive_setup_match_explanation(
 ) -> SetupMatchExplanation {
     let mut details = Vec::new();
     if let Some(summary) = summarize_setup_tags(&memory_context.resolved_setup_tags) {
-        details.push(format!("本轮最终更接近的结构特征: {summary}"));
+        details.push(format!("Resolved structural features this round:: {summary}"));
     } else if let Some(summary) = summarize_setup_tags(&memory_context.setup_tags) {
-        details.push(format!("本轮初步识别到的结构特征: {summary}"));
+        details.push(format!("Preliminary structural features this round:: {summary}"));
     }
     if memory_context.setup_pending_match_count > 0 {
         details.push(format!(
-            "待结算样本: {}",
+            "Pending settlement samples:: {}",
             memory_context.setup_pending_match_count
         ));
     }
     if memory_context.setup_resolved_match_count > 0 {
         details.push(format!(
-            "已验证样本: {}，命中率 {:.0}%，平均超额收益 {:.1}%",
+            "Verified samples:: {}，Hit rate {:.0}%，Avg alpha return {:.1}%",
             memory_context.setup_resolved_match_count,
             memory_context.setup_match_hit_rate * 100.0,
             memory_context.setup_match_avg_alpha_return * 100.0
@@ -284,7 +284,7 @@ fn derive_setup_match_explanation(
     if !memory_context.used_setup_filtered_retrieval {
         return SetupMatchExplanation {
             reason_code: "setup_filter_not_used".to_string(),
-            summary: "本轮没有启用严格 setup 过滤，历史部分主要作为宽口径背景参考。".to_string(),
+            summary: "No strict setup filter enabled this round; history serves as broad background reference.".to_string(),
             details,
             fallback_used: false,
             fallback_sample_count,
@@ -294,7 +294,7 @@ fn derive_setup_match_explanation(
     if memory_context.setup_resolved_match_count > 0 {
         return SetupMatchExplanation {
             reason_code: "resolved_setup_matches_available".to_string(),
-            summary: "本轮找到了可复盘的相似历史，这批样本可以直接作为本次判断的统计参照。".to_string(),
+            summary: "Found reviewable similar history this round; these samples serve as direct statistical reference.".to_string(),
             details,
             fallback_used: false,
             fallback_sample_count,
@@ -303,12 +303,12 @@ fn derive_setup_match_explanation(
 
     if memory_context.setup_calibration_sample_count > 0 {
         details.push(format!(
-            "用于弱校准的已验证回退样本: {}",
+            "Verified fallback samples for weak calibration:: {}",
             memory_context.setup_calibration_sample_count
         ));
         return SetupMatchExplanation {
             reason_code: "pending_only_with_verified_fallback_samples".to_string(),
-            summary: "严格相似的 setup 还没结算完，但已有同票或同市场的已验证 seed 样本可提供历史边界参考。".to_string(),
+            summary: "Strictly similar setups not yet settled, but verified same-ticker or same-market seed samples provide historical boundary reference.".to_string(),
             details,
             fallback_used: true,
             fallback_sample_count: memory_context.setup_calibration_sample_count,
@@ -318,7 +318,7 @@ fn derive_setup_match_explanation(
     if memory_context.setup_pending_match_count > 0 {
         return SetupMatchExplanation {
             reason_code: "pending_only_setup_matches".to_string(),
-            summary: "已经找到相似 setup，但这些样本尚未结算，因此暂时只能当作待验证线索。".to_string(),
+            summary: "Found similar setups, but samples not yet settled; can only serve as pending clues for now.".to_string(),
             details,
             fallback_used: fallback_sample_count > 0,
             fallback_sample_count,
@@ -326,10 +326,10 @@ fn derive_setup_match_explanation(
     }
 
     if fallback_sample_count > 0 {
-        details.push(format!("用于弱校准的回退样本: {fallback_sample_count}"));
+        details.push(format!("Fallback samples for weak calibration:: {fallback_sample_count}"));
         return SetupMatchExplanation {
             reason_code: "no_strict_match_fallback_to_market_samples".to_string(),
-            summary: "没有命中严格相似 setup，但已借用同票或同市场的已验证样本补足历史边界。".to_string(),
+            summary: "No strict setup match; borrowed verified same-ticker or same-market samples to supplement historical boundary.".to_string(),
             details,
             fallback_used: true,
             fallback_sample_count,
@@ -338,7 +338,7 @@ fn derive_setup_match_explanation(
 
     SetupMatchExplanation {
         reason_code: "no_matching_setup_history".to_string(),
-        summary: "目前缺少可直接复盘的相似历史，这次结论主要依赖当期证据，历史部分只能弱参考。".to_string(),
+        summary: "No directly reviewable similar history; conclusion relies mainly on current evidence with history as weak reference.".to_string(),
         details,
         fallback_used: false,
         fallback_sample_count,

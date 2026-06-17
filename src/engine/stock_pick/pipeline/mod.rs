@@ -34,8 +34,8 @@ use crate::engine::stock_pick::{
 
 use crate::engine::stock_pick::objective::{
     AdvancedMetrics, build_prompt, compute_industry_averages, lookup_industry_avg,
-    default_catalyst_keys, default_evidence, default_evidence_keys,
-    default_risk_keys, default_thesis, default_thesis_key,
+    default_catalyst_keys, default_evidence_keys,
+    default_risk_keys, default_thesis_key,
     evaluate_stock_pick_objective_assessment, stock_pick_priority_label,
     stock_pick_priority_rank, stock_pick_sort_key, summarize_stock_pick_objective_overview,
 };
@@ -44,6 +44,7 @@ pub async fn run(
     market_data: &MarketDataClient,
     llm_client: &LlmClient,
     request: &StockPickRequest,
+    rec_store: Option<&dyn crate::models::RecommendationStore>,
 ) -> anyhow::Result<StockPickResponse> {
     let analysis_date = request
         .analysis_date
@@ -365,7 +366,7 @@ pub async fn run(
                     .unwrap_or((55.0 + item.factor.total * 0.35).clamp(0.0, 100.0)),
                 thesis: explanation
                     .map(|value| value.thesis.clone())
-                    .unwrap_or_else(|| default_thesis(&item, &i18n, lang)),
+                    .unwrap_or_default(),
                 catalysts: explanation
                     .map(|value| value.catalysts.clone())
                     .unwrap_or_default(),
@@ -374,7 +375,7 @@ pub async fn run(
                     .unwrap_or_default(),
                 evidence_points: explanation
                     .map(|value| value.evidence_points.clone())
-                    .unwrap_or_else(|| default_evidence(&item, &i18n, lang)),
+                    .unwrap_or_default(),
                 price: item.price,
                 change_pct: item.change_pct,
                 market_cap: item.market_cap,
@@ -476,7 +477,7 @@ pub async fn run(
             volume_ratio: pick.market_snapshot.volume_ratio,
             period_return_pct: pick.market_snapshot.period_return_pct,
         };
-        let stock_score = crate::engine::score::score_stock_pick(llm_client, &scoreable, &score_config).await;
+        let stock_score = crate::engine::score::score_stock_pick(llm_client, &scoreable, &score_config).await?;
         tracing::info!(
             symbol = %pick.symbol,
             total = stock_score.total,
@@ -489,15 +490,73 @@ pub async fn run(
         scored_picks.push((pick, stock_score));
     }
 
-    // TODO: Store recommendations — previously used sa_storage::Store for PostgreSQL.
-    // With trait-based architecture, this needs an AnalysisStore or similar trait.
+    // Persist scored recommendations
+    if let Some(store) = rec_store {
+        for (pick, score) in &scored_picks {
+            let rec = crate::models::PersistedRecommendation {
+                symbol: pick.symbol.clone(),
+                name: pick.name.clone(),
+                market: pick.market.clone(),
+                analysis_date: analysis_date.clone(),
+                total_score: score.total,
+                technical_score: score.technical.score,
+                fundamental_score: score.fundamental.score,
+                sentiment_score: score.sentiment.score,
+                llm_analysis_score: score.llm_analysis.score,
+                technical_reason: score.technical.reason.clone(),
+                fundamental_reason: score.fundamental.reason.clone(),
+                sentiment_reason: score.sentiment.reason.clone(),
+                llm_analysis_reason: score.llm_analysis.reason.clone(),
+                scored_at: score.scored_at.to_rfc3339(),
+                price: pick.price,
+                change_pct: pick.change_pct,
+                market_cap: pick.market_cap,
+                thesis: pick.thesis.clone(),
+                catalysts: pick.catalysts.clone(),
+                risks: pick.risks.clone(),
+            };
+            if let Err(e) = store.save_recommendation(&rec).await {
+                tracing::warn!(symbol = %pick.symbol, error = %e, "failed to persist recommendation");
+            }
+        }
+        // Save rolling summary
+        let summary_recs: Vec<_> = scored_picks.iter().map(|(pick, score)| {
+            crate::models::PersistedRecommendation {
+                symbol: pick.symbol.clone(),
+                name: pick.name.clone(),
+                market: pick.market.clone(),
+                analysis_date: analysis_date.clone(),
+                total_score: score.total,
+                technical_score: score.technical.score,
+                fundamental_score: score.fundamental.score,
+                sentiment_score: score.sentiment.score,
+                llm_analysis_score: score.llm_analysis.score,
+                technical_reason: score.technical.reason.clone(),
+                fundamental_reason: score.fundamental.reason.clone(),
+                sentiment_reason: score.sentiment.reason.clone(),
+                llm_analysis_reason: score.llm_analysis.reason.clone(),
+                scored_at: score.scored_at.to_rfc3339(),
+                price: pick.price,
+                change_pct: pick.change_pct,
+                market_cap: pick.market_cap,
+                thesis: pick.thesis.clone(),
+                catalysts: pick.catalysts.clone(),
+                risks: pick.risks.clone(),
+            }
+        }).collect();
+        if let Err(e) = crate::engine::store::save_latest_pick_summary(
+            &crate::engine::store::FilesystemRecommendationStore::new(std::env::var("DATA_DIR").unwrap_or_else(|_| "/tmp/sa-data".into())),
+            &request.market,
+            &analysis_date,
+            &summary_recs,
+        ).await {
+            tracing::warn!(error = %e, "failed to save latest pick summary");
+        }
+    }
 
     let mut picks: Vec<StockPickItem> = scored_picks
         .into_iter()
-        .map(|(pick, _score)| {
-            // TODO: Persist recommendation scores when storage trait is available
-            pick
-        })
+        .map(|(pick, _score)| pick)
         .collect();
     // Sort by system score descending
     picks.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));

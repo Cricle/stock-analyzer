@@ -25,7 +25,7 @@ fn infer_target_condition(
         return String::new();
     }
     format!(
-        "仅在价格有效处理并站稳 {} 后，该目标参考才具备执行意义。",
+        "The target reference only becomes actionable after price convincingly holds above {}.",
         portfolio_decision.confirmation_level.trim()
     )
 }

@@ -55,7 +55,7 @@ fn detect_disclosure_sequence_complexity(
     Some(ReportDiagnosticItem {
         code: "disclosure_sequence_complexity".to_string(),
         severity: "warning".to_string(),
-        message: "近期披露更像注册、发行或减持等资本市场序列，当前应先厘清供给与融资安排，不能把它直接视为经营催化。".into(),
+        message: "Recent disclosures resemble capital market activities (registration, issuance, insider selling); clarify supply and financing arrangements first rather than treating as operating catalyst.".into(),
         details: vec![
             format!("filing_count={}", filing_dates.len()),
             format!("regulatory_source_count={}", sec_host_count.len()),

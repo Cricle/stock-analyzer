@@ -1,11 +1,6 @@
 //! Pre-warming system for daily guidance reports.
 //!
-//! TODO: This module previously published pre-warm tasks to NATS.
-//! With the trait-based architecture, this needs to be refactored to use
-//! an event bus trait or similar mechanism.
-//!
-//! For now, this module provides the data structures for prewarm tasks
-//! but the actual publishing is deferred to the caller.
+//! Uses [`crate::engine::task_manager::EventBus`] for publishing prewarm tasks.
 
 /// Pre-warm task data for a specific market.
 #[derive(Clone, Debug)]

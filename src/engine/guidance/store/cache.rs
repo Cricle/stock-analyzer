@@ -54,14 +54,22 @@ impl GuidanceStore {
     }
 
     /// Fetch the latest stock pick summary for a market.
-    ///
-    /// TODO: This previously used Redis SCAN which is not available via CacheStore trait.
-    /// The CacheStore `list_entries` method could be used with a prefix filter instead.
     pub async fn get_latest_stock_pick_summary(
         &self,
-        _market: &str,
+        market: &str,
     ) -> anyhow::Result<Option<serde_json::Value>> {
-        // TODO: Implement using CacheStore::list_entries with prefix matching
+        let prefix = format!("{}:pick:{}", GUIDANCE_CACHE_PREFIX, market);
+        let entries = self.cache.list_entries(&prefix).await?;
+        if entries.is_empty() {
+            return Ok(None);
+        }
+        // Find the most recent entry
+        if let Some(entry) = entries.iter().max_by_key(|e| e.created_at.as_str())
+            && let Ok(Some(bytes)) = self.cache.get(&entry.key).await
+            && let Ok(val) = serde_json::from_slice::<serde_json::Value>(&bytes)
+        {
+            return Ok(Some(val));
+        }
         Ok(None)
     }
 }

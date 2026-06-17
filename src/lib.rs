@@ -17,6 +17,9 @@ pub use engine::{
 };
 pub use engine::storage::{StorageBackend, FilesystemStorage};
 pub use engine::store::{
+    FilesystemRecommendationStore, save_latest_pick_summary,
     FilesystemAnalysisStore, FilesystemCacheStore, FilesystemCheckpointStore,
 };
 pub use engine::memory::{MemoryStore, FilesystemMemoryStore};
+pub use engine::task_manager::{EventBus, FilesystemEventBus};
+pub use engine::score::history::{ScoringHistoryStore, FilesystemScoringHistoryStore};

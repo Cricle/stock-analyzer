@@ -177,11 +177,104 @@ impl DailyGuidanceGenerator {
                 direction: direction.to_string(),
                 direction_key: Some(direction_key.to_string()),
                 key_driver,
+                change_pct: None,
                 representative_stocks: stocks,
             });
         }
 
         highlights
+    }
+
+    /// Enrich sector highlights with actual price change data from market quotes.
+    /// Fetches quotes for representative stocks and computes average change_pct per sector.
+    pub(super) async fn enrich_sector_highlights_with_quotes(
+        &self,
+        highlights: &mut [SectorHighlight],
+    ) {
+        // Collect all unique symbols across sectors
+        let all_symbols: Vec<&str> = highlights
+            .iter()
+            .flat_map(|h| h.representative_stocks.iter().map(|s| s.as_str()))
+            .collect();
+        if all_symbols.is_empty() {
+            return;
+        }
+
+        // Deduplicate
+        let mut unique_symbols: Vec<&str> = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        for sym in &all_symbols {
+            if seen.insert(sym.to_ascii_lowercase()) {
+                unique_symbols.push(sym);
+            }
+        }
+
+        // Resolve all entities through search API — no hardcoded lists.
+        // The search API returns individual stocks, naturally filtering out
+        // ETFs, indices, and non-existent companies.
+        let mut resolved_symbols: Vec<String> = Vec::new();
+        let mut resolved_names: Vec<String> = Vec::new();
+        for name in &unique_symbols {
+            match self.market_data.search_stocks(name, None, 3).await {
+                Ok(results) => {
+                    // Pick the best match: prefer exact name match, then first result
+                    let best = results.iter().find(|r| r.name.eq_ignore_ascii_case(name))
+                        .or(results.first());
+                    if let Some(found) = best {
+                        resolved_symbols.push(found.symbol.clone());
+                        resolved_names.push(name.to_string());
+                    } else {
+                        tracing::debug!(entity = name, "entity not found in stock search");
+                    }
+                }
+                Err(e) => {
+                    tracing::debug!(entity = name, error = %e, "entity search failed");
+                }
+            }
+        }
+        let resolved_refs: Vec<&str> = resolved_symbols.iter().map(|s| s.as_str()).collect();
+
+        // Batch fetch quotes
+        let quotes = self.market_data.fetch_quotes_batch(&resolved_refs).await;
+        let quote_map: std::collections::HashMap<String, f64> = quotes
+            .into_iter()
+            .filter_map(|(sym, q)| {
+                q.and_then(|quote| {
+                    // Compute change_pct: (close - open) / open * 100 if open > 0
+                    let base = if quote.open > 0.0 { quote.open } else { quote.high };
+                    if base > 0.0 && quote.close > 0.0 {
+                        Some((sym.to_ascii_lowercase(), ((quote.close - base) / base) * 100.0))
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect();
+
+        // Build name->resolved_symbol mapping
+        let name_to_resolved: std::collections::HashMap<String, String> = resolved_names
+            .iter()
+            .zip(resolved_symbols.iter())
+            .filter(|(name, resolved)| name.to_ascii_lowercase() != resolved.to_ascii_lowercase())
+            .map(|(name, resolved)| (name.to_ascii_lowercase(), resolved.to_ascii_lowercase()))
+            .collect();
+
+        // Compute average change_pct per sector
+        for highlight in highlights.iter_mut() {
+            let changes: Vec<f64> = highlight
+                .representative_stocks
+                .iter()
+                .filter_map(|sym| {
+                    let sym_lower = sym.to_ascii_lowercase();
+                    let key = name_to_resolved.get(&sym_lower).unwrap_or(&sym_lower);
+                    quote_map.get(key.as_str()).copied()
+                })
+                .collect();
+            if !changes.is_empty() {
+                let avg = changes.iter().sum::<f64>() / changes.len() as f64;
+                highlight.change_pct = Some((avg * 100.0).round() / 100.0);
+            }
+        }
     }
 }
 

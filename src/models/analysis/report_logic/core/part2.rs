@@ -6,7 +6,7 @@ impl StructuredReport {
 
         Self {
             report_flavor: ReportFlavor::IcChair,
-            title: format!("{} / {} / IC 主席版", result.symbol, result.stock_name).into(),
+            title: format!("{} / {} / IC Chairman Edition", result.symbol, result.stock_name).into(),
             summary: summary.into(),
             recommendation: report.recommendation.clone(),
             raw_llm_recommendation: report.raw_llm_recommendation.clone(),

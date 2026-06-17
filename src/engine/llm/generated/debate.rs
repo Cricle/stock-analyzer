@@ -16,17 +16,17 @@ impl GeneratedDebateTurn {
         let field = |key: &str| object.and_then(|map| map.get(key)).cloned();
         let (response, response_key) = parse::text_or_default_with_key(
             field("response"),
-            "模型未返回辩论内容。",
+            "",
             "llm.fallback.no_debate",
         );
         let (evidence_points, evidence_points_key) = parse::string_list_or_default_with_key(
             field("evidence_points"),
-            &["缺少结构化证据条目"],
+            &["No structured evidence items"],
             "llm.fallback.no_evidence",
         );
         let (risks, risks_key) = parse::string_list_or_default_with_key(
             field("risks"),
-            &["需关注核心假设失效"],
+            &["Monitor core assumption invalidation"],
             "llm.fallback.no_risk",
         );
         Self {
@@ -82,12 +82,12 @@ impl GeneratedResearchManager {
                 field("summary").as_ref(),
                 field("investment_plan").as_ref(),
             ],
-            "模型未返回研究经理依据。",
+            "",
             "llm.fallback.no_research_rationale",
         );
         let (strategic_actions, strategic_actions_key) = parse::text_or_default_with_key(
             strategic_actions_raw.clone(),
-            "模型未返回研究经理行动方案。",
+            "",
             "llm.fallback.no_research_action",
         );
         let trigger_checklist = parse::string_list_or_default(field("trigger_checklist"), &[]);
@@ -106,7 +106,7 @@ impl GeneratedResearchManager {
         };
         let (risk_assessment, risk_assessment_key) = parse::text_or_default_with_key(
             risk_assessment_raw.clone(),
-            "模型未返回风险评估。",
+            "",
             "llm.fallback.no_risk_assessment",
         );
         Self {

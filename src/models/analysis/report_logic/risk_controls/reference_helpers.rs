@@ -118,11 +118,11 @@ fn rebuild_confirmation_level(
     if let Some(value) = [
         first_numeric_after_keywords(
             portfolio_decision.executive_summary.as_str(),
-            &["突破", "站稳", "确认", "阻力", "前高"],
+            &["突破", "站稳", "确认", "阻力", "前高", "breakout", "break above", "confirm", "resistance", "prior high", "hold above"],
         ),
         first_numeric_after_keywords(
             portfolio_decision.investment_thesis.as_str(),
-            &["突破", "站稳", "确认", "阻力", "前高"],
+            &["突破", "站稳", "确认", "阻力", "前高", "breakout", "break above", "confirm", "resistance", "prior high", "hold above"],
         ),
         parse_first_numeric(&trader_plan.entry_price),
         nearest_anchor_above(current_price, anchors),
@@ -141,11 +141,11 @@ fn rebuild_directional_target(
     if let Some(value) = [
         first_numeric_after_keywords(
             portfolio_decision.investment_thesis.as_str(),
-            &["目标", "目标位", "上看", "下看", "止盈"],
+            &["目标", "目标位", "上看", "下看", "止盈", "target", "upside", "take profit", "price target"],
         ),
         first_numeric_after_keywords(
             portfolio_decision.rationale.as_str(),
-            &["目标", "目标位", "上看", "下看", "止盈"],
+            &["目标", "目标位", "上看", "下看", "止盈", "target", "upside", "take profit", "price target"],
         ),
         nearest_anchor_above(current_price, anchors),
         parse_first_numeric(&trader_plan.entry_price).zip(current_price).map(|(entry, current)| {

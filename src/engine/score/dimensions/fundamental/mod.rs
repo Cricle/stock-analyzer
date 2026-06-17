@@ -21,21 +21,21 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
         weight_sum += 25.0;
         if pe < 0.0 {
             total += 12.5;
-            reasons.push("PE为负，盈利承压".into());
+            reasons.push("Negative PE, earnings under pressure".into());
             reason_keys.push("score.fundamental.negative_pe".into());
         } else if pe < 15.0 {
             total += 25.0;
-            reasons.push(format!("PE {:.1} 估值偏低", pe));
+            reasons.push(format!("PE {:.1} undervalued", pe));
             reason_keys.push("score.fundamental.pe_low".into());
         } else if pe < 25.0 {
             total += 18.0;
         } else if pe < 40.0 {
             total += 10.0;
-            reasons.push(format!("PE {:.1} 估值偏高", pe));
+            reasons.push(format!("PE {:.1} overvalued", pe));
             reason_keys.push("score.fundamental.pe_high".into());
         } else {
             total += 3.0;
-            reasons.push(format!("PE {:.1} 估值过高", pe));
+            reasons.push(format!("PE {:.1} extremely overvalued", pe));
             reason_keys.push("score.fundamental.pe_too_high".into());
         }
     }
@@ -45,7 +45,7 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
         weight_sum += 25.0;
         if roe > 20.0 {
             total += 25.0;
-            reasons.push(format!("ROE {:.1}% 优秀", roe));
+            reasons.push(format!("ROE {:.1}% excellent", roe));
             reason_keys.push("score.fundamental.roe_excellent".into());
         } else if roe > 10.0 {
             total += 18.0;
@@ -53,7 +53,7 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
             total += 10.0;
         } else {
             total += 2.0;
-            reasons.push(format!("ROE {:.1}% 亏损", roe));
+            reasons.push(format!("ROE {:.1}% loss", roe));
             reason_keys.push("score.fundamental.roe_loss".into());
         }
     }
@@ -63,17 +63,17 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
         weight_sum += 25.0;
         if lev < 1.0 {
             total += 25.0;
-            reasons.push("低负债".into());
+            reasons.push("Low leverage".into());
             reason_keys.push("score.fundamental.low_leverage".into());
         } else if lev < 2.0 {
             total += 18.0;
         } else if lev < 3.0 {
             total += 10.0;
-            reasons.push(format!("负债率 {:.1} 偏高", lev));
+            reasons.push(format!("Leverage {:.1} elevated", lev));
             reason_keys.push("score.fundamental.leverage_high".into());
         } else {
             total += 3.0;
-            reasons.push(format!("负债率 {:.1} 过高", lev));
+            reasons.push(format!("Leverage {:.1} excessive", lev));
             reason_keys.push("score.fundamental.leverage_too_high".into());
         }
     }
@@ -85,11 +85,11 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
             if let Some(ni) = input.net_income_usd {
                 if ni > 0.0 {
                     total += 22.0;
-                    reasons.push("营收盈利为正".into());
+                    reasons.push("Revenue and profit positive".into());
                     reason_keys.push("score.fundamental.revenue_profit_positive".into());
                 } else {
                     total += 12.0;
-                    reasons.push("营收为正但净利亏损".into());
+                    reasons.push("Revenue positive but net loss".into());
                     reason_keys.push("score.fundamental.revenue_positive_net_loss".into());
                 }
             } else {
@@ -97,7 +97,7 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
             }
         } else {
             total += 3.0;
-            reasons.push("营收数据缺失或为零".into());
+            reasons.push("Revenue missing or zero".into());
             reason_keys.push("score.fundamental.revenue_missing".into());
         }
     }
@@ -109,7 +109,7 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
     };
 
     let reason = if reasons.is_empty() {
-        "基本面数据不足，给予中性评分".into()
+        "Insufficient fundamental data, neutral score".into()
     } else {
         reasons.join("；")
     };

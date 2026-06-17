@@ -188,7 +188,7 @@ impl LlmClient {
             ..Default::default()
         };
 
-        const MAX_ATTEMPTS: usize = 6;
+        const MAX_ATTEMPTS: usize = 10;
         let mut attempt = 0usize;
         let backoff = client::llm_retry_backoff();
         let openai = &self.openai;

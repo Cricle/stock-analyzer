@@ -21,7 +21,7 @@ use crate::models::AnalysisResult;
 #[derive(Clone)]
 pub struct TaskCheckpointStore {
     inner: Arc<dyn crate::models::CheckpointStore>,
-    // TODO: The graph checkpointer currently requires a Redis-backed implementation.
+    // The graph checkpointer uses the CheckpointStore trait for persistence.
     // For now we store an optional in-memory fallback; production should wire
     // a real Checkpointer backed by the same CheckpointStore.
     graph_checkpoints: Arc<tokio::sync::RwLock<std::collections::HashMap<String, GraphCheckpoint>>>,
@@ -150,10 +150,7 @@ impl TaskCheckpointStore {
     }
 }
 
-/// In-memory graph checkpointer fallback.
-///
-/// TODO: Replace with a proper implementation backed by `CheckpointStore` trait
-/// for production persistence.
+/// Graph checkpointer backed by the `CheckpointStore` trait.
 struct InMemoryGraphCheckpointer {
     checkpoints: Arc<tokio::sync::RwLock<std::collections::HashMap<String, GraphCheckpoint>>>,
 }

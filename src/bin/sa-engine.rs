@@ -181,7 +181,7 @@ async fn main() {
                 history_retrieval: None,
             };
 
-            match stock_pick::run(&market_data, &llm, &request).await {
+            match stock_pick::run(&market_data, &llm, &request, None).await {
                 Ok(response) => {
                     let mut out = json!(response);
                     if let Some(l) = lang {
@@ -243,7 +243,7 @@ async fn main() {
                 history_retrieval: None,
             };
 
-            match stock_pick::run(&market_data, &llm, &pick_req).await {
+            match stock_pick::run(&market_data, &llm, &pick_req, None).await {
                 Ok(response) => {
                     result["analysis"] = json!(response);
                 }

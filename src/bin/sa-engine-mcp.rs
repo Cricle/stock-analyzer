@@ -166,7 +166,7 @@ impl ServerHandler for StockAnalyzerServer {
                     search_depth: None,
                     history_retrieval: None,
                 };
-                match stock_pick::run(&self.market_data, &self.llm, &req).await {
+                match stock_pick::run(&self.market_data, &self.llm, &req, None).await {
                     Ok(response) => {
                         let mut out = serde_json::json!(response);
                         let i18n = sa_engine::i18n::I18n::new();
@@ -215,7 +215,7 @@ impl ServerHandler for StockAnalyzerServer {
                     history_retrieval: None,
                 };
 
-                match stock_pick::run(&self.market_data, &self.llm, &pick_req).await {
+                match stock_pick::run(&self.market_data, &self.llm, &pick_req, None).await {
                     Ok(response) => result["analysis"] = serde_json::json!(response),
                     Err(e) => result["analysis_error"] = serde_json::json!(e.to_string()),
                 }

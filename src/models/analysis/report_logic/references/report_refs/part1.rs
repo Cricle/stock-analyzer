@@ -28,17 +28,17 @@ fn derive_research_reliability(
     let mut constraints = Vec::new();
 
     if confidence_breakdown.data_quality.score >= 14 {
-        strengths.push(LocalText::new("核心分析台与工具证据基本齐备。"));
+        strengths.push(LocalText::new("Core analysis platform and tool evidence largely complete."));
     } else {
-        constraints.push(LocalText::new("核心数据或工具链完整度不足。"));
+        constraints.push(LocalText::new("Core data or toolchain completeness insufficient."));
     }
     if confidence_breakdown.trend_confirmation.score >= 14 {
-        strengths.push(LocalText::new("市场结构、价位和指标锚点较完整。"));
+        strengths.push(LocalText::new("Market structure, price levels, and indicator anchors are fairly complete."));
     }
     if confidence_breakdown.fundamental_confirmation.score >= 10 {
-        strengths.push(LocalText::new("基本面论证具备足够数值锚点，可支撑方向判断。"));
+        strengths.push(LocalText::new("Fundamental analysis has sufficient numerical anchors to support directional assessment."));
     } else {
-        constraints.push(LocalText::new("基本面数值锚点不足或口径仍待验证，当前更多停留在参考层或风险提醒层，尚不足以单独构成核心决策证据。"));
+        constraints.push(LocalText::new("Fundamental numerical anchors insufficient or methodology unverified; currently at reference/risk-alert level, not yet sufficient as standalone core decision evidence."));
     }
     if diagnostics
         .fundamentals
@@ -46,13 +46,13 @@ fn derive_research_reliability(
         .any(|item| item.code == "cashflow_quality_unresolved")
     {
         constraints.push(LocalText::new(
-            "利润与现金流背离尚未拆解到应收、存货、预付款等营运资本层，当前只能作为风险警示，不能单独充当核心决策证据。",
+            "Profit-cash flow divergence not broken down to working capital level; risk alert only, not standalone core decision evidence.",
         ));
     }
     if confidence_breakdown.catalyst_quality.score >= 8 {
-        strengths.push(LocalText::new("事件与催化链路较清晰。"));
+        strengths.push(LocalText::new("Event and catalyst chain is relatively clear."));
     } else {
-        constraints.push(LocalText::new("新闻催化证据偏弱，更多是背景信息或复杂度线索，而非可直接定方向的硬触发器。"));
+        constraints.push(LocalText::new("News catalyst evidence is weak; mostly background/complexity clues, not directional triggers."));
     }
     if diagnostics
         .news
@@ -60,19 +60,19 @@ fn derive_research_reliability(
         .any(|item| item.code == "disclosure_sequence_complexity")
     {
         constraints.push(LocalText::new(
-            "近期披露序列包含注册、发行或减持类线索，当前新闻更适合作为复杂度/供给压力提示，不能直接等同于经营催化。",
+            "Recent disclosures include registration/issuance/selling clues; news is better as complexity/supply pressure signals, not operational catalysts.",
         ));
     }
     if confidence_breakdown.cross_agent_consistency.score >= 12 {
-        strengths.push(LocalText::new("多分析台方向较一致，结论不是单点意见。"));
+        strengths.push(LocalText::new("Multiple analysis desks directionally aligned; conclusion is not a single-point opinion."));
     }
     if confidence_breakdown.risk_clarity.score >= 7 {
-        strengths.push(LocalText::new("风险边界与失效条件表达清楚。"));
+        strengths.push(LocalText::new("Risk boundaries and invalidation conditions are clearly expressed."));
     }
     if memory_context.used_setup_filtered_retrieval
         && memory_context.setup_resolved_match_count == 0
     {
-        constraints.push(LocalText::new("相似 setup 已验证样本不足，历史迁移性只能保守处理。"));
+        constraints.push(LocalText::new("Insufficient validated samples for similar setups; historical transferability must be treated conservatively."));
     }
     for item in diagnostics
         .availability
@@ -82,7 +82,7 @@ fn derive_research_reliability(
         constraints.push(LocalText::new(item.message.key.clone()));
     }
     if !execution_boundary_complete {
-        constraints.push(LocalText::new("执行边界未闭环，这会压低可下单性，但不等于研究本身无效。"));
+        constraints.push(LocalText::new("Execution boundary not closed; reduces executability but does not invalidate the research."));
     }
     constraints.extend(
         confidence_caps
@@ -141,7 +141,7 @@ fn derive_market_reference_facts(result: &AnalysisResult) -> Vec<ReferenceFactIt
             if let Some(last_close) = last_close {
                 facts.push(ReferenceFactItem {
                     key: "latest_close".to_string(),
-                    label: "最新收盘".into(),
+                    label: "Latest Close".into(),
                     value: format!("{last_close:.4}"),
                     emphasis: "primary".to_string(),
                     ..Default::default()
@@ -155,7 +155,7 @@ fn derive_market_reference_facts(result: &AnalysisResult) -> Vec<ReferenceFactIt
                 };
                 facts.push(ReferenceFactItem {
                     key: "window_return".to_string(),
-                    label: "窗口涨跌幅".into(),
+                    label: "Window Return".into(),
                     value: format!("{pct:.2}%"),
                     emphasis: if pct >= 0.0 { "success" } else { "warning" }.to_string(),
                     ..Default::default()
@@ -190,7 +190,7 @@ fn derive_market_reference_facts_from_report(result: &AnalysisResult) -> Vec<Ref
     {
         facts.push(ReferenceFactItem {
             key: "latest_close".to_string(),
-            label: "最新收盘".into(),
+            label: "Latest Close".into(),
             value: format!("{current:.4}"),
             emphasis: "primary".to_string(),
             ..Default::default()
@@ -205,7 +205,7 @@ fn derive_market_reference_facts_from_report(result: &AnalysisResult) -> Vec<Ref
         let pct = ((last.close - first.close) / first.close) * 100.0;
         facts.push(ReferenceFactItem {
             key: "window_return".to_string(),
-            label: "窗口涨跌幅".into(),
+            label: "Window Return".into(),
             value: format!("{pct:.2}%"),
             emphasis: if pct >= 0.0 { "success" } else { "warning" }.to_string(),
             ..Default::default()
@@ -215,7 +215,7 @@ fn derive_market_reference_facts_from_report(result: &AnalysisResult) -> Vec<Ref
     if let Some(range_pct) = price.range_pct.filter(|value| value.is_finite()) {
         facts.push(ReferenceFactItem {
             key: "range_pct".to_string(),
-            label: "区间波动".into(),
+            label: "Range volatility".into(),
             value: format!("{range_pct:.2}%"),
             emphasis: "info".to_string(),
             ..Default::default()
@@ -225,7 +225,7 @@ fn derive_market_reference_facts_from_report(result: &AnalysisResult) -> Vec<Ref
     if let Some(volume) = price.latest_volume.filter(|value| *value > 0) {
         facts.push(ReferenceFactItem {
             key: "latest_volume".to_string(),
-            label: "最新成交量".into(),
+            label: "Latest volume".into(),
             value: volume.to_string(),
             emphasis: "info".to_string(),
             ..Default::default()
@@ -276,21 +276,21 @@ fn derive_fundamentals_reference_facts(result: &AnalysisResult) -> Vec<Reference
         .map(|s| s.to_string());
     let mut facts = Vec::new();
     for (label, key, emphasis) in [
-        ("营收", "revenues", "primary"),
-        ("净利润", "net_income", "primary"),
-        ("经营现金流", "operating_cash_flow", "success"),
-        ("自由现金流", "free_cash_flow", "success"),
-        ("资本开支", "capital_expenditure", "info"),
-        ("总资产", "assets", "info"),
-        ("总负债", "liabilities", "warning"),
-        ("股东权益", "stockholders_equity", "info"),
-        ("现金及等价物", "cash_and_equivalents", "info"),
-        ("总市值", "market_cap", "info"),
+        ("Revenue", "revenues", "primary"),
+        ("Net income", "net_income", "primary"),
+        ("Operating cash flow", "operating_cash_flow", "success"),
+        ("Free cash flow", "free_cash_flow", "success"),
+        ("Capital expenditure", "capital_expenditure", "info"),
+        ("Total assets", "assets", "info"),
+        ("Total liabilities", "liabilities", "warning"),
+        ("Stockholders equity", "stockholders_equity", "info"),
+        ("Cash and equivalents", "cash_and_equivalents", "info"),
+        ("Market cap", "market_cap", "info"),
     ] {
         if let Some(value) = pick(key) {
             let display_label = if key == "revenues" {
                 if let Some(ref period) = fiscal_period {
-                    format!("营收 ({})", period)
+                    format!("Revenue ({})", period)
                 } else {
                     label.to_string()
                 }

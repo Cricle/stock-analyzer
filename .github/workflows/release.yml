@@ -47,6 +47,7 @@ jobs:
       - name: Build MCP
         run: ${{ matrix.cross && 'cross' || 'cargo' }} build --release --target ${{ matrix.target }} --bin sa-engine-mcp
       - name: Compress binaries with UPX -5
+        if: "!matrix.cross"
         shell: bash
         run: |
           if command -v brew &>/dev/null; then
@@ -55,7 +56,9 @@ jobs:
             sudo apt-get update && sudo apt-get install -y upx-ucl || sudo apt-get install -y upx
           fi
           cd target/${{ matrix.target }}/release
-          upx -5 sa-engine sa-engine-mcp || true
+          for bin in sa-engine* sa-engine-mcp*; do
+            [ -f "$bin" ] && upx -5 "$bin" || true
+          done
       - name: Package (unix)
         if: matrix.archive == 'tar.gz'
         run: |

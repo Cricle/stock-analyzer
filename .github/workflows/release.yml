@@ -27,10 +27,9 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             archive: tar.gz
-          - target: x86_64-pc-windows-gnu
-            os: ubuntu-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
             archive: zip
-            cross: true
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -47,11 +46,13 @@ jobs:
       - name: Build MCP
         run: ${{ matrix.cross && 'cross' || 'cargo' }} build --release --target ${{ matrix.target }} --bin sa-engine-mcp
       - name: Compress binaries with UPX -5
-        if: "!matrix.cross"
+        if: ${{ !matrix.cross }}
         shell: bash
         run: |
           if command -v brew &>/dev/null; then
             brew install upx
+          elif command -v choco &>/dev/null; then
+            choco install upx -y
           else
             sudo apt-get update && sudo apt-get install -y upx-ucl || sudo apt-get install -y upx
           fi

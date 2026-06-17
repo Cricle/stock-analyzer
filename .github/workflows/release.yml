@@ -73,7 +73,7 @@ jobs:
           cd target/${{ matrix.target }}/release
           cp ../../../config.example.toml .
           cp ../../../README.md .
-          zip ../../../sa-engine-${{ github.ref_name }}-${{ matrix.target }}.zip sa-engine.exe sa-engine-mcp.exe config.example.toml README.md
+          Compress-Archive -Path sa-engine.exe, sa-engine-mcp.exe, config.example.toml, README.md -DestinationPath ../../../sa-engine-${{ github.ref_name }}-${{ matrix.target }}.zip
       - uses: actions/upload-artifact@v4
         with:
           name: sa-engine-${{ matrix.target }}

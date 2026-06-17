@@ -46,11 +46,14 @@ jobs:
         run: ${{ matrix.cross && 'cross' || 'cargo' }} build --release --target ${{ matrix.target }} --bin sa-engine
       - name: Build MCP
         run: ${{ matrix.cross && 'cross' || 'cargo' }} build --release --target ${{ matrix.target }} --bin sa-engine-mcp
-      - name: Install UPX
-        run: |
-          sudo apt-get update && sudo apt-get install -y upx-ucl || sudo apt-get install -y upx
       - name: Compress binaries with UPX -5
+        shell: bash
         run: |
+          if command -v brew &>/dev/null; then
+            brew install upx
+          else
+            sudo apt-get update && sudo apt-get install -y upx-ucl || sudo apt-get install -y upx
+          fi
           cd target/${{ matrix.target }}/release
           upx -5 sa-engine sa-engine-mcp || true
       - name: Package (unix)

@@ -126,7 +126,7 @@ fn print_json(value: &serde_json::Value, compact: bool) {
 // ── Config ──────────────────────────────────────────────────────────────────
 
 /// Load MCP key from env var or config file.
-/// Priority: SA_MCP_KEY env > config file [api_keys].mcp_key or top-level mcp_key.
+/// Priority: SA_MCP_KEY env > config file \[api_keys\].mcp_key or top-level mcp_key.
 fn load_mcp_key(config_path: Option<&str>) -> Option<String> {
     // Env var takes priority.
     if let Ok(key) = std::env::var("SA_MCP_KEY") && !key.is_empty() {
@@ -142,7 +142,7 @@ fn load_mcp_key(config_path: Option<&str>) -> Option<String> {
         })?;
     let content = std::fs::read_to_string(&path).ok()?;
     let table: toml::Table = toml::from_str(&content).ok()?;
-    // Check [api_keys].mcp_key first, then top-level mcp_key.
+    // Check \[api_keys\].mcp_key first, then top-level mcp_key.
     let key = table
         .get("api_keys").and_then(|t| t.get("mcp_key")).and_then(|v| v.as_str())
         .or_else(|| table.get("mcp_key").and_then(|v| v.as_str()))?;

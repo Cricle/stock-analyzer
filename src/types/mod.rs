@@ -75,6 +75,16 @@ impl MarketKind {
         }
     }
 
+    /// Market label for Eastmoney search API filtering.
+    /// Must match the values returned by `classify_search_market` in akshare-rs.
+    pub fn search_market_label(&self) -> &'static str {
+        match self {
+            Self::AShare => "A股",
+            Self::HongKong => "港股",
+            Self::UsEquity => "美股",
+        }
+    }
+
     /// Exchange code: "CN", "HK", "US".
     pub fn exchange_code(&self) -> &'static str {
         match self {
@@ -84,14 +94,7 @@ impl MarketKind {
         }
     }
 
-    /// Default candidate search query for stock picking.
-    pub fn default_candidate_query(&self) -> &'static str {
-        match self {
-            Self::AShare => "industry",
-            Self::HongKong => "blue chip",
-            Self::UsEquity => "technology",
-        }
-    }
+
 }
 
 // Re-export market data types from akshare (f64-based, no Decimal wrapper).

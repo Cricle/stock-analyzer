@@ -152,13 +152,14 @@ impl ServerHandler for StockAnalyzerServer {
                 let market = args.get("market").and_then(|v| v.as_str()).unwrap_or("a-share");
                 let lang = args.get("lang").and_then(|v| v.as_str()).unwrap_or("zh");
                 let date = args.get("date").and_then(|v| v.as_str()).map(String::from);
+                let sector_type = args.get("sector_type").and_then(|v| v.as_str()).map(|s| s.to_string());
                 let req = StockPickRequest {
                     market: market.to_string(),
                     analysis_date: date,
                     language: Some(lang.to_string()),
                     strategy: None,
                     candidate_symbols: None,
-                    sector_type: None,
+                    sector_type,
                     candidate_limit: None,
                     pick_count: None,
                     target_output_mode: None,

@@ -38,6 +38,8 @@ enum Commands {
         date: Option<String>,
         #[arg(long, value_delimiter = ',', help = "Explicit symbols to evaluate")]
         candidate_symbols: Option<Vec<String>>,
+        #[arg(long, help = "Sector type for candidate search (required for HK/US)")]
+        sector_type: Option<String>,
         #[arg(long, value_enum, help = "Output language")]
         lang: Option<LangArg>,
     },
@@ -157,7 +159,7 @@ async fn main() {
             }
         }
 
-        Commands::StockPick { market, date, candidate_symbols, lang } => {
+        Commands::StockPick { market, date, candidate_symbols, sector_type, lang } => {
             let market_data = bin_helpers::build_market_data_client()
                 .await
                 .unwrap_or_else(|e| error_exit("init_failed", &e.to_string()));
@@ -171,7 +173,7 @@ async fn main() {
                 language: llm_lang.or_else(|| Some("zh-CN".to_string())),
                 strategy: None,
                 candidate_symbols,
-                sector_type: None,
+                sector_type,
                 candidate_limit: None,
                 pick_count: None,
                 target_output_mode: None,

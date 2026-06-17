@@ -673,15 +673,17 @@ async fn resolve_candidates(
             resolve_a_share_candidates(market_data, request, candidate_limit).await
         }
         MarketKind::HongKong => {
-            let query = request
+            let Some(query) = request
                 .sector_type
                 .as_deref()
                 .filter(|value| !value.trim().is_empty())
-                .unwrap_or(market_kind.default_candidate_query());
+            else {
+                return Ok(Vec::new());
+            };
             let items = market_data
                 .search_stocks(
                     query,
-                    Some(market_kind.display_label()),
+                    Some(market_kind.search_market_label()),
                     candidate_limit,
                 )
                 .await?;
@@ -697,15 +699,17 @@ async fn resolve_candidates(
                 .collect())
         }
         MarketKind::UsEquity => {
-            let query = request
+            let Some(query) = request
                 .sector_type
                 .as_deref()
                 .filter(|value| !value.trim().is_empty())
-                .unwrap_or(market_kind.default_candidate_query());
+            else {
+                return Ok(Vec::new());
+            };
             let items = market_data
                 .search_stocks(
                     query,
-                    Some(market_kind.display_label()),
+                    Some(market_kind.search_market_label()),
                     candidate_limit,
                 )
                 .await?;

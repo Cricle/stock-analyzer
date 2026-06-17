@@ -1,8 +1,14 @@
-# sa-engine configuration
-# Copy to ~/.config/sa-engine/config.toml or set SA_ENGINE_CONFIG path.
+# sa configuration
+# Copy to ~/.config/sa-engine/config.toml or set SA_ENGINE_CONFIG env var.
 
 [api_keys]
 # Finnhub API keys for US stock news (free tier: 60 req/min).
 # Supports multiple keys for round-robin rotation.
 # Override with FINNHUB_API_KEY env var (comma-separated).
 finnhub = []
+
+# MCP HTTP transport authentication key.
+# When set, HTTP clients must send header: X-MCP-KEY: <value>
+# Leave empty or omit to disable authentication.
+# Override with SA_MCP_KEY env var.
+# mcp_key = ""

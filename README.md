@@ -1,6 +1,6 @@
-# sa-engine
+# sa
 
-Stock analysis engine — CLI and MCP server for market guidance, stock selection, and analysis reports.
+Stock analysis engine — CLI & MCP server for market guidance, stock selection, and analysis reports.
 
 ## What it does
 
@@ -12,38 +12,55 @@ Output is always JSON. Use `--lang zh` or `--lang en` to resolve i18n keys into 
 
 ## Install
 
-Download from [Releases](https://github.com/Cricle/stock-analyzer/releases), or build from source:
+Download from [Releases](https://github.com/Cricle/stock-analyzer/releases), install from crates.io, or build from source:
 
 ```bash
+cargo install stock-analyser
+# or
 cargo build --release
 ```
 
-Two binaries: `sa-engine` (CLI) and `sa-engine-mcp` (MCP server).
+A single binary `sa` handles both CLI and MCP server.
 
 ## Quick Start
 
 ```bash
 # Daily guidance for A-share market (Chinese output)
-sa-engine guidance --market a-share --lang zh
+sa guidance --market a-share --lang zh
 
 # Stock selection for Hong Kong
-sa-engine stock-pick --market hk --lang zh
+sa stock-pick --market hk --lang zh
 
 # Per-symbol analysis report
-sa-engine report --symbol 600519.SH --market a-share --lang en
+sa report --symbol 600519.SH --market a-share --lang en
 
 # Compact JSON (single line, for piping)
-sa-engine --json guidance --market us --lang en | jq '.market_sentiment'
+sa --json guidance --market us --lang en | jq '.market_sentiment'
 ```
 
 ## MCP Server
 
 ```bash
 # stdio transport (for Claude Desktop, Cursor, etc.)
-sa-engine-mcp --transport stdio
+sa mcp --transport stdio
+
+# HTTP+SSE transport (for remote clients)
+sa mcp --transport http --port 3000
 ```
 
-Tools: `generate_guidance`, `stock_pick`, `generate_report`. All accept `market` and `lang` parameters.
+### HTTP Authentication
+
+When `mcp_key` is set in config or `SA_MCP_KEY` env var, HTTP clients must send:
+
+```
+X-MCP-KEY: <your-key>
+```
+
+Leave unset to allow unauthenticated access.
+
+### MCP Tools
+
+`generate_guidance`, `stock_pick`, `generate_report`. All accept `market` (a-share/hk/us) and `lang` (zh/en).
 
 ## Configuration
 
@@ -62,8 +79,9 @@ Tools: `generate_guidance`, `stock_pick`, `generate_report`. All accept `market`
 | Variable | Description |
 |----------|-------------|
 | `FINNHUB_API_KEY` | Finnhub API key for US stock news (comma-separated for rotation) |
+| `SA_MCP_KEY` | MCP HTTP auth key (overrides config file) |
 
-Config file alternative: `~/.config/sa-engine/config.toml` (or set `SA_ENGINE_CONFIG`).
+Config file: `~/.config/sa-engine/config.toml` (or set `SA_ENGINE_CONFIG`).
 See `config.example.toml` for format.
 
 ### Optional
@@ -81,7 +99,7 @@ See `config.example.toml` for format.
 ## CLI Reference
 
 ```
-sa-engine [--json] <command> [options]
+sa [--json] <command> [options]
 
 Commands:
   guidance      Generate daily market guidance
@@ -99,6 +117,11 @@ Commands:
     --market    a-share | hk | us (default: a-share)
     --sections  Comma-separated sections
     --lang      zh | en
+
+  mcp           Start MCP server
+    --transport stdio | http (default: stdio)
+    --port      HTTP port (default: 3000)
+    --config    Path to config file
 
 Global:
   --json        Output compact JSON (single line)

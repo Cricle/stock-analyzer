@@ -49,7 +49,7 @@ jobs:
       - name: Build
         run: >-
           ${{ matrix.cross && 'cross' || 'cargo' }}
-          build --release --locked
+          build --release
           --target ${{ matrix.target }}
           --bin sa-engine
           --bin sa-engine-mcp

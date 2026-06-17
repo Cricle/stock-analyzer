@@ -255,7 +255,7 @@ impl DailyGuidanceGenerator {
         let name_to_resolved: std::collections::HashMap<String, String> = resolved_names
             .iter()
             .zip(resolved_symbols.iter())
-            .filter(|(name, resolved)| name.to_ascii_lowercase() != resolved.to_ascii_lowercase())
+            .filter(|(name, resolved)| !name.eq_ignore_ascii_case(resolved))
             .map(|(name, resolved)| (name.to_ascii_lowercase(), resolved.to_ascii_lowercase()))
             .collect();
 

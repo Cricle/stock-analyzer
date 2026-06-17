@@ -284,10 +284,10 @@ impl TaskManager {
         task_id: &str,
         event: &crate::models::TaskEvent,
     ) {
-        if let Some(bus) = &self.event_bus {
-            if let Err(e) = bus.publish(task_id, event).await {
-                tracing::warn!(task_id = %task_id, error = %e, "failed to publish task event");
-            }
+        if let Some(bus) = &self.event_bus
+            && let Err(e) = bus.publish(task_id, event).await
+        {
+            tracing::warn!(task_id = %task_id, error = %e, "failed to publish task event");
         }
     }
 

@@ -681,6 +681,7 @@ impl MarketDataClient {
 
 impl MarketDataClient {
     /// Discover US stock candidates by searching well-known names.
+    #[allow(dead_code)]
     pub(crate) async fn discover_us_candidates(&self, _sector_type: &str, limit: usize) -> anyhow::Result<Vec<(String, String)>> {
         let queries = [
             "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN",

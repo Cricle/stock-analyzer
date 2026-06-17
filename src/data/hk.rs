@@ -436,12 +436,12 @@ impl MarketDataClient {
         // Approach 2: stock_individual_info_em_by_secid (broader fields, same push2 endpoint)
         if let Ok(items) = self.ak.stock_individual_info_em_by_secid(&secid).await {
             for item in &items {
-                if item.item == "行业" {
-                    if let Some(val) = item.value.as_str() {
-                        let trimmed = val.trim();
-                        if !trimmed.is_empty() {
-                            return Some(trimmed.to_string());
-                        }
+                if item.item == "行业"
+                    && let Some(val) = item.value.as_str()
+                {
+                    let trimmed = val.trim();
+                    if !trimmed.is_empty() {
+                        return Some(trimmed.to_string());
                     }
                 }
             }
@@ -449,14 +449,13 @@ impl MarketDataClient {
 
         // Approach 3: HK security profile via datacenter.eastmoney.com (different server)
         // The 'board' field indicates the sector/board classification on HKEX.
-        if let Ok(profiles) = self.ak.stock_hk_security_profile_em(&code).await {
-            if let Some(profile) = profiles.first() {
-                if let Some(ref board) = profile.board {
-                    let trimmed = board.trim();
-                    if !trimmed.is_empty() {
-                        return Some(trimmed.to_string());
-                    }
-                }
+        if let Ok(profiles) = self.ak.stock_hk_security_profile_em(&code).await
+            && let Some(profile) = profiles.first()
+            && let Some(ref board) = profile.board
+        {
+            let trimmed = board.trim();
+            if !trimmed.is_empty() {
+                return Some(trimmed.to_string());
             }
         }
 
@@ -641,6 +640,7 @@ impl MarketDataClient {
     /// Discover HK stock candidates by searching well-known names.
     /// The Eastmoney search API only returns A-share for generic sector terms,
     /// so we search for specific well-known HK companies.
+    #[allow(dead_code)]
     pub(crate) async fn discover_hk_candidates(&self, limit: usize) -> anyhow::Result<Vec<(String, String)>> {
         let queries = [
             "腾讯", "阿里巴巴", "美团", "小米", "京东",

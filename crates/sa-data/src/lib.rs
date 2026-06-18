@@ -61,6 +61,8 @@ mod us;
 mod wire;
 
 pub use cache::{Singleflight, SingleflightGuard, SingleflightResult};
+#[cfg(feature = "redis-cache")]
+pub use store_impls::RedisCacheStore;
 
 /// Configuration for constructing a `MarketDataClient`.
 /// The backend builds this from its `Settings`.

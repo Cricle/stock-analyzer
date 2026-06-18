@@ -55,6 +55,7 @@ mod hk;
 mod news_search;
 pub mod qdrant;
 pub mod search;
+pub mod store_impls;
 mod tushare;
 mod us;
 mod wire;

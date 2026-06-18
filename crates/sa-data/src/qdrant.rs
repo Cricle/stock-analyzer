@@ -1,9 +1,14 @@
 //! Shared Qdrant HTTP client with retry logic.
+//!
+//! Provides collection management, upsert, search, and delete operations
+//! via the Qdrant HTTP REST API, plus a `VectorStore` trait implementation.
 
 use anyhow::Context;
+use async_trait::async_trait;
+use sa_models::store::{VectorSearchHit, VectorStore};
 use serde_json::json;
 
-/// Lightweight Qdrant HTTP client for vector search operations.
+/// Lightweight Qdrant HTTP client for vector operations.
 #[derive(Clone)]
 pub struct QdrantClient {
     pub http: reqwest::Client,
@@ -18,6 +23,102 @@ impl QdrantClient {
             url,
             collection,
         }
+    }
+
+    /// Ensure the collection exists with the given vector size.
+    /// Creates it if missing (idempotent).
+    pub async fn ensure_collection(&self, vector_size: u64) -> anyhow::Result<()> {
+        let response = self
+            .http
+            .put(format!(
+                "{}/collections/{}",
+                self.url, self.collection
+            ))
+            .json(&json!({
+                "vectors": {
+                    "size": vector_size,
+                    "distance": "Cosine"
+                }
+            }))
+            .send()
+            .await
+            .context("failed to ensure qdrant collection")?;
+        if !response.status().is_success() && response.status().as_u16() != 409 {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("qdrant ensure collection failed with {status}: {body}");
+        }
+        Ok(())
+    }
+
+    /// Create a payload index on the collection for a given field.
+    pub async fn create_field_index(
+        &self,
+        field_name: &str,
+        field_schema: &str,
+    ) -> anyhow::Result<()> {
+        let _ = self
+            .http
+            .put(format!(
+                "{}/collections/{}/index",
+                self.url, self.collection
+            ))
+            .json(&json!({
+                "field_name": field_name,
+                "field_schema": field_schema
+            }))
+            .send()
+            .await;
+        Ok(())
+    }
+
+    /// Upsert a single point into the collection.
+    pub async fn upsert_point(
+        &self,
+        id: &str,
+        vector: &[f32],
+        payload: serde_json::Value,
+    ) -> anyhow::Result<()> {
+        self.http
+            .put(format!(
+                "{}/collections/{}/points?wait=true",
+                self.url, self.collection
+            ))
+            .json(&json!({
+                "points": [{
+                    "id": id,
+                    "vector": vector,
+                    "payload": payload
+                }]
+            }))
+            .send()
+            .await
+            .context("failed to upsert qdrant point")?
+            .error_for_status()
+            .context("qdrant upsert request failed")?;
+        Ok(())
+    }
+
+    /// Batch upsert multiple points in a single request.
+    pub async fn upsert_points(
+        &self,
+        points: Vec<serde_json::Value>,
+    ) -> anyhow::Result<()> {
+        if points.is_empty() {
+            return Ok(());
+        }
+        self.http
+            .put(format!(
+                "{}/collections/{}/points?wait=true",
+                self.url, self.collection
+            ))
+            .json(&json!({ "points": points }))
+            .send()
+            .await
+            .context("failed to batch upsert qdrant points")?
+            .error_for_status()
+            .context("qdrant batch upsert request failed")?;
+        Ok(())
     }
 
     /// Search qdrant with retry. Returns the raw `result` array from the response.
@@ -72,6 +173,84 @@ impl QdrantClient {
             }
         })
         .await
+    }
+
+    /// Delete a point by id.
+    pub async fn delete_point(&self, id: &str) -> anyhow::Result<()> {
+        self.http
+            .post(format!(
+                "{}/collections/{}/points/delete",
+                self.url, self.collection
+            ))
+            .json(&json!({
+                "points": [id]
+            }))
+            .send()
+            .await
+            .context("failed to delete qdrant point")?
+            .error_for_status()
+            .context("qdrant delete request failed")?;
+        Ok(())
+    }
+
+    /// Delete points matching a filter.
+    pub async fn delete_by_filter(
+        &self,
+        must_filters: Vec<serde_json::Value>,
+    ) -> anyhow::Result<()> {
+        self.http
+            .post(format!(
+                "{}/collections/{}/points/delete",
+                self.url, self.collection
+            ))
+            .json(&json!({
+                "filter": { "must": must_filters }
+            }))
+            .send()
+            .await
+            .context("failed to delete qdrant points by filter")?
+            .error_for_status()
+            .context("qdrant filter-delete request failed")?;
+        Ok(())
+    }
+}
+
+/// `VectorStore` implementation backed by Qdrant HTTP API.
+///
+/// The `collection` parameter in trait methods is ignored; the client uses
+/// the collection configured at construction time.
+#[async_trait]
+impl VectorStore for QdrantClient {
+    async fn insert(
+        &self,
+        _collection: &str,
+        id: &str,
+        embedding: &[f32],
+        payload: serde_json::Value,
+    ) -> anyhow::Result<()> {
+        self.upsert_point(id, embedding, payload).await
+    }
+
+    async fn search(
+        &self,
+        _collection: &str,
+        query_embedding: &[f32],
+        top_k: usize,
+    ) -> anyhow::Result<Vec<VectorSearchHit>> {
+        let raw_results = self.search(query_embedding, top_k, 0.0, vec![]).await?;
+        Ok(raw_results
+            .into_iter()
+            .filter_map(|v| {
+                let id = v.get("id")?.as_str()?.to_string();
+                let score = v.get("score")?.as_f64()? as f32;
+                let payload = v.get("payload").cloned().unwrap_or_default();
+                Some(VectorSearchHit { id, score, payload })
+            })
+            .collect())
+    }
+
+    async fn delete(&self, _collection: &str, id: &str) -> anyhow::Result<()> {
+        self.delete_point(id).await
     }
 }
 

@@ -171,8 +171,4 @@ impl TradingMemoryLog {
         // Always fall back to hash embedding to guarantee a non-empty vector
         Self::hash_embed_text(text, self.embedding.dimension)
     }
-
-    pub(super) fn vector_size(&self) -> usize {
-        self.embedding.dimension
-    }
 }

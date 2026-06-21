@@ -5,6 +5,7 @@
 
 #[cfg(feature = "local-rag-embeddings")]
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
+#[cfg(feature = "local-rag-embeddings")]
 use std::sync::OnceLock;
 
 #[cfg(feature = "local-rag-embeddings")]

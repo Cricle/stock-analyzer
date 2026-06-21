@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use adk_graph::{
     checkpoint::Checkpointer,
-    error::{GraphError, Result as GraphResult},
+    error::Result as GraphResult,
     state::Checkpoint as GraphCheckpoint,
 };
 use anyhow::Context;

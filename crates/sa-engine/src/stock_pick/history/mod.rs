@@ -66,13 +66,6 @@ pub(crate) struct StockPickHistoryPayload {
 }
 
 impl StockPickHistoryStore {
-    pub(crate) fn new(
-        cache: std::sync::Arc<dyn sa_models::CacheStore>,
-        vector_store: std::sync::Arc<dyn sa_models::VectorStore>,
-    ) -> Self {
-        Self { cache, vector_store }
-    }
-
     /// Create from environment variables (legacy compatibility).
     ///
     /// TODO: Replace with explicit dependency injection.

@@ -36,3 +36,6 @@ tokio-stream = "0.1"
 tracing = "0.1"
 uuid = { version = "1", features = ["v4"] }
 zeroize = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+axum = { version = "0.8", features = ["json"] }

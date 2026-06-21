@@ -6,6 +6,18 @@ resolver = "2"
 edition = "2024"
 license = "MIT"
 
+[package]
+name = "stock-analyzer-tests"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[dev-dependencies]
+sa-models = { path = "crates/sa-models" }
+sa-engine = { path = "crates/sa-engine" }
+sa-data = { path = "crates/sa-data" }
+serde_json = "1"
+
 [profile.dev]
 debug = 0
 incremental = false

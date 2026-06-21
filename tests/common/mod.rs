@@ -1,3 +1,6 @@
+pub mod stocks;
+pub mod eval;
+
 use serde_json::Value;
 
 pub fn load_fixture(name: &str) -> Value {

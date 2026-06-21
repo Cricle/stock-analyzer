@@ -509,3 +509,59 @@ impl MarketDataClient {
         }
     }
 }
+
+#[cfg(test)]
+mod diagnosis_tests {
+    use super::*;
+
+    #[test]
+    fn data_fetch_diagnosis_new() {
+        let d = DataFetchDiagnosis::new("quote", "AAPL");
+        assert_eq!(d.data_type, "quote");
+        assert_eq!(d.symbol, "AAPL");
+        assert!(d.attempts.is_empty());
+        assert_eq!(d.final_status, "failed");
+        assert!(!d.used_stale_cache);
+    }
+
+    #[test]
+    fn data_fetch_diagnosis_summary_success() {
+        let mut d = DataFetchDiagnosis::new("quote", "AAPL");
+        d.final_status = "success".into();
+        d.attempts.push(DataFetchAttempt {
+            provider: "yahoo".into(),
+            success: true,
+            error: None,
+            duration_ms: 150,
+        });
+        let summary = d.summary();
+        assert!(summary.contains("quote"));
+        assert!(summary.contains("AAPL"));
+        assert!(summary.contains("success"));
+        assert!(summary.contains("yahoo:ok(150ms)"));
+    }
+
+    #[test]
+    fn data_fetch_diagnosis_summary_failed() {
+        let mut d = DataFetchDiagnosis::new("candles", "000001.SZ");
+        d.final_status = "failed".into();
+        d.attempts.push(DataFetchAttempt {
+            provider: "tencent".into(),
+            success: false,
+            error: Some("timeout".into()),
+            duration_ms: 5000,
+        });
+        let summary = d.summary();
+        assert!(summary.contains("failed"));
+        assert!(summary.contains("tencent:err(5000ms)"));
+    }
+
+    #[test]
+    fn data_fetch_diagnosis_summary_degraded() {
+        let mut d = DataFetchDiagnosis::new("news", "TSLA");
+        d.final_status = "degraded".into();
+        d.used_stale_cache = true;
+        let summary = d.summary();
+        assert!(summary.contains("degraded"));
+    }
+}

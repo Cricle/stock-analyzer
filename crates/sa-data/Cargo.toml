@@ -14,7 +14,6 @@ sa-models = { path = "../sa-models" }
 akshare = { path = "../../../akshare-rs/crates/akshare" }
 anyhow = "1"
 async-trait = "0.1"
-backoff = { version = "0.4", features = ["tokio"] }
 calamine = "0.31"
 chrono = { version = "0.4", features = ["serde"] }
 futures = "0.3"

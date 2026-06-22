@@ -1,0 +1,13 @@
+{
+  "symbol": "AAPL",
+  "price": 185.50,
+  "change_pct": 1.2,
+  "volume": 52000000,
+  "rsi": 55.0,
+  "macd": 0.3,
+  "macd_signal": 0.2,
+  "macd_hist": 0.1,
+  "ema_10": 183.0,
+  "sma_50": 180.0,
+  "sma_200": 170.0
+}

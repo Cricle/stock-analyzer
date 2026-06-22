@@ -32,3 +32,16 @@ jobs:
       - run: cargo doc --no-deps
         env:
           RUSTDOCFLAGS: "-D warnings"
+      - run: cargo clippy --workspace -- -D warnings
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+      - name: Run coverage
+        run: cargo tarpaulin --workspace --out Stdout --fail-under 90

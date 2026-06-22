@@ -1,0 +1,117 @@
+mod common;
+
+#[test]
+fn e2e_fixture_loading() {
+    let market = common::load_fixture("sample_market");
+    assert_eq!(market["symbol"], "AAPL");
+    assert_eq!(market["price"], 185.50);
+
+    let news = common::load_fixture("sample_news");
+    assert_eq!(news["headlines"].as_array().unwrap().len(), 3);
+
+    let llm = common::load_fixture("sample_llm_response");
+    assert_eq!(llm["score"], 72);
+}
+
+#[test]
+fn e2e_score_consistency_bullish() {
+    let pick = common::sample_scoreable_pick();
+    // Verify pick has all bullish signals
+    assert!(pick.rsi.unwrap() < 70.0);
+    assert!(pick.volume_elevated);
+    assert!(pick.latest_positive);
+    // Score should be above neutral
+    // Note: score_stock_pick is async and needs LLM client,
+    // so we test the individual dimensions here
+    let tech_input = sa_engine::score::dimensions::technical::TechnicalInput {
+        rsi: pick.rsi,
+        macd: pick.macd,
+        macd_signal: pick.macd_signal,
+        macd_hist: pick.macd_hist,
+        adx: pick.adx,
+        close_10_ema: pick.close_10_ema,
+        close_50_sma: pick.close_50_sma,
+        close_200_sma: pick.close_200_sma,
+        obv: pick.obv,
+        current_price: pick.current_price,
+        volume_elevated: pick.volume_elevated,
+        latest_positive: pick.latest_positive,
+    };
+    let tech = sa_engine::score::dimensions::technical::score_technical(&tech_input);
+    assert!(tech.score >= 60, "expected bullish tech score, got {}", tech.score);
+    assert!(tech.score <= 100);
+}
+
+#[test]
+fn e2e_score_consistency_bearish() {
+    let tech_input = sa_engine::score::dimensions::technical::TechnicalInput {
+        rsi: Some(80.0),
+        macd: Some(-0.5),
+        macd_signal: Some(-0.2),
+        macd_hist: Some(-0.3),
+        adx: Some(30.0),
+        close_10_ema: Some(90.0),
+        close_50_sma: Some(95.0),
+        close_200_sma: Some(100.0),
+        obv: None,
+        current_price: Some(85.0),
+        volume_elevated: true,
+        latest_positive: false,
+    };
+    let tech = sa_engine::score::dimensions::technical::score_technical(&tech_input);
+    assert!(tech.score <= 40, "expected bearish tech score, got {}", tech.score);
+}
+
+#[test]
+fn e2e_score_fundamental_mixed() {
+    let fund_input = sa_engine::score::dimensions::fundamental::FundamentalInput {
+        pe_like: Some(10.0),
+        ps_like: None,
+        roe: Some(-5.0),
+        leverage: Some(0.8),
+        market_cap: None,
+        revenues_usd: Some(1_000_000_000.0),
+        net_income_usd: Some(-100_000_000.0),
+    };
+    let fund = sa_engine::score::dimensions::fundamental::score_fundamental(&fund_input);
+    assert!(fund.score >= 20 && fund.score <= 80, "mixed signals should be mid-range, got {}", fund.score);
+}
+
+#[test]
+fn e2e_score_llm_analysis_consensus() {
+    let llm_input = sa_engine::score::dimensions::llm_analysis::LlmAnalysisInput {
+        confidence: 70.0,
+        objective_final_score: 70.0,
+        momentum_score: 65.0,
+        hit_rate: Some(0.65),
+        catalyst_count: 6,
+        hard_negative_count: 0,
+        volume_ratio: Some(1.2),
+        period_return_pct: Some(3.0),
+    };
+    let result = sa_engine::score::dimensions::llm_analysis::score_llm_analysis(&llm_input);
+    assert!(result.score >= 55, "expected decent score with consensus, got {}", result.score);
+}
+
+#[test]
+fn e2e_score_label_mapping() {
+    assert_eq!(sa_engine::score::types::score_label(85), "strong_buy");
+    assert_eq!(sa_engine::score::types::score_label(70), "buy");
+    assert_eq!(sa_engine::score::types::score_label(55), "neutral");
+    assert_eq!(sa_engine::score::types::score_label(35), "cautious");
+    assert_eq!(sa_engine::score::types::score_label(20), "avoid");
+}
+
+#[test]
+fn e2e_score_weights_validation() {
+    let weights = sa_engine::score::types::ScoreWeights::default();
+    assert!(weights.validate().is_ok());
+
+    let invalid = sa_engine::score::types::ScoreWeights {
+        technical: 50,
+        fundamental: 50,
+        sentiment: 50,
+        llm_analysis: 50,
+    };
+    assert!(invalid.validate().is_err());
+}

@@ -133,4 +133,64 @@ pub struct PersistedTask {
     pub updated_at: DateTime<Utc>,
 }
 
+impl PersistedTask {
+    pub fn status_string(&self) -> &str {
+        self.status.as_str()
+    }
+}
 
+#[cfg(test)]
+mod task_tests {
+    use super::*;
+
+    // --- TaskStatus ---
+
+    #[test]
+    fn task_status_as_str() {
+        assert_eq!(TaskStatus::Pending.as_str(), "pending");
+        assert_eq!(TaskStatus::Running.as_str(), "running");
+        assert_eq!(TaskStatus::Completed.as_str(), "completed");
+        assert_eq!(TaskStatus::Cancelled.as_str(), "cancelled");
+        assert_eq!(TaskStatus::Failed.as_str(), "failed");
+    }
+
+    #[test]
+    fn task_status_from_str_valid() {
+        assert_eq!("pending".parse::<TaskStatus>().unwrap(), TaskStatus::Pending);
+        assert_eq!("running".parse::<TaskStatus>().unwrap(), TaskStatus::Running);
+        assert_eq!("completed".parse::<TaskStatus>().unwrap(), TaskStatus::Completed);
+        assert_eq!("cancelled".parse::<TaskStatus>().unwrap(), TaskStatus::Cancelled);
+        assert_eq!("failed".parse::<TaskStatus>().unwrap(), TaskStatus::Failed);
+    }
+
+    #[test]
+    fn task_status_from_str_invalid() {
+        assert!("unknown".parse::<TaskStatus>().is_err());
+    }
+
+    #[test]
+    fn task_status_roundtrip() {
+        let statuses = [
+            TaskStatus::Pending,
+            TaskStatus::Running,
+            TaskStatus::Completed,
+            TaskStatus::Cancelled,
+            TaskStatus::Failed,
+        ];
+        for status in &statuses {
+            let s = status.as_str();
+            let restored: TaskStatus = s.parse().unwrap();
+            assert_eq!(*status, restored);
+        }
+    }
+
+    // --- TaskStatus serde ---
+
+    #[test]
+    fn task_status_serde_roundtrip() {
+        let status = TaskStatus::Completed;
+        let json = serde_json::to_string(&status).unwrap();
+        let restored: TaskStatus = serde_json::from_str(&json).unwrap();
+        assert_eq!(status, restored);
+    }
+}

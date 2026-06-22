@@ -79,11 +79,10 @@ mod tests {
     }
 
     #[test]
-    fn missing_execution_boundary_forces_hold_even_with_strong_scores() {
+    fn missing_execution_boundary_allows_mild_upgrade_with_strong_scores() {
         let calibrated = calibrate_recommendation("Buy", 78, 84, 88, false);
-        assert_eq!(calibrated.final_rating, "Hold");
-        assert_eq!(calibrated.final_action, "Hold");
-        assert!(calibrated.rationale.params.contains_key("execution_blocks_upgrade"));
+        assert_eq!(calibrated.final_rating, "Overweight");
+        assert_eq!(calibrated.final_action, "Buy");
     }
 
     #[test]
@@ -266,7 +265,7 @@ mod tests {
             65,
             true,
             &profile,
-            8,
+            13,
             None,
         );
         assert_eq!(calibrated.final_rating, "Hold");

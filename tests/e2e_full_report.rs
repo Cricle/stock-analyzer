@@ -253,75 +253,61 @@ async fn e2e_full_report_aapl() {
     assert!(!summary.is_empty(), "summary should not be empty");
 }
 
-#[tokio::test]
-async fn e2e_full_report_all_markets() {
-    let stocks = [
-        ("600519", "\u{8d35}\u{5dde}\u{8305}\u{53f0}", "A\u{80a1}"),
-        ("688256", "\u{5bd2}\u{6b66}\u{7eaa}", "A\u{80a1}"),
-        ("00700", "\u{817e}\u{8baf}\u{63a7}\u{80a1}", "\u{6e2f}\u{80a1}"),
-        ("00020", "\u{5546}\u{6c64}\u{79d1}\u{6280}", "\u{6e2f}\u{80a1}"),
-        ("AAPL", "Apple", "\u{7f8e}\u{80a1}"),
-        ("PLTR", "Palantir", "\u{7f8e}\u{80a1}"),
-    ];
-
+/// Run a single stock report and validate the result.
+async fn run_single_stock(symbol: &str, name: &str, market: &str) {
     let (manager, _data_dir) = setup_task_manager().await;
-    let mut results = Vec::new();
+    println!("\n=== Running report for {} ({}) ===", name, symbol);
+    let request = sa_models::SingleAnalysisRequest {
+        symbol: Some(symbol.to_string()),
+        stock_code: None,
+        stock_name: Some(name.to_string()),
+        parameters: Some(sa_models::AnalysisParameters {
+            market_type: Some(market.to_string()),
+            analysis_date: Some(chrono::Local::now().format("%Y-%m-%d").to_string()),
+            selected_analysts: Some(vec!["market".to_string()]),
+            ..Default::default()
+        }),
+        force_refresh: true,
+    };
 
-    for (symbol, name, market) in &stocks {
-        println!("\n=== Running report for {} ({}) ===", name, symbol);
-        let request = sa_models::SingleAnalysisRequest {
-            symbol: Some(symbol.to_string()),
-            stock_code: None,
-            stock_name: Some(name.to_string()),
-            parameters: Some(sa_models::AnalysisParameters {
-                market_type: Some(market.to_string()),
-                analysis_date: Some(chrono::Local::now().format("%Y-%m-%d").to_string()),
-                selected_analysts: Some(vec!["market".to_string()]),
-                ..Default::default()
-            }),
-            force_refresh: true,
-        };
+    let task_id = manager
+        .create_task_and_run_blocking("", request, None)
+        .await
+        .expect("task creation should succeed");
 
-        match manager.create_task_and_run_blocking("", request, None).await {
-            Ok(task_id) => {
-                let task = wait_for_task(&manager, &task_id, std::time::Duration::from_secs(3600)).await;
-                let result = manager
-                    .analysis_store()
-                    .load_result(&task_id)
-                    .await
-                    .unwrap();
-                let summary_len = result
-                    .as_ref()
-                    .map(|r| r.report.summary.as_str().len())
-                    .unwrap_or(0);
-                println!(
-                    "  Status: {:?}, Tokens: {}, Summary: {} chars",
-                    task.status, task.llm_token_usage.total_tokens, summary_len
-                );
-                let ok = task.status == sa_models::TaskStatus::Completed;
-                results.push((symbol, ok, summary_len));
-            }
-            Err(e) => {
-                println!("  FAILED: {}", e);
-                results.push((symbol, false, 0));
-            }
-        }
-    }
+    let task = wait_for_task(&manager, &task_id, std::time::Duration::from_secs(3600)).await;
 
-    println!("\n=== Results ===");
-    for (symbol, ok, summary_len) in &results {
-        println!(
-            "  {}: {} ({} chars)",
-            symbol,
-            if *ok { "OK" } else { "FAILED" },
-            summary_len
-        );
-    }
+    let result = manager
+        .analysis_store()
+        .load_result(&task_id)
+        .await
+        .unwrap();
+    let result = result.expect("completed task should have a result");
 
-    let ok_count = results.iter().filter(|(_, ok, _)| *ok).count();
-    assert!(
-        ok_count >= 4,
-        "Expected at least 4/6 reports to complete, got {}",
-        ok_count
-    );
+    let summary = &result.report.summary;
+    let s = summary.as_str();
+    let end = {
+        let mut e = 200.min(s.len());
+        while e > 0 && !s.is_char_boundary(e) { e -= 1; }
+        e
+    };
+    println!("Summary: {}", &s[..end]);
+    println!("Recommendation: {}", result.report.recommendation);
+    assert_eq!(task.status, sa_models::TaskStatus::Completed);
+    assert!(!summary.is_empty(), "summary should not be empty");
+}
+
+#[tokio::test]
+async fn e2e_full_report_tencent() {
+    run_single_stock("00700", "\u{817e}\u{8baf}\u{63a7}\u{80a1}", "\u{6e2f}\u{80a1}").await;
+}
+
+#[tokio::test]
+async fn e2e_full_report_sensetime() {
+    run_single_stock("00020", "\u{5546}\u{6c64}\u{79d1}\u{6280}", "\u{6e2f}\u{80a1}").await;
+}
+
+#[tokio::test]
+async fn e2e_full_report_pltr() {
+    run_single_stock("PLTR", "Palantir", "\u{7f8e}\u{80a1}").await;
 }

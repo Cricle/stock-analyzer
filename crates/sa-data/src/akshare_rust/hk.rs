@@ -81,7 +81,7 @@ pub(crate) async fn fetch_hk_spot(
 pub(crate) async fn fetch_hk_famous_spot(
     client: &MarketDataClient,
 ) -> anyhow::Result<Vec<HkFamousStock>> {
-    client.ak.stock_hk_famous_spot_em().await.map_err(Into::into)
+    client.ak.stock_hk_famous_spot().await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------
@@ -91,7 +91,7 @@ pub(crate) async fn fetch_hk_famous_spot(
 pub(crate) async fn fetch_hk_hot_rank(
     client: &MarketDataClient,
 ) -> anyhow::Result<Vec<HkHotRank>> {
-    client.ak.stock_hk_hot_rank_em().await.map_err(Into::into)
+    client.ak.stock_hk_hot_rank().await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_hk_hot_rank_latest(
@@ -100,7 +100,7 @@ pub(crate) async fn fetch_hk_hot_rank_latest(
 ) -> anyhow::Result<Vec<HkHotRankDetail>> {
     client
         .ak
-        .stock_hk_hot_rank_latest_em(symbol)
+        .stock_hk_hot_rank_latest(symbol)
         .await
         .map_err(Into::into)
 }
@@ -111,7 +111,7 @@ pub(crate) async fn fetch_hk_hot_rank_detail(
 ) -> anyhow::Result<Vec<HkHotRankDetail>> {
     client
         .ak
-        .stock_hk_hot_rank_detail_em(symbol)
+        .stock_hk_hot_rank_detail(symbol)
         .await
         .map_err(Into::into)
 }
@@ -122,7 +122,7 @@ pub(crate) async fn fetch_hk_hot_rank_realtime(
 ) -> anyhow::Result<Vec<HkHotRankDetail>> {
     client
         .ak
-        .stock_hk_hot_rank_detail_realtime_em(symbol)
+        .stock_hk_hot_rank_detail_realtime(symbol)
         .await
         .map_err(Into::into)
 }
@@ -137,7 +137,7 @@ pub(crate) async fn fetch_hk_dividend_payout(
 ) -> anyhow::Result<Vec<serde_json::Value>> {
     client
         .ak
-        .stock_hk_dividend_payout_em(symbol)
+        .stock_hk_dividend_payout(symbol)
         .await
         .map_err(Into::into)
 }
@@ -148,7 +148,7 @@ pub(crate) async fn fetch_hk_fhpx_detail(
 ) -> anyhow::Result<Vec<HkFhpxDetailThs>> {
     client
         .ak
-        .stock_hk_fhpx_detail_ths(symbol)
+        .stock_hk_fhpx_detail(symbol)
         .await
         .map_err(Into::into)
 }
@@ -169,7 +169,7 @@ pub(crate) async fn fetch_hk_financial_indicators(
 ) -> anyhow::Result<Vec<serde_json::Value>> {
     client
         .ak
-        .stock_hk_financial_indicator_em(symbol)
+        .stock_hk_financial_indicator(symbol)
         .await
         .map_err(Into::into)
 }
@@ -186,7 +186,7 @@ pub(crate) async fn fetch_hk_valuation(
 ) -> anyhow::Result<Vec<HkValuationBaidu>> {
     client
         .ak
-        .stock_hk_valuation_baidu(symbol, indicator, period)
+        .stock_hk_valuation(symbol, indicator, period)
         .await
         .map_err(Into::into)
 }

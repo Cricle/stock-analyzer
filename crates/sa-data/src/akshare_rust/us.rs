@@ -81,7 +81,7 @@ pub(crate) async fn fetch_us_famous_spot(
 ) -> anyhow::Result<Vec<UsFamousStock>> {
     client
         .ak
-        .stock_us_famous_spot_em(category)
+        .stock_us_famous_spot(category)
         .await
         .map_err(Into::into)
 }
@@ -93,7 +93,7 @@ pub(crate) async fn fetch_us_famous_spot(
 pub(crate) async fn fetch_us_pink_spot(
     client: &MarketDataClient,
 ) -> anyhow::Result<Vec<UsPinkStock>> {
-    client.ak.stock_us_pink_spot_em().await.map_err(Into::into)
+    client.ak.stock_us_pink_spot().await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ pub(crate) async fn fetch_us_valuation(
 ) -> anyhow::Result<Vec<UsValuationBaidu>> {
     client
         .ak
-        .stock_us_valuation_baidu(symbol, indicator, period)
+        .stock_us_valuation(symbol, indicator, period)
         .await
         .map_err(Into::into)
 }

@@ -114,14 +114,14 @@ pub(crate) async fn fetch_billboard_detail(
     start_date: &str,
     end_date: &str,
 ) -> anyhow::Result<Vec<LhbDetail>> {
-    client.ak.stock_lhb_detail_em(start_date, end_date).await.map_err(Into::into)
+    client.ak.stock_lhb_detail(start_date, end_date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_billboard_stock_statistic(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<LhbStockStatistic>> {
-    client.ak.stock_lhb_stock_statistic_em(symbol).await.map_err(Into::into)
+    client.ak.stock_lhb_stock_statistic(symbol).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_billboard_jgmmtj(
@@ -129,14 +129,14 @@ pub(crate) async fn fetch_billboard_jgmmtj(
     start_date: &str,
     end_date: &str,
 ) -> anyhow::Result<Vec<LhbJgmmtj>> {
-    client.ak.stock_lhb_jgmmtj_em(start_date, end_date).await.map_err(Into::into)
+    client.ak.stock_lhb_jgmmtj(start_date, end_date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_billboard_jgstatistic(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<LhbJgstatistic>> {
-    client.ak.stock_lhb_jgstatistic_em(symbol).await.map_err(Into::into)
+    client.ak.stock_lhb_jgstatistic(symbol).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_billboard_hyyyb(
@@ -144,28 +144,28 @@ pub(crate) async fn fetch_billboard_hyyyb(
     start_date: &str,
     end_date: &str,
 ) -> anyhow::Result<Vec<LhbHyyyb>> {
-    client.ak.stock_lhb_hyyyb_em(start_date, end_date).await.map_err(Into::into)
+    client.ak.stock_lhb_hyyyb(start_date, end_date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_billboard_yybph(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<LhbYybph>> {
-    client.ak.stock_lhb_yybph_em(symbol).await.map_err(Into::into)
+    client.ak.stock_lhb_yybph(symbol).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_billboard_trader_statistic(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<LhbTraderStatistic>> {
-    client.ak.stock_lhb_traderstatistic_em(symbol).await.map_err(Into::into)
+    client.ak.stock_lhb_traderstatistic(symbol).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_billboard_stock_detail_date(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<LhbStockDetailDate>> {
-    client.ak.stock_lhb_stock_detail_date_em(symbol).await.map_err(Into::into)
+    client.ak.stock_lhb_stock_detail_date(symbol).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_billboard_stock_detail(
@@ -174,14 +174,14 @@ pub(crate) async fn fetch_billboard_stock_detail(
     date: &str,
     flag: &str,
 ) -> anyhow::Result<Vec<LhbStockDetail>> {
-    client.ak.stock_lhb_stock_detail_em(symbol, date, flag).await.map_err(Into::into)
+    client.ak.stock_lhb_stock_detail(symbol, date, flag).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_billboard_yyb_detail(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<LhbYybDetail>> {
-    client.ak.stock_lhb_yyb_detail_em(symbol).await.map_err(Into::into)
+    client.ak.stock_lhb_yyb_detail(symbol).await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------
@@ -241,42 +241,42 @@ pub(crate) async fn fetch_zt_pool(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<ZtPool>> {
-    client.ak.stock_zt_pool_em(date).await.map_err(Into::into)
+    client.ak.stock_zt_pool(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_zt_pool_dtgc(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<ZtPoolDtgc>> {
-    client.ak.stock_zt_pool_dtgc_em(date).await.map_err(Into::into)
+    client.ak.stock_zt_pool_dtgc(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_zt_pool_previous(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<ZtPoolPrevious>> {
-    client.ak.stock_zt_pool_previous_em(date).await.map_err(Into::into)
+    client.ak.stock_zt_pool_previous(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_zt_pool_strong(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<ZtPoolStrong>> {
-    client.ak.stock_zt_pool_strong_em(date).await.map_err(Into::into)
+    client.ak.stock_zt_pool_strong(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_zt_pool_sub_new(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<ZtPoolSubNew>> {
-    client.ak.stock_zt_pool_sub_new_em(date).await.map_err(Into::into)
+    client.ak.stock_zt_pool_sub_new(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_zt_pool_zbgc(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<ZtPoolZbgc>> {
-    client.ak.stock_zt_pool_zbgc_em(date).await.map_err(Into::into)
+    client.ak.stock_zt_pool_zbgc(date).await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------
@@ -287,21 +287,21 @@ pub(crate) async fn fetch_earnings_forecast(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<AkEarningsForecast>> {
-    client.ak.stock_yjyg_em(date).await.map_err(Into::into)
+    client.ak.stock_yjyg(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_earnings_quick_report(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<EarningsQuickReport>> {
-    client.ak.stock_yjkb_em(date).await.map_err(Into::into)
+    client.ak.stock_yjkb(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_earnings_report(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<EarningsReport>> {
-    client.ak.stock_yjbb_em(date).await.map_err(Into::into)
+    client.ak.stock_yjbb(date).await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------
@@ -312,7 +312,7 @@ pub(crate) async fn fetch_analyst_rank(
     client: &MarketDataClient,
     year: &str,
 ) -> anyhow::Result<Vec<AnalystRank>> {
-    client.ak.stock_analyst_rank_em(year).await.map_err(Into::into)
+    client.ak.stock_analyst_rank(year).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_analyst_detail(
@@ -320,7 +320,7 @@ pub(crate) async fn fetch_analyst_detail(
     analyst_id: &str,
     indicator: &str,
 ) -> anyhow::Result<Vec<AnalystDetail>> {
-    client.ak.stock_analyst_detail_em(analyst_id, indicator).await.map_err(Into::into)
+    client.ak.stock_analyst_detail(analyst_id, indicator).await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------
@@ -331,28 +331,28 @@ pub(crate) async fn fetch_gdfx_free_holding_statistics(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<GdfxHoldingStatistic>> {
-    client.ak.stock_gdfx_free_holding_statistics_em(date).await.map_err(Into::into)
+    client.ak.stock_gdfx_free_holding_statistics(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_gdfx_holding_statistics(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<GdfxHoldingStatistic>> {
-    client.ak.stock_gdfx_holding_statistics_em(date).await.map_err(Into::into)
+    client.ak.stock_gdfx_holding_statistics(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_gdfx_free_holding_change(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<GdfxHoldingChange>> {
-    client.ak.stock_gdfx_free_holding_change_em(date).await.map_err(Into::into)
+    client.ak.stock_gdfx_free_holding_change(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_gdfx_holding_change(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<GdfxHoldingChange>> {
-    client.ak.stock_gdfx_holding_change_em(date).await.map_err(Into::into)
+    client.ak.stock_gdfx_holding_change(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_gdfx_free_top10(
@@ -360,7 +360,7 @@ pub(crate) async fn fetch_gdfx_free_top10(
     symbol: &str,
     date: &str,
 ) -> anyhow::Result<Vec<GdfxTop10>> {
-    client.ak.stock_gdfx_free_top_10_em(symbol, date).await.map_err(Into::into)
+    client.ak.stock_gdfx_free_top_10(symbol, date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_gdfx_top10(
@@ -368,14 +368,14 @@ pub(crate) async fn fetch_gdfx_top10(
     symbol: &str,
     date: &str,
 ) -> anyhow::Result<Vec<GdfxTop10>> {
-    client.ak.stock_gdfx_top_10_em(symbol, date).await.map_err(Into::into)
+    client.ak.stock_gdfx_top_10(symbol, date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_gdfx_free_holding_detail(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<GdfxHoldingDetail>> {
-    client.ak.stock_gdfx_free_holding_detail_em(date).await.map_err(Into::into)
+    client.ak.stock_gdfx_free_holding_detail(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_gdfx_holding_detail(
@@ -384,35 +384,35 @@ pub(crate) async fn fetch_gdfx_holding_detail(
     indicator: &str,
     symbol: &str,
 ) -> anyhow::Result<Vec<GdfxHoldingDetail>> {
-    client.ak.stock_gdfx_holding_detail_em(date, indicator, symbol).await.map_err(Into::into)
+    client.ak.stock_gdfx_holding_detail(date, indicator, symbol).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_gdfx_free_holding_analyse(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<GdfxHoldingAnalyse>> {
-    client.ak.stock_gdfx_free_holding_analyse_em(date).await.map_err(Into::into)
+    client.ak.stock_gdfx_free_holding_analyse(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_gdfx_holding_analyse(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<GdfxHoldingAnalyse>> {
-    client.ak.stock_gdfx_holding_analyse_em(date).await.map_err(Into::into)
+    client.ak.stock_gdfx_holding_analyse(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_gdfx_free_teamwork(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<GdfxTeamwork>> {
-    client.ak.stock_gdfx_free_holding_teamwork_em(symbol).await.map_err(Into::into)
+    client.ak.stock_gdfx_free_holding_teamwork(symbol).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_gdfx_teamwork(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<GdfxTeamwork>> {
-    client.ak.stock_gdfx_holding_teamwork_em(symbol).await.map_err(Into::into)
+    client.ak.stock_gdfx_holding_teamwork(symbol).await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------
@@ -484,7 +484,7 @@ pub(crate) async fn fetch_pankou_changes(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<PankouChange>> {
-    client.ak.stock_changes_em(symbol).await.map_err(Into::into)
+    client.ak.stock_changes(symbol).await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------
@@ -495,7 +495,7 @@ pub(crate) async fn fetch_dividends(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<DividendInfo>> {
-    client.ak.stock_fhps_em(date).await.map_err(Into::into)
+    client.ak.stock_fhps(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_dividend_detail(
@@ -512,44 +512,44 @@ pub(crate) async fn fetch_dividend_detail(
 pub(crate) async fn fetch_pledge_profile(
     client: &MarketDataClient,
 ) -> anyhow::Result<Vec<GpzyProfile>> {
-    client.ak.stock_gpzy_profile_em().await.map_err(Into::into)
+    client.ak.stock_gpzy_profile().await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_pledge_ratio(
     client: &MarketDataClient,
 ) -> anyhow::Result<Vec<GpzyPledgeRatio>> {
-    client.ak.stock_gpzy_pledge_ratio_em().await.map_err(Into::into)
+    client.ak.stock_gpzy_pledge_ratio().await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_pledge_detail(
     client: &MarketDataClient,
 ) -> anyhow::Result<Vec<GpzyPledgeDetail>> {
-    client.ak.stock_gpzy_pledge_detail_em().await.map_err(Into::into)
+    client.ak.stock_gpzy_pledge_detail().await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_pledge_ratio_detail(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<GpzyPledgeRatioDetail>> {
-    client.ak.stock_gpzy_individual_pledge_ratio_detail_em(symbol).await.map_err(Into::into)
+    client.ak.stock_gpzy_individual_pledge_ratio_detail(symbol).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_pledge_distribute_bank(
     client: &MarketDataClient,
 ) -> anyhow::Result<Vec<GpzyDistributeEntry>> {
-    client.ak.stock_gpzy_distribute_statistics_bank_em().await.map_err(Into::into)
+    client.ak.stock_gpzy_distribute_statistics_bank().await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_pledge_distribute_company(
     client: &MarketDataClient,
 ) -> anyhow::Result<Vec<GpzyDistributeEntry>> {
-    client.ak.stock_gpzy_distribute_statistics_company_em().await.map_err(Into::into)
+    client.ak.stock_gpzy_distribute_statistics_company().await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_pledge_industry(
     client: &MarketDataClient,
 ) -> anyhow::Result<Vec<GpzyIndustry>> {
-    client.ak.stock_gpzy_industry_data_em().await.map_err(Into::into)
+    client.ak.stock_gpzy_industry_data().await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------
@@ -560,14 +560,14 @@ pub(crate) async fn fetch_institutional_research(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<JgdyTj>> {
-    client.ak.stock_jgdy_tj_em(date).await.map_err(Into::into)
+    client.ak.stock_jgdy_tj(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_institutional_research_detail(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<JgdyDetail>> {
-    client.ak.stock_jgdy_detail_em(date).await.map_err(Into::into)
+    client.ak.stock_jgdy_detail(date).await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------
@@ -577,25 +577,25 @@ pub(crate) async fn fetch_institutional_research_detail(
 pub(crate) async fn fetch_esg_msci(
     client: &MarketDataClient,
 ) -> anyhow::Result<Vec<EsgRating>> {
-    client.ak.stock_esg_msci_sina().await.map_err(Into::into)
+    client.ak.stock_esg_msci().await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_esg_rft(
     client: &MarketDataClient,
 ) -> anyhow::Result<Vec<EsgRating>> {
-    client.ak.stock_esg_rft_sina().await.map_err(Into::into)
+    client.ak.stock_esg_rft().await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_esg_zd(
     client: &MarketDataClient,
 ) -> anyhow::Result<Vec<EsgRating>> {
-    client.ak.stock_esg_zd_sina().await.map_err(Into::into)
+    client.ak.stock_esg_zd().await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_esg_hz(
     client: &MarketDataClient,
 ) -> anyhow::Result<Vec<EsgRating>> {
-    client.ak.stock_esg_hz_sina().await.map_err(Into::into)
+    client.ak.stock_esg_hz().await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------
@@ -606,21 +606,21 @@ pub(crate) async fn fetch_balance_sheet(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<BalanceSheet>> {
-    client.ak.stock_zcfz_em(date).await.map_err(Into::into)
+    client.ak.stock_zcfz(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_profit_sheet(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<ProfitSheet>> {
-    client.ak.stock_lrb_em(date).await.map_err(Into::into)
+    client.ak.stock_lrb(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_cash_flow_sheet(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<CashFlowSheet>> {
-    client.ak.stock_xjll_em(date).await.map_err(Into::into)
+    client.ak.stock_xjll(date).await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------
@@ -630,35 +630,35 @@ pub(crate) async fn fetch_cash_flow_sheet(
 pub(crate) async fn fetch_stock_comments(
     client: &MarketDataClient,
 ) -> anyhow::Result<Vec<StockComment>> {
-    client.ak.stock_comment_em().await.map_err(Into::into)
+    client.ak.stock_comment().await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_comment_org_participation(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<CommentOrgParticipation>> {
-    client.ak.stock_comment_detail_zlkp_jgcyd_em(symbol).await.map_err(Into::into)
+    client.ak.stock_comment_detail_zlkp_jgcyd(symbol).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_comment_hist_score(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<CommentHistScore>> {
-    client.ak.stock_comment_detail_zhpj_lspf_em(symbol).await.map_err(Into::into)
+    client.ak.stock_comment_detail_zhpj_lspf(symbol).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_comment_focus_index(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<CommentFocusIndex>> {
-    client.ak.stock_comment_detail_scrd_focus_em(symbol).await.map_err(Into::into)
+    client.ak.stock_comment_detail_scrd_focus(symbol).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_comment_desire_index(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<CommentDesireIndex>> {
-    client.ak.stock_comment_detail_scrd_desire_em(symbol).await.map_err(Into::into)
+    client.ak.stock_comment_detail_scrd_desire(symbol).await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------
@@ -669,7 +669,7 @@ pub(crate) async fn fetch_executive_shareholding(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<Ggcg>> {
-    client.ak.stock_ggcg_em(symbol).await.map_err(Into::into)
+    client.ak.stock_ggcg(symbol).await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------
@@ -680,14 +680,14 @@ pub(crate) async fn fetch_shareholder_count(
     client: &MarketDataClient,
     date: &str,
 ) -> anyhow::Result<Vec<Gdhs>> {
-    client.ak.stock_gdhs_em(date).await.map_err(Into::into)
+    client.ak.stock_gdhs(date).await.map_err(Into::into)
 }
 
 pub(crate) async fn fetch_shareholder_count_detail(
     client: &MarketDataClient,
     symbol: &str,
 ) -> anyhow::Result<Vec<GdhsDetail>> {
-    client.ak.stock_gdhs_detail_em(symbol).await.map_err(Into::into)
+    client.ak.stock_gdhs_detail(symbol).await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------
@@ -697,7 +697,7 @@ pub(crate) async fn fetch_shareholder_count_detail(
 pub(crate) async fn fetch_industry_category(
     client: &MarketDataClient,
 ) -> anyhow::Result<Vec<IndustryCategory>> {
-    client.ak.stock_industry_category_cninfo().await.map_err(Into::into)
+    client.ak.stock_industry_category().await.map_err(Into::into)
 }
 
 // ---------------------------------------------------------------------------

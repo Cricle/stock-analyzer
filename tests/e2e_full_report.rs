@@ -15,7 +15,7 @@ struct LlmConfig {
 
 /// Load LLM config from Claude settings file (~/.claude/settings.json).
 /// Falls back to environment variables if settings file doesn't exist.
-fn load_llm_config() -> LlmConfig {
+fn load_llm_config() -> Option<LlmConfig> {
     // Try to read from Claude settings file first
     let settings_path = dirs::home_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -48,24 +48,26 @@ fn load_llm_config() -> LlmConfig {
                     println!("  Base URL: {}", base_url);
                     println!("  Model: {}", model);
                     println!("  Timeout: {}ms", timeout_ms);
-                    return LlmConfig {
+                    return Some(LlmConfig {
                         base_url,
                         api_key,
                         model,
                         timeout_secs: timeout_ms / 1000,
-                    };
+                    });
                 }
             }
         }
     }
 
     // Fall back to environment variables
-    let base_url = std::env::var("ANTHROPIC_BASE_URL")
-        .or_else(|_| std::env::var("LLM_BASE_URL"))
-        .expect("Set ANTHROPIC_BASE_URL in ~/.claude/settings.json or as env var");
-    let api_key = std::env::var("ANTHROPIC_AUTH_TOKEN")
-        .or_else(|_| std::env::var("LLM_API_KEY"))
-        .expect("Set ANTHROPIC_AUTH_TOKEN in ~/.claude/settings.json or as env var");
+    let base_url = match std::env::var("ANTHROPIC_BASE_URL").or_else(|_| std::env::var("LLM_BASE_URL")) {
+        Ok(v) => v,
+        Err(_) => return None,
+    };
+    let api_key = match std::env::var("ANTHROPIC_AUTH_TOKEN").or_else(|_| std::env::var("LLM_API_KEY")) {
+        Ok(v) => v,
+        Err(_) => return None,
+    };
     let model = std::env::var("ANTHROPIC_MODEL")
         .or_else(|_| std::env::var("LLM_MODEL"))
         .unwrap_or_else(|_| "claude-sonnet-4-20250514".to_string());
@@ -78,12 +80,12 @@ fn load_llm_config() -> LlmConfig {
     println!("  Base URL: {}", base_url);
     println!("  Model: {}", model);
 
-    LlmConfig {
+    Some(LlmConfig {
         base_url,
         api_key,
         model,
         timeout_secs: timeout_ms / 1000,
-    }
+    })
 }
 
 /// Enable quick-only debug mode to speed up analysis (fewer LLM calls).
@@ -96,21 +98,21 @@ fn enable_debug_mode() {
     }
 }
 
-fn setup_llm_client() -> sa_engine::llm::LlmClient {
-    let config = load_llm_config();
+fn setup_llm_client() -> Option<sa_engine::llm::LlmClient> {
+    let config = load_llm_config()?;
     let http = reqwest_middleware::ClientBuilder::new(reqwest::Client::new()).build();
     // Use 600s timeout — mimo-v2.5-pro with thinking tokens takes 200-400s per call
     let timeout = config.timeout_secs.max(600);
-    sa_engine::llm::LlmClient::anthropic(
+    Some(sa_engine::llm::LlmClient::anthropic(
         http,
         &config.base_url,
         &config.api_key,
         &config.model,
         timeout,
-    )
+    ))
 }
 
-async fn setup_task_manager() -> (sa_engine::TaskManager, tempfile::TempDir) {
+async fn setup_task_manager() -> Option<(sa_engine::TaskManager, tempfile::TempDir)> {
     enable_debug_mode();
     let data_dir = tempfile::tempdir().unwrap();
     let analysis_store: Arc<dyn sa_models::AnalysisStore> = Arc::new(InMemoryAnalysisStore::new());
@@ -122,7 +124,7 @@ async fn setup_task_manager() -> (sa_engine::TaskManager, tempfile::TempDir) {
     let memory_log =
         sa_engine::memory::TradingMemoryLog::new(data_dir.path().to_str().unwrap(), 100).unwrap();
     let telemetry = sa_engine::telemetry::init_telemetry();
-    let llm = setup_llm_client();
+    let llm = setup_llm_client()?;
 
     let manager = sa_engine::TaskManager::new(
         analysis_store,
@@ -140,7 +142,7 @@ async fn setup_task_manager() -> (sa_engine::TaskManager, tempfile::TempDir) {
     .await
     .unwrap();
 
-    (manager, data_dir)
+    Some((manager, data_dir))
 }
 
 /// Poll until a task reaches a terminal status (Completed or Failed).
@@ -197,7 +199,10 @@ async fn wait_for_task(
 
 #[tokio::test]
 async fn e2e_full_report_aapl() {
-    let (manager, _data_dir) = setup_task_manager().await;
+    let Some((manager, _data_dir)) = setup_task_manager().await else {
+        eprintln!("Skipping: LLM config not available");
+        return;
+    };
     let request = sa_models::SingleAnalysisRequest {
         symbol: Some("AAPL".to_string()),
         stock_code: None,
@@ -260,7 +265,10 @@ async fn run_single_stock(symbol: &str, name: &str, market: &str) {
 }
 
 async fn run_single_stock_owned(symbol: String, name: String, market: String) {
-    let (manager, _data_dir) = setup_task_manager().await;
+    let Some((manager, _data_dir)) = setup_task_manager().await else {
+        eprintln!("Skipping {}: LLM config not available", symbol);
+        return;
+    };
     println!("\n=== Running report for {} ({}) ===", name, symbol);
     let request = sa_models::SingleAnalysisRequest {
         symbol: Some(symbol.to_string()),

@@ -21,25 +21,30 @@ impl ScoreConfig {
     pub fn from_env() -> Self {
         let mut config = Self::default();
         if let Ok(w) = std::env::var("SCORE_WEIGHT_TECHNICAL")
-            && let Ok(v) = w.parse() {
-                config.weights.technical = v;
-            }
+            && let Ok(v) = w.parse()
+        {
+            config.weights.technical = v;
+        }
         if let Ok(w) = std::env::var("SCORE_WEIGHT_FUNDAMENTAL")
-            && let Ok(v) = w.parse() {
-                config.weights.fundamental = v;
-            }
+            && let Ok(v) = w.parse()
+        {
+            config.weights.fundamental = v;
+        }
         if let Ok(w) = std::env::var("SCORE_WEIGHT_SENTIMENT")
-            && let Ok(v) = w.parse() {
-                config.weights.sentiment = v;
-            }
+            && let Ok(v) = w.parse()
+        {
+            config.weights.sentiment = v;
+        }
         if let Ok(w) = std::env::var("SCORE_WEIGHT_LLM_ANALYSIS")
-            && let Ok(v) = w.parse() {
-                config.weights.llm_analysis = v;
-            }
+            && let Ok(v) = w.parse()
+        {
+            config.weights.llm_analysis = v;
+        }
         if let Ok(n) = std::env::var("SCORE_SENTIMENT_NEWS_LIMIT")
-            && let Ok(v) = n.parse() {
-                config.sentiment_news_limit = v;
-            }
+            && let Ok(v) = n.parse()
+        {
+            config.sentiment_news_limit = v;
+        }
         config
     }
 }

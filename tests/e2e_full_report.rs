@@ -3,9 +3,7 @@ mod common;
 use std::io::Write;
 use std::sync::Arc;
 
-use common::memory_stores::{
-    InMemoryAnalysisStore, InMemoryCacheStore, InMemoryCheckpointStore,
-};
+use common::memory_stores::{InMemoryAnalysisStore, InMemoryCacheStore, InMemoryCheckpointStore};
 
 /// LLM configuration loaded from Claude settings or environment variables.
 struct LlmConfig {
@@ -121,11 +119,8 @@ async fn setup_task_manager() -> (sa_engine::TaskManager, tempfile::TempDir) {
         Arc::new(InMemoryCheckpointStore::new());
     let checkpoint_store = sa_engine::checkpoint::TaskCheckpointStore::new(checkpoint_inner);
     let market_data = sa_data::MarketDataClient::new().await;
-    let memory_log = sa_engine::memory::TradingMemoryLog::new(
-        data_dir.path().to_str().unwrap(),
-        100,
-    )
-    .unwrap();
+    let memory_log =
+        sa_engine::memory::TradingMemoryLog::new(data_dir.path().to_str().unwrap(), 100).unwrap();
     let telemetry = sa_engine::telemetry::init_telemetry();
     let llm = setup_llm_client();
 
@@ -232,7 +227,11 @@ async fn e2e_full_report_aapl() {
     let _ = std::io::stdout().flush();
     let _ = std::io::stderr().flush();
 
-    assert_eq!(task.status, sa_models::TaskStatus::Completed, "task should complete successfully");
+    assert_eq!(
+        task.status,
+        sa_models::TaskStatus::Completed,
+        "task should complete successfully"
+    );
 
     let result = manager
         .analysis_store()
@@ -245,7 +244,9 @@ async fn e2e_full_report_aapl() {
     let s = summary.as_str();
     let end = {
         let mut e = 200.min(s.len());
-        while e > 0 && !s.is_char_boundary(e) { e -= 1; }
+        while e > 0 && !s.is_char_boundary(e) {
+            e -= 1;
+        }
         e
     };
     println!("Summary: {}", &s[..end]);
@@ -292,7 +293,9 @@ async fn run_single_stock_owned(symbol: String, name: String, market: String) {
     let s = summary.as_str();
     let end = {
         let mut e = 200.min(s.len());
-        while e > 0 && !s.is_char_boundary(e) { e -= 1; }
+        while e > 0 && !s.is_char_boundary(e) {
+            e -= 1;
+        }
         e
     };
     println!("Summary: {}", &s[..end]);
@@ -303,12 +306,22 @@ async fn run_single_stock_owned(symbol: String, name: String, market: String) {
 
 #[tokio::test]
 async fn e2e_full_report_tencent() {
-    run_single_stock("00700", "\u{817e}\u{8baf}\u{63a7}\u{80a1}", "\u{6e2f}\u{80a1}").await;
+    run_single_stock(
+        "00700",
+        "\u{817e}\u{8baf}\u{63a7}\u{80a1}",
+        "\u{6e2f}\u{80a1}",
+    )
+    .await;
 }
 
 #[tokio::test]
 async fn e2e_full_report_sensetime() {
-    run_single_stock("00020", "\u{5546}\u{6c64}\u{79d1}\u{6280}", "\u{6e2f}\u{80a1}").await;
+    run_single_stock(
+        "00020",
+        "\u{5546}\u{6c64}\u{79d1}\u{6280}",
+        "\u{6e2f}\u{80a1}",
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -320,10 +333,26 @@ async fn e2e_full_report_pltr() {
 #[tokio::test]
 async fn e2e_full_report_all_parallel() {
     let stocks: Vec<(String, String, String)> = vec![
-        ("600519".into(), "\u{8d35}\u{5dde}\u{8305}\u{53f0}".into(), "A\u{80a1}".into()),
-        ("688256".into(), "\u{5bd2}\u{6b66}\u{7eaa}".into(), "A\u{80a1}".into()),
-        ("00700".into(), "\u{817e}\u{8baf}\u{63a7}\u{80a1}".into(), "\u{6e2f}\u{80a1}".into()),
-        ("00020".into(), "\u{5546}\u{6c64}\u{79d1}\u{6280}".into(), "\u{6e2f}\u{80a1}".into()),
+        (
+            "600519".into(),
+            "\u{8d35}\u{5dde}\u{8305}\u{53f0}".into(),
+            "A\u{80a1}".into(),
+        ),
+        (
+            "688256".into(),
+            "\u{5bd2}\u{6b66}\u{7eaa}".into(),
+            "A\u{80a1}".into(),
+        ),
+        (
+            "00700".into(),
+            "\u{817e}\u{8baf}\u{63a7}\u{80a1}".into(),
+            "\u{6e2f}\u{80a1}".into(),
+        ),
+        (
+            "00020".into(),
+            "\u{5546}\u{6c64}\u{79d1}\u{6280}".into(),
+            "\u{6e2f}\u{80a1}".into(),
+        ),
         ("AAPL".into(), "Apple".into(), "\u{7f8e}\u{80a1}".into()),
         ("PLTR".into(), "Palantir".into(), "\u{7f8e}\u{80a1}".into()),
     ];

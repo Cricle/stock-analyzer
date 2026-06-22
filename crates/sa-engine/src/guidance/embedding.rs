@@ -20,7 +20,9 @@ fn get_embedder() -> Option<&'static TextEmbedding> {
             ) {
                 Ok(e) => Some(e),
                 Err(e) => {
-                    tracing::warn!("fastembed model unavailable, falling back to hash embeddings: {e}");
+                    tracing::warn!(
+                        "fastembed model unavailable, falling back to hash embeddings: {e}"
+                    );
                     None
                 }
             }

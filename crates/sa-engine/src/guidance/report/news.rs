@@ -38,11 +38,7 @@ impl DailyGuidanceGenerator {
                 .collect::<Vec<_>>()
                 .join(" ")
                 .to_ascii_lowercase();
-            let dedup_key = format!(
-                "{}:{}",
-                normalized_title,
-                item.source.to_ascii_lowercase()
-            );
+            let dedup_key = format!("{}:{}", normalized_title, item.source.to_ascii_lowercase());
             if dedup.insert(dedup_key) {
                 let impact = self.classify_news_impact(&item.title, &item.summary);
                 guidance_items.push(GuidanceNewsItem {
@@ -120,12 +116,36 @@ fn has_negation_before(text: &str, keyword: &str) -> bool {
 fn classify_impact(title: &str, summary: &str) -> String {
     let text = format!("{} {}", title, summary).to_ascii_lowercase();
     let positive_words = [
-        "surge", "rally", "gain", "rise", "bullish", "upgrade", "outperform", "上涨", "大涨",
-        "利好", "突破", "增长", "看多", "上调",
+        "surge",
+        "rally",
+        "gain",
+        "rise",
+        "bullish",
+        "upgrade",
+        "outperform",
+        "上涨",
+        "大涨",
+        "利好",
+        "突破",
+        "增长",
+        "看多",
+        "上调",
     ];
     let negative_words = [
-        "crash", "plunge", "drop", "fall", "bearish", "downgrade", "underperform", "下跌",
-        "暴跌", "利空", "跌破", "下滑", "看空", "下调",
+        "crash",
+        "plunge",
+        "drop",
+        "fall",
+        "bearish",
+        "downgrade",
+        "underperform",
+        "下跌",
+        "暴跌",
+        "利空",
+        "跌破",
+        "下滑",
+        "看空",
+        "下调",
     ];
 
     let mut pos = 0usize;
@@ -164,13 +184,19 @@ mod tests {
 
     #[test]
     fn stock_crash_is_negative() {
-        assert_eq!(classify_impact("Stock crash wipes billions", ""), "negative");
+        assert_eq!(
+            classify_impact("Stock crash wipes billions", ""),
+            "negative"
+        );
     }
 
     #[test]
     fn not_bullish_detects_negation() {
         // "bullish" alone would be positive, but "not bullish" should flip.
-        assert_eq!(classify_impact("Analysts not bullish on tech sector", ""), "negative");
+        assert_eq!(
+            classify_impact("Analysts not bullish on tech sector", ""),
+            "negative"
+        );
     }
 
     #[test]
@@ -180,11 +206,17 @@ mod tests {
 
     #[test]
     fn plain_positive() {
-        assert_eq!(classify_impact("Markets rally on strong earnings", ""), "positive");
+        assert_eq!(
+            classify_impact("Markets rally on strong earnings", ""),
+            "positive"
+        );
     }
 
     #[test]
     fn negation_of_negative_flips_to_positive() {
-        assert_eq!(classify_impact("Analysts say not bearish outlook", ""), "positive");
+        assert_eq!(
+            classify_impact("Analysts say not bearish outlook", ""),
+            "positive"
+        );
     }
 }

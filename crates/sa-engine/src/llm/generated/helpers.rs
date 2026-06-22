@@ -65,23 +65,90 @@ fn derive_probabilities_from_text(summary: &str, detail: &str, rationale: &str) 
     let combined = format!("{summary} {detail} {rationale}").to_lowercase();
 
     let bullish_keywords = [
-        "bullish", "upside", "growth", "positive", "strong", "buy", "accumulate",
-        "breakout", "momentum", "outperform", "upgrade", "catalyst", "recovery",
-        "反弹", "修复", "企稳", "回升", "站稳",
-        "看多", "看涨", "买入", "增持", "突破", "上涨", "利好", "强势", "增长",
-        "积极", "乐观", "超预期", "放量", "拉升", "支撑", "金叉", "背离",
+        "bullish",
+        "upside",
+        "growth",
+        "positive",
+        "strong",
+        "buy",
+        "accumulate",
+        "breakout",
+        "momentum",
+        "outperform",
+        "upgrade",
+        "catalyst",
+        "recovery",
+        "反弹",
+        "修复",
+        "企稳",
+        "回升",
+        "站稳",
+        "看多",
+        "看涨",
+        "买入",
+        "增持",
+        "突破",
+        "上涨",
+        "利好",
+        "强势",
+        "增长",
+        "积极",
+        "乐观",
+        "超预期",
+        "放量",
+        "拉升",
+        "支撑",
+        "金叉",
+        "背离",
     ];
     let bearish_keywords = [
-        "bearish", "downside", "risk", "negative", "weak", "sell", "reduce",
-        "breakdown", "decline", "underperform", "downgrade", "headwind",
-        "偏空", "承压", "派发", "下行", "超卖", "死叉",
-        "看空", "看跌", "卖出", "减持", "跌破", "下跌", "利空", "弱势", "下滑",
-        "消极", "悲观", "低于预期", "缩量", "回调", "失守", "加速下跌",
-        "卖压", "抛售", "止损",
+        "bearish",
+        "downside",
+        "risk",
+        "negative",
+        "weak",
+        "sell",
+        "reduce",
+        "breakdown",
+        "decline",
+        "underperform",
+        "downgrade",
+        "headwind",
+        "偏空",
+        "承压",
+        "派发",
+        "下行",
+        "超卖",
+        "死叉",
+        "看空",
+        "看跌",
+        "卖出",
+        "减持",
+        "跌破",
+        "下跌",
+        "利空",
+        "弱势",
+        "下滑",
+        "消极",
+        "悲观",
+        "低于预期",
+        "缩量",
+        "回调",
+        "失守",
+        "加速下跌",
+        "卖压",
+        "抛售",
+        "止损",
     ];
 
-    let bull_count = bullish_keywords.iter().filter(|k| combined.contains(*k)).count();
-    let bear_count = bearish_keywords.iter().filter(|k| combined.contains(*k)).count();
+    let bull_count = bullish_keywords
+        .iter()
+        .filter(|k| combined.contains(*k))
+        .count();
+    let bear_count = bearish_keywords
+        .iter()
+        .filter(|k| combined.contains(*k))
+        .count();
     let total = bull_count + bear_count;
 
     if total == 0 {

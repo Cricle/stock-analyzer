@@ -85,7 +85,10 @@ impl MarketDataClient {
             let previous_close = items[index - 1].close;
             if previous_close > Decimal::ZERO {
                 items[index].change_amount = items[index].close - previous_close;
-                items[index].change_pct = (items[index].change_amount / previous_close * Decimal::from(100)).to_f64().unwrap_or_default();
+                items[index].change_pct = (items[index].change_amount / previous_close
+                    * Decimal::from(100))
+                .to_f64()
+                .unwrap_or_default();
             }
         }
         if items.len() > limit {
@@ -292,22 +295,30 @@ impl QuoteResponseBuilder {
     }
 
     fn open(mut self, raw: Option<&str>) -> Self {
-        self.open = raw.and_then(|value| value.parse::<f64>().ok()).map(f64_to_dec);
+        self.open = raw
+            .and_then(|value| value.parse::<f64>().ok())
+            .map(f64_to_dec);
         self
     }
 
     fn close(mut self, raw: Option<&str>) -> Self {
-        self.close = raw.and_then(|value| value.parse::<f64>().ok()).map(f64_to_dec);
+        self.close = raw
+            .and_then(|value| value.parse::<f64>().ok())
+            .map(f64_to_dec);
         self
     }
 
     fn high(mut self, raw: Option<&str>) -> Self {
-        self.high = raw.and_then(|value| value.parse::<f64>().ok()).map(f64_to_dec);
+        self.high = raw
+            .and_then(|value| value.parse::<f64>().ok())
+            .map(f64_to_dec);
         self
     }
 
     fn low(mut self, raw: Option<&str>) -> Self {
-        self.low = raw.and_then(|value| value.parse::<f64>().ok()).map(f64_to_dec);
+        self.low = raw
+            .and_then(|value| value.parse::<f64>().ok())
+            .map(f64_to_dec);
         self
     }
 

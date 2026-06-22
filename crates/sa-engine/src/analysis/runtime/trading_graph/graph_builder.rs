@@ -10,21 +10,21 @@ use crate::TaskManager;
 use crate::llm::LlmClient;
 use sa_models::AnalysisResult;
 
-use crate::task_manager::TaskRunParams;
 use crate::analysis::runtime::propagation::Propagator;
+use crate::task_manager::TaskRunParams;
 
-use super::{
-    CHANNEL_RESULT, NODE_BEAR, NODE_BULL, NODE_CLEAR_FUNDAMENTALS, NODE_CLEAR_MARKET,
-    NODE_CLEAR_NEWS, NODE_CLEAR_SOCIAL, NODE_FUNDAMENTALS, NODE_MARKET, NODE_NEWS,
-    NODE_PORTFOLIO, NODE_RESEARCH, NODE_RISK_DISCUSS, NODE_SENTIMENT, NODE_TOOLS_FUNDAMENTALS,
-    NODE_TOOLS_MARKET, NODE_TOOLS_NEWS, NODE_TOOLS_SOCIAL, NODE_TRADER,
-    analyst_node_name, clear_node_name, deserialize_result,
-};
 use super::nodes::{
     analyst_planner_node, clear_node, debate_node, portfolio_node, research_node,
     risk_discussion_node, tool_node, trader_node,
 };
 use super::routing::{analyst_route, debate_route};
+use super::{
+    CHANNEL_RESULT, NODE_BEAR, NODE_BULL, NODE_CLEAR_FUNDAMENTALS, NODE_CLEAR_MARKET,
+    NODE_CLEAR_NEWS, NODE_CLEAR_SOCIAL, NODE_FUNDAMENTALS, NODE_MARKET, NODE_NEWS, NODE_PORTFOLIO,
+    NODE_RESEARCH, NODE_RISK_DISCUSS, NODE_SENTIMENT, NODE_TOOLS_FUNDAMENTALS, NODE_TOOLS_MARKET,
+    NODE_TOOLS_NEWS, NODE_TOOLS_SOCIAL, NODE_TRADER, analyst_node_name, clear_node_name,
+    deserialize_result,
+};
 
 pub(crate) struct TradingAgentsGraph {
     pub(super) manager: TaskManager,
@@ -68,7 +68,10 @@ impl TradingAgentsGraph {
     pub(crate) async fn execute(&self, result: &mut AnalysisResult) -> anyhow::Result<()> {
         tracing::Span::current().record("task_id", &tracing::field::display(&result.task_id));
         tracing::Span::current().record("symbol", &tracing::field::display(&result.symbol));
-        tracing::Span::current().record("analysis_date", &tracing::field::display(&result.analysis_date));
+        tracing::Span::current().record(
+            "analysis_date",
+            &tracing::field::display(&result.analysis_date),
+        );
         let thread_id = crate::checkpoint::TaskCheckpointStore::thread_id(
             &result.task_id,
             &result.symbol,
@@ -145,10 +148,7 @@ impl TradingAgentsGraph {
         let quick_llm = self.quick_llm.clone();
         let deep_llm = self.deep_llm.clone();
 
-        let checkpointer = self
-            .manager
-            .checkpoint_store
-            .graph_checkpointer(symbol)?;
+        let checkpointer = self.manager.checkpoint_store.graph_checkpointer(symbol)?;
 
         let graph = StateGraph::with_channels(&[CHANNEL_RESULT])
             .add_node_fn(
@@ -243,17 +243,12 @@ impl TradingAgentsGraph {
             )
             .add_node_fn(
                 NODE_RISK_DISCUSS,
-                risk_discussion_node(
-                    self.manager.clone(),
-                    self.params.clone(),
-                    quick_llm.clone(),
-                ),
+                risk_discussion_node(self.manager.clone(), self.params.clone(), quick_llm.clone()),
             )
             .add_node_fn(
                 NODE_PORTFOLIO,
                 portfolio_node(self.manager.clone(), self.params.clone(), deep_llm.clone()),
-            )
-            ;
+            );
 
         // Sequential analyst chain: START → first_analyst → ... → last_analyst → bull
         let mut graph = graph;

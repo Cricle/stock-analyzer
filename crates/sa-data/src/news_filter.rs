@@ -971,7 +971,10 @@ mod news_filter_tests {
 
     #[test]
     fn normalized_news_date_iso() {
-        assert_eq!(normalized_news_date("2026-06-21"), Some("2026-06-21".into()));
+        assert_eq!(
+            normalized_news_date("2026-06-21"),
+            Some("2026-06-21".into())
+        );
     }
 
     #[test]
@@ -981,12 +984,18 @@ mod news_filter_tests {
 
     #[test]
     fn normalized_news_date_with_time() {
-        assert_eq!(normalized_news_date("2026-06-21 14:30:00"), Some("2026-06-21".into()));
+        assert_eq!(
+            normalized_news_date("2026-06-21 14:30:00"),
+            Some("2026-06-21".into())
+        );
     }
 
     #[test]
     fn normalized_news_date_chinese() {
-        assert_eq!(normalized_news_date("2026年06月21日"), Some("2026-06-21".into()));
+        assert_eq!(
+            normalized_news_date("2026年06月21日"),
+            Some("2026-06-21".into())
+        );
     }
 
     #[test]
@@ -1019,14 +1028,19 @@ mod news_filter_tests {
     fn normalize_relative_today() {
         let now = Utc::now();
         let result = normalize_relative_news_date("today", now);
-        assert_eq!(result, Some(now.date_naive().format("%Y-%m-%d").to_string()));
+        assert_eq!(
+            result,
+            Some(now.date_naive().format("%Y-%m-%d").to_string())
+        );
     }
 
     #[test]
     fn normalize_relative_yesterday() {
         let now = Utc::now();
         let result = normalize_relative_news_date("yesterday", now);
-        let expected = (now.date_naive() - ChronoDuration::days(1)).format("%Y-%m-%d").to_string();
+        let expected = (now.date_naive() - ChronoDuration::days(1))
+            .format("%Y-%m-%d")
+            .to_string();
         assert_eq!(result, Some(expected));
     }
 
@@ -1034,7 +1048,9 @@ mod news_filter_tests {
     fn normalize_relative_days_ago() {
         let now = Utc::now();
         let result = normalize_relative_news_date("5 days ago", now);
-        let expected = (now.date_naive() - ChronoDuration::days(5)).format("%Y-%m-%d").to_string();
+        let expected = (now.date_naive() - ChronoDuration::days(5))
+            .format("%Y-%m-%d")
+            .to_string();
         assert_eq!(result, Some(expected));
     }
 
@@ -1042,7 +1058,10 @@ mod news_filter_tests {
     fn normalize_relative_hours_ago() {
         let now = Utc::now();
         let result = normalize_relative_news_date("2 hours ago", now);
-        let expected = (now - ChronoDuration::hours(2)).date_naive().format("%Y-%m-%d").to_string();
+        let expected = (now - ChronoDuration::hours(2))
+            .date_naive()
+            .format("%Y-%m-%d")
+            .to_string();
         assert_eq!(result, Some(expected));
     }
 
@@ -1055,7 +1074,10 @@ mod news_filter_tests {
 
     #[test]
     fn gdelt_timestamp_basic() {
-        assert_eq!(gdelt_timestamp_to_published_at("20260621143000"), "2026-06-21 14:30:00");
+        assert_eq!(
+            gdelt_timestamp_to_published_at("20260621143000"),
+            "2026-06-21 14:30:00"
+        );
     }
 
     #[test]

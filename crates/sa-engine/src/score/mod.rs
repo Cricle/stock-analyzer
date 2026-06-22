@@ -1,8 +1,8 @@
-pub mod types;
 pub mod config;
 pub mod dimensions;
-pub mod scorer;
 pub mod history;
+pub mod scorer;
+pub mod types;
 
-pub use types::{StockScore, DimensionScore, ScoreWeights, score_label};
 pub use scorer::score_stock_pick;
+pub use types::{DimensionScore, ScoreWeights, StockScore, score_label};

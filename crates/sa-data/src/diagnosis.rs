@@ -60,7 +60,8 @@ impl DataFetchDiagnosis {
 /// A named provider that can attempt to fetch data.
 pub struct NamedProvider<T> {
     pub name: String,
-    pub fetcher: Box<dyn Fn() -> Pin<Box<dyn Future<Output = anyhow::Result<T>> + Send>> + Send + Sync>,
+    pub fetcher:
+        Box<dyn Fn() -> Pin<Box<dyn Future<Output = anyhow::Result<T>> + Send>> + Send + Sync>,
 }
 
 impl<T> NamedProvider<T> {
@@ -292,9 +293,7 @@ impl MarketDataClient {
                         move || {
                             let client = client.clone();
                             let sym = sym.clone();
-                            async move {
-                                super::akshare_rust::us_sina::fetch_quote(&client, &sym).await
-                            }
+                            async move { super::akshare_rust::us_sina::fetch_quote(&client, &sym).await }
                         }
                     }),
                     NamedProvider::new("eastmoney_quote", {
@@ -315,7 +314,8 @@ impl MarketDataClient {
                             async move {
                                 let end = chrono::Utc::now().date_naive() + chrono::Days::new(1);
                                 let start = end - chrono::Days::new(10);
-                                let mut items = client.fetch_us_chart_candles(&sym, start, end).await?;
+                                let mut items =
+                                    client.fetch_us_chart_candles(&sym, start, end).await?;
                                 items
                                     .pop()
                                     .map(|last| QuoteSnapshot {
@@ -327,7 +327,9 @@ impl MarketDataClient {
                                         close: last.close,
                                         volume: last.volume,
                                     })
-                                    .ok_or_else(|| anyhow::anyhow!("yahoo chart returned no candles"))
+                                    .ok_or_else(|| {
+                                        anyhow::anyhow!("yahoo chart returned no candles")
+                                    })
                             }
                         }
                     }),
@@ -468,9 +470,7 @@ impl MarketDataClient {
                         move || {
                             let client = client.clone();
                             let sym = sym.clone();
-                            async move {
-                                client.fetch_us_candles_from_eastmoney(&sym, limit).await
-                            }
+                            async move { client.fetch_us_candles_from_eastmoney(&sym, limit).await }
                         }
                     }),
                     NamedProvider::new("yahoo_finance_chart", {
@@ -481,8 +481,7 @@ impl MarketDataClient {
                             let sym = sym.clone();
                             async move {
                                 let end = chrono::Utc::now().date_naive() + chrono::Days::new(1);
-                                let start =
-                                    end - chrono::Days::new((limit.max(260) + 30) as u64);
+                                let start = end - chrono::Days::new((limit.max(260) + 30) as u64);
                                 client.fetch_us_chart_candles(&sym, start, end).await
                             }
                         }

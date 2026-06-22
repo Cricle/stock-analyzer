@@ -1,6 +1,5 @@
 use crate::{CandlePoint, MarketDataClient, QuoteSnapshot, f64_to_dec};
 
-
 pub(crate) async fn fetch_quote(
     client: &MarketDataClient,
     symbol: &str,
@@ -33,18 +32,21 @@ pub(crate) async fn fetch_candles(
     if raw.is_empty() {
         anyhow::bail!("sina us daily returned no rows");
     }
-    let items: Vec<CandlePoint> = raw.into_iter().map(|p| CandlePoint {
-        trade_date: p.trade_date,
-        open: f64_to_dec(p.open),
-        close: f64_to_dec(p.close),
-        high: f64_to_dec(p.high),
-        low: f64_to_dec(p.low),
-        volume: p.volume,
-        amount: f64_to_dec(p.amount),
-        amplitude_pct: p.amplitude_pct,
-        change_pct: p.change_pct,
-        change_amount: f64_to_dec(p.change_amount),
-        turnover_pct: p.turnover_pct,
-    }).collect();
+    let items: Vec<CandlePoint> = raw
+        .into_iter()
+        .map(|p| CandlePoint {
+            trade_date: p.trade_date,
+            open: f64_to_dec(p.open),
+            close: f64_to_dec(p.close),
+            high: f64_to_dec(p.high),
+            low: f64_to_dec(p.low),
+            volume: p.volume,
+            amount: f64_to_dec(p.amount),
+            amplitude_pct: p.amplitude_pct,
+            change_pct: p.change_pct,
+            change_amount: f64_to_dec(p.change_amount),
+            turnover_pct: p.turnover_pct,
+        })
+        .collect();
     Ok(items)
 }

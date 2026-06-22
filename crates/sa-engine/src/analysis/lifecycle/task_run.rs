@@ -4,8 +4,8 @@ use rust_decimal::Decimal;
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use std::time::Instant;
 
-use crate::{TaskManager, TaskRunParams};
 use super::{build_user_context, build_user_context_prompt};
+use crate::{TaskManager, TaskRunParams};
 use sa_models::{AnalysisResult, PersistedTask, SingleAnalysisRequest, TaskEvent, TaskStatus};
 
 fn trend_label(current: Option<f64>, reference: Option<f64>) -> &'static str {
@@ -18,15 +18,23 @@ fn trend_label(current: Option<f64>, reference: Option<f64>) -> &'static str {
 }
 
 fn rsi_label(value: f64) -> &'static str {
-    if value > 70.0 { "overbought" }
-    else if value < 30.0 { "oversold" }
-    else { "neutral" }
+    if value > 70.0 {
+        "overbought"
+    } else if value < 30.0 {
+        "oversold"
+    } else {
+        "neutral"
+    }
 }
 
 fn adx_label(value: f64) -> &'static str {
-    if value >= 25.0 { "strong_trend" }
-    else if value <= 20.0 { "range_bound" }
-    else { "moderate" }
+    if value >= 25.0 {
+        "strong_trend"
+    } else if value <= 20.0 {
+        "range_bound"
+    } else {
+        "moderate"
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -52,18 +60,39 @@ fn format_fund_flow_summary(
 ) -> String {
     match result {
         Ok(Ok(items)) if !items.is_empty() => {
-            let lines: Vec<String> = items.iter().take(5).map(|item| {
-                let price = item.latest_price.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "-".into());
-                let chg = item.change_pct.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "-".into());
-                let net = item.net_flow.map(|v| format!("{:.0}", v)).unwrap_or_else(|| "-".into());
-                let to = item.turnover_rate.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "-".into());
-                format!("{}: price={} chg={}% net_flow={} turnover={}%",
-                    item.code, price, chg, net, to)
-            }).collect();
+            let lines: Vec<String> = items
+                .iter()
+                .take(5)
+                .map(|item| {
+                    let price = item
+                        .latest_price
+                        .map(|v| format!("{:.2}", v))
+                        .unwrap_or_else(|| "-".into());
+                    let chg = item
+                        .change_pct
+                        .map(|v| format!("{:.2}", v))
+                        .unwrap_or_else(|| "-".into());
+                    let net = item
+                        .net_flow
+                        .map(|v| format!("{:.0}", v))
+                        .unwrap_or_else(|| "-".into());
+                    let to = item
+                        .turnover_rate
+                        .map(|v| format!("{:.2}", v))
+                        .unwrap_or_else(|| "-".into());
+                    format!(
+                        "{}: price={} chg={}% net_flow={} turnover={}%",
+                        item.code, price, chg, net, to
+                    )
+                })
+                .collect();
             format!("Fund Flow:\n{}", lines.join("\n"))
         }
         Ok(Ok(_)) => "Fund Flow: no data".to_string(),
-        Ok(Err(e)) => { tracing::warn!("fund flow fetch failed for {}: {}", symbol, e); "Fund Flow: fetch failed".to_string() }
+        Ok(Err(e)) => {
+            tracing::warn!("fund flow fetch failed for {}: {}", symbol, e);
+            "Fund Flow: fetch failed".to_string()
+        }
         Err(_) => "Fund Flow: timeout".to_string(),
     }
 }
@@ -82,7 +111,10 @@ fn format_billboard_summary(
             format!("Billboard:\n{}", lines.join("\n"))
         }
         Ok(Ok(_)) => "Billboard: no data".to_string(),
-        Ok(Err(e)) => { tracing::warn!("billboard fetch failed for {}: {}", symbol, e); "Billboard: fetch failed".to_string() }
+        Ok(Err(e)) => {
+            tracing::warn!("billboard fetch failed for {}: {}", symbol, e);
+            "Billboard: fetch failed".to_string()
+        }
         Err(_) => "Billboard: timeout".to_string(),
     }
 }
@@ -93,13 +125,23 @@ fn format_margin_summary(
 ) -> String {
     match result {
         Ok(Ok(items)) if !items.is_empty() => {
-            let lines: Vec<String> = items.iter().take(3).map(|item| {
-                format!("{} {}: fin_ratio={:.4} loan_ratio={:.4}", item.code, item.name, item.fin_ratio, item.loan_ratio)
-            }).collect();
+            let lines: Vec<String> = items
+                .iter()
+                .take(3)
+                .map(|item| {
+                    format!(
+                        "{} {}: fin_ratio={:.4} loan_ratio={:.4}",
+                        item.code, item.name, item.fin_ratio, item.loan_ratio
+                    )
+                })
+                .collect();
             format!("Margin Trading:\n{}", lines.join("\n"))
         }
         Ok(Ok(_)) => "Margin: no data".to_string(),
-        Ok(Err(e)) => { tracing::warn!("margin fetch failed for {}: {}", symbol, e); "Margin: fetch failed".to_string() }
+        Ok(Err(e)) => {
+            tracing::warn!("margin fetch failed for {}: {}", symbol, e);
+            "Margin: fetch failed".to_string()
+        }
         Err(_) => "Margin: timeout".to_string(),
     }
 }
@@ -110,13 +152,23 @@ fn format_hot_rank_summary(
 ) -> String {
     match result {
         Ok(Ok(items)) if !items.is_empty() => {
-            let lines: Vec<String> = items.iter().take(3).map(|item| {
-                format!("{} {} value={:.0} price={:.2}", item.code, item.name, item.value, item.latest_price)
-            }).collect();
+            let lines: Vec<String> = items
+                .iter()
+                .take(3)
+                .map(|item| {
+                    format!(
+                        "{} {} value={:.0} price={:.2}",
+                        item.code, item.name, item.value, item.latest_price
+                    )
+                })
+                .collect();
             format!("Hot Rank:\n{}", lines.join("\n"))
         }
         Ok(Ok(_)) => "Hot Rank: no data".to_string(),
-        Ok(Err(e)) => { tracing::warn!("hot rank fetch failed for {}: {}", symbol, e); "Hot Rank: fetch failed".to_string() }
+        Ok(Err(e)) => {
+            tracing::warn!("hot rank fetch failed for {}: {}", symbol, e);
+            "Hot Rank: fetch failed".to_string()
+        }
         Err(_) => "Hot Rank: timeout".to_string(),
     }
 }
@@ -127,23 +179,37 @@ fn format_earnings_forecast_summary(
 ) -> String {
     match result {
         Ok(Ok(items)) if !items.is_empty() => {
-            let matching: Vec<&sa_data::EarningsForecast> = items.iter()
-                .filter(|item| item.code == symbol)
-                .collect();
+            let matching: Vec<&sa_data::EarningsForecast> =
+                items.iter().filter(|item| item.code == symbol).collect();
             if matching.is_empty() {
-                format!("Earnings Forecast: {} entries on date, none for {}", items.len(), symbol)
+                format!(
+                    "Earnings Forecast: {} entries on date, none for {}",
+                    items.len(),
+                    symbol
+                )
             } else {
-                let lines: Vec<String> = matching.iter().take(3).map(|item| {
-                    format!("{} {} type={} content={} range={}",
-                        item.code, item.name, item.forecast_type,
-                        item.forecast_content.as_deref().unwrap_or("-"),
-                        item.change_range.as_deref().unwrap_or("-"))
-                }).collect();
+                let lines: Vec<String> = matching
+                    .iter()
+                    .take(3)
+                    .map(|item| {
+                        format!(
+                            "{} {} type={} content={} range={}",
+                            item.code,
+                            item.name,
+                            item.forecast_type,
+                            item.forecast_content.as_deref().unwrap_or("-"),
+                            item.change_range.as_deref().unwrap_or("-")
+                        )
+                    })
+                    .collect();
                 format!("Earnings Forecast:\n{}", lines.join("\n"))
             }
         }
         Ok(Ok(_)) => "Earnings Forecast: no data".to_string(),
-        Ok(Err(e)) => { tracing::warn!("earnings forecast fetch failed for {}: {}", symbol, e); "Earnings Forecast: fetch failed".to_string() }
+        Ok(Err(e)) => {
+            tracing::warn!("earnings forecast fetch failed for {}: {}", symbol, e);
+            "Earnings Forecast: fetch failed".to_string()
+        }
         Err(_) => "Earnings Forecast: timeout".to_string(),
     }
 }
@@ -156,18 +222,36 @@ fn format_limit_pool_summary(
         Ok(Ok(items)) if !items.is_empty() => {
             let matching: Vec<_> = items.iter().filter(|item| item.code == symbol).collect();
             if matching.is_empty() {
-                format!("Limit-Up Pool: {} stocks hit limit up, {} not in pool", items.len(), symbol)
+                format!(
+                    "Limit-Up Pool: {} stocks hit limit up, {} not in pool",
+                    items.len(),
+                    symbol
+                )
             } else {
-                let lines: Vec<String> = matching.iter().take(3).map(|item| {
-                    format!("{} {} chg={:.2}% price={:.2} seals={} consec={} industry={}",
-                        item.code, item.name, item.change_pct, item.latest_price,
-                        item.seal_amount, item.consecutive_count, item.industry)
-                }).collect();
+                let lines: Vec<String> = matching
+                    .iter()
+                    .take(3)
+                    .map(|item| {
+                        format!(
+                            "{} {} chg={:.2}% price={:.2} seals={} consec={} industry={}",
+                            item.code,
+                            item.name,
+                            item.change_pct,
+                            item.latest_price,
+                            item.seal_amount,
+                            item.consecutive_count,
+                            item.industry
+                        )
+                    })
+                    .collect();
                 format!("Limit-Up Pool:\n{}", lines.join("\n"))
             }
         }
         Ok(Ok(_)) => "Limit-Up Pool: no data".to_string(),
-        Ok(Err(e)) => { tracing::warn!("zt pool fetch failed for {}: {}", symbol, e); "Limit-Up Pool: fetch failed".to_string() }
+        Ok(Err(e)) => {
+            tracing::warn!("zt pool fetch failed for {}: {}", symbol, e);
+            "Limit-Up Pool: fetch failed".to_string()
+        }
         Err(_) => "Limit-Up Pool: timeout".to_string(),
     }
 }
@@ -194,22 +278,62 @@ fn build_technical_summary(chart: &sa_models::ReportMarketChart) -> String {
     let obv = sa_models::obv_report(candles);
 
     let mut lines = Vec::new();
-    if let Some(price) = current_price { lines.push(format!("price={:.2}", price)); }
-    if let Some(v) = sma50 { lines.push(format!("SMA50={:.2} {}", v, trend_label(current_price, Some(v)))); }
-    if let Some(v) = sma200 { lines.push(format!("SMA200={:.2} {}", v, trend_label(current_price, Some(v)))); }
-    if let Some(v) = ema10 { lines.push(format!("EMA10={:.2} {}", v, trend_label(current_price, Some(v)))); }
-    if let Some(v) = rsi14 { lines.push(format!("RSI14={:.1} {}", v, rsi_label(v))); }
-    if let Some(v) = atr14 { lines.push(format!("ATR14={:.2}", v)); }
+    if let Some(price) = current_price {
+        lines.push(format!("price={:.2}", price));
+    }
+    if let Some(v) = sma50 {
+        lines.push(format!(
+            "SMA50={:.2} {}",
+            v,
+            trend_label(current_price, Some(v))
+        ));
+    }
+    if let Some(v) = sma200 {
+        lines.push(format!(
+            "SMA200={:.2} {}",
+            v,
+            trend_label(current_price, Some(v))
+        ));
+    }
+    if let Some(v) = ema10 {
+        lines.push(format!(
+            "EMA10={:.2} {}",
+            v,
+            trend_label(current_price, Some(v))
+        ));
+    }
+    if let Some(v) = rsi14 {
+        lines.push(format!("RSI14={:.1} {}", v, rsi_label(v)));
+    }
+    if let Some(v) = atr14 {
+        lines.push(format!("ATR14={:.2}", v));
+    }
     if let Some((macd, signal, hist)) = macd_vals {
-        lines.push(format!("MACD={:.4} signal={:.4} hist={:.4}", macd, signal, hist));
+        lines.push(format!(
+            "MACD={:.4} signal={:.4} hist={:.4}",
+            macd, signal, hist
+        ));
     }
     if let Some((mid, upper, lower)) = boll {
         lines.push(format!("BOLL={:.2}/{:.2}/{:.2}", upper, mid, lower));
     }
-    if let Some((k, d, j)) = kdj { lines.push(format!("KDJ={:.1}/{:.1}/{:.1}", k, d, j)); }
-    if let Some(v) = adx14 { lines.push(format!("ADX14={:.1} {}", v, adx_label(v))); }
+    if let Some((k, d, j)) = kdj {
+        lines.push(format!("KDJ={:.1}/{:.1}/{:.1}", k, d, j));
+    }
+    if let Some(v) = adx14 {
+        lines.push(format!("ADX14={:.1} {}", v, adx_label(v)));
+    }
     if let Some((obv_val, delta)) = obv {
-        lines.push(format!("OBV={:.0} delta={:.0} {}", obv_val, delta, if delta > 0.0 { "accumulation" } else { "distribution" }));
+        lines.push(format!(
+            "OBV={:.0} delta={:.0} {}",
+            obv_val,
+            delta,
+            if delta > 0.0 {
+                "accumulation"
+            } else {
+                "distribution"
+            }
+        ));
     }
     format!("Technical Indicators:\n{}", lines.join(", "))
 }
@@ -247,7 +371,10 @@ impl TaskManager {
             if let Err(error) = this.run_task(task_id.clone(), params).await {
                 tracing::error!("resume task {} failed: {:?}", task_id, error);
                 let _ = this
-                    .publish_failure(&task_id, format!("Failed to resume analysis task: {error:#}"))
+                    .publish_failure(
+                        &task_id,
+                        format!("Failed to resume analysis task: {error:#}"),
+                    )
                     .await;
             }
         });
@@ -432,7 +559,10 @@ impl TaskManager {
             Ok(result) => result,
             Err(error) => {
                 tracing::warn!("quote fetch timed out for {}: {}", task.symbol, error);
-                (None, sa_data::diagnosis::DataFetchDiagnosis::new("quote", &task.symbol))
+                (
+                    None,
+                    sa_data::diagnosis::DataFetchDiagnosis::new("quote", &task.symbol),
+                )
             }
         };
         if !quote_diagnosis.attempts.is_empty() {
@@ -465,7 +595,10 @@ impl TaskManager {
             Ok(result) => result,
             Err(error) => {
                 tracing::warn!("candles fetch timed out for {}: {}", task.symbol, error);
-                (None, sa_data::diagnosis::DataFetchDiagnosis::new("candles", &task.symbol))
+                (
+                    None,
+                    sa_data::diagnosis::DataFetchDiagnosis::new("candles", &task.symbol),
+                )
             }
         };
         if !candles_diagnosis.attempts.is_empty() {
@@ -478,7 +611,9 @@ impl TaskManager {
         }
         let market_chart = match candles_data {
             Some(items) => {
-                let provider_used = candles_diagnosis.attempts.last()
+                let provider_used = candles_diagnosis
+                    .attempts
+                    .last()
                     .filter(|a| a.success)
                     .map(|a| a.provider.clone())
                     .unwrap_or_else(|| "unknown".to_string());
@@ -518,7 +653,10 @@ impl TaskManager {
                 }
             }
             None => {
-                tracing::warn!("candles fetch failed for {}: all providers exhausted", task.symbol);
+                tracing::warn!(
+                    "candles fetch failed for {}: all providers exhausted",
+                    task.symbol
+                );
                 sa_models::ReportMarketChart::default()
             }
         };
@@ -529,29 +667,64 @@ impl TaskManager {
         if !candles_diagnosis.attempts.is_empty() {
             fetch_diagnosis.push(serde_json::to_value(&candles_diagnosis).unwrap_or_default());
         }
-        CoreMarketData { quote, fundamentals, news_items, market_chart, fetch_diagnosis }
+        CoreMarketData {
+            quote,
+            fundamentals,
+            news_items,
+            market_chart,
+            fetch_diagnosis,
+        }
     }
 
     /// Fetch enrichment data and format summaries into the result.
-    async fn fetch_enrichment_and_store(
-        &self,
-        task: &PersistedTask,
-        result: &mut AnalysisResult,
-    ) {
-        let (fund_flow_result, billboard_result, margin_result, hot_rank_result, earnings_result, zt_pool_result) = tokio::join!(
-            tokio::time::timeout(Self::MARKET_DATA_TIMEOUT, self.market_data.fetch_fund_flow_individual(&task.symbol)),
-            tokio::time::timeout(Self::MARKET_DATA_TIMEOUT, self.market_data.fetch_lhb_stock_statistic(&task.symbol)),
-            tokio::time::timeout(Self::MARKET_DATA_TIMEOUT, self.market_data.fetch_margin_ratio_pa(&task.symbol, &task.analysis_date)),
-            tokio::time::timeout(Self::MARKET_DATA_TIMEOUT, self.market_data.fetch_hot_follow_xq(&task.symbol)),
-            tokio::time::timeout(Self::MARKET_DATA_TIMEOUT, self.market_data.fetch_earnings_forecast(&task.analysis_date)),
-            tokio::time::timeout(Self::MARKET_DATA_TIMEOUT, self.market_data.fetch_zt_pool(&task.analysis_date)),
+    async fn fetch_enrichment_and_store(&self, task: &PersistedTask, result: &mut AnalysisResult) {
+        let (
+            fund_flow_result,
+            billboard_result,
+            margin_result,
+            hot_rank_result,
+            earnings_result,
+            zt_pool_result,
+        ) = tokio::join!(
+            tokio::time::timeout(
+                Self::MARKET_DATA_TIMEOUT,
+                self.market_data.fetch_fund_flow_individual(&task.symbol)
+            ),
+            tokio::time::timeout(
+                Self::MARKET_DATA_TIMEOUT,
+                self.market_data.fetch_lhb_stock_statistic(&task.symbol)
+            ),
+            tokio::time::timeout(
+                Self::MARKET_DATA_TIMEOUT,
+                self.market_data
+                    .fetch_margin_ratio_pa(&task.symbol, &task.analysis_date)
+            ),
+            tokio::time::timeout(
+                Self::MARKET_DATA_TIMEOUT,
+                self.market_data.fetch_hot_follow_xq(&task.symbol)
+            ),
+            tokio::time::timeout(
+                Self::MARKET_DATA_TIMEOUT,
+                self.market_data
+                    .fetch_earnings_forecast(&task.analysis_date)
+            ),
+            tokio::time::timeout(
+                Self::MARKET_DATA_TIMEOUT,
+                self.market_data.fetch_zt_pool(&task.analysis_date)
+            ),
         );
-        result.artifacts.scenario_data.fund_flow_summary = format_fund_flow_summary(&task.symbol, fund_flow_result);
-        result.artifacts.scenario_data.billboard_summary = format_billboard_summary(&task.symbol, billboard_result);
-        result.artifacts.scenario_data.margin_summary = format_margin_summary(&task.symbol, margin_result);
-        result.artifacts.scenario_data.hot_rank_summary = format_hot_rank_summary(&task.symbol, hot_rank_result);
-        result.artifacts.scenario_data.earnings_forecast_summary = format_earnings_forecast_summary(&task.symbol, earnings_result);
-        result.artifacts.scenario_data.limit_pool_summary = format_limit_pool_summary(&task.symbol, zt_pool_result);
+        result.artifacts.scenario_data.fund_flow_summary =
+            format_fund_flow_summary(&task.symbol, fund_flow_result);
+        result.artifacts.scenario_data.billboard_summary =
+            format_billboard_summary(&task.symbol, billboard_result);
+        result.artifacts.scenario_data.margin_summary =
+            format_margin_summary(&task.symbol, margin_result);
+        result.artifacts.scenario_data.hot_rank_summary =
+            format_hot_rank_summary(&task.symbol, hot_rank_result);
+        result.artifacts.scenario_data.earnings_forecast_summary =
+            format_earnings_forecast_summary(&task.symbol, earnings_result);
+        result.artifacts.scenario_data.limit_pool_summary =
+            format_limit_pool_summary(&task.symbol, zt_pool_result);
     }
 
     /// Hydrate scenario data from fetched market data into result artifacts.
@@ -602,7 +775,10 @@ impl TaskManager {
                     "news",
                     "company_news_sparse",
                     "warning",
-                    format!("company news prefetch returned no items for {}", task.symbol),
+                    format!(
+                        "company news prefetch returned no items for {}",
+                        task.symbol
+                    ),
                 );
                 "sparse".to_string()
             } else {
@@ -721,7 +897,11 @@ impl TaskManager {
             quote = result.artifacts.scenario_data.quote.clone();
             fundamentals = result.artifacts.scenario_data.fundamentals.clone();
             news_items = result.artifacts.scenario_data.company_news.clone();
-            news_start = result.artifacts.scenario_data.company_news_start_date.clone();
+            news_start = result
+                .artifacts
+                .scenario_data
+                .company_news_start_date
+                .clone();
             market_chart = result.artifacts.market_chart.clone();
         } else {
             // Fresh run — fetch market data via helpers
@@ -752,7 +932,8 @@ impl TaskManager {
             .await;
         let mut params = params;
         params.past_context = refined_memory_context.context_text.clone();
-        params.memory_context = crate::task_manager::memory_snapshot_from_bundle(&refined_memory_context);
+        params.memory_context =
+            crate::task_manager::memory_snapshot_from_bundle(&refined_memory_context);
 
         result.artifacts.scenario_context = params.scenario.clone();
         if !is_resume_with_data {
@@ -829,7 +1010,9 @@ impl TaskManager {
             )
             .await
         {
-            let _ = self.finalize_partial_result_on_failure(&mut result, &params).await;
+            let _ = self
+                .finalize_partial_result_on_failure(&mut result, &params)
+                .await;
             let _ = self.analysis_store.save_result(&task_id, &result).await;
             return Err(error);
         }
@@ -843,8 +1026,9 @@ impl TaskManager {
                 issues_count = consistency_issues.len(),
                 "consistency validator applied auto-fixes"
             );
-            result.artifacts.diagnosis_summary =
-                Some(sa_models::DiagnosisSummary::from_issues(&consistency_issues));
+            result.artifacts.diagnosis_summary = Some(sa_models::DiagnosisSummary::from_issues(
+                &consistency_issues,
+            ));
         }
 
         self.analysis_store
@@ -976,7 +1160,6 @@ impl TaskManager {
     }
 }
 impl TaskManager {
-
     pub(super) async fn publish_failure(
         &self,
         task_id: &str,
@@ -987,8 +1170,7 @@ impl TaskManager {
             .as_ref()
             .map(|task| task.market_type.clone())
             .unwrap_or_else(|| "unknown".to_string());
-        let reason = if error_message.to_ascii_lowercase().contains("timeout")
-        {
+        let reason = if error_message.to_ascii_lowercase().contains("timeout") {
             "timeout"
         } else if error_message.contains("worker") {
             "worker_failure"
@@ -996,8 +1178,7 @@ impl TaskManager {
             || error_message.to_ascii_lowercase().contains("model")
         {
             "llm_failure"
-        } else if error_message.to_ascii_lowercase().contains("database")
-        {
+        } else if error_message.to_ascii_lowercase().contains("database") {
             "database_failure"
         } else {
             "internal_error"

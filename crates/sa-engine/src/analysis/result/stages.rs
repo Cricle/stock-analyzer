@@ -1,5 +1,5 @@
-use crate::task_manager::TaskRunParams;
 use crate::llm::parse::{DiagnosisIssue, IssueSeverity};
+use crate::task_manager::TaskRunParams;
 use sa_models::{AnalysisResult, InvestmentDebateState, RiskDebateState};
 
 fn compact_decision_context(text: &str, max_chars: usize) -> String {
@@ -170,7 +170,9 @@ impl crate::TaskManager {
             bull_turn.response
         ));
         let mut turns = debate_turns;
-        turns.push(crate::analysis::graph::debate_turn_from_generated(&bull_turn));
+        turns.push(crate::analysis::graph::debate_turn_from_generated(
+            &bull_turn,
+        ));
         result.graph.investment_debate = InvestmentDebateState {
             bull_history: bull_history.trim().to_string(),
             bear_history: bear_history.trim().to_string(),
@@ -242,7 +244,9 @@ impl crate::TaskManager {
             bear_turn.response
         ));
         let mut turns = debate_turns;
-        turns.push(crate::analysis::graph::debate_turn_from_generated(&bear_turn));
+        turns.push(crate::analysis::graph::debate_turn_from_generated(
+            &bear_turn,
+        ));
         result.graph.investment_debate = InvestmentDebateState {
             bull_history: bull_history.trim().to_string(),
             bear_history: bear_history.trim().to_string(),
@@ -284,11 +288,8 @@ impl crate::TaskManager {
         .await?;
         Ok(())
     }
-
-
 }
 impl crate::TaskManager {
-
     /// Run a single risk discussion round with all 3 analysts in parallel.
     pub(crate) async fn run_risk_round(
         &self,
@@ -306,7 +307,10 @@ impl crate::TaskManager {
             &result.task_id,
             96,
             "Risk Management Debate",
-            &format!("Round {} — Three risk analysts speaking in parallel", round + 1),
+            &format!(
+                "Round {} — Three risk analysts speaking in parallel",
+                round + 1
+            ),
             &format!("Risk Discussion Round {}", round + 1),
         )
         .await?;
@@ -387,13 +391,25 @@ impl crate::TaskManager {
         let mut agg_hist = aggressive_history;
         let mut cons_hist = conservative_history;
         let mut neut_hist = neutral_history;
-        agg_hist.push_str(&format!("\n\n[Round {}]\n{}", round + 1, aggressive.response));
-        cons_hist.push_str(&format!("\n\n[Round {}]\n{}", round + 1, conservative.response));
+        agg_hist.push_str(&format!(
+            "\n\n[Round {}]\n{}",
+            round + 1,
+            aggressive.response
+        ));
+        cons_hist.push_str(&format!(
+            "\n\n[Round {}]\n{}",
+            round + 1,
+            conservative.response
+        ));
         neut_hist.push_str(&format!("\n\n[Round {}]\n{}", round + 1, neutral.response));
 
         let mut turns = risk_turns;
-        turns.push(crate::analysis::graph::debate_turn_from_generated(&aggressive));
-        turns.push(crate::analysis::graph::debate_turn_from_generated(&conservative));
+        turns.push(crate::analysis::graph::debate_turn_from_generated(
+            &aggressive,
+        ));
+        turns.push(crate::analysis::graph::debate_turn_from_generated(
+            &conservative,
+        ));
         turns.push(crate::analysis::graph::debate_turn_from_generated(&neutral));
 
         result.graph.risk_debate = RiskDebateState {
@@ -402,7 +418,9 @@ impl crate::TaskManager {
             neutral_history: neut_hist.trim().to_string(),
             history: format!(
                 "Aggressive Analyst:\n{}\n\nConservative Analyst:\n{}\n\nNeutral Analyst:\n{}",
-                agg_hist.trim(), cons_hist.trim(), neut_hist.trim()
+                agg_hist.trim(),
+                cons_hist.trim(),
+                neut_hist.trim()
             ),
             latest_speaker: "Neutral Analyst".to_string(),
             current_aggressive_response: aggressive.response.clone(),
@@ -415,8 +433,12 @@ impl crate::TaskManager {
         result.agent_state.risk_debate_state = result.graph.risk_debate.clone();
         result.sync_derived_fields();
         result.artifacts.llm_token_usage = quick_llm.usage_summary().await;
-        self.persist_runtime_stage(result, &format!("risk:round:{}", round + 1), "Risk Discussion")
-            .await?;
+        self.persist_runtime_stage(
+            result,
+            &format!("risk:round:{}", round + 1),
+            "Risk Discussion",
+        )
+        .await?;
         Ok(())
     }
 
@@ -463,44 +485,65 @@ impl crate::TaskManager {
                 "selected model tier for research manager"
             );
             let research_llm = if use_deep_llm { deep_llm } else { quick_llm };
-            let bull_ctx = compact_decision_context(&result.graph.investment_debate.bull_history, 1800);
-            let bear_ctx = compact_decision_context(&result.graph.investment_debate.bear_history, 1800);
+            let bull_ctx =
+                compact_decision_context(&result.graph.investment_debate.bull_history, 1800);
+            let bear_ctx =
+                compact_decision_context(&result.graph.investment_debate.bear_history, 1800);
             let mut research_manager = None::<crate::llm::GeneratedResearchManager>;
             let mut last_issues = Vec::new();
             for retry in 0..=2u32 {
                 let hint = if retry == 0 {
                     None
                 } else {
-                    Some(crate::llm::retry::default_retry_hint_builder(&last_issues, retry))
+                    Some(crate::llm::retry::default_retry_hint_builder(
+                        &last_issues,
+                        retry,
+                    ))
                 };
-                let candidate = research_llm.generate_research_manager(crate::llm::ResearchManagerParams {
-                    symbol: &result.symbol,
-                    market_type: &params.market_type,
-                    analysis_date: &params.analysis_date,
-                    market_report: &result.agent_state.market_report,
-                    fundamentals_report: &result.agent_state.fundamentals_report,
-                    news_report: &result.agent_state.news_report,
-                    sentiment_report: &result.agent_state.sentiment_report,
-                    bull_case: &bull_ctx,
-                    bear_case: &bear_ctx,
-                    fact_sheet: &fact_sheet,
-                    calibration_memo: &calibration_memo,
-                    retry_hint: hint.as_deref(),
-                }).await?;
+                let candidate = research_llm
+                    .generate_research_manager(crate::llm::ResearchManagerParams {
+                        symbol: &result.symbol,
+                        market_type: &params.market_type,
+                        analysis_date: &params.analysis_date,
+                        market_report: &result.agent_state.market_report,
+                        fundamentals_report: &result.agent_state.fundamentals_report,
+                        news_report: &result.agent_state.news_report,
+                        sentiment_report: &result.agent_state.sentiment_report,
+                        bull_case: &bull_ctx,
+                        bear_case: &bear_ctx,
+                        fact_sheet: &fact_sheet,
+                        calibration_memo: &calibration_memo,
+                        retry_hint: hint.as_deref(),
+                    })
+                    .await?;
                 let issues = {
                     let mut v = Vec::new();
                     if candidate.rationale == "Model did not return research manager rationale." {
-                        v.push(DiagnosisIssue::error("research_manager", "rationale", "rationale is default placeholder"));
+                        v.push(DiagnosisIssue::error(
+                            "research_manager",
+                            "rationale",
+                            "rationale is default placeholder",
+                        ));
                     }
                     if candidate.risk_assessment == "Model did not return risk assessment." {
-                        v.push(DiagnosisIssue::error("research_manager", "risk_assessment", "risk_assessment is default placeholder"));
+                        v.push(DiagnosisIssue::error(
+                            "research_manager",
+                            "risk_assessment",
+                            "risk_assessment is default placeholder",
+                        ));
                     }
                     v
                 };
-                let has_errors = issues.iter().any(|i| matches!(i.severity, IssueSeverity::Error));
+                let has_errors = issues
+                    .iter()
+                    .any(|i| matches!(i.severity, IssueSeverity::Error));
                 if !has_errors {
                     if retry > 0 {
-                        tracing::info!(stage = "research_manager", retry, "LLM output fixed after retry");
+                        tracing::info!(
+                            stage = "research_manager",
+                            retry,
+                            "LLM output fixed after retry"
+                        );
                     }
                     research_manager = Some(candidate);
                     break;
@@ -593,8 +636,10 @@ impl crate::TaskManager {
             };
             result.artifacts.calibration_memo = calibration_memo.clone();
             let plan_ctx = compact_decision_context(&result.agent_state.investment_plan, 1600);
-            let bull_ctx = compact_decision_context(&result.graph.investment_debate.bull_history, 1200);
-            let bear_ctx = compact_decision_context(&result.graph.investment_debate.bear_history, 1200);
+            let bull_ctx =
+                compact_decision_context(&result.graph.investment_debate.bull_history, 1200);
+            let bear_ctx =
+                compact_decision_context(&result.graph.investment_debate.bear_history, 1200);
             let summary = result.derived_summary();
             let mut trader = None::<crate::llm::GeneratedTraderDecision>;
             let mut last_issues = Vec::new();
@@ -602,31 +647,48 @@ impl crate::TaskManager {
                 let hint = if retry == 0 {
                     None
                 } else {
-                    Some(crate::llm::retry::default_retry_hint_builder(&last_issues, retry))
+                    Some(crate::llm::retry::default_retry_hint_builder(
+                        &last_issues,
+                        retry,
+                    ))
                 };
-                let candidate = quick_llm.generate_trader_decision(crate::llm::TraderDecisionParams {
-                    symbol: &result.symbol,
-                    market_type: &params.market_type,
-                    analysis_date: &params.analysis_date,
-                    investment_plan: &plan_ctx,
-                    bull_case: &bull_ctx,
-                    bear_case: &bear_ctx,
-                    research_summary: &summary,
-                    fact_sheet: &fact_sheet,
-                    calibration_memo: &calibration_memo,
-                    retry_hint: hint.as_deref(),
-                }).await?;
+                let candidate = quick_llm
+                    .generate_trader_decision(crate::llm::TraderDecisionParams {
+                        symbol: &result.symbol,
+                        market_type: &params.market_type,
+                        analysis_date: &params.analysis_date,
+                        investment_plan: &plan_ctx,
+                        bull_case: &bull_ctx,
+                        bear_case: &bear_ctx,
+                        research_summary: &summary,
+                        fact_sheet: &fact_sheet,
+                        calibration_memo: &calibration_memo,
+                        retry_hint: hint.as_deref(),
+                    })
+                    .await?;
                 let issues = {
                     let mut v = Vec::new();
-                    if candidate.trader_plan == "Model did not return a trading plan." || candidate.trader_plan.trim().is_empty() {
-                        v.push(DiagnosisIssue::error("trader_decision", "trader_plan", "trader_plan is default placeholder or empty"));
+                    if candidate.trader_plan == "Model did not return a trading plan."
+                        || candidate.trader_plan.trim().is_empty()
+                    {
+                        v.push(DiagnosisIssue::error(
+                            "trader_decision",
+                            "trader_plan",
+                            "trader_plan is default placeholder or empty",
+                        ));
                     }
                     if candidate.reasoning == "Model did not return trading reasoning." {
-                        v.push(DiagnosisIssue::error("trader_decision", "reasoning", "reasoning is default placeholder"));
+                        v.push(DiagnosisIssue::error(
+                            "trader_decision",
+                            "reasoning",
+                            "reasoning is default placeholder",
+                        ));
                     }
                     v
                 };
-                let has_errors = issues.iter().any(|i| matches!(i.severity, IssueSeverity::Error));
+                let has_errors = issues
+                    .iter()
+                    .any(|i| matches!(i.severity, IssueSeverity::Error));
                 if !has_errors {
                     if retry > 0 {
                         tracing::info!(stage = "trader", retry, "LLM output fixed after retry");
@@ -723,8 +785,10 @@ impl crate::TaskManager {
                 )
             };
             result.artifacts.calibration_memo = calibration_memo.clone();
-            let invest_plan_ctx = compact_decision_context(&result.agent_state.investment_plan, 1400);
-            let trader_plan_ctx = compact_decision_context(&result.agent_state.trader_investment_plan, 1200);
+            let invest_plan_ctx =
+                compact_decision_context(&result.agent_state.investment_plan, 1400);
+            let trader_plan_ctx =
+                compact_decision_context(&result.agent_state.trader_investment_plan, 1200);
             let bull_ctx = format!(
                 "{}\n\n{}",
                 compact_decision_context(&result.graph.investment_debate.bull_history, 900),
@@ -733,10 +797,7 @@ impl crate::TaskManager {
             let bear_ctx = format!(
                 "{}\n\n{}\n\n{}",
                 compact_decision_context(&result.graph.investment_debate.bear_history, 900),
-                compact_decision_context(
-                    &result.graph.risk_debate.conservative_history,
-                    800
-                ),
+                compact_decision_context(&result.graph.risk_debate.conservative_history, 800),
                 compact_decision_context(&result.graph.risk_debate.neutral_history, 800)
             );
             let mut portfolio_decision = None::<crate::llm::GeneratedPortfolioDecision>;
@@ -745,31 +806,51 @@ impl crate::TaskManager {
                 let hint = if retry == 0 {
                     None
                 } else {
-                    Some(crate::llm::retry::default_retry_hint_builder(&last_issues, retry))
+                    Some(crate::llm::retry::default_retry_hint_builder(
+                        &last_issues,
+                        retry,
+                    ))
                 };
-                let candidate = deep_llm.generate_portfolio_decision(crate::llm::PortfolioDecisionParams {
-                    symbol: &result.symbol,
-                    market_type: &params.market_type,
-                    analysis_date: &params.analysis_date,
-                    investment_plan: &invest_plan_ctx,
-                    trader_plan: &trader_plan_ctx,
-                    bull_case: &bull_ctx,
-                    bear_case: &bear_ctx,
-                    fact_sheet: &fact_sheet,
-                    calibration_memo: &calibration_memo,
-                    retry_hint: hint.as_deref(),
-                }).await?;
+                let candidate = deep_llm
+                    .generate_portfolio_decision(crate::llm::PortfolioDecisionParams {
+                        symbol: &result.symbol,
+                        market_type: &params.market_type,
+                        analysis_date: &params.analysis_date,
+                        investment_plan: &invest_plan_ctx,
+                        trader_plan: &trader_plan_ctx,
+                        bull_case: &bull_ctx,
+                        bear_case: &bear_ctx,
+                        fact_sheet: &fact_sheet,
+                        calibration_memo: &calibration_memo,
+                        retry_hint: hint.as_deref(),
+                    })
+                    .await?;
                 let issues = {
                     let mut v = Vec::new();
-                    if candidate.executive_summary == "Model did not return portfolio manager executive summary." {
-                        v.push(DiagnosisIssue::error("portfolio_decision", "executive_summary", "executive_summary is default placeholder"));
+                    if candidate.executive_summary
+                        == "Model did not return portfolio manager executive summary."
+                    {
+                        v.push(DiagnosisIssue::error(
+                            "portfolio_decision",
+                            "executive_summary",
+                            "executive_summary is default placeholder",
+                        ));
                     }
-                    if candidate.rationale == "Model did not return research manager rationale." || candidate.investment_thesis == "Model did not return portfolio manager investment thesis." {
-                        v.push(DiagnosisIssue::error("portfolio_decision", "rationale", "rationale/investment_thesis is default placeholder"));
+                    if candidate.rationale == "Model did not return research manager rationale."
+                        || candidate.investment_thesis
+                            == "Model did not return portfolio manager investment thesis."
+                    {
+                        v.push(DiagnosisIssue::error(
+                            "portfolio_decision",
+                            "rationale",
+                            "rationale/investment_thesis is default placeholder",
+                        ));
                     }
                     v
                 };
-                let has_errors = issues.iter().any(|i| matches!(i.severity, IssueSeverity::Error));
+                let has_errors = issues
+                    .iter()
+                    .any(|i| matches!(i.severity, IssueSeverity::Error));
                 if !has_errors {
                     if retry > 0 {
                         tracing::info!(stage = "portfolio", retry, "LLM output fixed after retry");
@@ -786,7 +867,8 @@ impl crate::TaskManager {
                     "LLM output has quality issues, retrying"
                 );
             }
-            let portfolio_decision = portfolio_decision.expect("at least one LLM attempt must succeed");
+            let portfolio_decision =
+                portfolio_decision.expect("at least one LLM attempt must succeed");
             result.agent_state.sender = "Portfolio Manager".to_string();
             result.agent_state.final_trade_decision = portfolio_decision.rendered_decision();
             result.agent_state.structured_portfolio_decision =
@@ -842,11 +924,27 @@ impl crate::TaskManager {
                     markdown: result.agent_state.final_trade_decision.clone(),
                 };
             // Wire time-stop from portfolio decision if trader didn't provide it
-            if result.agent_state.structured_trader_plan.time_stop_deadline.is_empty() {
-                result.agent_state.structured_trader_plan.time_stop_deadline = portfolio_decision.time_stop_deadline.clone().unwrap_or_default();
+            if result
+                .agent_state
+                .structured_trader_plan
+                .time_stop_deadline
+                .is_empty()
+            {
+                result.agent_state.structured_trader_plan.time_stop_deadline = portfolio_decision
+                    .time_stop_deadline
+                    .clone()
+                    .unwrap_or_default();
             }
-            if result.agent_state.structured_trader_plan.time_stop_reason.is_empty() {
-                result.agent_state.structured_trader_plan.time_stop_reason = portfolio_decision.time_stop_reason.clone().unwrap_or_default();
+            if result
+                .agent_state
+                .structured_trader_plan
+                .time_stop_reason
+                .is_empty()
+            {
+                result.agent_state.structured_trader_plan.time_stop_reason = portfolio_decision
+                    .time_stop_reason
+                    .clone()
+                    .unwrap_or_default();
             }
             result.graph.risk_debate.judge_decision =
                 result.agent_state.final_trade_decision.clone();

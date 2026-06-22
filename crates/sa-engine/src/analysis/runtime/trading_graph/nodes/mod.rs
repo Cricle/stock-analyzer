@@ -3,19 +3,19 @@ use adk_graph::{
     node::{NodeContext, NodeOutput},
 };
 use chrono::Utc;
-use serde_json::json;
 use sa_models::{AnalysisResult, PendingToolCall};
+use serde_json::json;
 
 use crate::TaskManager;
 use crate::llm::LlmClient;
 
 use crate::task_manager::TaskRunParams;
 
+use super::summarize::{format_fundamental_metrics, format_volume_profile};
 use super::{
     analyst_already_completed, analyst_node_name, clear_node_name, graph_error, load_result,
     result_output, tool_history_text, tool_node_name,
 };
-use super::summarize::{format_fundamental_metrics, format_volume_profile};
 
 pub(super) fn analyst_planner_node(
     manager: TaskManager,
@@ -95,7 +95,10 @@ pub(super) fn analyst_planner_node(
                         let tool_history = tool_history.clone();
                         let context_owned = context_owned.clone();
                         async move {
-                            let context: Vec<(&str, &str)> = context_owned.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+                            let context: Vec<(&str, &str)> = context_owned
+                                .iter()
+                                .map(|(k, v)| (k.as_str(), v.as_str()))
+                                .collect();
                             llm.generate_analyst_decision(crate::llm::AnalystDecisionParams {
                                 symbol: &symbol,
                                 market_type: &market_type,
@@ -108,7 +111,9 @@ pub(super) fn analyst_planner_node(
                                 tool_history: &tool_history,
                                 extra_context: &context,
                                 retry_hint: retry_owned.as_deref(),
-                            }).await.map(|d| {
+                            })
+                            .await
+                            .map(|d| {
                                 let raw = serde_json::to_string(&d).unwrap_or_default();
                                 (d, raw)
                             })
@@ -116,7 +121,10 @@ pub(super) fn analyst_planner_node(
                     },
                     |pair| crate::llm::parse::validate_analyst_decision(&pair.0, &pair.1),
                     crate::llm::retry::default_retry_hint_builder,
-                ).await.map(|(d, _raw)| d).map_err(graph_error)?
+                )
+                .await
+                .map(|(d, _raw)| d)
+                .map_err(graph_error)?
             };
             tracing::info!(
                 task_id = %result.task_id,
@@ -192,8 +200,18 @@ fn analyst_step_metadata(analyst_key: &str) -> (i32, &'static str, &'static str,
             "\u{751f}\u{6210}\u{65b0}\u{95fb}\u{4e8b}\u{4ef6}\u{5206}\u{6790}\u{5e08}\u{62a5}\u{544a}",
             "\u{65b0}\u{95fb}\u{4e8b}\u{4ef6}\u{5206}\u{6790}\u{4e2d}",
         ),
-        "fundamentals" => (90, "\u{57fa}\u{672c}\u{9762}\u{5206}\u{6790}", "\u{751f}\u{6210}\u{57fa}\u{672c}\u{9762}\u{5206}\u{6790}\u{5e08}\u{62a5}\u{544a}", "\u{57fa}\u{672c}\u{9762}\u{5206}\u{6790}\u{4e2d}"),
-        _ => (86, "\u{5206}\u{6790}\u{5e08}\u{9636}\u{6bb5}", "\u{751f}\u{6210}\u{5206}\u{6790}\u{5e08}\u{62a5}\u{544a}", "\u{5206}\u{6790}\u{5e08}\u{9636}\u{6bb5}\u{8fdb}\u{884c}\u{4e2d}"),
+        "fundamentals" => (
+            90,
+            "\u{57fa}\u{672c}\u{9762}\u{5206}\u{6790}",
+            "\u{751f}\u{6210}\u{57fa}\u{672c}\u{9762}\u{5206}\u{6790}\u{5e08}\u{62a5}\u{544a}",
+            "\u{57fa}\u{672c}\u{9762}\u{5206}\u{6790}\u{4e2d}",
+        ),
+        _ => (
+            86,
+            "\u{5206}\u{6790}\u{5e08}\u{9636}\u{6bb5}",
+            "\u{751f}\u{6210}\u{5206}\u{6790}\u{5e08}\u{62a5}\u{544a}",
+            "\u{5206}\u{6790}\u{5e08}\u{9636}\u{6bb5}\u{8fdb}\u{884c}\u{4e2d}",
+        ),
     }
 }
 
@@ -507,7 +525,10 @@ async fn apply_analyst_report(
                     "analysts",
                     "\u{5206}\u{6790}\u{5e08}\u{9636}\u{6bb5}",
                     "completed",
-                    format!("\u{5df2}\u{5b8c}\u{6210} {} \u{4e2a}\u{5206}\u{6790}\u{5e08}\u{8282}\u{70b9}", result.graph.analysts.len()),
+                    format!(
+                        "\u{5df2}\u{5b8c}\u{6210} {} \u{4e2a}\u{5206}\u{6790}\u{5e08}\u{8282}\u{70b9}",
+                        result.graph.analysts.len()
+                    ),
                 );
             }
             manager
@@ -545,41 +566,106 @@ fn analyst_context(
     match analyst_key {
         "sentiment" => {
             let mut ctx: Vec<(String, String)> = vec![
-                ("\u{5e02}\u{573a}\u{6280}\u{672f}".into(), result.agent_state.market_report.clone()),
+                (
+                    "\u{5e02}\u{573a}\u{6280}\u{672f}".into(),
+                    result.agent_state.market_report.clone(),
+                ),
                 ("Past Context".into(), params.past_context.clone()),
                 ("User Context".into(), user_context.into()),
             ];
-            if has_sector { ctx.push(("Sector & Sentiment Context".into(), sector_ctx.into())); }
-            if !sd.hot_rank_summary.is_empty() { ctx.push(("\u{96ea}\u{7403}\u{70ed}\u{5ea6}".into(), sd.hot_rank_summary.clone())); }
-            if !sd.billboard_summary.is_empty() { ctx.push(("\u{9f99}\u{864e}\u{699c}".into(), sd.billboard_summary.clone())); }
-            if !sd.margin_summary.is_empty() { ctx.push(("\u{878d}\u{8d44}\u{878d}\u{5238}".into(), sd.margin_summary.clone())); }
-            if !fundamental_metrics.is_empty() { ctx.push(("Fundamental Metrics".into(), fundamental_metrics)); }
+            if has_sector {
+                ctx.push(("Sector & Sentiment Context".into(), sector_ctx.into()));
+            }
+            if !sd.hot_rank_summary.is_empty() {
+                ctx.push((
+                    "\u{96ea}\u{7403}\u{70ed}\u{5ea6}".into(),
+                    sd.hot_rank_summary.clone(),
+                ));
+            }
+            if !sd.billboard_summary.is_empty() {
+                ctx.push((
+                    "\u{9f99}\u{864e}\u{699c}".into(),
+                    sd.billboard_summary.clone(),
+                ));
+            }
+            if !sd.margin_summary.is_empty() {
+                ctx.push((
+                    "\u{878d}\u{8d44}\u{878d}\u{5238}".into(),
+                    sd.margin_summary.clone(),
+                ));
+            }
+            if !fundamental_metrics.is_empty() {
+                ctx.push(("Fundamental Metrics".into(), fundamental_metrics));
+            }
             ctx
         }
         "news" => {
             let mut ctx: Vec<(String, String)> = vec![
-                ("\u{5e02}\u{573a}\u{6280}\u{672f}".into(), result.agent_state.market_report.clone()),
-                ("\u{8d44}\u{91d1}\u{60c5}\u{7eea}".into(), result.agent_state.sentiment_report.clone()),
+                (
+                    "\u{5e02}\u{573a}\u{6280}\u{672f}".into(),
+                    result.agent_state.market_report.clone(),
+                ),
+                (
+                    "\u{8d44}\u{91d1}\u{60c5}\u{7eea}".into(),
+                    result.agent_state.sentiment_report.clone(),
+                ),
                 ("Past Context".into(), params.past_context.clone()),
                 ("User Context".into(), user_context.into()),
             ];
-            if has_sector { ctx.push(("Sector & Sentiment Context".into(), sector_ctx.into())); }
-            if !sd.billboard_summary.is_empty() { ctx.push(("\u{9f99}\u{864e}\u{699c}".into(), sd.billboard_summary.clone())); }
-            if !sd.earnings_forecast_summary.is_empty() { ctx.push(("\u{4e1a}\u{7ee9}\u{9884}\u{544a}".into(), sd.earnings_forecast_summary.clone())); }
-            if !fundamental_metrics.is_empty() { ctx.push(("Fundamental Metrics".into(), fundamental_metrics)); }
+            if has_sector {
+                ctx.push(("Sector & Sentiment Context".into(), sector_ctx.into()));
+            }
+            if !sd.billboard_summary.is_empty() {
+                ctx.push((
+                    "\u{9f99}\u{864e}\u{699c}".into(),
+                    sd.billboard_summary.clone(),
+                ));
+            }
+            if !sd.earnings_forecast_summary.is_empty() {
+                ctx.push((
+                    "\u{4e1a}\u{7ee9}\u{9884}\u{544a}".into(),
+                    sd.earnings_forecast_summary.clone(),
+                ));
+            }
+            if !fundamental_metrics.is_empty() {
+                ctx.push(("Fundamental Metrics".into(), fundamental_metrics));
+            }
             ctx
         }
         "fundamentals" => {
             let mut ctx: Vec<(String, String)> = vec![
-                ("\u{5e02}\u{573a}\u{6280}\u{672f}".into(), result.agent_state.market_report.clone()),
-                ("\u{8d44}\u{91d1}\u{60c5}\u{7eea}".into(), result.agent_state.sentiment_report.clone()),
-                ("\u{65b0}\u{95fb}\u{4e8b}\u{4ef6}".into(), result.agent_state.news_report.clone()),
+                (
+                    "\u{5e02}\u{573a}\u{6280}\u{672f}".into(),
+                    result.agent_state.market_report.clone(),
+                ),
+                (
+                    "\u{8d44}\u{91d1}\u{60c5}\u{7eea}".into(),
+                    result.agent_state.sentiment_report.clone(),
+                ),
+                (
+                    "\u{65b0}\u{95fb}\u{4e8b}\u{4ef6}".into(),
+                    result.agent_state.news_report.clone(),
+                ),
                 ("User Context".into(), user_context.into()),
             ];
-            if has_sector { ctx.push(("Sector & Sentiment Context".into(), sector_ctx.into())); }
-            if !fundamental_metrics.is_empty() { ctx.push(("Fundamental Metrics".into(), fundamental_metrics)); }
-            if !sd.earnings_forecast_summary.is_empty() { ctx.push(("\u{4e1a}\u{7ee9}\u{9884}\u{544a}".into(), sd.earnings_forecast_summary.clone())); }
-            if !sd.shareholder_summary.is_empty() { ctx.push(("\u{80a1}\u{4e1c}\u{5206}\u{6790}".into(), sd.shareholder_summary.clone())); }
+            if has_sector {
+                ctx.push(("Sector & Sentiment Context".into(), sector_ctx.into()));
+            }
+            if !fundamental_metrics.is_empty() {
+                ctx.push(("Fundamental Metrics".into(), fundamental_metrics));
+            }
+            if !sd.earnings_forecast_summary.is_empty() {
+                ctx.push((
+                    "\u{4e1a}\u{7ee9}\u{9884}\u{544a}".into(),
+                    sd.earnings_forecast_summary.clone(),
+                ));
+            }
+            if !sd.shareholder_summary.is_empty() {
+                ctx.push((
+                    "\u{80a1}\u{4e1c}\u{5206}\u{6790}".into(),
+                    sd.shareholder_summary.clone(),
+                ));
+            }
             ctx
         }
         _ => {
@@ -587,13 +673,39 @@ fn analyst_context(
                 ("Past Context".into(), params.past_context.clone()),
                 ("User Context".into(), user_context.into()),
             ];
-            if has_sector { ctx.push(("Sector & Sentiment Context".into(), sector_ctx.into())); }
-            if !fundamental_metrics.is_empty() { ctx.push(("Fundamental Metrics".into(), fundamental_metrics)); }
-            if !volume_profile.is_empty() { ctx.push(("Volume Profile".into(), volume_profile)); }
-            if !sd.fund_flow_summary.is_empty() { ctx.push(("\u{8d44}\u{91d1}\u{6d41}\u{5411}".into(), sd.fund_flow_summary.clone())); }
-            if !sd.margin_summary.is_empty() { ctx.push(("\u{878d}\u{8d44}\u{878d}\u{5238}".into(), sd.margin_summary.clone())); }
-            if !sd.technical_summary.is_empty() { ctx.push(("\u{6280}\u{672f}\u{6307}\u{6807}".into(), sd.technical_summary.clone())); }
-            if !sd.limit_pool_summary.is_empty() { ctx.push(("\u{6da8}\u{505c}\u{6c60}".into(), sd.limit_pool_summary.clone())); }
+            if has_sector {
+                ctx.push(("Sector & Sentiment Context".into(), sector_ctx.into()));
+            }
+            if !fundamental_metrics.is_empty() {
+                ctx.push(("Fundamental Metrics".into(), fundamental_metrics));
+            }
+            if !volume_profile.is_empty() {
+                ctx.push(("Volume Profile".into(), volume_profile));
+            }
+            if !sd.fund_flow_summary.is_empty() {
+                ctx.push((
+                    "\u{8d44}\u{91d1}\u{6d41}\u{5411}".into(),
+                    sd.fund_flow_summary.clone(),
+                ));
+            }
+            if !sd.margin_summary.is_empty() {
+                ctx.push((
+                    "\u{878d}\u{8d44}\u{878d}\u{5238}".into(),
+                    sd.margin_summary.clone(),
+                ));
+            }
+            if !sd.technical_summary.is_empty() {
+                ctx.push((
+                    "\u{6280}\u{672f}\u{6307}\u{6807}".into(),
+                    sd.technical_summary.clone(),
+                ));
+            }
+            if !sd.limit_pool_summary.is_empty() {
+                ctx.push((
+                    "\u{6da8}\u{505c}\u{6c60}".into(),
+                    sd.limit_pool_summary.clone(),
+                ));
+            }
             ctx
         }
     }
@@ -601,9 +713,21 @@ fn analyst_context(
 
 fn analyst_tools(analyst_key: &str) -> &'static [&'static str] {
     match analyst_key {
-        "market" => &["get_stock_data", "get_indicators", "get_fund_flow", "get_margin", "get_limit_pool"],
+        "market" => &[
+            "get_stock_data",
+            "get_indicators",
+            "get_fund_flow",
+            "get_margin",
+            "get_limit_pool",
+        ],
         "sentiment" => &["get_news", "get_hot_rank", "get_billboard"],
-        "news" => &["get_news", "get_global_news", "get_insider_transactions", "get_billboard", "get_earnings_forecast"],
+        "news" => &[
+            "get_news",
+            "get_global_news",
+            "get_insider_transactions",
+            "get_billboard",
+            "get_earnings_forecast",
+        ],
         "fundamentals" => &[
             "get_fundamentals",
             "get_balance_sheet",
@@ -639,10 +763,18 @@ fn analyst_agent(analyst_key: &str) -> &'static str {
 
 fn analyst_mission(analyst_key: &str) -> &'static str {
     match analyst_key {
-        "market" => "\u{8d1f}\u{8d23}\u{8d8b}\u{52bf}\u{3001}\u{52a8}\u{91cf}\u{3001}\u{6ce2}\u{52a8}\u{3001}\u{91cf}\u{4ef7}\u{7ed3}\u{6784}\u{3001}\u{652f}\u{6491}\u{963b}\u{529b}\u{4e0e}\u{6280}\u{672f}\u{5931}\u{6548}\u{6761}\u{4ef6}\u{5206}\u{6790}\u{3002}",
-        "sentiment" => "\u{8d1f}\u{8d23}\u{8d44}\u{91d1}\u{6d41}\u{3001}\u{6362}\u{624b}\u{3001}\u{677f}\u{5757}\u{70ed}\u{5ea6}\u{3001}\u{60c5}\u{7eea}\u{62e5}\u{6324}\u{5ea6}\u{3001}\u{9884}\u{671f}\u{6e29}\u{5ea6}\u{4e0e}\u{7b79}\u{7801}\u{7ed3}\u{6784}\u{5206}\u{6790}\u{3002}",
-        "news" => "\u{8d1f}\u{8d23}\u{516c}\u{544a}\u{3001}\u{4ea7}\u{4e1a}\u{3001}\u{653f}\u{7b56}\u{3001}\u{5b8f}\u{89c2}\u{4e0e}\u{516c}\u{53f8}\u{4e8b}\u{4ef6}\u{50ac}\u{5316}\u{7684}\u{65f6}\u{95f4}\u{7ebf}\u{4e0e}\u{8fb9}\u{9645}\u{53d8}\u{5316}\u{5206}\u{6790}\u{3002}",
-        "fundamentals" => "\u{8d1f}\u{8d23}\u{5546}\u{4e1a}\u{8d28}\u{91cf}\u{3001}\u{76c8}\u{5229}\u{9a71}\u{52a8}\u{3001}\u{8d44}\u{4ea7}\u{8d1f}\u{503a}\u{8868}\u{3001}\u{73b0}\u{91d1}\u{6d41}\u{3001}\u{4f30}\u{503c}\u{951a}\u{4e0e}\u{884c}\u{4e1a}\u{5730}\u{4f4d}\u{5206}\u{6790}\u{3002}",
+        "market" => {
+            "\u{8d1f}\u{8d23}\u{8d8b}\u{52bf}\u{3001}\u{52a8}\u{91cf}\u{3001}\u{6ce2}\u{52a8}\u{3001}\u{91cf}\u{4ef7}\u{7ed3}\u{6784}\u{3001}\u{652f}\u{6491}\u{963b}\u{529b}\u{4e0e}\u{6280}\u{672f}\u{5931}\u{6548}\u{6761}\u{4ef6}\u{5206}\u{6790}\u{3002}"
+        }
+        "sentiment" => {
+            "\u{8d1f}\u{8d23}\u{8d44}\u{91d1}\u{6d41}\u{3001}\u{6362}\u{624b}\u{3001}\u{677f}\u{5757}\u{70ed}\u{5ea6}\u{3001}\u{60c5}\u{7eea}\u{62e5}\u{6324}\u{5ea6}\u{3001}\u{9884}\u{671f}\u{6e29}\u{5ea6}\u{4e0e}\u{7b79}\u{7801}\u{7ed3}\u{6784}\u{5206}\u{6790}\u{3002}"
+        }
+        "news" => {
+            "\u{8d1f}\u{8d23}\u{516c}\u{544a}\u{3001}\u{4ea7}\u{4e1a}\u{3001}\u{653f}\u{7b56}\u{3001}\u{5b8f}\u{89c2}\u{4e0e}\u{516c}\u{53f8}\u{4e8b}\u{4ef6}\u{50ac}\u{5316}\u{7684}\u{65f6}\u{95f4}\u{7ebf}\u{4e0e}\u{8fb9}\u{9645}\u{53d8}\u{5316}\u{5206}\u{6790}\u{3002}"
+        }
+        "fundamentals" => {
+            "\u{8d1f}\u{8d23}\u{5546}\u{4e1a}\u{8d28}\u{91cf}\u{3001}\u{76c8}\u{5229}\u{9a71}\u{52a8}\u{3001}\u{8d44}\u{4ea7}\u{8d1f}\u{503a}\u{8868}\u{3001}\u{73b0}\u{91d1}\u{6d41}\u{3001}\u{4f30}\u{503c}\u{951a}\u{4e0e}\u{884c}\u{4e1a}\u{5730}\u{4f4d}\u{5206}\u{6790}\u{3002}"
+        }
         _ => "\u{8d1f}\u{8d23}\u{4e13}\u{9879}\u{7814}\u{7a76}\u{3002}",
     }
 }

@@ -13,7 +13,9 @@ use super::{
 
 pub(crate) fn search_market_kind(value: &str) -> MarketKind {
     match value.trim().to_ascii_lowercase().as_str() {
-        "a股" | "a_share" | "a-share" | "ashare" | "cn" | "cn_stock" | "cn-stock" | "china" => MarketKind::AShare,
+        "a股" | "a_share" | "a-share" | "ashare" | "cn" | "cn_stock" | "cn-stock" | "china" => {
+            MarketKind::AShare
+        }
         "港股" | "hk" | "hk_equity" | "hk-equity" | "hongkong" | "hong_kong" => {
             MarketKind::HongKong
         }
@@ -86,7 +88,7 @@ pub(crate) fn excel_cell_string(cell: Option<&Data>) -> String {
 
 pub(crate) fn is_preferred_equity_listing(item: &StockSearchResult) -> bool {
     let upper_name = item.name.to_ascii_uppercase();
-    
+
     let market = search_market_kind(&item.market);
     if market == MarketKind::HongKong {
         if upper_name.contains(" WR")

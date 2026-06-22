@@ -27,7 +27,7 @@ fn e2e_news_date_normalization() {
 #[test]
 fn e2e_search_text_normalization() {
     let result = sa_data::search::normalize_search_text("  Hello World  ");
-    assert_eq!(result, "helloworld");  // whitespace is collapsed
+    assert_eq!(result, "helloworld"); // whitespace is collapsed
 
     let result = sa_data::search::normalize_search_text("AAPL");
     assert_eq!(result, "aapl");

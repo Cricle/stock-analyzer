@@ -191,7 +191,11 @@ impl LlmClient {
     }
 
     pub async fn usage_summary(&self) -> sa_models::LlmTokenUsageSummary {
-        let tracker = self.usage_tracker.lock().expect("usage tracker mutex poisoned").clone();
+        let tracker = self
+            .usage_tracker
+            .lock()
+            .expect("usage tracker mutex poisoned")
+            .clone();
         sa_models::LlmTokenUsageSummary {
             total_requests: tracker.total_requests,
             prompt_tokens: tracker.prompt_tokens,

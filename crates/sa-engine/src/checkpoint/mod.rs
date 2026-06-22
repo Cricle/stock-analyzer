@@ -7,9 +7,7 @@
 use std::sync::Arc;
 
 use adk_graph::{
-    checkpoint::Checkpointer,
-    error::Result as GraphResult,
-    state::Checkpoint as GraphCheckpoint,
+    checkpoint::Checkpointer, error::Result as GraphResult, state::Checkpoint as GraphCheckpoint,
 };
 use anyhow::Context;
 use async_trait::async_trait;

@@ -336,7 +336,6 @@ impl TradingMemoryLog {
     }
 }
 impl TradingMemoryLog {
-
     pub(super) fn format_structured_risk_snapshot(risk: &StructuredRiskAssessment) -> String {
         let mut parts = Vec::new();
         if !risk.decision_blocking_gaps.is_empty() {
@@ -365,7 +364,10 @@ impl TradingMemoryLog {
             parts.push(format!("What went right: {}", reflection.strengths.trim()));
         }
         if !reflection.uncertainties.trim().is_empty() {
-            parts.push(format!("Greatest uncertainty: {}", reflection.uncertainties.trim()));
+            parts.push(format!(
+                "Greatest uncertainty: {}",
+                reflection.uncertainties.trim()
+            ));
         }
         if !reflection.next_lessons.trim().is_empty() {
             parts.push(format!(

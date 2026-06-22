@@ -154,10 +154,22 @@ mod task_tests {
 
     #[test]
     fn task_status_from_str_valid() {
-        assert_eq!("pending".parse::<TaskStatus>().unwrap(), TaskStatus::Pending);
-        assert_eq!("running".parse::<TaskStatus>().unwrap(), TaskStatus::Running);
-        assert_eq!("completed".parse::<TaskStatus>().unwrap(), TaskStatus::Completed);
-        assert_eq!("cancelled".parse::<TaskStatus>().unwrap(), TaskStatus::Cancelled);
+        assert_eq!(
+            "pending".parse::<TaskStatus>().unwrap(),
+            TaskStatus::Pending
+        );
+        assert_eq!(
+            "running".parse::<TaskStatus>().unwrap(),
+            TaskStatus::Running
+        );
+        assert_eq!(
+            "completed".parse::<TaskStatus>().unwrap(),
+            TaskStatus::Completed
+        );
+        assert_eq!(
+            "cancelled".parse::<TaskStatus>().unwrap(),
+            TaskStatus::Cancelled
+        );
         assert_eq!("failed".parse::<TaskStatus>().unwrap(), TaskStatus::Failed);
     }
 

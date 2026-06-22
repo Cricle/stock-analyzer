@@ -121,7 +121,11 @@ mod tests {
             net_income_usd: Some(1_000_000_000.0),
         };
         let result = score_fundamental(&input);
-        assert!(result.score >= 75, "expected high score, got {}", result.score);
+        assert!(
+            result.score >= 75,
+            "expected high score, got {}",
+            result.score
+        );
     }
 
     #[test]
@@ -136,7 +140,11 @@ mod tests {
             net_income_usd: Some(-50_000_000.0),
         };
         let result = score_fundamental(&input);
-        assert!(result.score <= 30, "expected low score, got {}", result.score);
+        assert!(
+            result.score <= 30,
+            "expected low score, got {}",
+            result.score
+        );
     }
 
     #[test]
@@ -167,7 +175,11 @@ mod tests {
         };
         let result = score_fundamental(&input);
         assert_eq!(result.score, 50); // 12.5/25 * 100 = 50
-        assert!(result.reason.contains("PE为负"), "expected negative PE reason, got {}", result.reason);
+        assert!(
+            result.reason.contains("PE为负"),
+            "expected negative PE reason, got {}",
+            result.reason
+        );
     }
 
     #[test]
@@ -198,7 +210,11 @@ mod tests {
         };
         let result = score_fundamental(&input);
         assert_eq!(result.score, 48); // 12/25 * 100 = 48
-        assert!(result.reason.contains("净利亏损"), "expected net loss reason, got {}", result.reason);
+        assert!(
+            result.reason.contains("净利亏损"),
+            "expected net loss reason, got {}",
+            result.reason
+        );
     }
 
     #[test]
@@ -214,7 +230,11 @@ mod tests {
         };
         let result = score_fundamental(&input);
         assert_eq!(result.score, 12); // 3/25 * 100 = 12
-        assert!(result.reason.contains("过高"), "expected high leverage reason, got {}", result.reason);
+        assert!(
+            result.reason.contains("过高"),
+            "expected high leverage reason, got {}",
+            result.reason
+        );
     }
 
     #[test]
@@ -282,7 +302,15 @@ mod tests {
             net_income_usd: Some(10_000_000_000.0),
         };
         let result = score_fundamental(&input);
-        assert!(result.score <= 100, "score should be <= 100, got {}", result.score);
-        assert!(result.score >= 90, "expected very high score, got {}", result.score);
+        assert!(
+            result.score <= 100,
+            "score should be <= 100, got {}",
+            result.score
+        );
+        assert!(
+            result.score >= 90,
+            "expected very high score, got {}",
+            result.score
+        );
     }
 }

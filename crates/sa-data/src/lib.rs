@@ -20,18 +20,17 @@ pub(crate) fn opt_f64_to_dec(v: Option<f64>) -> Option<Decimal> {
 }
 
 pub use akshare::stock::feature::{
-    AnalystDetail, AnalystRank, BalanceSheet, CashFlowSheet, CommentDesireIndex,
-    CommentFocusIndex, CommentHistScore, CommentOrgParticipation, DividendInfo, DzjyHygtj,
-    DzjyHyyybtj, DzjyMrtj, DzjyYybph, EarningsForecast, EarningsQuickReport, EarningsReport,
-    EsgRating, FundFlowEntry, GdfxHoldingAnalyse, GdfxHoldingChange, GdfxHoldingDetail,
-    GdfxHoldingStatistic, GdfxTeamwork, GdfxTop10, Gdhs, GdhsDetail, Ggcg, GpzyDistributeEntry,
-    GpzyIndustry, GpzyPledgeDetail, GpzyPledgeRatio, GpzyPledgeRatioDetail, GpzyProfile,
-    HotStockXq, IndustryCategory, JgdyDetail, JgdyTj, LhbDetail, LhbHyyyb, LhbJgmmtj,
-    LhbJgstatistic, LhbStockDetail, LhbStockDetailDate, LhbStockStatistic, LhbTraderStatistic,
-    LhbYybDetail, LhbYybph, MainFundFlow, MarginAccountInfo, MarginRatioPa, MarginSseDetail,
-    MarginSseSummary, MarginSzseDetail, MarginSzseSummary, PankouChange, ProfitSheet,
-    SectorFundFlowRank, StockComment, ZtPool, ZtPoolDtgc, ZtPoolPrevious, ZtPoolStrong,
-    ZtPoolSubNew, ZtPoolZbgc,
+    AnalystDetail, AnalystRank, BalanceSheet, CashFlowSheet, CommentDesireIndex, CommentFocusIndex,
+    CommentHistScore, CommentOrgParticipation, DividendInfo, DzjyHygtj, DzjyHyyybtj, DzjyMrtj,
+    DzjyYybph, EarningsForecast, EarningsQuickReport, EarningsReport, EsgRating, FundFlowEntry,
+    GdfxHoldingAnalyse, GdfxHoldingChange, GdfxHoldingDetail, GdfxHoldingStatistic, GdfxTeamwork,
+    GdfxTop10, Gdhs, GdhsDetail, Ggcg, GpzyDistributeEntry, GpzyIndustry, GpzyPledgeDetail,
+    GpzyPledgeRatio, GpzyPledgeRatioDetail, GpzyProfile, HotStockXq, IndustryCategory, JgdyDetail,
+    JgdyTj, LhbDetail, LhbHyyyb, LhbJgmmtj, LhbJgstatistic, LhbStockDetail, LhbStockDetailDate,
+    LhbStockStatistic, LhbTraderStatistic, LhbYybDetail, LhbYybph, MainFundFlow, MarginAccountInfo,
+    MarginRatioPa, MarginSseDetail, MarginSseSummary, MarginSzseDetail, MarginSzseSummary,
+    PankouChange, ProfitSheet, SectorFundFlowRank, StockComment, ZtPool, ZtPoolDtgc,
+    ZtPoolPrevious, ZtPoolStrong, ZtPoolSubNew, ZtPoolZbgc,
 };
 
 // HK-specific types
@@ -452,7 +451,6 @@ fn rewrite_query_for_gdelt(query: &str, language: &str) -> String {
     }
     tokens.join(" ")
 }
-
 
 pub mod news_filter;
 

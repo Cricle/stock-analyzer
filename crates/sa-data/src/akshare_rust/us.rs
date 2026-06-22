@@ -65,9 +65,7 @@ pub(crate) async fn fetch_return_since(
 // US spot (Sina / Eastmoney)
 // ---------------------------------------------------------------------------
 
-pub(crate) async fn fetch_us_spot(
-    client: &MarketDataClient,
-) -> anyhow::Result<Vec<UsSpotSina>> {
+pub(crate) async fn fetch_us_spot(client: &MarketDataClient) -> anyhow::Result<Vec<UsSpotSina>> {
     client.ak.stock_us_spot().await.map_err(Into::into)
 }
 

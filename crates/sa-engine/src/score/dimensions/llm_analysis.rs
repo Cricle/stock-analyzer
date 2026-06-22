@@ -44,11 +44,7 @@ pub fn score_llm_analysis(input: &LlmAnalysisInput) -> DimensionScore {
 
     DimensionScore {
         score,
-        reason: format!(
-            "共识度 {:.0}%，{}",
-            consensus * 100.0,
-            detail.join(" ")
-        ),
+        reason: format!("共识度 {:.0}%，{}", consensus * 100.0, detail.join(" ")),
     }
 }
 
@@ -124,8 +120,15 @@ mod tests {
         };
         let result = score_llm_analysis(&input);
         // High consensus, score should be close to average
-        assert!(result.score >= 55, "expected high score with consensus, got {}", result.score);
-        assert!(result.reason.contains("共识度"), "expected consensus in reason");
+        assert!(
+            result.score >= 55,
+            "expected high score with consensus, got {}",
+            result.score
+        );
+        assert!(
+            result.reason.contains("共识度"),
+            "expected consensus in reason"
+        );
     }
 
     #[test]
@@ -143,7 +146,11 @@ mod tests {
         };
         let result = score_llm_analysis(&input);
         // Big spread = low consensus = penalty
-        assert!(result.score <= 45, "expected low score with disagreement, got {}", result.score);
+        assert!(
+            result.score <= 45,
+            "expected low score with disagreement, got {}",
+            result.score
+        );
     }
 
     #[test]
@@ -160,7 +167,11 @@ mod tests {
         };
         let result = score_llm_analysis(&input);
         // Should not crash, history defaults to 50
-        assert!(result.score > 0, "expected non-zero score, got {}", result.score);
+        assert!(
+            result.score > 0,
+            "expected non-zero score, got {}",
+            result.score
+        );
     }
 
     #[test]
@@ -187,7 +198,12 @@ mod tests {
         };
         let r1 = score_llm_analysis(&with_neg);
         let r2 = score_llm_analysis(&without_neg);
-        assert!(r1.score < r2.score, "hard negatives should reduce score: {} vs {}", r1.score, r2.score);
+        assert!(
+            r1.score < r2.score,
+            "hard negatives should reduce score: {} vs {}",
+            r1.score,
+            r2.score
+        );
     }
 
     #[test]
@@ -203,7 +219,11 @@ mod tests {
             period_return_pct: Some(8.0),
         };
         let result = score_llm_analysis(&input);
-        assert!(result.score >= 55, "expected decent score, got {}", result.score);
+        assert!(
+            result.score >= 55,
+            "expected decent score, got {}",
+            result.score
+        );
     }
 
     #[test]
@@ -212,7 +232,10 @@ mod tests {
         let result = score_llm_analysis(&input);
         assert!(result.reason.contains("LLM:"), "expected LLM in reason");
         assert!(result.reason.contains("技术:"), "expected tech in reason");
-        assert!(result.reason.contains("历史:"), "expected history in reason");
+        assert!(
+            result.reason.contains("历史:"),
+            "expected history in reason"
+        );
         assert!(result.reason.contains("新闻:"), "expected news in reason");
         assert!(result.reason.contains("市场:"), "expected market in reason");
     }
@@ -230,7 +253,11 @@ mod tests {
             period_return_pct: Some(15.0),
         };
         let result = score_llm_analysis(&input);
-        assert!(result.score >= 70, "expected high score when all signals high, got {}", result.score);
+        assert!(
+            result.score >= 70,
+            "expected high score when all signals high, got {}",
+            result.score
+        );
     }
 
     #[test]
@@ -246,7 +273,11 @@ mod tests {
             period_return_pct: Some(-15.0),
         };
         let result = score_llm_analysis(&input);
-        assert!(result.score <= 20, "expected low score when all signals low, got {}", result.score);
+        assert!(
+            result.score <= 20,
+            "expected low score when all signals low, got {}",
+            result.score
+        );
     }
 
     #[test]
@@ -264,7 +295,11 @@ mod tests {
         };
         let result = score_llm_analysis(&input);
         // Spread is large, consensus should penalize
-        assert!(result.score < 70, "extreme signal with neutral others should be penalized, got {}", result.score);
+        assert!(
+            result.score < 70,
+            "extreme signal with neutral others should be penalized, got {}",
+            result.score
+        );
     }
 
     #[test]
@@ -292,8 +327,12 @@ mod tests {
         let r1 = score_llm_analysis(&consensus);
         let r2 = score_llm_analysis(&no_consensus);
         // Even though avg might be similar, consensus should score higher
-        assert!(r1.score > r2.score,
-            "consensus should score higher: consensus={} vs no_consensus={}", r1.score, r2.score);
+        assert!(
+            r1.score > r2.score,
+            "consensus should score higher: consensus={} vs no_consensus={}",
+            r1.score,
+            r2.score
+        );
     }
 
     #[test]
@@ -309,7 +348,11 @@ mod tests {
             period_return_pct: Some(50.0),
         };
         let result = score_llm_analysis(&input);
-        assert!(result.score <= 100, "score should never exceed 100, got {}", result.score);
+        assert!(
+            result.score <= 100,
+            "score should never exceed 100, got {}",
+            result.score
+        );
     }
 
     #[test]

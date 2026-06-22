@@ -147,7 +147,10 @@ mod user_prefs_tests {
         assert_eq!(prefs.sidebar_width, 240);
         assert_eq!(prefs.default_market, "A股");
         assert_eq!(prefs.default_depth, "3");
-        assert_eq!(prefs.default_analysts, vec!["market", "fundamentals", "news"]);
+        assert_eq!(
+            prefs.default_analysts,
+            vec!["market", "fundamentals", "news"]
+        );
     }
 
     #[test]

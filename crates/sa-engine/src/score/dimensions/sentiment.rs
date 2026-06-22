@@ -16,7 +16,11 @@ pub async fn score_sentiment(
         };
     }
 
-    let limited: Vec<&str> = headlines.iter().take(news_limit).map(String::as_str).collect();
+    let limited: Vec<&str> = headlines
+        .iter()
+        .take(news_limit)
+        .map(String::as_str)
+        .collect();
     let news_text = limited.join("\n- ");
     let prompt = format!(
         "给股票 {symbol} 的近期新闻情绪评分。评分范围 0-100，50=中性，>70 积极，<30 消极。\n\
@@ -50,7 +54,11 @@ fn parse_sentiment_response(content: &str) -> DimensionScore {
         .trim()
         .strip_prefix("```json")
         .and_then(|s| s.strip_suffix("```"))
-        .or_else(|| content.strip_prefix("```").and_then(|s| s.strip_suffix("```")))
+        .or_else(|| {
+            content
+                .strip_prefix("```")
+                .and_then(|s| s.strip_suffix("```"))
+        })
         .unwrap_or(content.trim());
 
     match serde_json::from_str::<SentimentResponse>(json_str) {

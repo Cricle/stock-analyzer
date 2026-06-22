@@ -234,7 +234,6 @@ impl MarketDataClient {
             .and_then(|item| item.amount)
     }
 
-
     async fn fetch_hk_cashflow_items(
         &self,
         symbol: &str,
@@ -384,48 +383,71 @@ impl MarketDataClient {
                 .map(|value| (value * 10_000.0).round() as i64)
                 .or_else(|| tencent.as_ref().and_then(|item| item.shares_outstanding)),
             market_cap: tencent.as_ref().and_then(|item| item.market_cap_hkd),
-            net_income_usd: opt_f64_to_dec(eastmoney_main.as_ref().and_then(|item| item.holder_profit)),
-            revenues_usd: opt_f64_to_dec(eastmoney_main.as_ref().and_then(|item| item.operate_income)),
+            net_income_usd: opt_f64_to_dec(
+                eastmoney_main.as_ref().and_then(|item| item.holder_profit),
+            ),
+            revenues_usd: opt_f64_to_dec(
+                eastmoney_main.as_ref().and_then(|item| item.operate_income),
+            ),
             assets_usd: opt_f64_to_dec(eastmoney_main.as_ref().and_then(|item| item.total_assets)),
-            liabilities_usd: opt_f64_to_dec(eastmoney_main
-                .as_ref()
-                .and_then(|item| item.total_liabilities)),
-            stockholders_equity_usd: opt_f64_to_dec(eastmoney_main
-                .as_ref()
-                .and_then(|item| item.total_parent_equity)),
+            liabilities_usd: opt_f64_to_dec(
+                eastmoney_main
+                    .as_ref()
+                    .and_then(|item| item.total_liabilities),
+            ),
+            stockholders_equity_usd: opt_f64_to_dec(
+                eastmoney_main
+                    .as_ref()
+                    .and_then(|item| item.total_parent_equity),
+            ),
             cash_and_equivalents_usd: opt_f64_to_dec(cash_and_equivalents),
-            gross_profit_usd: opt_f64_to_dec(eastmoney_main.as_ref().and_then(|item| item.gross_profit)),
+            gross_profit_usd: opt_f64_to_dec(
+                eastmoney_main.as_ref().and_then(|item| item.gross_profit),
+            ),
             operating_income_usd: opt_f64_to_dec(operating_income),
             operating_expenses_usd: opt_f64_to_dec(operating_expenses),
-            operating_cash_flow_usd: opt_f64_to_dec(eastmoney_main
-                .as_ref()
-                .and_then(|item| item.netcash_operate)
-                .or_else(|| {
-                    hk_cashflow_items.as_ref().and_then(|items| {
-                        Self::latest_hk_statement_amount(items, &["经营活动产生的现金流量净额", "经营业务现金流量净额"])
-                    })
-                })),
-            capital_expenditure_usd: opt_f64_to_dec(eastmoney_main
-                .as_ref()
-                .and_then(|item| item.capital_expenditure)
-                .map(f64::abs)
-                .or_else(|| {
-                    hk_cashflow_items.as_ref().and_then(|items| {
-                        // "购建固定资产、无形资产和其他长期资产支付的现金" is the
-                        // standard CAPEX line on the HK cashflow statement.
-                        Self::latest_hk_statement_amount(items, &[
-                            "购建固定资产、无形资产和其他长期资产支付的现金",
-                            "购买固定资产、无形资产及其他长期资产的款项",
-                        ])
-                    })
-                })),
+            operating_cash_flow_usd: opt_f64_to_dec(
+                eastmoney_main
+                    .as_ref()
+                    .and_then(|item| item.netcash_operate)
+                    .or_else(|| {
+                        hk_cashflow_items.as_ref().and_then(|items| {
+                            Self::latest_hk_statement_amount(
+                                items,
+                                &["经营活动产生的现金流量净额", "经营业务现金流量净额"],
+                            )
+                        })
+                    }),
+            ),
+            capital_expenditure_usd: opt_f64_to_dec(
+                eastmoney_main
+                    .as_ref()
+                    .and_then(|item| item.capital_expenditure)
+                    .map(f64::abs)
+                    .or_else(|| {
+                        hk_cashflow_items.as_ref().and_then(|items| {
+                            // "购建固定资产、无形资产和其他长期资产支付的现金" is the
+                            // standard CAPEX line on the HK cashflow statement.
+                            Self::latest_hk_statement_amount(
+                                items,
+                                &[
+                                    "购建固定资产、无形资产和其他长期资产支付的现金",
+                                    "购买固定资产、无形资产及其他长期资产的款项",
+                                ],
+                            )
+                        })
+                    }),
+            ),
             free_cash_flow_usd: {
                 let ocf = eastmoney_main
                     .as_ref()
                     .and_then(|item| item.netcash_operate)
                     .or_else(|| {
                         hk_cashflow_items.as_ref().and_then(|items| {
-                            Self::latest_hk_statement_amount(items, &["经营活动产生的现金流量净额", "经营业务现金流量净额"])
+                            Self::latest_hk_statement_amount(
+                                items,
+                                &["经营活动产生的现金流量净额", "经营业务现金流量净额"],
+                            )
                         })
                     });
                 let capex = eastmoney_main
@@ -434,10 +456,13 @@ impl MarketDataClient {
                     .map(f64::abs)
                     .or_else(|| {
                         hk_cashflow_items.as_ref().and_then(|items| {
-                            Self::latest_hk_statement_amount(items, &[
-                                "购建固定资产、无形资产和其他长期资产支付的现金",
-                                "购买固定资产、无形资产及其他长期资产的款项",
-                            ])
+                            Self::latest_hk_statement_amount(
+                                items,
+                                &[
+                                    "购建固定资产、无形资产和其他长期资产支付的现金",
+                                    "购买固定资产、无形资产及其他长期资产的款项",
+                                ],
+                            )
                         })
                     });
                 opt_f64_to_dec(match (ocf, capex) {
@@ -446,28 +471,32 @@ impl MarketDataClient {
                 })
             },
             long_term_debt_usd: opt_f64_to_dec(long_term_debt),
-            current_debt_usd: opt_f64_to_dec(eastmoney_main
-                .as_ref()
-                .and_then(|item| item.current_liability)
-                .or(short_term_debt)),
-            total_debt_usd: opt_f64_to_dec(eastmoney_main
-                .as_ref()
-                .and_then(
-                    |item| match (item.current_liability, item.noncurrent_liab_1year) {
-                        (Some(current), Some(noncurrent)) => Some(current + noncurrent),
-                        (Some(current), None) => Some(current),
-                        (None, Some(noncurrent)) => Some(noncurrent),
-                        (None, None) => None,
-                    },
-                )
-                .or_else(
-                    || match (short_term_debt, long_term_debt.or(noncurrent_liabilities)) {
-                        (Some(current), Some(noncurrent)) => Some(current + noncurrent),
-                        (Some(current), None) => Some(current),
-                        (None, Some(noncurrent)) => Some(noncurrent),
-                        (None, None) => None,
-                    },
-                )),
+            current_debt_usd: opt_f64_to_dec(
+                eastmoney_main
+                    .as_ref()
+                    .and_then(|item| item.current_liability)
+                    .or(short_term_debt),
+            ),
+            total_debt_usd: opt_f64_to_dec(
+                eastmoney_main
+                    .as_ref()
+                    .and_then(
+                        |item| match (item.current_liability, item.noncurrent_liab_1year) {
+                            (Some(current), Some(noncurrent)) => Some(current + noncurrent),
+                            (Some(current), None) => Some(current),
+                            (None, Some(noncurrent)) => Some(noncurrent),
+                            (None, None) => None,
+                        },
+                    )
+                    .or_else(|| {
+                        match (short_term_debt, long_term_debt.or(noncurrent_liabilities)) {
+                            (Some(current), Some(noncurrent)) => Some(current + noncurrent),
+                            (Some(current), None) => Some(current),
+                            (None, Some(noncurrent)) => Some(noncurrent),
+                            (None, None) => None,
+                        }
+                    }),
+            ),
             diluted_shares_outstanding: eastmoney_main
                 .as_ref()
                 .and_then(|item| item.total_share)
@@ -478,7 +507,6 @@ impl MarketDataClient {
     }
 }
 impl MarketDataClient {
-
     pub(super) async fn fetch_hk_news(
         &self,
         symbol: &str,
@@ -561,11 +589,9 @@ impl MarketDataClient {
                     "https://cn.bing.com/search?q={}&format=rss",
                     query.replace(' ', "+")
                 );
-                if let Ok(Ok(response)) = tokio::time::timeout(
-                    Duration::from_secs(10),
-                    self.http.get(&rss_url).send(),
-                )
-                .await
+                if let Ok(Ok(response)) =
+                    tokio::time::timeout(Duration::from_secs(10), self.http.get(&rss_url).send())
+                        .await
                 {
                     if let Ok(body) = response.text().await {
                         for item_xml in body.split("<item>").skip(1) {
@@ -983,7 +1009,6 @@ fn normalize_rss_date_simple(raw: &str) -> String {
     raw.to_string()
 }
 impl MarketDataClient {
-
     async fn fetch_hkex_company_announcements(
         &self,
         standard_code: &str,
@@ -1304,7 +1329,6 @@ impl MarketDataClient {
     }
 }
 impl MarketDataClient {
-
     pub(super) async fn fetch_hk_return_since(
         &self,
         symbol: &str,
@@ -1329,6 +1353,10 @@ impl MarketDataClient {
         if start_price <= Decimal::ZERO {
             return Ok(None);
         }
-        Ok(Some(((end_price - start_price) / start_price).to_f64().unwrap_or_default()))
+        Ok(Some(
+            ((end_price - start_price) / start_price)
+                .to_f64()
+                .unwrap_or_default(),
+        ))
     }
 }

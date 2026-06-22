@@ -41,7 +41,10 @@ impl Propagator {
                     &task.symbol,
                     &task.analysis_date,
                 );
-            manager.analysis_store.save_result(&task.task_id, &built).await?;
+            manager
+                .analysis_store
+                .save_result(&task.task_id, &built)
+                .await?;
             manager
                 .save_checkpoint(
                     &task.task_id,

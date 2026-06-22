@@ -94,7 +94,11 @@ pub trait AnalysisStore: Send + Sync {
     ) -> anyhow::Result<Vec<PersistedTask>>;
 
     /// Find a cached completed task for the same symbol and date.
-    async fn find_cached_task(&self, symbol: &str, analysis_date: &str) -> anyhow::Result<Option<String>>;
+    async fn find_cached_task(
+        &self,
+        symbol: &str,
+        analysis_date: &str,
+    ) -> anyhow::Result<Option<String>>;
 
     // --- Result management ---
 
@@ -122,7 +126,11 @@ pub trait AnalysisStore: Send + Sync {
     // --- Request management ---
 
     /// Save an analysis request for later replay.
-    async fn save_request(&self, task_id: &str, request: &SingleAnalysisRequest) -> anyhow::Result<()>;
+    async fn save_request(
+        &self,
+        task_id: &str,
+        request: &SingleAnalysisRequest,
+    ) -> anyhow::Result<()>;
 
     /// Load a saved analysis request.
     async fn load_request(&self, task_id: &str) -> anyhow::Result<Option<SingleAnalysisRequest>>;

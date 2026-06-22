@@ -1,5 +1,7 @@
 use crate::llm::LlmClient;
-use sa_models::{AnalysisScenarioContext, MemoryContextSnapshot, StockPickRequest, AnalysisUserContext};
+use sa_models::{
+    AnalysisScenarioContext, AnalysisUserContext, MemoryContextSnapshot, StockPickRequest,
+};
 
 use crate::{TaskManager, TaskRunParams};
 

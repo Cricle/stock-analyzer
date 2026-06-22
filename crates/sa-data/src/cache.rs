@@ -1,14 +1,14 @@
-use std::collections::HashMap;
-use std::sync::Arc;
 use serde::{Serialize, de::DeserializeOwned};
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::Notify;
 
 #[cfg(feature = "redis-cache")]
-use redis::AsyncCommands;
+use super::{CACHE_TTL_JITTER_PCT, STALE_CACHE_TTL_MULTIPLIER};
 use super::{MARKET_DATA_CACHE_PREFIX, MarketDataClient, MarketKind};
 #[cfg(feature = "redis-cache")]
-use super::{CACHE_TTL_JITTER_PCT, STALE_CACHE_TTL_MULTIPLIER};
+use redis::AsyncCommands;
 
 impl MarketDataClient {
     pub(super) fn normalize_a_share_symbol(&self, symbol: &str) -> Option<String> {
@@ -205,17 +205,14 @@ impl MarketDataClient {
         let Some(mut conn) = self.redis_conn() else {
             return keys.iter().map(|_| None).collect();
         };
-        let values: Vec<Option<String>> = match redis::cmd("MGET")
-            .arg(keys)
-            .query_async(&mut conn)
-            .await
-        {
-            Ok(v) => v,
-            Err(error) => {
-                tracing::warn!(error = ?error, "market data cache mget failed");
-                return keys.iter().map(|_| None).collect();
-            }
-        };
+        let values: Vec<Option<String>> =
+            match redis::cmd("MGET").arg(keys).query_async(&mut conn).await {
+                Ok(v) => v,
+                Err(error) => {
+                    tracing::warn!(error = ?error, "market data cache mget failed");
+                    return keys.iter().map(|_| None).collect();
+                }
+            };
         values
             .into_iter()
             .map(|opt| {

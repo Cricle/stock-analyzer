@@ -3,8 +3,7 @@ use rust_decimal::Decimal;
 use rust_decimal::prelude::FromStr;
 use sa_data::{FundamentalsSnapshot, NewsItem, QuoteSnapshot};
 use sa_models::{
-    AnalysisOutcomeRequest, AnalysisResult, AnalysisStep, ResultStage,
-    StepStatus, TaskStatus,
+    AnalysisOutcomeRequest, AnalysisResult, AnalysisStep, ResultStage, StepStatus, TaskStatus,
 };
 
 impl TaskManager {
@@ -143,7 +142,10 @@ impl TaskManager {
                 let hundred = Decimal::from(100);
                 let intraday_change = ((quote.close - quote.open) / quote.close.abs()) * hundred;
                 let intraday_range = ((quote.high - quote.low) / quote.close.abs()) * hundred;
-                if intraday_change >= Decimal::from(2) || (quote.close > quote.open && intraday_range >= Decimal::from_str("3.5").unwrap()) {
+                if intraday_change >= Decimal::from(2)
+                    || (quote.close > quote.open
+                        && intraday_range >= Decimal::from_str("3.5").unwrap())
+                {
                     tags.push("trend_confirmed".to_string());
                 }
                 if intraday_range >= Decimal::from_str("4.5").unwrap() {
@@ -159,11 +161,16 @@ impl TaskManager {
             let free_cash_flow = fundamentals.free_cash_flow_usd.unwrap_or_default();
             let billion = Decimal::from(1_000_000_000u64);
             let has_quality_scale = market_cap > Decimal::ZERO
-                && (net_income > Decimal::ZERO || free_cash_flow > Decimal::ZERO || revenue > billion);
+                && (net_income > Decimal::ZERO
+                    || free_cash_flow > Decimal::ZERO
+                    || revenue > billion);
             if has_quality_scale {
                 tags.push("fundamental_quality".to_string());
             }
-            if market_cap > Decimal::ZERO && free_cash_flow > Decimal::ZERO && (free_cash_flow / market_cap) < Decimal::from_str("0.03").unwrap() {
+            if market_cap > Decimal::ZERO
+                && free_cash_flow > Decimal::ZERO
+                && (free_cash_flow / market_cap) < Decimal::from_str("0.03").unwrap()
+            {
                 tags.push("valuation_sensitive".to_string());
             }
         }
@@ -305,7 +312,6 @@ impl TaskManager {
     }
 }
 impl TaskManager {
-
     pub(super) fn strip_incomplete_result_payload(result: &mut AnalysisResult) {
         let stage = result.report_stage();
 

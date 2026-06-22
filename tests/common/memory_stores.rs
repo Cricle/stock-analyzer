@@ -98,11 +98,7 @@ impl AnalysisStore for InMemoryAnalysisStore {
         Ok(found.map(|t| t.task_id.clone()))
     }
 
-    async fn save_result(
-        &self,
-        task_id: &str,
-        result: &AnalysisResult,
-    ) -> anyhow::Result<()> {
+    async fn save_result(&self, task_id: &str, result: &AnalysisResult) -> anyhow::Result<()> {
         self.results
             .write()
             .await
@@ -157,10 +153,7 @@ impl AnalysisStore for InMemoryAnalysisStore {
         Ok(())
     }
 
-    async fn load_request(
-        &self,
-        task_id: &str,
-    ) -> anyhow::Result<Option<SingleAnalysisRequest>> {
+    async fn load_request(&self, task_id: &str) -> anyhow::Result<Option<SingleAnalysisRequest>> {
         Ok(self.requests.read().await.get(task_id).cloned())
     }
 }
@@ -205,12 +198,7 @@ impl CacheStore for InMemoryCacheStore {
         }
     }
 
-    async fn set(
-        &self,
-        key: &str,
-        value: &[u8],
-        ttl_seconds: Option<u64>,
-    ) -> anyhow::Result<()> {
+    async fn set(&self, key: &str, value: &[u8], ttl_seconds: Option<u64>) -> anyhow::Result<()> {
         let expires_at =
             ttl_seconds.map(|ttl| std::time::Instant::now() + std::time::Duration::from_secs(ttl));
         self.entries.write().await.insert(
@@ -251,9 +239,7 @@ impl CacheStore for InMemoryCacheStore {
             .map(|(k, v)| CacheEntry {
                 key: k.clone(),
                 created_at: String::new(),
-                expires_at: v
-                    .expires_at
-                    .map(|exp| format!("{:?}", exp)),
+                expires_at: v.expires_at.map(|exp| format!("{:?}", exp)),
                 size_bytes: v.data.len() as u64,
             })
             .collect())

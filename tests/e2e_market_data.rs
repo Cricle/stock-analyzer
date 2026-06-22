@@ -1,10 +1,10 @@
 mod common;
 
-use common::stocks::TEST_STOCKS;
 use common::eval::{
-    StockEvalResult, assert_quote_valid, assert_fundamentals_valid,
-    assert_news_valid, assert_candles_valid, print_completeness_table,
+    StockEvalResult, assert_candles_valid, assert_fundamentals_valid, assert_news_valid,
+    assert_quote_valid, print_completeness_table,
 };
+use common::stocks::TEST_STOCKS;
 
 #[tokio::test]
 async fn e2e_fetch_all_market_data() {
@@ -20,8 +20,10 @@ async fn e2e_fetch_all_market_data() {
         let quote_ok = match &quote_result {
             Ok(q) => {
                 let valid = assert_quote_valid(q);
-                println!("  Quote: price={} volume={} valid={}",
-                    q.close, q.volume, valid);
+                println!(
+                    "  Quote: price={} volume={} valid={}",
+                    q.close, q.volume, valid
+                );
                 valid
             }
             Err(e) => {
@@ -35,8 +37,10 @@ async fn e2e_fetch_all_market_data() {
         let (fundamentals_ok, fundamentals_partial) = match &fund_result {
             Ok(f) => {
                 let (complete, partial) = assert_fundamentals_valid(f);
-                println!("  Fundamentals: name={} currency={} market_cap={:?} complete={} partial={}",
-                    f.company_name, f.currency, f.market_cap, complete, partial);
+                println!(
+                    "  Fundamentals: name={} currency={} market_cap={:?} complete={} partial={}",
+                    f.company_name, f.currency, f.market_cap, complete, partial
+                );
                 (complete, partial)
             }
             Err(e) => {
@@ -69,8 +73,10 @@ async fn e2e_fetch_all_market_data() {
                 let valid = assert_candles_valid(candles);
                 println!("  Candles: {} days, valid={}", candles.len(), valid);
                 if let Some(last) = candles.last() {
-                    println!("    Last: {} O={} H={} L={} C={} V={}",
-                        last.trade_date, last.open, last.high, last.low, last.close, last.volume);
+                    println!(
+                        "    Last: {} O={} H={} L={} C={} V={}",
+                        last.trade_date, last.open, last.high, last.low, last.close, last.volume
+                    );
                 }
                 (valid, candles.len())
             }
@@ -97,13 +103,28 @@ async fn e2e_fetch_all_market_data() {
 
     // Assertions based on success criteria
     let quotes_ok = results.iter().filter(|r| r.quote_ok).count();
-    assert!(quotes_ok >= 4, "Expected at least 4/6 stocks with valid quotes, got {}", quotes_ok);
+    assert!(
+        quotes_ok >= 4,
+        "Expected at least 4/6 stocks with valid quotes, got {}",
+        quotes_ok
+    );
 
-    let funds_ok = results.iter().filter(|r| r.fundamentals_ok || r.fundamentals_partial).count();
-    assert!(funds_ok >= 4, "Expected at least 4/6 stocks with fundamentals, got {}", funds_ok);
+    let funds_ok = results
+        .iter()
+        .filter(|r| r.fundamentals_ok || r.fundamentals_partial)
+        .count();
+    assert!(
+        funds_ok >= 4,
+        "Expected at least 4/6 stocks with fundamentals, got {}",
+        funds_ok
+    );
 
     let news_ok = results.iter().filter(|r| r.news_ok).count();
-    assert!(news_ok >= 3, "Expected at least 3/6 stocks with valid news, got {}", news_ok);
+    assert!(
+        news_ok >= 3,
+        "Expected at least 3/6 stocks with valid news, got {}",
+        news_ok
+    );
 }
 
 #[tokio::test]
@@ -112,8 +133,10 @@ async fn e2e_market_detection() {
 
     for stock in TEST_STOCKS {
         let detected = client.detect_market(stock.symbol);
-        assert_eq!(detected, stock.market_kind,
+        assert_eq!(
+            detected, stock.market_kind,
             "Market detection for {} should be {:?}, got {:?}",
-            stock.symbol, stock.market_kind, detected);
+            stock.symbol, stock.market_kind, detected
+        );
     }
 }

@@ -14,7 +14,11 @@ pub struct DiagnosisIssue {
 }
 
 impl DiagnosisIssue {
-    pub fn error(category: impl Into<String>, field: impl Into<String>, message: impl Into<String>) -> Self {
+    pub fn error(
+        category: impl Into<String>,
+        field: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
         Self {
             severity: IssueSeverity::Error,
             category: category.into(),
@@ -23,7 +27,11 @@ impl DiagnosisIssue {
         }
     }
 
-    pub fn warning(category: impl Into<String>, field: impl Into<String>, message: impl Into<String>) -> Self {
+    pub fn warning(
+        category: impl Into<String>,
+        field: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
         Self {
             severity: IssueSeverity::Warning,
             category: category.into(),

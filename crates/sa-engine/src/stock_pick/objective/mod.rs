@@ -3,19 +3,16 @@ use std::collections::{HashMap, HashSet};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 use sa_data::MarketKind;
+#[cfg(test)]
+use sa_data::{CandlePoint, NewsItem};
 use sa_models::{
-    LocalText, ScoreDimension,
-    StockPickItem,
-    StockPickObjectiveAssessment,
+    LocalText, ScoreDimension, StockPickItem, StockPickObjectiveAssessment,
     StockPickObjectiveBreakdown, StockPickObjectiveBucket, StockPickObjectiveOverview,
 };
 #[cfg(test)]
-use sa_data::{CandlePoint, NewsItem};
-#[cfg(test)]
 use sa_models::{
-    StockPickDataQualitySnapshot, StockPickFactorBreakdown,
-    StockPickFundamentalSnapshot, StockPickHistoryMatchSnapshot,
-    StockPickMarketSnapshot, StockPickNewsSnapshot,
+    StockPickDataQualitySnapshot, StockPickFactorBreakdown, StockPickFundamentalSnapshot,
+    StockPickHistoryMatchSnapshot, StockPickMarketSnapshot, StockPickNewsSnapshot,
     StockPickRiskSnapshot, StockPickTechnicalSnapshot,
 };
 
@@ -44,24 +41,15 @@ fn compute_industry_averages(
             continue;
         }
         if let Some(pe) = candidate.fundamental_snapshot.pe_like {
-            pe_sums
-                .entry(industry.clone())
-                .or_default()
-                .push(pe);
+            pe_sums.entry(industry.clone()).or_default().push(pe);
         }
         if let Some(ps) = candidate.fundamental_snapshot.ps_like {
-            ps_sums
-                .entry(industry.clone())
-                .or_default()
-                .push(ps);
+            ps_sums.entry(industry.clone()).or_default().push(ps);
         }
     }
 
     let mut averages = HashMap::new();
-    let all_industries: HashSet<&String> = pe_sums
-        .keys()
-        .chain(ps_sums.keys())
-        .collect();
+    let all_industries: HashSet<&String> = pe_sums.keys().chain(ps_sums.keys()).collect();
 
     for industry in all_industries {
         let pe_vals = pe_sums.get(industry);
@@ -73,10 +61,8 @@ fn compute_industry_averages(
         if count < 2 {
             continue;
         }
-        let pe_avg = pe_vals
-            .map(|v| v.iter().sum::<f64>() / v.len() as f64);
-        let ps_avg = ps_vals
-            .map(|v| v.iter().sum::<f64>() / v.len() as f64);
+        let pe_avg = pe_vals.map(|v| v.iter().sum::<f64>() / v.len() as f64);
+        let ps_avg = ps_vals.map(|v| v.iter().sum::<f64>() / v.len() as f64);
         if let (Some(pe), Some(ps)) = (pe_avg, ps_avg) {
             averages.insert(
                 industry.clone(),
@@ -91,17 +77,17 @@ fn compute_industry_averages(
     averages
 }
 
-fn format_valuation_line(
-    label: &str,
-    value: Option<f64>,
-    avg: f64,
-) -> Option<String> {
+fn format_valuation_line(label: &str, value: Option<f64>, avg: f64) -> Option<String> {
     let v = value?;
     if !v.is_finite() || v <= 0.0 {
         return None;
     }
     let premium = v / avg;
-    let direction = if premium >= 1.0 { "premium" } else { "discount" };
+    let direction = if premium >= 1.0 {
+        "premium"
+    } else {
+        "discount"
+    };
     Some(format!(
         "{} {:.1}x vs industry avg {:.1}x ({:.1}x {})",
         label, v, avg, premium, direction
@@ -124,18 +110,14 @@ fn build_valuation_vs_industry_block(
             continue;
         };
         let mut parts = Vec::new();
-        if let Some(line) = format_valuation_line(
-            "PE",
-            candidate.fundamental_snapshot.pe_like,
-            avg.pe_avg,
-        ) {
+        if let Some(line) =
+            format_valuation_line("PE", candidate.fundamental_snapshot.pe_like, avg.pe_avg)
+        {
             parts.push(line);
         }
-        if let Some(line) = format_valuation_line(
-            "PS",
-            candidate.fundamental_snapshot.ps_like,
-            avg.ps_avg,
-        ) {
+        if let Some(line) =
+            format_valuation_line("PS", candidate.fundamental_snapshot.ps_like, avg.ps_avg)
+        {
             parts.push(line);
         }
         if !parts.is_empty() {
@@ -314,7 +296,10 @@ pub(crate) fn default_catalysts(item: &EnrichedCandidate) -> Vec<String> {
         catalysts.push("Recent announcements or news catalysts are relatively clear".to_string());
     }
     if item.factor.quality >= 60.0 {
-        catalysts.push("Quality factor is acceptable with reasonable balance sheet and earnings structure".to_string());
+        catalysts.push(
+            "Quality factor is acceptable with reasonable balance sheet and earnings structure"
+                .to_string(),
+        );
     }
     if catalysts.is_empty() {
         catalysts.push("Composite factor score is relatively leading".to_string());
@@ -334,7 +319,9 @@ pub(crate) fn default_risks(item: &EnrichedCandidate) -> Vec<String> {
         risks.push("Volatility or turnover level is elevated".to_string());
     }
     if risks.is_empty() {
-        risks.push("Need to continue tracking price-volume and announcement fulfillment".to_string());
+        risks.push(
+            "Need to continue tracking price-volume and announcement fulfillment".to_string(),
+        );
     }
     risks
 }
@@ -466,7 +453,8 @@ fn score_pick_market_validation(pick: &StockPickItem, item: &EnrichedCandidate) 
         .first()
         .zip(recent_window.last())
         .and_then(|(latest, earliest)| {
-            (earliest.close > Decimal::ZERO).then_some(((latest.close / earliest.close) - Decimal::ONE) * Decimal::from(100))
+            (earliest.close > Decimal::ZERO)
+                .then_some(((latest.close / earliest.close) - Decimal::ONE) * Decimal::from(100))
         })
         .map(|v| v.to_f64().unwrap_or_default())
         .unwrap_or_default();
@@ -480,7 +468,11 @@ fn score_pick_market_validation(pick: &StockPickItem, item: &EnrichedCandidate) 
     } else {
         0.0
     };
-    let latest_close = item.candles.last().map(|row| row.close.to_f64().unwrap_or_default()).unwrap_or_default();
+    let latest_close = item
+        .candles
+        .last()
+        .map(|row| row.close.to_f64().unwrap_or_default())
+        .unwrap_or_default();
     let rolling_high = item
         .candles
         .iter()
@@ -827,7 +819,9 @@ fn stock_pick_objective_cap(pick: &StockPickItem, item: &EnrichedCandidate) -> i
     if market == MarketKind::AShare && !has_income_statement && !has_balance_sheet {
         cap = cap.min(82);
     }
-    if market == MarketKind::UsEquity && (!has_income_statement || !has_balance_sheet || !has_industry) {
+    if market == MarketKind::UsEquity
+        && (!has_income_statement || !has_balance_sheet || !has_industry)
+    {
         cap = cap.min(90);
     }
     cap.clamp(60, 96)
@@ -918,8 +912,10 @@ pub(crate) fn test_objective_score_signal_separation(
                 trade_date: format!("2026-05-{:02}", index + 1),
                 open: Decimal::from(10),
                 close: Decimal::from(10) + Decimal::from(index) / Decimal::from(10),
-                high: Decimal::from(102) / Decimal::from(10) + Decimal::from(index) / Decimal::from(10),
-                low: Decimal::from(98) / Decimal::from(10) + Decimal::from(index) / Decimal::from(10),
+                high: Decimal::from(102) / Decimal::from(10)
+                    + Decimal::from(index) / Decimal::from(10),
+                low: Decimal::from(98) / Decimal::from(10)
+                    + Decimal::from(index) / Decimal::from(10),
                 volume: 1_000_000 + index as i64,
                 amount: Decimal::ZERO,
                 amplitude_pct: 1.0,
@@ -1161,7 +1157,10 @@ pub(crate) fn default_evidence(item: &EnrichedCandidate) -> Vec<String> {
         item.factor.total, item.factor.momentum, item.factor.quality
     ));
     if !item.news.is_empty() {
-        evidence.push(format!("Recent news/announcement count {}", item.news.len()));
+        evidence.push(format!(
+            "Recent news/announcement count {}",
+            item.news.len()
+        ));
     }
     evidence
 }

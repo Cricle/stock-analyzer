@@ -156,9 +156,7 @@ pub async fn run_import(
     })
 }
 
-pub async fn run_init_from_env(
-    data_dir: &str,
-) -> anyhow::Result<sa_models::QlibImportResponse> {
+pub async fn run_init_from_env(data_dir: &str) -> anyhow::Result<sa_models::QlibImportResponse> {
     let request = sa_models::QlibImportRequest {
         release_url: std::env::var("QLIB_INIT_RELEASE_URL").ok(),
         dataset_dir: std::env::var("QLIB_INIT_DATASET_DIR").ok(),
@@ -754,7 +752,7 @@ fn non_empty_env(keys: &[&str]) -> Option<String> {
 
 fn env_truthy(key: &str, default: bool) -> bool {
     std::env::var(key)
-.map(|v| crate::config::env_flag_value(&v))
+        .map(|v| crate::config::env_flag_value(&v))
         .unwrap_or(default)
 }
 

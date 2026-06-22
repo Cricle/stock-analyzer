@@ -2,8 +2,8 @@ use adk_graph::state::State;
 use sa_models::AnalysisResult;
 
 use super::{
-    CHANNEL_RESULT, NODE_BEAR, NODE_BULL, NODE_RESEARCH,
-    analyst_already_completed, clear_node_name, tool_node_name,
+    CHANNEL_RESULT, NODE_BEAR, NODE_BULL, NODE_RESEARCH, analyst_already_completed,
+    clear_node_name, tool_node_name,
 };
 
 pub(super) fn analyst_route(state: &State, analyst_key: &str) -> String {

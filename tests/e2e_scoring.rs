@@ -38,7 +38,11 @@ fn e2e_score_consistency_bullish() {
         latest_positive: pick.latest_positive,
     };
     let tech = sa_engine::score::dimensions::technical::score_technical(&tech_input);
-    assert!(tech.score >= 60, "expected bullish tech score, got {}", tech.score);
+    assert!(
+        tech.score >= 60,
+        "expected bullish tech score, got {}",
+        tech.score
+    );
     assert!(tech.score <= 100);
 }
 
@@ -59,7 +63,11 @@ fn e2e_score_consistency_bearish() {
         latest_positive: false,
     };
     let tech = sa_engine::score::dimensions::technical::score_technical(&tech_input);
-    assert!(tech.score <= 40, "expected bearish tech score, got {}", tech.score);
+    assert!(
+        tech.score <= 40,
+        "expected bearish tech score, got {}",
+        tech.score
+    );
 }
 
 #[test]
@@ -74,7 +82,11 @@ fn e2e_score_fundamental_mixed() {
         net_income_usd: Some(-100_000_000.0),
     };
     let fund = sa_engine::score::dimensions::fundamental::score_fundamental(&fund_input);
-    assert!(fund.score >= 20 && fund.score <= 80, "mixed signals should be mid-range, got {}", fund.score);
+    assert!(
+        fund.score >= 20 && fund.score <= 80,
+        "mixed signals should be mid-range, got {}",
+        fund.score
+    );
 }
 
 #[test]
@@ -90,7 +102,11 @@ fn e2e_score_llm_analysis_consensus() {
         period_return_pct: Some(3.0),
     };
     let result = sa_engine::score::dimensions::llm_analysis::score_llm_analysis(&llm_input);
-    assert!(result.score >= 55, "expected decent score with consensus, got {}", result.score);
+    assert!(
+        result.score >= 55,
+        "expected decent score with consensus, got {}",
+        result.score
+    );
 }
 
 #[test]

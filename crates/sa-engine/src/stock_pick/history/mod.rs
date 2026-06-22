@@ -10,8 +10,8 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use sa_models::{
-    StockPickEvidenceCoverageSummary, StockPickHistoryMatchSnapshot,
-    StockPickResponse, StockPickStorageWriteSummary,
+    StockPickEvidenceCoverageSummary, StockPickHistoryMatchSnapshot, StockPickResponse,
+    StockPickStorageWriteSummary,
 };
 
 const STOCK_PICK_CACHE_PREFIX: &str = "tradingagents:stock_pick";
@@ -70,7 +70,9 @@ impl StockPickHistoryStore {
     ///
     /// TODO: Replace with explicit dependency injection.
     pub(crate) fn from_env() -> anyhow::Result<Self> {
-        tracing::warn!("StockPickHistoryStore::from_env() called without injected stores; using no-op fallback");
+        tracing::warn!(
+            "StockPickHistoryStore::from_env() called without injected stores; using no-op fallback"
+        );
         Ok(Self {
             cache: std::sync::Arc::new(NoopCacheStore),
             vector_store: std::sync::Arc::new(NoopVectorStore),
@@ -91,7 +93,9 @@ impl StockPickHistoryStore {
         // Write run data to cache
         let run_key = format!("{STOCK_PICK_CACHE_PREFIX}:run:{run_id}");
         let run_payload = serde_json::to_vec(response)?;
-        self.cache.set(&run_key, &run_payload, Some(STOCK_PICK_CACHE_TTL_SECS)).await?;
+        self.cache
+            .set(&run_key, &run_payload, Some(STOCK_PICK_CACHE_TTL_SECS))
+            .await?;
         cache_keys_written += 1;
 
         // Write summary to cache
@@ -99,10 +103,20 @@ impl StockPickHistoryStore {
             "{STOCK_PICK_CACHE_PREFIX}:summary:{}:{}:{}",
             request_market.trim().to_ascii_lowercase(),
             response.analysis_date.trim(),
-            response.strategy.trim().to_ascii_lowercase().replace(' ', "_")
+            response
+                .strategy
+                .trim()
+                .to_ascii_lowercase()
+                .replace(' ', "_")
         );
         let summary_payload = serde_json::to_vec(&response.summary)?;
-        self.cache.set(&summary_key, &summary_payload, Some(STOCK_PICK_CACHE_TTL_SECS)).await?;
+        self.cache
+            .set(
+                &summary_key,
+                &summary_payload,
+                Some(STOCK_PICK_CACHE_TTL_SECS),
+            )
+            .await?;
         cache_keys_written += 1;
 
         // Write picks to vector store
@@ -188,7 +202,10 @@ impl StockPickHistoryStore {
         for hit in &hits {
             let payload = &hit.payload;
             sample_count += 1;
-            score_sum += payload.get("score").and_then(|v| v.as_f64()).unwrap_or_default();
+            score_sum += payload
+                .get("score")
+                .and_then(|v| v.as_f64())
+                .unwrap_or_default();
 
             let alpha = payload
                 .get("alpha_return")
@@ -274,7 +291,12 @@ impl StockPickHistoryStore {
             "pick_date": payload.pick_date
         });
         self.vector_store
-            .insert(STOCK_PICK_VECTOR_COLLECTION, &point_id, &vector, json_payload)
+            .insert(
+                STOCK_PICK_VECTOR_COLLECTION,
+                &point_id,
+                &vector,
+                json_payload,
+            )
             .await
     }
 
@@ -309,7 +331,12 @@ impl StockPickHistoryStore {
             "dedupe_key": payload.dedupe_key
         });
         self.vector_store
-            .insert(STOCK_PICK_VECTOR_COLLECTION, &point_id, &vector, json_payload)
+            .insert(
+                STOCK_PICK_VECTOR_COLLECTION,
+                &point_id,
+                &vector,
+                json_payload,
+            )
             .await
     }
 }
@@ -351,18 +378,50 @@ struct NoopCacheStore;
 
 #[async_trait::async_trait]
 impl sa_models::CacheStore for NoopCacheStore {
-    async fn get(&self, _key: &str) -> anyhow::Result<Option<Vec<u8>>> { Ok(None) }
-    async fn set(&self, _key: &str, _value: &[u8], _ttl_seconds: Option<u64>) -> anyhow::Result<()> { Ok(()) }
-    async fn delete(&self, _key: &str) -> anyhow::Result<()> { Ok(()) }
-    async fn exists(&self, _key: &str) -> anyhow::Result<bool> { Ok(false) }
-    async fn list_entries(&self, _prefix: &str) -> anyhow::Result<Vec<sa_models::CacheEntry>> { Ok(vec![]) }
+    async fn get(&self, _key: &str) -> anyhow::Result<Option<Vec<u8>>> {
+        Ok(None)
+    }
+    async fn set(
+        &self,
+        _key: &str,
+        _value: &[u8],
+        _ttl_seconds: Option<u64>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+    async fn delete(&self, _key: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+    async fn exists(&self, _key: &str) -> anyhow::Result<bool> {
+        Ok(false)
+    }
+    async fn list_entries(&self, _prefix: &str) -> anyhow::Result<Vec<sa_models::CacheEntry>> {
+        Ok(vec![])
+    }
 }
 
 struct NoopVectorStore;
 
 #[async_trait::async_trait]
 impl sa_models::VectorStore for NoopVectorStore {
-    async fn insert(&self, _collection: &str, _id: &str, _embedding: &[f32], _payload: serde_json::Value) -> anyhow::Result<()> { Ok(()) }
-    async fn search(&self, _collection: &str, _query_embedding: &[f32], _top_k: usize) -> anyhow::Result<Vec<sa_models::VectorSearchHit>> { Ok(vec![]) }
-    async fn delete(&self, _collection: &str, _id: &str) -> anyhow::Result<()> { Ok(()) }
+    async fn insert(
+        &self,
+        _collection: &str,
+        _id: &str,
+        _embedding: &[f32],
+        _payload: serde_json::Value,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+    async fn search(
+        &self,
+        _collection: &str,
+        _query_embedding: &[f32],
+        _top_k: usize,
+    ) -> anyhow::Result<Vec<sa_models::VectorSearchHit>> {
+        Ok(vec![])
+    }
+    async fn delete(&self, _collection: &str, _id: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
 }

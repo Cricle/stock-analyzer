@@ -70,7 +70,9 @@ pub(crate) fn build_decision_fact_sheet(result: &AnalysisResult) -> String {
             lines.push(format!("- Reward/risk ratio (current→target): {value:.2}"));
         }
         if let Some(value) = result.report.profit_risk.current_position_reward_risk_ratio {
-            lines.push(format!("- Reward/risk ratio (current→confirmation): {value:.2}"));
+            lines.push(format!(
+                "- Reward/risk ratio (current→confirmation): {value:.2}"
+            ));
         }
         sections.push(format!(
             "Structured price and probability facts:\n{}",

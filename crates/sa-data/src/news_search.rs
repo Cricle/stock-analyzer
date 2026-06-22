@@ -12,9 +12,8 @@ use super::search::{preferred_search_language_for_query, within_date_window};
 use super::{
     GENERAL_SEARCH_FALLBACK_QUERY_LIMIT, GeneralSearchIntent, MarketDataClient,
     NEWS_SEARCH_EVIDENCE_QUERY_LIMIT_PER_PROVIDER, NEWS_SEARCH_PROVIDER_TIMEOUT_SECS,
-    NewsFetchAttempt, NewsItem, SEARXNG_QUERY_CACHE_TTL_SECS,
-    SearchProviderConfig, SearchProviderKind, SearchScope,
-    SearxngNewsEvidenceCacheEntry, SearxngNewsQueryCacheEntry,
+    NewsFetchAttempt, NewsItem, SEARXNG_QUERY_CACHE_TTL_SECS, SearchProviderConfig,
+    SearchProviderKind, SearchScope, SearxngNewsEvidenceCacheEntry, SearxngNewsQueryCacheEntry,
 };
 impl MarketDataClient {
     pub(super) async fn fetch_news_search_with_scope(
@@ -467,7 +466,8 @@ impl MarketDataClient {
 
             // Extract source and time from source span
             let source_info = extract_baidu_source(block);
-            let (source, published_at) = source_info.unwrap_or_else(|| ("Baidu".to_string(), String::new()));
+            let (source, published_at) =
+                source_info.unwrap_or_else(|| ("Baidu".to_string(), String::new()));
 
             items.push(NewsItem {
                 published_at,
@@ -495,7 +495,8 @@ impl MarketDataClient {
 
                 let summary = extract_baidu_plain_text(chunk).unwrap_or_default();
                 let source_info = extract_baidu_source(chunk);
-                let (source, published_at) = source_info.unwrap_or_else(|| ("Baidu".to_string(), String::new()));
+                let (source, published_at) =
+                    source_info.unwrap_or_else(|| ("Baidu".to_string(), String::new()));
 
                 items.push(NewsItem {
                     published_at,
@@ -671,7 +672,9 @@ fn extract_baidu_text_between(html: &str, class_names: &[&str]) -> Option<String
             let after = &html[pos..];
             let tag_end = after.find('>')? + 1;
             let content_start = &after[tag_end..];
-            let close_div = content_start.find("</div>").unwrap_or(content_start.len().min(800));
+            let close_div = content_start
+                .find("</div>")
+                .unwrap_or(content_start.len().min(800));
             let text = strip_html_tags(&content_start[..close_div]);
             let text = decode_html_entities(&text);
             if !text.trim().is_empty() {
@@ -691,7 +694,10 @@ fn extract_baidu_source(html: &str) -> Option<(String, String)> {
             let after = &html[pos..];
             let tag_end = after.find('>')? + 1;
             let content = &after[tag_end..];
-            let span_close = content.find("</span>").or_else(|| content.find("</a>")).unwrap_or(content.len().min(200));
+            let span_close = content
+                .find("</span>")
+                .or_else(|| content.find("</a>"))
+                .unwrap_or(content.len().min(200));
             let text = strip_html_tags(&content[..span_close]);
             let text = decode_html_entities(&text);
             if !text.trim().is_empty() {
@@ -714,7 +720,11 @@ fn extract_baidu_plain_text(html: &str) -> Option<String> {
     let text = strip_html_tags(html);
     let text = decode_html_entities(&text);
     let text = text.trim();
-    if text.is_empty() { None } else { Some(text.to_string()) }
+    if text.is_empty() {
+        None
+    } else {
+        Some(text.to_string())
+    }
 }
 
 fn strip_html_tags(html: &str) -> String {
@@ -754,7 +764,6 @@ fn percent_encode(input: &str) -> String {
     encoded
 }
 impl MarketDataClient {
-
     #[cfg(test)]
     #[allow(dead_code)]
     pub(super) async fn fetch_searxng_news_search(
@@ -944,10 +953,9 @@ impl MarketDataClient {
                                                 clean.trim().to_string()
                                             })
                                         });
-                                        if let (Some(title), true) = (
-                                            title,
-                                            !url.is_empty() && url.starts_with("http"),
-                                        ) {
+                                        if let (Some(title), true) =
+                                            (title, !url.is_empty() && url.starts_with("http"))
+                                        {
                                             if !title.is_empty() && dedup.insert(url.clone()) {
                                                 merged.push(NewsItem {
                                                     published_at: String::new(),
@@ -1302,7 +1310,11 @@ fn extract_rss_tag(xml: &str, tag: &str) -> Option<String> {
         .and_then(|s| s.strip_suffix("]]>"))
         .unwrap_or(value);
     let value = value.trim();
-    if value.is_empty() { None } else { Some(value.to_string()) }
+    if value.is_empty() {
+        None
+    } else {
+        Some(value.to_string())
+    }
 }
 
 fn normalize_rss_date(raw: &str) -> String {
@@ -1317,7 +1329,6 @@ fn normalize_rss_date(raw: &str) -> String {
     String::new()
 }
 impl MarketDataClient {
-
     pub(super) async fn fetch_general_search_evidence_with_intent(
         &self,
         provider: &SearchProviderConfig,

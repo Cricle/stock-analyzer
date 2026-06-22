@@ -34,10 +34,7 @@ impl RedisCacheStore {
 impl CacheStore for RedisCacheStore {
     async fn get(&self, key: &str) -> anyhow::Result<Option<Vec<u8>>> {
         let mut conn = self.conn.clone();
-        let value: Option<Vec<u8>> = redis::cmd("GET")
-            .arg(key)
-            .query_async(&mut conn)
-            .await?;
+        let value: Option<Vec<u8>> = redis::cmd("GET").arg(key).query_async(&mut conn).await?;
         Ok(value)
     }
 
@@ -62,19 +59,13 @@ impl CacheStore for RedisCacheStore {
 
     async fn delete(&self, key: &str) -> anyhow::Result<()> {
         let mut conn = self.conn.clone();
-        redis::cmd("DEL")
-            .arg(key)
-            .exec_async(&mut conn)
-            .await?;
+        redis::cmd("DEL").arg(key).exec_async(&mut conn).await?;
         Ok(())
     }
 
     async fn exists(&self, key: &str) -> anyhow::Result<bool> {
         let mut conn = self.conn.clone();
-        let exists: bool = redis::cmd("EXISTS")
-            .arg(key)
-            .query_async(&mut conn)
-            .await?;
+        let exists: bool = redis::cmd("EXISTS").arg(key).query_async(&mut conn).await?;
         Ok(exists)
     }
 

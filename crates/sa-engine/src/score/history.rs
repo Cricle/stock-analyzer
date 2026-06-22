@@ -64,12 +64,19 @@ pub fn compute_performance_report(
     let winners = snapshots.iter().filter(|s| s.return_pct > 0.0).count() as f64;
     let accuracy_rate = winners / total;
     let avg_return = snapshots.iter().map(|s| s.return_pct).sum::<f64>() / total;
-    let max_drawdown = snapshots.iter().map(|s| s.max_drawdown).fold(0.0f64, f64::min);
+    let max_drawdown = snapshots
+        .iter()
+        .map(|s| s.max_drawdown)
+        .fold(0.0f64, f64::min);
 
     // Score vs return buckets (20-point buckets)
-    let mut bucket_sums: std::collections::HashMap<u8, (f64, u32)> = std::collections::HashMap::new();
+    let mut bucket_sums: std::collections::HashMap<u8, (f64, u32)> =
+        std::collections::HashMap::new();
     for snap in snapshots {
-        if let Some(rec) = recommendations.iter().find(|r| r.id == snap.recommendation_id) {
+        if let Some(rec) = recommendations
+            .iter()
+            .find(|r| r.id == snap.recommendation_id)
+        {
             let bucket = (rec.score_total as u8 / 20) * 20;
             let entry = bucket_sums.entry(bucket).or_insert((0.0, 0));
             entry.0 += snap.return_pct;
@@ -107,29 +114,49 @@ mod tests {
     fn test_performance_report() {
         let recs = vec![
             StoredRecommendation {
-                id: "rec-1".into(), symbol: "AAPL".into(), market: "美股".into(),
-                score_total: 80, score_technical: 85, score_fundamental: 75,
-                score_sentiment: 70, score_llm: 85,
-                reasons: serde_json::json!({}), price_at_recommend: Some(150.0),
+                id: "rec-1".into(),
+                symbol: "AAPL".into(),
+                market: "美股".into(),
+                score_total: 80,
+                score_technical: 85,
+                score_fundamental: 75,
+                score_sentiment: 70,
+                score_llm: 85,
+                reasons: serde_json::json!({}),
+                price_at_recommend: Some(150.0),
                 recommended_at: "2026-01-01T00:00:00Z".into(),
             },
             StoredRecommendation {
-                id: "rec-2".into(), symbol: "TSLA".into(), market: "美股".into(),
-                score_total: 40, score_technical: 35, score_fundamental: 45,
-                score_sentiment: 40, score_llm: 40,
-                reasons: serde_json::json!({}), price_at_recommend: Some(200.0),
+                id: "rec-2".into(),
+                symbol: "TSLA".into(),
+                market: "美股".into(),
+                score_total: 40,
+                score_technical: 35,
+                score_fundamental: 45,
+                score_sentiment: 40,
+                score_llm: 40,
+                reasons: serde_json::json!({}),
+                price_at_recommend: Some(200.0),
                 recommended_at: "2026-01-01T00:00:00Z".into(),
             },
         ];
         let snaps = vec![
             PriceSnapshot {
-                id: "snap-1".into(), recommendation_id: "rec-1".into(),
-                days_after: 7, price: 160.0, return_pct: 6.67, max_drawdown: -2.0,
+                id: "snap-1".into(),
+                recommendation_id: "rec-1".into(),
+                days_after: 7,
+                price: 160.0,
+                return_pct: 6.67,
+                max_drawdown: -2.0,
                 recorded_at: "2026-01-08T00:00:00Z".into(),
             },
             PriceSnapshot {
-                id: "snap-2".into(), recommendation_id: "rec-2".into(),
-                days_after: 7, price: 190.0, return_pct: -5.0, max_drawdown: -8.0,
+                id: "snap-2".into(),
+                recommendation_id: "rec-2".into(),
+                days_after: 7,
+                price: 190.0,
+                return_pct: -5.0,
+                max_drawdown: -8.0,
                 recorded_at: "2026-01-08T00:00:00Z".into(),
             },
         ];

@@ -5,8 +5,7 @@ use uuid::Uuid;
 
 use super::stats::QdrantMemoryPayload;
 use super::{
-    MemoryContextBundle, MemoryEntry, MemoryQuery, ResearchMemoryRecord,
-    TradingMemoryLog,
+    MemoryContextBundle, MemoryEntry, MemoryQuery, ResearchMemoryRecord, TradingMemoryLog,
 };
 use sa_models::{StructuredReflection, StructuredRiskAssessment};
 
@@ -73,7 +72,12 @@ impl TradingMemoryLog {
             "embedding_model": self.embedding.model
         });
         store
-            .insert(MEMORY_VECTOR_COLLECTION, &point_id, &self.embed_text(&text), payload)
+            .insert(
+                MEMORY_VECTOR_COLLECTION,
+                &point_id,
+                &self.embed_text(&text),
+                payload,
+            )
             .await?;
         tracing::info!(
             op = "vector_upsert",
@@ -88,7 +92,10 @@ impl TradingMemoryLog {
     /// Batch upsert multiple memory entries.
     #[allow(dead_code)]
     #[tracing::instrument(skip_all, fields(count = entries.len()))]
-    pub(super) async fn qdrant_batch_upsert_entries(&self, entries: &[MemoryEntry]) -> anyhow::Result<()> {
+    pub(super) async fn qdrant_batch_upsert_entries(
+        &self,
+        entries: &[MemoryEntry],
+    ) -> anyhow::Result<()> {
         let Some(store) = self.vector_store.as_deref() else {
             return Ok(());
         };
@@ -133,7 +140,12 @@ impl TradingMemoryLog {
                 "embedding_model": self.embedding.model
             });
             store
-                .insert(MEMORY_VECTOR_COLLECTION, &point_id, &self.embed_text(&text), payload)
+                .insert(
+                    MEMORY_VECTOR_COLLECTION,
+                    &point_id,
+                    &self.embed_text(&text),
+                    payload,
+                )
                 .await?;
         }
         tracing::info!(
@@ -197,7 +209,11 @@ impl TradingMemoryLog {
             },
             format!(
                 "execution_boundary_complete {}",
-                if research.execution_boundary_complete { "true" } else { "false" }
+                if research.execution_boundary_complete {
+                    "true"
+                } else {
+                    "false"
+                }
             ),
         ]
         .into_iter()
@@ -234,7 +250,12 @@ impl TradingMemoryLog {
             "embedding_model": self.embedding.model
         });
         store
-            .insert(MEMORY_VECTOR_COLLECTION, &point_id, &self.embed_text(&text), payload)
+            .insert(
+                MEMORY_VECTOR_COLLECTION,
+                &point_id,
+                &self.embed_text(&text),
+                payload,
+            )
             .await
     }
 
@@ -526,7 +547,12 @@ impl TradingMemoryLog {
             "text": text
         });
         store
-            .insert(MEMORY_VECTOR_COLLECTION, &Self::qdrant_point_id(&point_id), &self.embed_text(&text), payload)
+            .insert(
+                MEMORY_VECTOR_COLLECTION,
+                &Self::qdrant_point_id(&point_id),
+                &self.embed_text(&text),
+                payload,
+            )
             .await
     }
 
@@ -635,7 +661,12 @@ impl TradingMemoryLog {
             "pending": false
         });
         store
-            .insert(MEMORY_VECTOR_COLLECTION, &Self::qdrant_point_id(&point_id), &self.embed_text(&text), payload)
+            .insert(
+                MEMORY_VECTOR_COLLECTION,
+                &Self::qdrant_point_id(&point_id),
+                &self.embed_text(&text),
+                payload,
+            )
             .await
     }
 

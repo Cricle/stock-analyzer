@@ -95,9 +95,14 @@ async fn light_enrich_candidate(
         .fetch_candles(&candidate.symbol, "qfq", 260)
         .await
         .unwrap_or_default();
-    let price = quote.as_ref().map(|item| item.close.to_f64().unwrap_or_default());
+    let price = quote
+        .as_ref()
+        .map(|item| item.close.to_f64().unwrap_or_default());
     let change_pct = candles.last().map(|item| item.change_pct);
-    let market_cap = fundamentals.as_ref().and_then(|item| item.market_cap).map(|v| v.to_f64().unwrap_or_default());
+    let market_cap = fundamentals
+        .as_ref()
+        .and_then(|item| item.market_cap)
+        .map(|v| v.to_f64().unwrap_or_default());
     let company_name = fundamentals
         .as_ref()
         .map(|item| item.company_name.clone())
@@ -248,7 +253,9 @@ mod factors {
         if first.close <= Decimal::ZERO {
             return 0.0;
         }
-        let return_pct = (((last.close / first.close) - Decimal::ONE) * Decimal::from(100)).to_f64().unwrap_or_default();
+        let return_pct = (((last.close / first.close) - Decimal::ONE) * Decimal::from(100))
+            .to_f64()
+            .unwrap_or_default();
         let volume_ratio = if first.volume > 0 {
             last.volume as f64 / first.volume as f64
         } else {
@@ -274,14 +281,16 @@ mod factors {
         };
         let roe: f64 = match (
             f.net_income_usd,
-            f.stockholders_equity_usd.filter(|value| *value > Decimal::ZERO),
+            f.stockholders_equity_usd
+                .filter(|value| *value > Decimal::ZERO),
         ) {
             (Some(ni), Some(eq)) => (ni / eq).to_f64().unwrap_or_default(),
             _ => 0.0,
         };
         let leverage: f64 = match (
             f.total_debt_usd,
-            f.stockholders_equity_usd.filter(|value| *value > Decimal::ZERO),
+            f.stockholders_equity_usd
+                .filter(|value| *value > Decimal::ZERO),
         ) {
             (Some(debt), Some(eq)) => (debt / eq).to_f64().unwrap_or_default(),
             _ => 1.0,
@@ -369,7 +378,8 @@ mod factors {
             .news_snapshot
             .deep_item_count
             .max(item.news_snapshot.light_item_count) as f64;
-        let recency_support = (!item.news_snapshot.latest_published_at.trim().is_empty()) as i32 as f64;
+        let recency_support =
+            (!item.news_snapshot.latest_published_at.trim().is_empty()) as i32 as f64;
         let catalyst_support = item.news_snapshot.catalyst_count.min(4) as f64;
         (35.0 + disclosure_count.min(8.0) * 4.0 + recency_support * 8.0 + catalyst_support * 6.0)
             .clamp(0.0, 100.0)
@@ -379,7 +389,8 @@ mod factors {
         let evidence_count = item.evidence_records.len() as f64;
         let source_count = item.news_snapshot.unique_source_count as f64;
         let hard_negative_penalty = item.news_snapshot.hard_negative_count.min(4) as f64 * 10.0;
-        (35.0 + evidence_count.min(12.0) * 4.5 + source_count.min(6.0) * 4.0 - hard_negative_penalty)
+        (35.0 + evidence_count.min(12.0) * 4.5 + source_count.min(6.0) * 4.0
+            - hard_negative_penalty)
             .clamp(0.0, 100.0)
     }
 
@@ -707,7 +718,8 @@ mod snapshots {
     use super::*;
     use technical::{
         adx_candles, atr_candles, candle_volume_ratio, cci_candles, ema_candles, kdj_candles,
-        macd_candles, obv_candles, rsi_candles, sma_candles, vwap_candles, vwma_candles, wr_candles,
+        macd_candles, obv_candles, rsi_candles, sma_candles, vwap_candles, vwma_candles,
+        wr_candles,
     };
 
     pub(super) fn describe_candidate(item: &EnrichedCandidate) -> String {
@@ -774,14 +786,15 @@ mod snapshots {
 
     pub(super) fn build_market_snapshot(item: &EnrichedCandidate) -> StockPickMarketSnapshot {
         let lookback_candles = item.candles.len();
-        let period_return_pct =
-            item.candles
-                .first()
-                .zip(item.candles.last())
-                .and_then(|(first, last)| {
-                    (first.close > Decimal::ZERO).then_some(((last.close / first.close) - Decimal::ONE) * Decimal::from(100))
-                })
-                .map(|v| v.to_f64().unwrap_or_default());
+        let period_return_pct = item
+            .candles
+            .first()
+            .zip(item.candles.last())
+            .and_then(|(first, last)| {
+                (first.close > Decimal::ZERO)
+                    .then_some(((last.close / first.close) - Decimal::ONE) * Decimal::from(100))
+            })
+            .map(|v| v.to_f64().unwrap_or_default());
         let latest_volume = item.candles.last().map(|row| row.volume);
         let volume_ratio = candle_volume_ratio(&item.candles, 20);
         StockPickMarketSnapshot {
@@ -820,14 +833,16 @@ mod snapshots {
         };
         let roe = match (
             f.net_income_usd,
-            f.stockholders_equity_usd.filter(|value| *value > Decimal::ZERO),
+            f.stockholders_equity_usd
+                .filter(|value| *value > Decimal::ZERO),
         ) {
             (Some(ni), Some(eq)) => Some((ni / eq).to_f64().unwrap_or_default()),
             _ => None,
         };
         let leverage = match (
             f.total_debt_usd,
-            f.stockholders_equity_usd.filter(|value| *value > Decimal::ZERO),
+            f.stockholders_equity_usd
+                .filter(|value| *value > Decimal::ZERO),
         ) {
             (Some(debt), Some(eq)) => Some((debt / eq).to_f64().unwrap_or_default()),
             _ => None,
@@ -838,12 +853,17 @@ mod snapshots {
                 .clone()
                 .filter(|value| !value.trim().is_empty())
                 .unwrap_or_else(|| item.industry.clone()),
-            market_cap: f.market_cap.map(|v| v.to_f64().unwrap_or_default()).or(item.market_cap),
+            market_cap: f
+                .market_cap
+                .map(|v| v.to_f64().unwrap_or_default())
+                .or(item.market_cap),
             revenues_usd: f.revenues_usd.map(|v| v.to_f64().unwrap_or_default()),
             net_income_usd: f.net_income_usd.map(|v| v.to_f64().unwrap_or_default()),
             free_cash_flow_usd: f.free_cash_flow_usd.map(|v| v.to_f64().unwrap_or_default()),
             total_debt_usd: f.total_debt_usd.map(|v| v.to_f64().unwrap_or_default()),
-            cash_and_equivalents_usd: f.cash_and_equivalents_usd.map(|v| v.to_f64().unwrap_or_default()),
+            cash_and_equivalents_usd: f
+                .cash_and_equivalents_usd
+                .map(|v| v.to_f64().unwrap_or_default()),
             pe_like,
             ps_like,
             roe,
@@ -1051,8 +1071,8 @@ mod snapshots {
         let news_ready = !item.news.is_empty() || !item.evidence_records.is_empty();
         let history_ready =
             !item.history_match_snapshot.enabled || item.history_match_snapshot.sample_count > 0;
-        let qdrant_ready =
-            !item.history_match_snapshot.enabled || item.history_match_snapshot.vector_hit_count > 0;
+        let qdrant_ready = !item.history_match_snapshot.enabled
+            || item.history_match_snapshot.vector_hit_count > 0;
         let redis_ready =
             !item.history_match_snapshot.enabled || item.history_match_snapshot.sample_count > 0;
         let mut gaps = Vec::new();
@@ -1142,7 +1162,13 @@ mod technical {
             return None;
         }
         let slice = &candles[candles.len() - period..];
-        Some(slice.iter().map(|row| row.close.to_f64().unwrap_or_default()).sum::<f64>() / period as f64)
+        Some(
+            slice
+                .iter()
+                .map(|row| row.close.to_f64().unwrap_or_default())
+                .sum::<f64>()
+                / period as f64,
+        )
     }
 
     pub(super) fn ema_candles(candles: &[CandlePoint], period: usize) -> Option<f64> {
@@ -1165,7 +1191,8 @@ mod technical {
         let mut gains = 0.0;
         let mut losses = 0.0;
         for pair in candles[candles.len() - period - 1..].windows(2) {
-            let change = pair[1].close.to_f64().unwrap_or_default() - pair[0].close.to_f64().unwrap_or_default();
+            let change = pair[1].close.to_f64().unwrap_or_default()
+                - pair[0].close.to_f64().unwrap_or_default();
             if change >= 0.0 {
                 gains += change;
             } else {
@@ -1189,8 +1216,14 @@ mod technical {
                 let current = &pair[1];
                 let prev = &pair[0];
                 let high_low = (current.high - current.low).to_f64().unwrap_or_default();
-                let high_close = (current.high - prev.close).abs().to_f64().unwrap_or_default();
-                let low_close = (current.low - prev.close).abs().to_f64().unwrap_or_default();
+                let high_close = (current.high - prev.close)
+                    .abs()
+                    .to_f64()
+                    .unwrap_or_default();
+                let low_close = (current.low - prev.close)
+                    .abs()
+                    .to_f64()
+                    .unwrap_or_default();
                 high_low.max(high_close).max(low_close)
             })
             .collect::<Vec<_>>();
@@ -1240,7 +1273,11 @@ mod technical {
         }
         let multiplier = 2.0 / (period as f64 + 1.0);
         let mut values = Vec::new();
-        let mut ema = candles[..period].iter().map(|row| row.close.to_f64().unwrap_or_default()).sum::<f64>() / period as f64;
+        let mut ema = candles[..period]
+            .iter()
+            .map(|row| row.close.to_f64().unwrap_or_default())
+            .sum::<f64>()
+            / period as f64;
         values.push(ema);
         for candle in &candles[period..] {
             let close = candle.close.to_f64().unwrap_or_default();
@@ -1301,7 +1338,12 @@ mod technical {
         let slice = &candles[candles.len() - period..];
         let typical = slice
             .iter()
-            .map(|row| (row.high.to_f64().unwrap_or_default() + row.low.to_f64().unwrap_or_default() + row.close.to_f64().unwrap_or_default()) / 3.0)
+            .map(|row| {
+                (row.high.to_f64().unwrap_or_default()
+                    + row.low.to_f64().unwrap_or_default()
+                    + row.close.to_f64().unwrap_or_default())
+                    / 3.0
+            })
             .collect::<Vec<_>>();
         let ma = typical.iter().sum::<f64>() / period as f64;
         let mean_deviation =

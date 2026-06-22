@@ -18,10 +18,7 @@ impl DailyGuidanceGenerator {
                 continue;
             }
 
-            let memory_bundle = self
-                .memory
-                .past_context_bundle(&ticker_upper, 3, 2)
-                .await;
+            let memory_bundle = self.memory.past_context_bundle(&ticker_upper, 3, 2).await;
 
             let query_text = format!("{} market {} guidance", ticker_upper, market.as_str());
             let embedding = semantic_embed(&query_text);

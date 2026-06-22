@@ -22,9 +22,13 @@ impl GuidanceStore {
             Self::qdrant_point_id(&format!("guidance:{}:{}", report.date, report.market));
         let summary_text = format!(
             "date {} market {} sentiment {} news_count {} sector_count {} stock_count {} risk_count {}",
-            report.date, report.market, report.market_sentiment.label,
-            report.key_news.len(), report.sector_highlights.len(),
-            report.stock_guidances.len(), report.risk_alerts.len(),
+            report.date,
+            report.market,
+            report.market_sentiment.label,
+            report.key_news.len(),
+            report.sector_highlights.len(),
+            report.stock_guidances.len(),
+            report.risk_alerts.len(),
         );
 
         let payload = serde_json::json!({
@@ -162,7 +166,12 @@ impl GuidanceStore {
             "text": sentiment_text,
         });
         self.vector_store
-            .insert(GUIDANCE_VECTOR_COLLECTION, &sentiment_id, &sentiment_embedding, payload)
+            .insert(
+                GUIDANCE_VECTOR_COLLECTION,
+                &sentiment_id,
+                &sentiment_embedding,
+                payload,
+            )
             .await?;
         count += 1;
 

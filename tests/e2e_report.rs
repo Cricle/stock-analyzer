@@ -49,9 +49,18 @@ fn e2e_local_text_i18n() {
 fn e2e_scenario_market_classification() {
     use sa_models::AnalysisScenarioMarket;
 
-    assert_eq!(AnalysisScenarioMarket::from_market_type("A股"), AnalysisScenarioMarket::AShare);
-    assert_eq!(AnalysisScenarioMarket::from_market_type("美股"), AnalysisScenarioMarket::UsEquity);
-    assert_eq!(AnalysisScenarioMarket::from_market_type("港股"), AnalysisScenarioMarket::HongKong);
+    assert_eq!(
+        AnalysisScenarioMarket::from_market_type("A股"),
+        AnalysisScenarioMarket::AShare
+    );
+    assert_eq!(
+        AnalysisScenarioMarket::from_market_type("美股"),
+        AnalysisScenarioMarket::UsEquity
+    );
+    assert_eq!(
+        AnalysisScenarioMarket::from_market_type("港股"),
+        AnalysisScenarioMarket::HongKong
+    );
 
     let a_share = AnalysisScenarioMarket::AShare;
     assert!(a_share.supports_company_news());

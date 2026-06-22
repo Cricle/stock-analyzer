@@ -186,7 +186,10 @@ impl MarketDataClient {
     ) -> anyhow::Result<FundamentalsSnapshot> {
         let t0 = std::time::Instant::now();
         let company = self.lookup_company(symbol).await?;
-        tracing::debug!("fetch_us_fundamentals: lookup_company for {symbol} took {}ms", t0.elapsed().as_millis());
+        tracing::debug!(
+            "fetch_us_fundamentals: lookup_company for {symbol} took {}ms",
+            t0.elapsed().as_millis()
+        );
 
         let t1 = std::time::Instant::now();
         let company_facts: CompanyFactsResponse = self
@@ -203,7 +206,10 @@ impl MarketDataClient {
             .json()
             .await
             .context("failed to decode SEC company facts")?;
-        tracing::debug!("fetch_us_fundamentals: companyfacts for {symbol} took {}ms", t1.elapsed().as_millis());
+        tracing::debug!(
+            "fetch_us_fundamentals: companyfacts for {symbol} took {}ms",
+            t1.elapsed().as_millis()
+        );
 
         let t2 = std::time::Instant::now();
         let submissions: CompanySubmissionsResponse = self
@@ -220,10 +226,11 @@ impl MarketDataClient {
             .json()
             .await
             .context("failed to decode SEC submissions")?;
-        tracing::debug!("fetch_us_fundamentals: submissions for {symbol} took {}ms", t2.elapsed().as_millis());
-        let industry = submissions
-            .sic_description
-            .filter(|s| !s.is_empty());
+        tracing::debug!(
+            "fetch_us_fundamentals: submissions for {symbol} took {}ms",
+            t2.elapsed().as_millis()
+        );
+        let industry = submissions.sic_description.filter(|s| !s.is_empty());
 
         let fiscal_year_end = company_facts.fiscal_year_end.clone();
         let shares_outstanding = company_facts
@@ -394,7 +401,6 @@ impl MarketDataClient {
     }
 }
 impl MarketDataClient {
-
     pub(super) async fn fetch_us_news_diagnostics(
         &self,
         symbol: &str,
@@ -585,11 +591,9 @@ impl MarketDataClient {
                     "https://cn.bing.com/search?q={}&format=rss",
                     query.replace(' ', "+")
                 );
-                if let Ok(Ok(response)) = tokio::time::timeout(
-                    Duration::from_secs(10),
-                    self.http.get(&rss_url).send(),
-                )
-                .await
+                if let Ok(Ok(response)) =
+                    tokio::time::timeout(Duration::from_secs(10), self.http.get(&rss_url).send())
+                        .await
                 {
                     if let Ok(body) = response.text().await {
                         for item_xml in body.split("<item>").skip(1) {
@@ -853,7 +857,6 @@ impl MarketDataClient {
     }
 }
 impl MarketDataClient {
-
     pub(super) async fn fetch_us_candles_with_provider(
         &self,
         symbol: &str,
@@ -912,7 +915,10 @@ impl MarketDataClient {
         Ok((items, provider))
     }
 
-    pub(crate) async fn fetch_us_quote_from_eastmoney(&self, symbol: &str) -> anyhow::Result<QuoteSnapshot> {
+    pub(crate) async fn fetch_us_quote_from_eastmoney(
+        &self,
+        symbol: &str,
+    ) -> anyhow::Result<QuoteSnapshot> {
         let secid = self.eastmoney_us_secid(symbol).await?;
         let response = self
             .http
@@ -1187,7 +1193,10 @@ impl MarketDataClient {
             let previous_close = items[index - 1].close;
             if previous_close > Decimal::ZERO {
                 items[index].change_amount = items[index].close - previous_close;
-                items[index].change_pct = (items[index].change_amount / previous_close * Decimal::from(100)).to_f64().unwrap_or_default();
+                items[index].change_pct = (items[index].change_amount / previous_close
+                    * Decimal::from(100))
+                .to_f64()
+                .unwrap_or_default();
             }
         }
 
@@ -1195,7 +1204,6 @@ impl MarketDataClient {
     }
 }
 impl MarketDataClient {
-
     pub(crate) async fn fetch_us_stooq_candles(
         &self,
         symbol: &str,
@@ -1305,7 +1313,10 @@ impl MarketDataClient {
             let previous_close = items[index - 1].close;
             if previous_close > Decimal::ZERO {
                 items[index].change_amount = items[index].close - previous_close;
-                items[index].change_pct = (items[index].change_amount / previous_close * Decimal::from(100)).to_f64().unwrap_or_default();
+                items[index].change_pct = (items[index].change_amount / previous_close
+                    * Decimal::from(100))
+                .to_f64()
+                .unwrap_or_default();
             }
         }
         if items.is_empty() {
@@ -1372,7 +1383,11 @@ impl MarketDataClient {
         if start_price <= Decimal::ZERO {
             return Ok(None);
         }
-        Ok(Some(((end_price - start_price) / start_price).to_f64().unwrap_or_default()))
+        Ok(Some(
+            ((end_price - start_price) / start_price)
+                .to_f64()
+                .unwrap_or_default(),
+        ))
     }
 
     async fn eastmoney_us_secid(&self, symbol: &str) -> anyhow::Result<String> {

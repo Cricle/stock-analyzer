@@ -173,13 +173,11 @@ impl AnalysisStore for PgStore {
             return Ok(());
         }
         if existing.is_none() {
-            sqlx::query(
-                "INSERT INTO analysis_results(task_id, result_json) VALUES ($1, $2)",
-            )
-            .bind(task_id)
-            .bind(&json)
-            .execute(self.pool())
-            .await?;
+            sqlx::query("INSERT INTO analysis_results(task_id, result_json) VALUES ($1, $2)")
+                .bind(task_id)
+                .bind(&json)
+                .execute(self.pool())
+                .await?;
         } else {
             sqlx::query("UPDATE analysis_results SET result_json = $1 WHERE task_id = $2")
                 .bind(&json)
@@ -210,12 +208,10 @@ impl AnalysisStore for PgStore {
     }
 
     async fn load_result(&self, task_id: &str) -> anyhow::Result<Option<AnalysisResult>> {
-        let row = sqlx::query(
-            "SELECT result_json FROM analysis_results WHERE task_id = $1",
-        )
-        .bind(task_id)
-        .fetch_optional(self.pool())
-        .await?;
+        let row = sqlx::query("SELECT result_json FROM analysis_results WHERE task_id = $1")
+            .bind(task_id)
+            .fetch_optional(self.pool())
+            .await?;
 
         match row {
             Some(row) => {
@@ -267,10 +263,7 @@ impl AnalysisStore for PgStore {
         Ok(())
     }
 
-    async fn load_request(
-        &self,
-        task_id: &str,
-    ) -> anyhow::Result<Option<SingleAnalysisRequest>> {
+    async fn load_request(&self, task_id: &str) -> anyhow::Result<Option<SingleAnalysisRequest>> {
         let task = self.get_task(task_id).await?;
         Ok(task.map(|t| t.request))
     }
@@ -319,9 +312,7 @@ fn row_to_task(row: sqlx::postgres::PgRow) -> anyhow::Result<PersistedTask> {
             .try_get::<String, _>("owner_username")
             .unwrap_or_default(),
         symbol: row.try_get("symbol")?,
-        stock_name: row
-            .try_get::<String, _>("stock_name")
-            .unwrap_or_default(),
+        stock_name: row.try_get::<String, _>("stock_name").unwrap_or_default(),
         market_type: row.try_get("market_type")?,
         analysis_date: row.try_get("analysis_date")?,
         research_depth: row

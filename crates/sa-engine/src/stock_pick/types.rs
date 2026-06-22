@@ -2,9 +2,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::llm;
 use sa_data::FundamentalsSnapshot;
 use sa_data::NewsItem;
-use crate::llm as llm;
 use sa_models::{
     StockPickDataQualitySnapshot, StockPickFundamentalSnapshot, StockPickHistoryMatchSnapshot,
     StockPickMarketSnapshot, StockPickNewsSnapshot, StockPickRiskSnapshot,
@@ -171,10 +171,7 @@ impl GeneratedStockPickResponse {
                             map.get("reason_code").cloned(),
                             "",
                         ),
-                        rationale: llm::parse::text_or_default(
-                            map.get("rationale").cloned(),
-                            "",
-                        ),
+                        rationale: llm::parse::text_or_default(map.get("rationale").cloned(), ""),
                     })
                     .collect(),
                 _ => Vec::new(),
@@ -183,7 +180,9 @@ impl GeneratedStockPickResponse {
     }
 }
 
-pub(crate) fn parse_generated_stock_pick(content: &str) -> anyhow::Result<GeneratedStockPickResponse> {
+pub(crate) fn parse_generated_stock_pick(
+    content: &str,
+) -> anyhow::Result<GeneratedStockPickResponse> {
     let trimmed = content.trim();
     let mut candidates = vec![trimmed.to_string()];
     if let Some(start) = trimmed.find('{') {

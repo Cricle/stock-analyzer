@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use super::MemoryEntry;
-use sa_models::{StructuredReflection, StructuredRiskAssessment, CalibrationProfile};
+use sa_models::{CalibrationProfile, StructuredReflection, StructuredRiskAssessment};
 
 #[derive(Clone, Debug, Default)]
 pub struct SetupMatchStats {

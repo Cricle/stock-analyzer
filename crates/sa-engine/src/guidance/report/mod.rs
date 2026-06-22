@@ -229,11 +229,17 @@ impl DailyGuidanceGenerator {
         let sector_highlights = self.extract_sector_highlights(&news_items);
 
         // 6. Generate risk alerts
-        let risk_alerts = self.generate_risk_alerts(&news_items, &market_sentiment, &market, &market_indices);
+        let risk_alerts =
+            self.generate_risk_alerts(&news_items, &market_sentiment, &market, &market_indices);
 
         // 7. Generate user profile guides
-        let user_guides =
-            self.generate_user_guides(&market_sentiment, &stock_guidances, &risk_alerts, &market_indices, &sector_highlights);
+        let user_guides = self.generate_user_guides(
+            &market_sentiment,
+            &stock_guidances,
+            &risk_alerts,
+            &market_indices,
+            &sector_highlights,
+        );
 
         let elapsed = started.elapsed().as_millis() as u64;
 
@@ -367,8 +373,12 @@ impl DailyGuidanceGenerator {
         self.enrich_stock_guidances(&mut stock_guidances).await;
 
         let sector_highlights = self.extract_sector_highlights(&news_items);
-        let risk_alerts =
-            self.generate_risk_alerts(&news_items, &market_sentiment, &market_enum, &market_indices);
+        let risk_alerts = self.generate_risk_alerts(
+            &news_items,
+            &market_sentiment,
+            &market_enum,
+            &market_indices,
+        );
         let user_guides = self.generate_user_guides(
             &market_sentiment,
             &stock_guidances,

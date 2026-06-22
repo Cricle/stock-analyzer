@@ -54,13 +54,22 @@ pub const TEST_STOCKS: &[TestStock] = &[
 ];
 
 pub fn a_share_stocks() -> Vec<&'static TestStock> {
-    TEST_STOCKS.iter().filter(|s| s.market_kind == MarketKind::AShare).collect()
+    TEST_STOCKS
+        .iter()
+        .filter(|s| s.market_kind == MarketKind::AShare)
+        .collect()
 }
 
 pub fn hk_stocks() -> Vec<&'static TestStock> {
-    TEST_STOCKS.iter().filter(|s| s.market_kind == MarketKind::HongKong).collect()
+    TEST_STOCKS
+        .iter()
+        .filter(|s| s.market_kind == MarketKind::HongKong)
+        .collect()
 }
 
 pub fn us_stocks() -> Vec<&'static TestStock> {
-    TEST_STOCKS.iter().filter(|s| s.market_kind == MarketKind::UsEquity).collect()
+    TEST_STOCKS
+        .iter()
+        .filter(|s| s.market_kind == MarketKind::UsEquity)
+        .collect()
 }

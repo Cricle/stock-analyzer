@@ -5,8 +5,8 @@ use futures::{StreamExt, stream};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 
-use sa_data::{BillboardEntry, CapitalFlowPoint, MarketDataClient, MarketKind, NewsItem};
 use crate::llm::{self as llm, LlmClient};
+use sa_data::{BillboardEntry, CapitalFlowPoint, MarketDataClient, MarketKind, NewsItem};
 use sa_models::{
     StockPickFactorBreakdown, StockPickHistoryMatchSnapshot, StockPickItem,
     StockPickObjectiveAssessment, StockPickRequest, StockPickResponse,
@@ -14,8 +14,8 @@ use sa_models::{
 };
 
 use crate::stock_pick::{
-    CandidateContext, CandidateEvidenceRecord, EnrichedCandidate,
-    StockPickEvidencePayload, StockPickHistoryStore, parse_generated_stock_pick,
+    CandidateContext, CandidateEvidenceRecord, EnrichedCandidate, StockPickEvidencePayload,
+    StockPickHistoryStore, parse_generated_stock_pick,
 };
 
 use crate::stock_pick::{
@@ -81,8 +81,7 @@ pub async fn run(
         _ => String::new(),
     };
 
-    let candidates =
-        resolve_candidates(market_data, request, coarse_candidate_limit).await?;
+    let candidates = resolve_candidates(market_data, request, coarse_candidate_limit).await?;
     if candidates.is_empty() {
         anyhow::bail!("no stock candidates resolved for market {}", request.market);
     }
@@ -184,7 +183,12 @@ pub async fn run(
         if history_retrieval {
             let current_price = candidate.price.or(candidate.market_snapshot.current_price);
             candidate.history_match_snapshot = history_store
-                .read_history(&candidate.symbol, &candidate.market, &candidate.theme_key, current_price)
+                .read_history(
+                    &candidate.symbol,
+                    &candidate.market,
+                    &candidate.theme_key,
+                    current_price,
+                )
                 .await
                 .with_context(|| format!("history retrieval failed for {}", candidate.symbol))?;
         }
@@ -386,7 +390,11 @@ pub async fn run(
             close_200_sma: pick.technical_snapshot.close_200_sma,
             obv: pick.technical_snapshot.obv,
             current_price: pick.price,
-            volume_elevated: pick.market_snapshot.volume_ratio.map(|v| v > 1.2).unwrap_or(false),
+            volume_elevated: pick
+                .market_snapshot
+                .volume_ratio
+                .map(|v| v > 1.2)
+                .unwrap_or(false),
             latest_positive: pick.change_pct.map(|c| c > 0.0).unwrap_or(false),
             pe_like: pick.fundamental_snapshot.pe_like,
             ps_like: pick.fundamental_snapshot.ps_like,
@@ -405,7 +413,8 @@ pub async fn run(
             volume_ratio: pick.market_snapshot.volume_ratio,
             period_return_pct: pick.market_snapshot.period_return_pct,
         };
-        let stock_score = crate::score::score_stock_pick(llm_client, &scoreable, &score_config).await;
+        let stock_score =
+            crate::score::score_stock_pick(llm_client, &scoreable, &score_config).await;
         tracing::info!(
             symbol = %pick.symbol,
             total = stock_score.total,
@@ -1258,7 +1267,10 @@ fn capital_flow_source_score(items: &[CapitalFlowPoint]) -> f64 {
         return 0.0;
     };
     let hundred_million = Decimal::from(100_000_000u64);
-    let inflow_component = (latest.main_net_inflow / hundred_million).to_f64().unwrap_or_default().clamp(-8.0, 12.0);
+    let inflow_component = (latest.main_net_inflow / hundred_million)
+        .to_f64()
+        .unwrap_or_default()
+        .clamp(-8.0, 12.0);
     let ratio_component = latest.main_net_inflow_ratio_pct.clamp(-10.0, 20.0) * 0.35;
     let price_component = latest.change_pct.clamp(-5.0, 12.0) * 0.5;
     inflow_component + ratio_component + price_component

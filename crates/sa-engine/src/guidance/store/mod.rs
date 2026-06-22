@@ -44,7 +44,10 @@ impl GuidanceStore {
         cache: std::sync::Arc<dyn sa_models::CacheStore>,
         vector_store: std::sync::Arc<dyn sa_models::VectorStore>,
     ) -> Self {
-        Self { cache, vector_store }
+        Self {
+            cache,
+            vector_store,
+        }
     }
 
     /// Create from environment variables (legacy compatibility).
@@ -52,7 +55,9 @@ impl GuidanceStore {
     /// TODO: Replace with explicit dependency injection.
     /// This falls back to no-op stores when no concrete implementation is available.
     pub fn from_env() -> Self {
-        tracing::warn!("GuidanceStore::from_env() called without injected stores; using no-op fallback");
+        tracing::warn!(
+            "GuidanceStore::from_env() called without injected stores; using no-op fallback"
+        );
         Self {
             cache: std::sync::Arc::new(NoopCacheStore),
             vector_store: std::sync::Arc::new(NoopVectorStore),
@@ -111,18 +116,50 @@ struct NoopCacheStore;
 
 #[async_trait::async_trait]
 impl sa_models::CacheStore for NoopCacheStore {
-    async fn get(&self, _key: &str) -> anyhow::Result<Option<Vec<u8>>> { Ok(None) }
-    async fn set(&self, _key: &str, _value: &[u8], _ttl_seconds: Option<u64>) -> anyhow::Result<()> { Ok(()) }
-    async fn delete(&self, _key: &str) -> anyhow::Result<()> { Ok(()) }
-    async fn exists(&self, _key: &str) -> anyhow::Result<bool> { Ok(false) }
-    async fn list_entries(&self, _prefix: &str) -> anyhow::Result<Vec<sa_models::CacheEntry>> { Ok(vec![]) }
+    async fn get(&self, _key: &str) -> anyhow::Result<Option<Vec<u8>>> {
+        Ok(None)
+    }
+    async fn set(
+        &self,
+        _key: &str,
+        _value: &[u8],
+        _ttl_seconds: Option<u64>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+    async fn delete(&self, _key: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+    async fn exists(&self, _key: &str) -> anyhow::Result<bool> {
+        Ok(false)
+    }
+    async fn list_entries(&self, _prefix: &str) -> anyhow::Result<Vec<sa_models::CacheEntry>> {
+        Ok(vec![])
+    }
 }
 
 struct NoopVectorStore;
 
 #[async_trait::async_trait]
 impl sa_models::VectorStore for NoopVectorStore {
-    async fn insert(&self, _collection: &str, _id: &str, _embedding: &[f32], _payload: serde_json::Value) -> anyhow::Result<()> { Ok(()) }
-    async fn search(&self, _collection: &str, _query_embedding: &[f32], _top_k: usize) -> anyhow::Result<Vec<sa_models::VectorSearchHit>> { Ok(vec![]) }
-    async fn delete(&self, _collection: &str, _id: &str) -> anyhow::Result<()> { Ok(()) }
+    async fn insert(
+        &self,
+        _collection: &str,
+        _id: &str,
+        _embedding: &[f32],
+        _payload: serde_json::Value,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+    async fn search(
+        &self,
+        _collection: &str,
+        _query_embedding: &[f32],
+        _top_k: usize,
+    ) -> anyhow::Result<Vec<sa_models::VectorSearchHit>> {
+        Ok(vec![])
+    }
+    async fn delete(&self, _collection: &str, _id: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
 }

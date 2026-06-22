@@ -7,8 +7,8 @@ pub mod analysis;
 pub mod checkpoint;
 pub mod guidance;
 
-use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 
 /// PostgreSQL storage handle. Clone-friendly (wraps `PgPool` which is
 /// reference-counted internally).

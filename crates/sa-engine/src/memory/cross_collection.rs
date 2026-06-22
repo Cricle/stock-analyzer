@@ -167,7 +167,11 @@ impl CrossCollectionSearcher {
         if symbol.is_empty() {
             return Vec::new();
         }
-        let history = match self.stock_pick.read_history(symbol, market_str, "", None).await {
+        let history = match self
+            .stock_pick
+            .read_history(symbol, market_str, "", None)
+            .await
+        {
             Ok(h) => h,
             Err(e) => {
                 tracing::warn!(error = %e, "cross-collection stock pick search failed");

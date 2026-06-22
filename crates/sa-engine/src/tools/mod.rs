@@ -182,8 +182,8 @@ impl TradingToolbox {
                 if item.published_at.trim().is_empty() {
                     return true;
                 }
-                let normalized = sa_data::normalized_news_date(&item.published_at)
-                    .unwrap_or_else(|| {
+                let normalized =
+                    sa_data::normalized_news_date(&item.published_at).unwrap_or_else(|| {
                         item.published_at
                             .get(0..10)
                             .unwrap_or(item.published_at.as_str())

@@ -30,10 +30,7 @@ impl QdrantClient {
     pub async fn ensure_collection(&self, vector_size: u64) -> anyhow::Result<()> {
         let response = self
             .http
-            .put(format!(
-                "{}/collections/{}",
-                self.url, self.collection
-            ))
+            .put(format!("{}/collections/{}", self.url, self.collection))
             .json(&json!({
                 "vectors": {
                     "size": vector_size,
@@ -100,10 +97,7 @@ impl QdrantClient {
     }
 
     /// Batch upsert multiple points in a single request.
-    pub async fn upsert_points(
-        &self,
-        points: Vec<serde_json::Value>,
-    ) -> anyhow::Result<()> {
+    pub async fn upsert_points(&self, points: Vec<serde_json::Value>) -> anyhow::Result<()> {
         if points.is_empty() {
             return Ok(());
         }
@@ -132,10 +126,7 @@ impl QdrantClient {
         if limit == 0 {
             return Ok(Vec::new());
         }
-        let url = format!(
-            "{}/collections/{}/points/search",
-            self.url, self.collection
-        );
+        let url = format!("{}/collections/{}/points/search", self.url, self.collection);
         let body = json!({
             "vector": vector,
             "limit": limit,

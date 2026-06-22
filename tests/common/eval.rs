@@ -1,4 +1,4 @@
-use sa_data::{QuoteSnapshot, FundamentalsSnapshot, NewsItem, CandlePoint};
+use sa_data::{CandlePoint, FundamentalsSnapshot, NewsItem, QuoteSnapshot};
 
 pub struct StockEvalResult {
     pub symbol: String,
@@ -18,19 +18,30 @@ impl StockEvalResult {
         let mut max = 0;
 
         max += 25;
-        if self.quote_ok { total += 25; }
+        if self.quote_ok {
+            total += 25;
+        }
 
         max += 25;
-        if self.fundamentals_ok { total += 25; }
-        else if self.fundamentals_partial { total += 15; }
+        if self.fundamentals_ok {
+            total += 25;
+        } else if self.fundamentals_partial {
+            total += 15;
+        }
 
         max += 25;
-        if self.news_ok { total += 25; }
-        else if self.news_count > 0 { total += 10; }
+        if self.news_ok {
+            total += 25;
+        } else if self.news_count > 0 {
+            total += 10;
+        }
 
         max += 25;
-        if self.candles_ok { total += 25; }
-        else if self.candle_count > 0 { total += 10; }
+        if self.candles_ok {
+            total += 25;
+        } else if self.candle_count > 0 {
+            total += 10;
+        }
 
         (total * 100) / max
     }
@@ -46,8 +57,8 @@ pub fn assert_fundamentals_valid(fund: &FundamentalsSnapshot) -> (bool, bool) {
     let has_metric = fund.net_income_usd.is_some()
         || fund.revenues_usd.is_some()
         || fund.stockholders_equity_usd.is_some();
-    let has_market_cap = fund.market_cap.is_some()
-        && fund.market_cap.unwrap() > rust_decimal::Decimal::ZERO;
+    let has_market_cap =
+        fund.market_cap.is_some() && fund.market_cap.unwrap() > rust_decimal::Decimal::ZERO;
     let is_complete = has_metric && has_market_cap && !fund.company_name.is_empty();
     let is_partial = has_metric || has_market_cap;
     (is_complete, is_partial)
@@ -73,25 +84,48 @@ pub fn assert_candles_valid(candles: &[CandlePoint]) -> bool {
 }
 
 pub fn print_completeness_table(results: &[StockEvalResult]) {
-    println!("\n{:<10} | {:<8} | {:<15} | {:<8} | {:<10} | {}",
-        "Stock", "Quote", "Fundamentals", "News", "Candles", "Score");
+    println!(
+        "\n{:<10} | {:<8} | {:<15} | {:<8} | {:<10} | {}",
+        "Stock", "Quote", "Fundamentals", "News", "Candles", "Score"
+    );
     println!("{}", "-".repeat(75));
     for r in results {
         let quote = if r.quote_ok { "OK" } else { "MISSING" };
-        let fund = if r.fundamentals_ok { "OK" }
-            else if r.fundamentals_partial { "partial" }
-            else { "MISSING" };
-        let news = if r.news_ok { "OK" }
-            else if r.news_count > 0 { &format!("{} items", r.news_count) }
-            else { "MISSING" };
-        let candles = if r.candles_ok { "OK" }
-            else if r.candle_count > 0 { &format!("{} days", r.candle_count) }
-            else { "MISSING" };
-        println!("{:<10} | {:<8} | {:<15} | {:<8} | {:<10} | {}%",
-            r.symbol, quote, fund, news, candles, r.score_pct());
+        let fund = if r.fundamentals_ok {
+            "OK"
+        } else if r.fundamentals_partial {
+            "partial"
+        } else {
+            "MISSING"
+        };
+        let news = if r.news_ok {
+            "OK"
+        } else if r.news_count > 0 {
+            &format!("{} items", r.news_count)
+        } else {
+            "MISSING"
+        };
+        let candles = if r.candles_ok {
+            "OK"
+        } else if r.candle_count > 0 {
+            &format!("{} days", r.candle_count)
+        } else {
+            "MISSING"
+        };
+        println!(
+            "{:<10} | {:<8} | {:<15} | {:<8} | {:<10} | {}%",
+            r.symbol,
+            quote,
+            fund,
+            news,
+            candles,
+            r.score_pct()
+        );
     }
     let avg = results.iter().map(|r| r.score_pct() as f64).sum::<f64>() / results.len() as f64;
     println!("{}", "-".repeat(75));
-    println!("{:<10} | {:<8} | {:<15} | {:<8} | {:<10} | {:.0}%",
-        "AVERAGE", "", "", "", "", avg);
+    println!(
+        "{:<10} | {:<8} | {:<15} | {:<8} | {:<10} | {:.0}%",
+        "AVERAGE", "", "", "", "", avg
+    );
 }

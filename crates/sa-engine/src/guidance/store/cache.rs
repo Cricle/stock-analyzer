@@ -15,11 +15,7 @@ impl GuidanceStore {
         format!("{}:stale", Self::cache_key(date, market))
     }
 
-    pub async fn get_cached_report(
-        &self,
-        date: &str,
-        market: &str,
-    ) -> Option<DailyGuidanceReport> {
+    pub async fn get_cached_report(&self, date: &str, market: &str) -> Option<DailyGuidanceReport> {
         let key = Self::cache_key(date, market);
         if let Ok(Some(raw)) = self.cache.get(&key).await {
             if let Ok(mut report) = serde_json::from_slice::<DailyGuidanceReport>(&raw) {

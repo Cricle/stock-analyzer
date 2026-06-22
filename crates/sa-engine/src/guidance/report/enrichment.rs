@@ -12,7 +12,10 @@ impl DailyGuidanceGenerator {
             return;
         }
         let symbols: Vec<&str> = stock_guidances.iter().map(|g| g.symbol.as_str()).collect();
-        let names_missing: Vec<bool> = stock_guidances.iter().map(|g| g.stock_name.is_empty()).collect();
+        let names_missing: Vec<bool> = stock_guidances
+            .iter()
+            .map(|g| g.stock_name.is_empty())
+            .collect();
 
         // Batch fetch quotes
         let quotes = self.market_data.fetch_quotes_batch(&symbols).await;
@@ -24,9 +27,15 @@ impl DailyGuidanceGenerator {
             .filter(|(_, missing)| **missing)
             .map(|(&sym, _)| sym)
             .collect();
-        let fundamentals = self.market_data.fetch_fundamentals_batch(&fund_symbols).await;
+        let fundamentals = self
+            .market_data
+            .fetch_fundamentals_batch(&fund_symbols)
+            .await;
         let fund_map: std::collections::HashMap<&str, &sa_data::FundamentalsSnapshot> =
-            fundamentals.iter().filter_map(|(s, f)| f.as_ref().map(|f| (s.as_str(), f))).collect();
+            fundamentals
+                .iter()
+                .filter_map(|(s, f)| f.as_ref().map(|f| (s.as_str(), f)))
+                .collect();
 
         for (guidance, (_, quote_opt)) in stock_guidances.iter_mut().zip(quotes.iter()) {
             if let Some(quote) = quote_opt {

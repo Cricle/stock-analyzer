@@ -234,7 +234,11 @@ mod tests {
             latest_positive: false,
         };
         let result = score_technical(&input);
-        assert!(result.reason.contains("死叉"), "expected death cross reason, got {}", result.reason);
+        assert!(
+            result.reason.contains("死叉"),
+            "expected death cross reason, got {}",
+            result.reason
+        );
     }
 
     #[test]
@@ -254,7 +258,11 @@ mod tests {
             latest_positive: false,
         };
         let result = score_technical(&input);
-        assert!(result.reason.contains("空头排列"), "expected bearish MA reason, got {}", result.reason);
+        assert!(
+            result.reason.contains("空头排列"),
+            "expected bearish MA reason, got {}",
+            result.reason
+        );
     }
 
     #[test]
@@ -274,8 +282,16 @@ mod tests {
             latest_positive: false,
         };
         let result = score_technical(&input);
-        assert!(result.reason.contains("放量下跌"), "expected volume drop reason, got {}", result.reason);
-        assert!(result.score < 50, "expected below neutral for volume drop, got {}", result.score);
+        assert!(
+            result.reason.contains("放量下跌"),
+            "expected volume drop reason, got {}",
+            result.reason
+        );
+        assert!(
+            result.score < 50,
+            "expected below neutral for volume drop, got {}",
+            result.score
+        );
     }
 
     #[test]
@@ -295,7 +311,11 @@ mod tests {
             latest_positive: false,
         };
         let result = score_technical(&input);
-        assert!(result.reason.contains("偏高"), "expected high RSI reason, got {}", result.reason);
+        assert!(
+            result.reason.contains("偏高"),
+            "expected high RSI reason, got {}",
+            result.reason
+        );
     }
 
     #[test]
@@ -315,7 +335,11 @@ mod tests {
             latest_positive: false,
         };
         let result = score_technical(&input);
-        assert!(result.reason.contains("金叉"), "expected golden cross reason, got {}", result.reason);
+        assert!(
+            result.reason.contains("金叉"),
+            "expected golden cross reason, got {}",
+            result.reason
+        );
     }
 
     #[test]
@@ -335,7 +359,11 @@ mod tests {
             latest_positive: false,
         };
         let result = score_technical(&input);
-        assert!(result.reason.contains("多头排列"), "expected bullish MA reason, got {}", result.reason);
+        assert!(
+            result.reason.contains("多头排列"),
+            "expected bullish MA reason, got {}",
+            result.reason
+        );
     }
 
     #[test]
@@ -355,8 +383,16 @@ mod tests {
             latest_positive: true,
         };
         let result = score_technical(&input);
-        assert!(result.reason.contains("放量上涨"), "expected volume rise reason, got {}", result.reason);
-        assert!(result.score > 50, "expected above neutral for volume rise, got {}", result.score);
+        assert!(
+            result.reason.contains("放量上涨"),
+            "expected volume rise reason, got {}",
+            result.reason
+        );
+        assert!(
+            result.score > 50,
+            "expected above neutral for volume rise, got {}",
+            result.score
+        );
     }
 
     #[test]
@@ -377,6 +413,10 @@ mod tests {
             latest_positive: false,
         };
         let result = score_technical(&input);
-        assert!(result.score <= 100, "score should be <= 100, got {}", result.score);
+        assert!(
+            result.score <= 100,
+            "score should be <= 100, got {}",
+            result.score
+        );
     }
 }

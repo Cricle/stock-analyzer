@@ -208,14 +208,23 @@ mod guidance_models_tests {
 
     #[test]
     fn guidance_market_from_str_hong_kong() {
-        assert_eq!(GuidanceMarket::from_str("hong_kong"), GuidanceMarket::HongKong);
+        assert_eq!(
+            GuidanceMarket::from_str("hong_kong"),
+            GuidanceMarket::HongKong
+        );
         assert_eq!(GuidanceMarket::from_str("hk"), GuidanceMarket::HongKong);
-        assert_eq!(GuidanceMarket::from_str("hongkong"), GuidanceMarket::HongKong);
+        assert_eq!(
+            GuidanceMarket::from_str("hongkong"),
+            GuidanceMarket::HongKong
+        );
     }
 
     #[test]
     fn guidance_market_from_str_us_equity() {
-        assert_eq!(GuidanceMarket::from_str("us_equity"), GuidanceMarket::UsEquity);
+        assert_eq!(
+            GuidanceMarket::from_str("us_equity"),
+            GuidanceMarket::UsEquity
+        );
         assert_eq!(GuidanceMarket::from_str("us"), GuidanceMarket::UsEquity);
     }
 

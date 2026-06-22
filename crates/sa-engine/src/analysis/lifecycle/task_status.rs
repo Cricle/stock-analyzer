@@ -90,10 +90,7 @@ impl TaskManager {
         offset: i64,
     ) -> anyhow::Result<Vec<sa_models::AnalysisTaskSummary>> {
         let rows = self.analysis_store.list_tasks(limit, offset).await?;
-        Ok(rows
-            .into_iter()
-            .map(|task| task_to_summary(task))
-            .collect())
+        Ok(rows.into_iter().map(|task| task_to_summary(task)).collect())
     }
 
     pub async fn list_tasks_for_user(
@@ -106,10 +103,7 @@ impl TaskManager {
             .analysis_store
             .list_tasks_for_user(owner_username, limit, offset)
             .await?;
-        Ok(rows
-            .into_iter()
-            .map(|task| task_to_summary(task))
-            .collect())
+        Ok(rows.into_iter().map(|task| task_to_summary(task)).collect())
     }
 
     pub async fn task_result(&self, task_id: &str) -> anyhow::Result<Option<AnalysisResult>> {

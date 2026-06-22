@@ -19,39 +19,36 @@ pub use scoring::{
 };
 
 pub use analysis::{
-    ActionBreakdown, ActionScenarioPath, CatalystScoreCard, CatalystScoreItem, Rating,
-    ReviewChecklist, ReviewItem, AgentReportNode, AgentStateSnapshot, AnalysisArtifacts,
+    ActionBreakdown, ActionScenarioPath, AgentReportNode, AgentStateSnapshot, AnalysisArtifacts,
     AnalysisCheckpoint, AnalysisGraph, AnalysisOutcomeRequest, AnalysisParameters, AnalysisResult,
-    AnalysisTaskSummary, AnalysisUserContext,
     AnalysisReuseCandidate, AnalysisReuseCheckRequest, AnalysisReuseSemanticMatch,
     AnalysisScenarioContext, AnalysisScenarioData, AnalysisScenarioIssue, AnalysisScenarioMarket,
-    AnalystRuntimeState, AudienceActionGuide,
-    CalibrationBias, CalibrationSummary, ConfidenceBreakdown, ConfidenceCap, ConfidenceProfile,
-    CoreResearchCall, DebateTurn, DecisionAction, DecisionActionBias, DecisionConfidenceBand,
-    DecisionExecutionState, DecisionMode, DecisionTargetType, DecisionTimeframe, DecisionView,
-    DecisionViewDirection, DiagnosisIssue, DiagnosisSummary, DirectionBreakdown,
-    ExecutionReadiness, HistoricalMemoryHighlight, LocalText, IcDisciplineView, IcNavigatorView,
-    InvestmentDebateState, LlmTokenUsageByModel, LlmTokenUsageSummary, MemoryContextSnapshot,
-    MissingEvidenceLadder, NewsInsight, PendingToolCall, PriceContext, ProbabilityDriver,
-    ProbabilityView, ProfitRiskView, ReferenceFactItem, ReportActionGuides, ReportCandle,
-    ReportDiagnosticItem, ReportDiagnostics, ReportEvidenceCard, ReportFlavor, ReportMarketChart,
-    ReportReferenceSnapshot, ReportSection, ReportStageState, ResumeAnalysisRequest, RiskControl,
-    RiskDebateState, RuntimeNodeTrace, ScoreDimension, SetupMatchExplanation,
-    SignedScoreDimension, SingleAnalysisRequest, StockPickDataQualitySnapshot,
-    StockPickEvidenceCoverageSummary, StockPickFactorBreakdown, StockPickFailureInfo,
-    StockPickFundamentalSnapshot, StockPickHistoryMatchSnapshot, StockPickItem,
-    StockPickMarketSnapshot, StockPickNewsSnapshot, StockPickObjectiveAssessment,
-    StockPickObjectiveBreakdown, StockPickObjectiveBucket, StockPickObjectiveOverview,
-    StockPickRequest, StockPickResponse, StockPickRiskSnapshot, StockPickRunRecord,
-    StockPickSelectionDiagnostics, StockPickStorageWriteSummary, StockPickTechnicalSnapshot,
-    StructuredPortfolioDecision, StructuredReflection, StructuredReport, StructuredResearchPlan,
-    TrendLine, TrendLinePoint,
-    StructuredRiskAssessment, StructuredTraderPlan, TechnicalIndicatorCategory,
-    TechnicalIndicatorConclusion, TechnicalIndicatorItem, TechnicalIndicatorView, ThesisState,
-    adx_report, atr_report, bollinger_report, ema_report, kdj_report, macd_report, obv_report,
-    rsi_report, sma_report,
-    ToolObservation, TradeSetupQuality, derive_report_diagnostics, derive_setup_tags,
-    render_action_guides_markdown, render_calibration_discipline_markdown,
+    AnalysisTaskSummary, AnalysisUserContext, AnalystRuntimeState, AudienceActionGuide,
+    CalibrationBias, CalibrationSummary, CatalystScoreCard, CatalystScoreItem, ConfidenceBreakdown,
+    ConfidenceCap, ConfidenceProfile, CoreResearchCall, DebateTurn, DecisionAction,
+    DecisionActionBias, DecisionConfidenceBand, DecisionExecutionState, DecisionMode,
+    DecisionTargetType, DecisionTimeframe, DecisionView, DecisionViewDirection, DiagnosisIssue,
+    DiagnosisSummary, DirectionBreakdown, ExecutionReadiness, HistoricalMemoryHighlight,
+    IcDisciplineView, IcNavigatorView, InvestmentDebateState, LlmTokenUsageByModel,
+    LlmTokenUsageSummary, LocalText, MemoryContextSnapshot, MissingEvidenceLadder, NewsInsight,
+    PendingToolCall, PriceContext, ProbabilityDriver, ProbabilityView, ProfitRiskView, Rating,
+    ReferenceFactItem, ReportActionGuides, ReportCandle, ReportDiagnosticItem, ReportDiagnostics,
+    ReportEvidenceCard, ReportFlavor, ReportMarketChart, ReportReferenceSnapshot, ReportSection,
+    ReportStageState, ResumeAnalysisRequest, ReviewChecklist, ReviewItem, RiskControl,
+    RiskDebateState, RuntimeNodeTrace, ScoreDimension, SetupMatchExplanation, SignedScoreDimension,
+    SingleAnalysisRequest, StockPickDataQualitySnapshot, StockPickEvidenceCoverageSummary,
+    StockPickFactorBreakdown, StockPickFailureInfo, StockPickFundamentalSnapshot,
+    StockPickHistoryMatchSnapshot, StockPickItem, StockPickMarketSnapshot, StockPickNewsSnapshot,
+    StockPickObjectiveAssessment, StockPickObjectiveBreakdown, StockPickObjectiveBucket,
+    StockPickObjectiveOverview, StockPickRequest, StockPickResponse, StockPickRiskSnapshot,
+    StockPickRunRecord, StockPickSelectionDiagnostics, StockPickStorageWriteSummary,
+    StockPickTechnicalSnapshot, StructuredPortfolioDecision, StructuredReflection,
+    StructuredReport, StructuredResearchPlan, StructuredRiskAssessment, StructuredTraderPlan,
+    TechnicalIndicatorCategory, TechnicalIndicatorConclusion, TechnicalIndicatorItem,
+    TechnicalIndicatorView, ThesisState, ToolObservation, TradeSetupQuality, TrendLine,
+    TrendLinePoint, adx_report, atr_report, bollinger_report, derive_report_diagnostics,
+    derive_setup_tags, ema_report, kdj_report, macd_report, obv_report,
+    render_action_guides_markdown, render_calibration_discipline_markdown, rsi_report, sma_report,
 };
 
 pub use market::{
@@ -63,14 +60,12 @@ pub use market::{
 };
 
 pub use store::{
-    AnalysisStore, CacheStore, CheckpointStore, GuidanceStore, VectorStore,
-    CacheEntry, CheckpointInfo, GuidanceRule, StoredAnalysisSummary, StoredCheckpoint,
-    VectorSearchHit,
+    AnalysisStore, CacheEntry, CacheStore, CheckpointInfo, CheckpointStore, GuidanceRule,
+    GuidanceStore, StoredAnalysisSummary, StoredCheckpoint, VectorSearchHit, VectorStore,
 };
 
 pub use task::{
-    AnalysisStep, PersistedTask, ResultStage, StepStatus, TaskEvent, TaskStatus,
-    TaskStatusResponse,
+    AnalysisStep, PersistedTask, ResultStage, StepStatus, TaskEvent, TaskStatus, TaskStatusResponse,
 };
 
 pub use config::LlmProviderConfig;

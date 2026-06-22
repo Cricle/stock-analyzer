@@ -73,12 +73,7 @@ pub(crate) fn summarize_stock_data_output(output: &str) -> String {
         };
         return format!(
             "symbol: {symbol}\nwindow: {start_date} -> {end_date}\nrows: {row_count}\nfirst_close: {:.2}\nlast_close: {:.2}\nwindow_change_pct: {:.2}\nwindow_high: {:.2}\nwindow_low: {:.2}\navg_volume: {:.0}",
-            first_close,
-            last_close,
-            pct_change,
-            window_high,
-            window_low,
-            avg_volume,
+            first_close, last_close, pct_change, window_high, window_low, avg_volume,
         );
     }
     let rows = value
@@ -275,34 +270,52 @@ pub(super) fn format_fundamental_metrics(sd: &sa_models::AnalysisScenarioData) -
     let hundred = Decimal::from(100);
     if let (Some(mc), Some(ni)) = (f.market_cap, f.net_income_usd) {
         if ni > Decimal::ZERO {
-            lines.push(format!("PE Ratio: {:.2}", (mc / ni).to_f64().unwrap_or_default()));
+            lines.push(format!(
+                "PE Ratio: {:.2}",
+                (mc / ni).to_f64().unwrap_or_default()
+            ));
         } else {
             lines.push("PE Ratio: N/A (negative earnings)".to_string());
         }
     }
     if let (Some(mc), Some(eq)) = (f.market_cap, f.stockholders_equity_usd) {
         if eq.abs() > Decimal::ZERO {
-            lines.push(format!("PB Ratio: {:.2}", (mc / eq).to_f64().unwrap_or_default()));
+            lines.push(format!(
+                "PB Ratio: {:.2}",
+                (mc / eq).to_f64().unwrap_or_default()
+            ));
         }
     }
     if let (Some(gp), Some(rev)) = (f.gross_profit_usd, f.revenues_usd) {
         if rev.abs() > Decimal::ZERO {
-            lines.push(format!("Gross Margin: {:.1}%", (gp / rev * hundred).to_f64().unwrap_or_default()));
+            lines.push(format!(
+                "Gross Margin: {:.1}%",
+                (gp / rev * hundred).to_f64().unwrap_or_default()
+            ));
         }
     }
     if let (Some(ni), Some(rev)) = (f.net_income_usd, f.revenues_usd) {
         if rev.abs() > Decimal::ZERO {
-            lines.push(format!("Net Margin: {:.1}%", (ni / rev * hundred).to_f64().unwrap_or_default()));
+            lines.push(format!(
+                "Net Margin: {:.1}%",
+                (ni / rev * hundred).to_f64().unwrap_or_default()
+            ));
         }
     }
     if let (Some(oi), Some(rev)) = (f.operating_income_usd, f.revenues_usd) {
         if rev.abs() > Decimal::ZERO {
-            lines.push(format!("Operating Margin: {:.1}%", (oi / rev * hundred).to_f64().unwrap_or_default()));
+            lines.push(format!(
+                "Operating Margin: {:.1}%",
+                (oi / rev * hundred).to_f64().unwrap_or_default()
+            ));
         }
     }
     if let (Some(mc), Some(shares)) = (f.market_cap, f.shares_outstanding) {
         if shares > 0 {
-            lines.push(format!("Market Cap: {:.0}", mc.to_f64().unwrap_or_default()));
+            lines.push(format!(
+                "Market Cap: {:.0}",
+                mc.to_f64().unwrap_or_default()
+            ));
             lines.push(format!("Shares Outstanding: {}", shares));
         }
     }
@@ -336,14 +349,19 @@ pub(super) fn format_volume_profile(sd: &sa_models::AnalysisScenarioData) -> Str
         }
     }
     // Volume change: compare recent half vs earlier half
-    let recent_avg: f64 = candles[mid..].iter().map(|c| c.volume as f64).sum::<f64>() / (candles.len() - mid) as f64;
+    let recent_avg: f64 =
+        candles[mid..].iter().map(|c| c.volume as f64).sum::<f64>() / (candles.len() - mid) as f64;
     let earlier_avg: f64 = candles[..mid].iter().map(|c| c.volume as f64).sum::<f64>() / mid as f64;
     let volume_change_pct = if earlier_avg.abs() > f64::EPSILON {
         (recent_avg - earlier_avg) / earlier_avg * 100.0
     } else {
         0.0
     };
-    let ad_signal = if obv > obv_at_mid { "accumulation" } else { "distribution" };
+    let ad_signal = if obv > obv_at_mid {
+        "accumulation"
+    } else {
+        "distribution"
+    };
     format!(
         "Volume Profile:\nOBV Signal: {}\nVolume Change: {:.1}%",
         ad_signal, volume_change_pct

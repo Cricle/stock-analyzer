@@ -21,6 +21,12 @@ pub fn safe_ticker_component(value: &str, max_len: usize) -> anyhow::Result<Stri
     }
     Ok(trimmed
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect())
 }

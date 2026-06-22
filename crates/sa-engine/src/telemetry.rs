@@ -6,8 +6,8 @@
 
 use std::sync::Arc;
 
-use opentelemetry::metrics::{Counter, Histogram, Meter};
 use opentelemetry::KeyValue;
+use opentelemetry::metrics::{Counter, Histogram, Meter};
 use tracing::{Span, field};
 
 /// Prometheus registry + OTel meter state.
@@ -40,9 +40,7 @@ impl TelemetryState {
             llm_requests_total: meter.u64_counter("llm_requests_total").build(),
             llm_request_duration_ms: meter.f64_histogram("llm_request_duration_ms").build(),
             llm_tokens_prompt_total: meter.u64_counter("llm_tokens_prompt_total").build(),
-            llm_tokens_completion_total: meter
-                .u64_counter("llm_tokens_completion_total")
-                .build(),
+            llm_tokens_completion_total: meter.u64_counter("llm_tokens_completion_total").build(),
             llm_tokens_total: meter.u64_counter("llm_tokens_total").build(),
             llm_errors_total: meter.u64_counter("llm_errors_total").build(),
         }
@@ -97,9 +95,7 @@ pub fn record_llm_usage(
     ];
     telemetry.llm_requests_total.add(1, &attrs);
     telemetry.llm_request_duration_ms.record(elapsed_ms, &attrs);
-    telemetry
-        .llm_tokens_prompt_total
-        .add(prompt_tokens, &attrs);
+    telemetry.llm_tokens_prompt_total.add(prompt_tokens, &attrs);
     telemetry
         .llm_tokens_completion_total
         .add(completion_tokens, &attrs);

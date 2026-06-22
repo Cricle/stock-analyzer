@@ -281,7 +281,8 @@ impl TradingMemoryLog {
         {
             return Ok(context);
         }
-        self.local_past_context_bundle(query, same_limit, cross_limit).await
+        self.local_past_context_bundle(query, same_limit, cross_limit)
+            .await
     }
 
     pub async fn past_context(
@@ -399,8 +400,10 @@ impl TradingMemoryLog {
     }
 }
 impl TradingMemoryLog {
-
-    pub(crate) async fn setup_match_stats(&self, query: &MemoryQuery) -> anyhow::Result<SetupMatchStats> {
+    pub(crate) async fn setup_match_stats(
+        &self,
+        query: &MemoryQuery,
+    ) -> anyhow::Result<SetupMatchStats> {
         let effective_query_tags = Self::effective_setup_tags(&query.setup_tags);
         if effective_query_tags.is_empty() {
             return Ok(SetupMatchStats::default());
@@ -633,11 +636,10 @@ impl TradingMemoryLog {
             reflection,
         )
         .await?;
-        if let Some(entry) = self
-            .load_entries()
-            .await?
-            .into_iter()
-            .find(|item| item.ticker.eq_ignore_ascii_case(ticker) && item.trade_date == trade_date)
+        if let Some(entry) =
+            self.load_entries().await?.into_iter().find(|item| {
+                item.ticker.eq_ignore_ascii_case(ticker) && item.trade_date == trade_date
+            })
         {
             self.qdrant_upsert_entry(&entry).await?;
         }
@@ -717,7 +719,6 @@ impl TradingMemoryLog {
     }
 }
 impl TradingMemoryLog {
-
     pub async fn batch_update_with_outcomes_async(
         &self,
         updates: &[MemoryOutcomeUpdate],

@@ -128,7 +128,8 @@ impl crate::TaskManager {
             node,
             "persist runtime stage: clone done"
         );
-        self.refresh_structured_report_snapshot(&mut snapshot).await?;
+        self.refresh_structured_report_snapshot(&mut snapshot)
+            .await?;
         tracing::info!(
             task_id = %snapshot.task_id,
             symbol = %snapshot.symbol,
@@ -136,7 +137,9 @@ impl crate::TaskManager {
             node,
             "persist runtime stage: refresh structured report done"
         );
-        self.analysis_store.save_result(&snapshot.task_id, &snapshot).await?;
+        self.analysis_store
+            .save_result(&snapshot.task_id, &snapshot)
+            .await?;
         tracing::info!(
             task_id = %snapshot.task_id,
             symbol = %snapshot.symbol,

@@ -261,7 +261,8 @@ impl GeneratedTraderDecision {
                     blocking_gaps
                 }
             },
-            time_stop_deadline: field("time_stop_deadline").and_then(|v| v.as_str().map(String::from)),
+            time_stop_deadline: field("time_stop_deadline")
+                .and_then(|v| v.as_str().map(String::from)),
             time_stop_reason: field("time_stop_reason").and_then(|v| v.as_str().map(String::from)),
         };
         if result.trader_plan.trim().is_empty() {
@@ -271,12 +272,20 @@ impl GeneratedTraderDecision {
         // clear confirmation_level so rebuild_confirmation_level() derives a
         // different value from other sources (thesis text, anchors, etc.).
         if let (Some(entry), Some(confirm)) = (
-            result.entry_price.as_ref().and_then(parse::normalize_numeric),
-            result.confirmation_level.as_ref().and_then(parse::normalize_numeric),
-        )
-            && entry > 0.0 && confirm > 0.0 && (entry - confirm).abs() / entry.max(confirm) < 0.005 {
-                result.confirmation_level = None;
-            }
+            result
+                .entry_price
+                .as_ref()
+                .and_then(parse::normalize_numeric),
+            result
+                .confirmation_level
+                .as_ref()
+                .and_then(parse::normalize_numeric),
+        ) && entry > 0.0
+            && confirm > 0.0
+            && (entry - confirm).abs() / entry.max(confirm) < 0.005
+        {
+            result.confirmation_level = None;
+        }
         result
     }
 }

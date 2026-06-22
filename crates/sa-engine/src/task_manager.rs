@@ -4,18 +4,38 @@ use chrono::{Datelike, Duration, Local, LocalResult, TimeZone, Utc};
 use tokio::sync::{RwLock, broadcast};
 use tokio::task::AbortHandle;
 
+use crate::checkpoint::TaskCheckpointStore;
 use crate::memory::TradingMemoryLog;
 use crate::memory::cross_collection::CrossCollectionSearcher;
-use crate::checkpoint::TaskCheckpointStore;
 use crate::telemetry::SharedTelemetry;
 
 /// Ordered analysis pipeline steps with progress percentages.
 pub const TASK_STEPS: [(&str, &str, i32); 5] = [
-    ("\u{5e02}\u{573a}\u{5206}\u{6790}", "\u{6293}\u{53d6}\u{884c}\u{60c5}\u{4e0e}\u{6280}\u{672f}\u{6307}\u{6807}", 15),
-    ("\u{57fa}\u{672c}\u{9762}\u{5206}\u{6790}", "\u{6c47}\u{603b}\u{8d22}\u{52a1}\u{4e0e}\u{4f30}\u{503c}\u{4fe1}\u{606f}", 35),
-    ("\u{65b0}\u{95fb}\u{5206}\u{6790}", "\u{63d0}\u{53d6}\u{8fd1}\u{671f}\u{65b0}\u{95fb}\u{548c}\u{4e8b}\u{4ef6}\u{98ce}\u{9669}", 55),
-    ("\u{7814}\u{7a76}\u{51b3}\u{7b56}", "\u{751f}\u{6210}\u{7814}\u{7a76}\u{8ba1}\u{5212}\u{548c}\u{4ea4}\u{6613}\u{5efa}\u{8bae}", 75),
-    ("\u{7ec4}\u{5408}\u{51b3}\u{7b56}", "\u{5f62}\u{6210}\u{6700}\u{7ec8}\u{6295}\u{8d44}\u{7ed3}\u{8bba}\u{548c}\u{62a5}\u{544a}", 90),
+    (
+        "\u{5e02}\u{573a}\u{5206}\u{6790}",
+        "\u{6293}\u{53d6}\u{884c}\u{60c5}\u{4e0e}\u{6280}\u{672f}\u{6307}\u{6807}",
+        15,
+    ),
+    (
+        "\u{57fa}\u{672c}\u{9762}\u{5206}\u{6790}",
+        "\u{6c47}\u{603b}\u{8d22}\u{52a1}\u{4e0e}\u{4f30}\u{503c}\u{4fe1}\u{606f}",
+        35,
+    ),
+    (
+        "\u{65b0}\u{95fb}\u{5206}\u{6790}",
+        "\u{63d0}\u{53d6}\u{8fd1}\u{671f}\u{65b0}\u{95fb}\u{548c}\u{4e8b}\u{4ef6}\u{98ce}\u{9669}",
+        55,
+    ),
+    (
+        "\u{7814}\u{7a76}\u{51b3}\u{7b56}",
+        "\u{751f}\u{6210}\u{7814}\u{7a76}\u{8ba1}\u{5212}\u{548c}\u{4ea4}\u{6613}\u{5efa}\u{8bae}",
+        75,
+    ),
+    (
+        "\u{7ec4}\u{5408}\u{51b3}\u{7b56}",
+        "\u{5f62}\u{6210}\u{6700}\u{7ec8}\u{6295}\u{8d44}\u{7ed3}\u{8bba}\u{548c}\u{62a5}\u{544a}",
+        90,
+    ),
 ];
 
 /// Parameters for running an analysis task.
@@ -127,8 +147,7 @@ pub struct TaskManager {
     pub max_risk_discuss_rounds: usize,
     pub telemetry: SharedTelemetry,
     pub cross_collection: CrossCollectionSearcher,
-    pub broadcasters:
-        Arc<RwLock<HashMap<String, broadcast::Sender<sa_models::TaskEvent>>>>,
+    pub broadcasters: Arc<RwLock<HashMap<String, broadcast::Sender<sa_models::TaskEvent>>>>,
     pub running_tasks: Arc<RwLock<HashMap<String, AbortHandle>>>,
 }
 
@@ -262,11 +281,7 @@ impl TaskManager {
     ///
     /// TODO: In the original codebase this used Redis pub/sub.
     /// With trait-based storage, this needs an event bus trait or similar mechanism.
-    pub async fn publish_task_event(
-        &self,
-        _task_id: &str,
-        _event: &sa_models::TaskEvent,
-    ) {
+    pub async fn publish_task_event(&self, _task_id: &str, _event: &sa_models::TaskEvent) {
         // TODO: Implement cross-instance event publishing using a trait-based approach
     }
 
@@ -299,7 +314,11 @@ impl TaskManager {
         let key =
             Self::analysis_reuse_cache_key(&task.owner_username, &task.symbol, &task.market_type);
         self.cache_store
-            .set(&key, serde_json::to_string(&payload)?.as_bytes(), Some(ttl as u64))
+            .set(
+                &key,
+                serde_json::to_string(&payload)?.as_bytes(),
+                Some(ttl as u64),
+            )
             .await?;
         Ok(())
     }

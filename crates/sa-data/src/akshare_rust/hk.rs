@@ -68,9 +68,7 @@ pub(crate) async fn fetch_return_since(
 // HK spot (Sina)
 // ---------------------------------------------------------------------------
 
-pub(crate) async fn fetch_hk_spot(
-    client: &MarketDataClient,
-) -> anyhow::Result<Vec<HkSpotQuote>> {
+pub(crate) async fn fetch_hk_spot(client: &MarketDataClient) -> anyhow::Result<Vec<HkSpotQuote>> {
     client.ak.stock_hk_spot().await.map_err(Into::into)
 }
 
@@ -88,9 +86,7 @@ pub(crate) async fn fetch_hk_famous_spot(
 // HK hot rank (Eastmoney)
 // ---------------------------------------------------------------------------
 
-pub(crate) async fn fetch_hk_hot_rank(
-    client: &MarketDataClient,
-) -> anyhow::Result<Vec<HkHotRank>> {
+pub(crate) async fn fetch_hk_hot_rank(client: &MarketDataClient) -> anyhow::Result<Vec<HkHotRank>> {
     client.ak.stock_hk_hot_rank().await.map_err(Into::into)
 }
 

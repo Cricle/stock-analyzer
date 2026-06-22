@@ -53,9 +53,8 @@ impl ConsistencyValidator {
         let pv = &mut result.report.probability_view;
 
         // --- Check A: Directional trio sums to ~100% ---
-        let directional_sum = pv.upside_probability_pct
-            + pv.downside_probability_pct
-            + pv.sideways_probability_pct;
+        let directional_sum =
+            pv.upside_probability_pct + pv.downside_probability_pct + pv.sideways_probability_pct;
 
         if directional_sum > 0.0 && (directional_sum - 100.0).abs() > 5.0 {
             let original = format!(
@@ -67,20 +66,15 @@ impl ConsistencyValidator {
             );
 
             let scale = 100.0 / directional_sum;
-            pv.upside_probability_pct =
-                (pv.upside_probability_pct * scale * 10.0).round() / 10.0;
+            pv.upside_probability_pct = (pv.upside_probability_pct * scale * 10.0).round() / 10.0;
             pv.downside_probability_pct =
                 (pv.downside_probability_pct * scale * 10.0).round() / 10.0;
-            pv.sideways_probability_pct = (100.0
-                - pv.upside_probability_pct
-                - pv.downside_probability_pct)
-                .max(0.0);
+            pv.sideways_probability_pct =
+                (100.0 - pv.upside_probability_pct - pv.downside_probability_pct).max(0.0);
 
             let fixed = format!(
                 "up={:.1}%, down={:.1}%, sideways={:.1}%",
-                pv.upside_probability_pct,
-                pv.downside_probability_pct,
-                pv.sideways_probability_pct,
+                pv.upside_probability_pct, pv.downside_probability_pct, pv.sideways_probability_pct,
             );
 
             tracing::warn!(
@@ -520,7 +514,9 @@ impl ConsistencyValidator {
                 .push(ActionScenarioPath {
                     key: "default_hold".to_string(),
                     name: LocalText::new("Observe and Wait"),
-                    trigger: LocalText::new("Wait for clear technical signal or catalyst confirmation"),
+                    trigger: LocalText::new(
+                        "Wait for clear technical signal or catalyst confirmation",
+                    ),
                     action: LocalText::new("Hold observation, no new positions"),
                     risk_boundary: LocalText::new("None"),
                     position_sizing: LocalText::new("0% - Wait for signal confirmation"),
@@ -643,9 +639,8 @@ mod tests {
         assert_eq!(prob_issues.len(), 1);
 
         let pv = &result.report.probability_view;
-        let directional_sum = pv.upside_probability_pct
-            + pv.downside_probability_pct
-            + pv.sideways_probability_pct;
+        let directional_sum =
+            pv.upside_probability_pct + pv.downside_probability_pct + pv.sideways_probability_pct;
         assert!(
             (directional_sum - 100.0).abs() < 2.0,
             "directional trio should sum to ~100, got {}",
@@ -847,12 +842,15 @@ mod tests {
             .iter()
             .filter(|i| i.check_name == "fix_probabilities")
             .collect();
-        assert_eq!(prob_issues.len(), 1, "should trigger directional normalization");
+        assert_eq!(
+            prob_issues.len(),
+            1,
+            "should trigger directional normalization"
+        );
 
         let pv = &result.report.probability_view;
-        let directional_sum = pv.upside_probability_pct
-            + pv.downside_probability_pct
-            + pv.sideways_probability_pct;
+        let directional_sum =
+            pv.upside_probability_pct + pv.downside_probability_pct + pv.sideways_probability_pct;
         assert!(
             (directional_sum - 100.0).abs() < 2.0,
             "directional trio should sum to ~100, got {}",

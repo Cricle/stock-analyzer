@@ -1,5 +1,6 @@
 pub mod stocks;
 pub mod eval;
+pub mod memory_stores;
 
 use serde_json::Value;
 

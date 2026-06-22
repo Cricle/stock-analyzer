@@ -255,6 +255,10 @@ async fn e2e_full_report_aapl() {
 
 /// Run a single stock report and validate the result.
 async fn run_single_stock(symbol: &str, name: &str, market: &str) {
+    run_single_stock_owned(symbol.to_string(), name.to_string(), market.to_string()).await
+}
+
+async fn run_single_stock_owned(symbol: String, name: String, market: String) {
     let (manager, _data_dir) = setup_task_manager().await;
     println!("\n=== Running report for {} ({}) ===", name, symbol);
     let request = sa_models::SingleAnalysisRequest {
@@ -310,4 +314,50 @@ async fn e2e_full_report_sensetime() {
 #[tokio::test]
 async fn e2e_full_report_pltr() {
     run_single_stock("PLTR", "Palantir", "\u{7f8e}\u{80a1}").await;
+}
+
+/// Run all 6 stocks with concurrency limit of 2 (memory-safe for 3.8GB RAM).
+#[tokio::test]
+async fn e2e_full_report_all_parallel() {
+    let stocks: Vec<(String, String, String)> = vec![
+        ("600519".into(), "\u{8d35}\u{5dde}\u{8305}\u{53f0}".into(), "A\u{80a1}".into()),
+        ("688256".into(), "\u{5bd2}\u{6b66}\u{7eaa}".into(), "A\u{80a1}".into()),
+        ("00700".into(), "\u{817e}\u{8baf}\u{63a7}\u{80a1}".into(), "\u{6e2f}\u{80a1}".into()),
+        ("00020".into(), "\u{5546}\u{6c64}\u{79d1}\u{6280}".into(), "\u{6e2f}\u{80a1}".into()),
+        ("AAPL".into(), "Apple".into(), "\u{7f8e}\u{80a1}".into()),
+        ("PLTR".into(), "Palantir".into(), "\u{7f8e}\u{80a1}".into()),
+    ];
+
+    let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(2));
+    let mut handles = Vec::new();
+
+    for (symbol, name, market) in stocks {
+        let permit = semaphore.clone().acquire_owned().await.unwrap();
+        let s = symbol.clone();
+        let n = name.clone();
+        let m = market.clone();
+        let display_sym = symbol.clone();
+        handles.push(tokio::spawn(async move {
+            let result = tokio::task::spawn(run_single_stock_owned(s, n, m)).await;
+            drop(permit);
+            (display_sym, result)
+        }));
+    }
+
+    let mut ok_count = 0;
+    for h in handles {
+        let (symbol, result) = h.await.unwrap();
+        match result {
+            Ok(()) => {
+                println!("  {}: OK", symbol);
+                ok_count += 1;
+            }
+            Err(e) => {
+                println!("  {}: FAILED - {:?}", symbol, e);
+            }
+        }
+    }
+
+    println!("\n=== Results: {}/6 passed ===", ok_count);
+    assert!(ok_count >= 4, "Expected at least 4/6, got {}", ok_count);
 }

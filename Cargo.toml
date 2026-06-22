@@ -5,51 +5,6 @@ resolver = "2"
 [workspace.package]
 edition = "2024"
 license = "MIT"
-description = "Stock analysis engine — CLI and MCP server for market guidance, stock selection, and analysis reports"
-repository = "https://github.com/Cricle/stock-analyzer"
-
-[[bin]]
-name = "sa"
-path = "src/bin/sa.rs"
-
-[features]
-default = []
-
-[dependencies]
-# Core
-adk-graph = { version = "0.8.0" }
-akshare = "0.1.7"
-anyhow = "1"
-async-openai = { version = "0.41", features = ["chat-completion", "model"] }
-async-trait = "0.1"
-backoff = { version = "0.4", features = ["tokio"] }
-calamine = "0.31"
-chrono = { version = "0.4", features = ["serde"] }
-clap = { version = "4", features = ["derive"] }
-futures = "0.3"
-hex = "0.4"
-quick-xml = "0.38"
-regex = "1"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
-rmcp = { version = "0.1", features = ["server", "transport-io", "transport-sse", "transport-sse-server"] }
-schemars = { version = "1", features = ["derive"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-sha2 = "0.10"
-tempfile = "3"
-tokio = { version = "1", features = ["full"] }
-toml = "0.8"
-tokio-stream = "0.1"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
-uuid = { version = "1", features = ["v4"] }
-zeroize = { version = "1", features = ["derive"] }
-
-axum = "0.8"
-rand = "0.8"
-
-[dev-dependencies]
-tracing-subscriber = "0.3"
 
 [package]
 name = "stock-analyzer-tests"
@@ -80,10 +35,3 @@ inherits = "test"
 debug = 0
 incremental = false
 codegen-units = 4
-
-
-[profile.release]
-strip = "symbols"
-lto = "thin"
-debug = 0
-incremental = false

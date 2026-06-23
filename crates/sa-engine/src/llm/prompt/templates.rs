@@ -88,15 +88,6 @@ impl LlmClient {
         format!("Instrument: {symbol}\nMarket: {market_type}")
     }
 
-    #[allow(dead_code)]
-    fn language_label(language: &str) -> &'static str {
-        match language.trim().to_lowercase().as_str() {
-            "en" | "en-us" | "english" => "English",
-            "zh" | "zh-cn" | "chinese" | "zhongwen" => "Simplified Chinese",
-            _ => "Simplified Chinese",
-        }
-    }
-
     fn rating_scale_block() -> &'static str {
         "Rating Scale (use exactly one):
 - Buy: strong conviction to enter or add aggressively

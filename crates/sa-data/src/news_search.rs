@@ -1,7 +1,6 @@
 use std::time::Duration;
 
-#[allow(unused_imports)]
-use anyhow::{Context, bail};
+use anyhow::bail;
 use futures::future::join_all;
 
 use super::news_filter::{
@@ -772,6 +771,7 @@ impl MarketDataClient {
         language: &str,
         time_range: Option<&str>,
     ) -> anyhow::Result<Vec<NewsItem>> {
+        use anyhow::Context;
         let provider = self
             .search_providers
             .iter()

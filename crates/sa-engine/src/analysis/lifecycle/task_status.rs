@@ -18,7 +18,6 @@ fn task_to_summary(task: sa_models::PersistedTask) -> sa_models::AnalysisTaskSum
 }
 
 use chrono::Utc;
-use tokio::sync::broadcast;
 
 use crate::TaskManager;
 use sa_models::{AnalysisResult, ResultStage, TaskStatus, TaskStatusResponse};
@@ -135,17 +134,5 @@ impl TaskManager {
             }
         }
         Ok(result)
-    }
-
-    /// Subscribe to cross-instance event forwarding for a task.
-    ///
-    /// TODO: Previously used Redis pub/sub. With trait-based storage,
-    /// this needs an event bus trait or similar mechanism.
-    #[allow(dead_code)]
-    pub(crate) fn spawn_event_forwarder(
-        _task_id: &str,
-        _sender: broadcast::Sender<sa_models::TaskEvent>,
-    ) {
-        // TODO: Implement cross-instance event forwarding
     }
 }

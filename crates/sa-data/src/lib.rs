@@ -454,4 +454,244 @@ fn rewrite_query_for_gdelt(query: &str, language: &str) -> String {
 
 pub mod news_filter;
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn data_error_kind_as_str() {
+        assert_eq!(DataErrorKind::UnsupportedMarket.as_str(), "unsupported_market");
+        assert_eq!(DataErrorKind::PermissionDenied.as_str(), "permission_denied");
+        assert_eq!(DataErrorKind::Restricted.as_str(), "restricted");
+        assert_eq!(DataErrorKind::MissingCredentials.as_str(), "missing_credentials");
+        assert_eq!(DataErrorKind::NotFound.as_str(), "not_found");
+        assert_eq!(DataErrorKind::Upstream.as_str(), "upstream_error");
+    }
+
+    #[test]
+    fn search_scope_as_str() {
+        assert_eq!(SearchScope::News.as_str(), "news");
+        assert_eq!(SearchScope::General.as_str(), "general");
+    }
+
+    #[test]
+    fn search_provider_searxng_display_name() {
+        let p = SearchProviderConfig::searxng("searxng", "http://localhost:8080");
+        assert_eq!(p.display_name(), "SearXNG News");
+        let p2 = SearchProviderConfig::searxng("mysearch", "http://localhost:8080");
+        assert_eq!(p2.display_name(), "mysearch News");
+    }
+
+    #[test]
+    fn search_provider_gdelt_display_name() {
+        let p = SearchProviderConfig::gdelt("gdelt", "http://api.gdeltproject.org");
+        assert_eq!(p.display_name(), "GDELT News");
+        let p2 = SearchProviderConfig::gdelt("custom", "http://api.gdeltproject.org");
+        assert_eq!(p2.display_name(), "custom News");
+    }
+
+    #[test]
+    fn search_provider_baidu_display_name() {
+        let p = SearchProviderConfig::baidu("baidu");
+        assert_eq!(p.display_name(), "Baidu News");
+    }
+
+    #[test]
+    fn search_provider_uapis_display_name() {
+        let p = SearchProviderConfig::uapis("uapis");
+        assert_eq!(p.display_name(), "Uapis News");
+    }
+
+    #[test]
+    fn search_provider_supports_scope() {
+        let searxng = SearchProviderConfig::searxng("searxng", "http://localhost");
+        assert!(searxng.supports_scope(SearchScope::News));
+        assert!(searxng.supports_scope(SearchScope::General));
+
+        let gdelt = SearchProviderConfig::gdelt("gdelt", "http://gdelt");
+        assert!(gdelt.supports_scope(SearchScope::News));
+        assert!(!gdelt.supports_scope(SearchScope::General));
+
+        let baidu = SearchProviderConfig::baidu("baidu");
+        assert!(baidu.supports_scope(SearchScope::News));
+        assert!(!baidu.supports_scope(SearchScope::General));
+
+        let uapis = SearchProviderConfig::uapis("uapis");
+        assert!(uapis.supports_scope(SearchScope::News));
+        assert!(uapis.supports_scope(SearchScope::General));
+    }
+
+    #[test]
+    fn search_provider_query_budget() {
+        let searxng = SearchProviderConfig::searxng("searxng", "http://localhost");
+        assert_eq!(searxng.query_budget(SearchScope::News), usize::MAX);
+
+        let gdelt = SearchProviderConfig::gdelt("gdelt", "http://gdelt");
+        assert_eq!(gdelt.query_budget(SearchScope::News), 2);
+        assert_eq!(gdelt.query_budget(SearchScope::General), 0);
+
+        let baidu = SearchProviderConfig::baidu("baidu");
+        assert_eq!(baidu.query_budget(SearchScope::News), 3);
+        assert_eq!(baidu.query_budget(SearchScope::General), 0);
+
+        let uapis = SearchProviderConfig::uapis("uapis");
+        assert_eq!(uapis.query_budget(SearchScope::News), usize::MAX);
+    }
+
+    #[test]
+    fn search_provider_cache_scope() {
+        let p = SearchProviderConfig::searxng("SearXNG", "http://localhost:8080/");
+        assert_eq!(p.cache_scope(), "searxng:http://localhost:8080");
+    }
+
+    #[test]
+    fn search_provider_cache_ttl() {
+        let searxng = SearchProviderConfig::searxng("searxng", "http://localhost");
+        assert_eq!(searxng.cache_ttl_secs(), SEARXNG_QUERY_CACHE_TTL_SECS);
+        assert_eq!(searxng.negative_cache_ttl_secs(), SEARXNG_QUERY_NEGATIVE_CACHE_TTL_SECS);
+
+        let uapis = SearchProviderConfig::uapis("uapis");
+        assert_eq!(uapis.cache_ttl_secs(), UAPIS_QUERY_CACHE_TTL_SECS);
+        assert_eq!(uapis.negative_cache_ttl_secs(), UAPIS_QUERY_NEGATIVE_CACHE_TTL_SECS);
+    }
+
+    #[test]
+    fn search_provider_rewrite_query_passthrough() {
+        let searxng = SearchProviderConfig::searxng("searxng", "http://localhost");
+        assert_eq!(searxng.rewrite_query("  hello world  ", "en-US"), "hello world");
+
+        let baidu = SearchProviderConfig::baidu("baidu");
+        assert_eq!(baidu.rewrite_query("  test  ", "zh-CN"), "test");
+
+        let uapis = SearchProviderConfig::uapis("uapis");
+        assert_eq!(uapis.rewrite_query("  test  ", "en-US"), "test");
+    }
+
+    #[test]
+    fn rewrite_query_for_gdelt_basic() {
+        let result = rewrite_query_for_gdelt("Apple Inc stock price", "en-US");
+        assert_eq!(result, "Apple Inc stock price");
+    }
+
+    #[test]
+    fn rewrite_query_for_gdelt_removes_operators() {
+        let result = rewrite_query_for_gdelt("Apple OR Microsoft AND NOT site:example.com", "en-US");
+        assert_eq!(result, "Apple Microsoft");
+    }
+
+    #[test]
+    fn rewrite_query_for_gdelt_truncates_english() {
+        let result = rewrite_query_for_gdelt("one two three four five six seven eight", "en-US");
+        assert_eq!(result, "one two three four five six");
+    }
+
+    #[test]
+    fn rewrite_query_for_gdelt_truncates_chinese() {
+        let result = rewrite_query_for_gdelt("一 二 三 四 五 六 七 八 九 十", "zh-CN");
+        assert_eq!(result, "一 二 三 四 五 六 七 八");
+    }
+
+    #[test]
+    fn rewrite_query_for_gdelt_strips_quotes_and_parens() {
+        let result = rewrite_query_for_gdelt(r#""hello" (world) 'test'"#, "en-US");
+        assert_eq!(result, "hello world test");
+    }
+
+    #[test]
+    fn news_result_cacheable_all_success() {
+        let items = vec![sa_types::NewsItem {
+            title: "test".into(),
+            url: Some("http://test".into()),
+            source: "test".into(),
+            published_at: "2025-01-01".into(),
+            summary: "summary".into(),
+        }];
+        let attempts = vec![sa_types::NewsFetchAttempt {
+            source: "searxng".into(),
+            success: true,
+            item_count: 1,
+            error: None,
+            query: None,
+        }];
+        assert!(news_result_cacheable(&items, &attempts));
+    }
+
+    #[test]
+    fn news_result_cacheable_empty_items() {
+        let items: Vec<sa_types::NewsItem> = vec![];
+        let attempts = vec![sa_types::NewsFetchAttempt {
+            source: "searxng".into(),
+            success: true,
+            item_count: 0,
+            error: None,
+            query: None,
+        }];
+        assert!(!news_result_cacheable(&items, &attempts));
+    }
+
+    #[test]
+    fn news_result_cacheable_has_failure() {
+        let items = vec![sa_types::NewsItem {
+            title: "test".into(),
+            url: Some("http://test".into()),
+            source: "test".into(),
+            published_at: "2025-01-01".into(),
+            summary: "summary".into(),
+        }];
+        let attempts = vec![
+            sa_types::NewsFetchAttempt {
+                source: "searxng".into(),
+                success: true,
+                item_count: 1,
+                error: None,
+                query: None,
+            },
+            sa_types::NewsFetchAttempt {
+                source: "gdelt".into(),
+                success: false,
+                item_count: 0,
+                error: Some("timeout".into()),
+                query: None,
+            },
+        ];
+        assert!(!news_result_cacheable(&items, &attempts));
+    }
+
+    #[test]
+    fn data_error_display() {
+        let err = DataError::new(DataErrorKind::NotFound, "stock not found");
+        assert_eq!(format!("{}", err), "stock not found");
+    }
+
+    #[test]
+    fn f64_to_dec_normal() {
+        let d = f64_to_dec(3.14);
+        assert!((d.to_string().parse::<f64>().unwrap() - 3.14).abs() < 0.001);
+    }
+
+    #[test]
+    fn f64_to_dec_nan() {
+        let d = f64_to_dec(f64::NAN);
+        assert_eq!(d, rust_decimal::Decimal::ZERO);
+    }
+
+    #[test]
+    fn f64_to_dec_infinity() {
+        let d = f64_to_dec(f64::INFINITY);
+        assert_eq!(d, rust_decimal::Decimal::ZERO);
+    }
+
+    #[test]
+    fn opt_f64_to_dec_some() {
+        let d = opt_f64_to_dec(Some(2.5));
+        assert!(d.is_some());
+    }
+
+    #[test]
+    fn opt_f64_to_dec_none() {
+        let d = opt_f64_to_dec(None);
+        assert!(d.is_none());
+    }
+}
+
 pub use news_filter::*;

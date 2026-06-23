@@ -770,3 +770,96 @@ pub(crate) struct SecTickerEntryRaw {
     pub(crate) ticker: String,
     pub(crate) title: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tushare_row_string_field() {
+        let fields = vec!["name".to_string(), "code".to_string()];
+        let items = vec![
+            serde_json::Value::String("Apple".into()),
+            serde_json::Value::String("AAPL".into()),
+        ];
+        let row = TushareRow::new(&fields, items);
+        assert_eq!(row.string("name").unwrap(), "Apple");
+        assert_eq!(row.string("code").unwrap(), "AAPL");
+    }
+
+    #[test]
+    fn tushare_row_string_missing_field() {
+        let row = TushareRow::new(&[], vec![]);
+        assert!(row.string("missing").is_err());
+    }
+
+    #[test]
+    fn tushare_row_optional_string_number() {
+        let fields = vec!["count".to_string()];
+        let items = vec![serde_json::Value::Number(serde_json::Number::from(42))];
+        let row = TushareRow::new(&fields, items);
+        assert_eq!(row.optional_string("count").unwrap(), "42");
+    }
+
+    #[test]
+    fn tushare_row_optional_string_null() {
+        let fields = vec!["val".to_string()];
+        let items = vec![serde_json::Value::Null];
+        let row = TushareRow::new(&fields, items);
+        assert!(row.optional_string("val").is_none());
+    }
+
+    #[test]
+    fn tushare_row_optional_string_missing() {
+        let row = TushareRow::new(&[], vec![]);
+        assert!(row.optional_string("x").is_none());
+    }
+
+    #[test]
+    fn tushare_row_f64_from_number() {
+        let fields = vec!["price".to_string()];
+        let items = vec![serde_json::Value::Number(
+            serde_json::Number::from_f64(123.45).unwrap(),
+        )];
+        let row = TushareRow::new(&fields, items);
+        assert!((row.f64("price").unwrap() - 123.45).abs() < 0.001);
+    }
+
+    #[test]
+    fn tushare_row_f64_from_string() {
+        let fields = vec!["price".to_string()];
+        let items = vec![serde_json::Value::String("99.5".into())];
+        let row = TushareRow::new(&fields, items);
+        assert!((row.f64("price").unwrap() - 99.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn tushare_row_f64_missing() {
+        let row = TushareRow::new(&[], vec![]);
+        assert!(row.f64("x").is_err());
+    }
+
+    #[test]
+    fn tushare_row_optional_f64_null() {
+        let fields = vec!["val".to_string()];
+        let items = vec![serde_json::Value::Null];
+        let row = TushareRow::new(&fields, items);
+        assert!(row.optional_f64("val").is_none());
+    }
+
+    #[test]
+    fn tushare_row_optional_f64_invalid_string() {
+        let fields = vec!["val".to_string()];
+        let items = vec![serde_json::Value::String("not_a_number".into())];
+        let row = TushareRow::new(&fields, items);
+        assert!(row.optional_f64("val").is_none());
+    }
+
+    #[test]
+    fn tushare_row_bool_value() {
+        let fields = vec!["flag".to_string()];
+        let items = vec![serde_json::Value::Bool(true)];
+        let row = TushareRow::new(&fields, items);
+        assert_eq!(row.optional_string("flag").unwrap(), "true");
+    }
+}

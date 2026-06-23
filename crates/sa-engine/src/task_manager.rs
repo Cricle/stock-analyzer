@@ -202,20 +202,6 @@ impl TaskManager {
         &self.market_data
     }
 
-    /// Get the LLM timeout in seconds, falling back to 180s.
-    #[allow(dead_code)]
-    fn llm_timeout_secs(&self) -> u64 {
-        self.llm_template
-            .as_ref()
-            .map(|client| client.timeout.as_secs())
-            .or_else(|| {
-                self.llm_client
-                    .as_ref()
-                    .map(|client| client.timeout.as_secs())
-            })
-            .unwrap_or(180)
-    }
-
     /// Resolve an LLM client for the given task parameters.
     pub async fn resolve_llm_client(
         &self,

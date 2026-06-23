@@ -70,7 +70,12 @@ mod prewarm_tests {
     fn generate_prewarm_tasks_ticker_counts() {
         let tasks = generate_prewarm_tasks();
         for task in &tasks {
-            assert_eq!(task.tickers.len(), 5, "{} should have 5 tickers", task.market);
+            assert_eq!(
+                task.tickers.len(),
+                5,
+                "{} should have 5 tickers",
+                task.market
+            );
         }
     }
 

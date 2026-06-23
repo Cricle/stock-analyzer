@@ -1113,22 +1113,38 @@ mod news_filter_tests {
 
     #[test]
     fn within_date_window_empty_date() {
-        assert!(within_date_window("", Some("2025-01-01"), Some("2025-12-31")));
+        assert!(within_date_window(
+            "",
+            Some("2025-01-01"),
+            Some("2025-12-31")
+        ));
     }
 
     #[test]
     fn within_date_window_in_range() {
-        assert!(within_date_window("2025-06-15", Some("2025-01-01"), Some("2025-12-31")));
+        assert!(within_date_window(
+            "2025-06-15",
+            Some("2025-01-01"),
+            Some("2025-12-31")
+        ));
     }
 
     #[test]
     fn within_date_window_before_start() {
-        assert!(!within_date_window("2024-06-15", Some("2025-01-01"), Some("2025-12-31")));
+        assert!(!within_date_window(
+            "2024-06-15",
+            Some("2025-01-01"),
+            Some("2025-12-31")
+        ));
     }
 
     #[test]
     fn within_date_window_after_end() {
-        assert!(!within_date_window("2026-06-15", Some("2025-01-01"), Some("2025-12-31")));
+        assert!(!within_date_window(
+            "2026-06-15",
+            Some("2025-01-01"),
+            Some("2025-12-31")
+        ));
     }
 
     #[test]
@@ -1201,19 +1217,27 @@ mod news_filter_tests {
     #[test]
     fn title_is_reference_overview_true() {
         assert!(title_is_reference_or_overview_page("stockoverview", ""));
-        assert!(title_is_reference_or_overview_page("", "engagesinthedesigndevelopmentmanufactureandsale"));
+        assert!(title_is_reference_or_overview_page(
+            "",
+            "engagesinthedesigndevelopmentmanufactureandsale"
+        ));
     }
 
     #[test]
     fn title_is_reference_overview_false() {
-        assert!(!title_is_reference_or_overview_page("earningsreport", "quarterlyresults"));
+        assert!(!title_is_reference_or_overview_page(
+            "earningsreport",
+            "quarterlyresults"
+        ));
     }
 
     // --- url_is_quote_or_overview_page ---
 
     #[test]
     fn url_is_quote_yahoo() {
-        assert!(url_is_quote_or_overview_page("https://finance.yahoo.com/quote/AAPL"));
+        assert!(url_is_quote_or_overview_page(
+            "https://finance.yahoo.com/quote/AAPL"
+        ));
     }
 
     #[test]
@@ -1295,10 +1319,7 @@ mod news_filter_tests {
 
     #[test]
     fn high_value_event_chinese() {
-        assert!(title_or_summary_has_high_value_company_event(
-            "财报",
-            ""
-        ));
+        assert!(title_or_summary_has_high_value_company_event("财报", ""));
     }
 
     #[test]
@@ -1382,13 +1403,7 @@ mod news_filter_tests {
             published_at: "2020-01-01".to_string(),
             summary: "".to_string(),
         }];
-        let result = merge_ranked_news(
-            items,
-            10,
-            Some("2025-01-01"),
-            Some("2025-12-31"),
-            &[],
-        );
+        let result = merge_ranked_news(items, 10, Some("2025-01-01"), Some("2025-12-31"), &[]);
         assert_eq!(result.len(), 0);
     }
 
@@ -1431,7 +1446,10 @@ mod news_filter_tests {
 
     #[test]
     fn gdelt_timestamp_non_digit() {
-        assert_eq!(gdelt_timestamp_to_published_at("2026010100000x"), "2026010100000x");
+        assert_eq!(
+            gdelt_timestamp_to_published_at("2026010100000x"),
+            "2026010100000x"
+        );
     }
 
     // --- extract_site_name_from_url ---

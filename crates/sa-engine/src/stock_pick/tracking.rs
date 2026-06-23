@@ -180,7 +180,12 @@ pub struct AlphaTrackingEntry {
 mod tracking_tests {
     use super::*;
 
-    fn make_record(id: &str, status: &str, alpha: Option<f64>, manual: Option<f64>) -> AlphaTrackingRecord {
+    fn make_record(
+        id: &str,
+        status: &str,
+        alpha: Option<f64>,
+        manual: Option<f64>,
+    ) -> AlphaTrackingRecord {
         AlphaTrackingRecord {
             id: id.into(),
             run_id: "run-1".into(),

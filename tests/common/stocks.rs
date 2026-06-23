@@ -52,5 +52,3 @@ pub const TEST_STOCKS: &[TestStock] = &[
         is_famous: false,
     },
 ];
-
-

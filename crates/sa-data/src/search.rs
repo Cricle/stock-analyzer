@@ -627,7 +627,10 @@ mod search_tests {
 
     #[test]
     fn excel_cell_string_string() {
-        assert_eq!(excel_cell_string(Some(&Data::String("hello".into()))), "hello");
+        assert_eq!(
+            excel_cell_string(Some(&Data::String("hello".into()))),
+            "hello"
+        );
     }
 
     #[test]

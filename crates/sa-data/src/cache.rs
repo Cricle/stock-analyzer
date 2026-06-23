@@ -571,7 +571,10 @@ mod tests {
 
     #[test]
     fn normalize_optional_query_empty() {
-        assert_eq!(MarketDataClient::normalize_optional_query(Some("   ")), None);
+        assert_eq!(
+            MarketDataClient::normalize_optional_query(Some("   ")),
+            None
+        );
     }
 
     #[test]

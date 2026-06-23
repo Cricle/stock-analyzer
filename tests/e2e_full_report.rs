@@ -60,14 +60,16 @@ fn load_llm_config() -> Option<LlmConfig> {
     }
 
     // Fall back to environment variables
-    let base_url = match std::env::var("ANTHROPIC_BASE_URL").or_else(|_| std::env::var("LLM_BASE_URL")) {
-        Ok(v) => v,
-        Err(_) => return None,
-    };
-    let api_key = match std::env::var("ANTHROPIC_AUTH_TOKEN").or_else(|_| std::env::var("LLM_API_KEY")) {
-        Ok(v) => v,
-        Err(_) => return None,
-    };
+    let base_url =
+        match std::env::var("ANTHROPIC_BASE_URL").or_else(|_| std::env::var("LLM_BASE_URL")) {
+            Ok(v) => v,
+            Err(_) => return None,
+        };
+    let api_key =
+        match std::env::var("ANTHROPIC_AUTH_TOKEN").or_else(|_| std::env::var("LLM_API_KEY")) {
+            Ok(v) => v,
+            Err(_) => return None,
+        };
     let model = std::env::var("ANTHROPIC_MODEL")
         .or_else(|_| std::env::var("LLM_MODEL"))
         .unwrap_or_else(|_| "claude-sonnet-4-20250514".to_string());

@@ -476,10 +476,19 @@ mod tests {
 
     #[test]
     fn data_error_kind_as_str() {
-        assert_eq!(DataErrorKind::UnsupportedMarket.as_str(), "unsupported_market");
-        assert_eq!(DataErrorKind::PermissionDenied.as_str(), "permission_denied");
+        assert_eq!(
+            DataErrorKind::UnsupportedMarket.as_str(),
+            "unsupported_market"
+        );
+        assert_eq!(
+            DataErrorKind::PermissionDenied.as_str(),
+            "permission_denied"
+        );
         assert_eq!(DataErrorKind::Restricted.as_str(), "restricted");
-        assert_eq!(DataErrorKind::MissingCredentials.as_str(), "missing_credentials");
+        assert_eq!(
+            DataErrorKind::MissingCredentials.as_str(),
+            "missing_credentials"
+        );
         assert_eq!(DataErrorKind::NotFound.as_str(), "not_found");
         assert_eq!(DataErrorKind::Upstream.as_str(), "upstream_error");
     }
@@ -564,17 +573,26 @@ mod tests {
     fn search_provider_cache_ttl() {
         let searxng = SearchProviderConfig::searxng("searxng", "http://localhost");
         assert_eq!(searxng.cache_ttl_secs(), SEARXNG_QUERY_CACHE_TTL_SECS);
-        assert_eq!(searxng.negative_cache_ttl_secs(), SEARXNG_QUERY_NEGATIVE_CACHE_TTL_SECS);
+        assert_eq!(
+            searxng.negative_cache_ttl_secs(),
+            SEARXNG_QUERY_NEGATIVE_CACHE_TTL_SECS
+        );
 
         let uapis = SearchProviderConfig::uapis("uapis");
         assert_eq!(uapis.cache_ttl_secs(), UAPIS_QUERY_CACHE_TTL_SECS);
-        assert_eq!(uapis.negative_cache_ttl_secs(), UAPIS_QUERY_NEGATIVE_CACHE_TTL_SECS);
+        assert_eq!(
+            uapis.negative_cache_ttl_secs(),
+            UAPIS_QUERY_NEGATIVE_CACHE_TTL_SECS
+        );
     }
 
     #[test]
     fn search_provider_rewrite_query_passthrough() {
         let searxng = SearchProviderConfig::searxng("searxng", "http://localhost");
-        assert_eq!(searxng.rewrite_query("  hello world  ", "en-US"), "hello world");
+        assert_eq!(
+            searxng.rewrite_query("  hello world  ", "en-US"),
+            "hello world"
+        );
 
         let baidu = SearchProviderConfig::baidu("baidu");
         assert_eq!(baidu.rewrite_query("  test  ", "zh-CN"), "test");
@@ -591,7 +609,8 @@ mod tests {
 
     #[test]
     fn rewrite_query_for_gdelt_removes_operators() {
-        let result = rewrite_query_for_gdelt("Apple OR Microsoft AND NOT site:example.com", "en-US");
+        let result =
+            rewrite_query_for_gdelt("Apple OR Microsoft AND NOT site:example.com", "en-US");
         assert_eq!(result, "Apple Microsoft");
     }
 

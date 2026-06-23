@@ -107,7 +107,11 @@ mod embedding_tests {
     fn hash_embed_is_normalized() {
         let vec = hash_embed("hello world", 128);
         let norm: f32 = vec.iter().map(|v| v * v).sum::<f32>().sqrt();
-        assert!((norm - 1.0).abs() < 0.01, "expected unit norm, got {}", norm);
+        assert!(
+            (norm - 1.0).abs() < 0.01,
+            "expected unit norm, got {}",
+            norm
+        );
     }
 
     #[test]

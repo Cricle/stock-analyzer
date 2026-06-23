@@ -224,10 +224,22 @@ mod task_tests {
 
     #[test]
     fn step_status_json_values() {
-        assert_eq!(serde_json::to_string(&StepStatus::Pending).unwrap(), "\"pending\"");
-        assert_eq!(serde_json::to_string(&StepStatus::Active).unwrap(), "\"active\"");
-        assert_eq!(serde_json::to_string(&StepStatus::Success).unwrap(), "\"success\"");
-        assert_eq!(serde_json::to_string(&StepStatus::Error).unwrap(), "\"error\"");
+        assert_eq!(
+            serde_json::to_string(&StepStatus::Pending).unwrap(),
+            "\"pending\""
+        );
+        assert_eq!(
+            serde_json::to_string(&StepStatus::Active).unwrap(),
+            "\"active\""
+        );
+        assert_eq!(
+            serde_json::to_string(&StepStatus::Success).unwrap(),
+            "\"success\""
+        );
+        assert_eq!(
+            serde_json::to_string(&StepStatus::Error).unwrap(),
+            "\"error\""
+        );
     }
 
     // --- ResultStage ---

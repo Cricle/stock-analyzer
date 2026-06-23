@@ -548,7 +548,10 @@ mod tests {
 
     #[test]
     fn bucket_signed_score_first_range() {
-        assert_eq!(bucket_signed_score(Some(-30), &[-40, -20, 20, 40]), "-40..-21");
+        assert_eq!(
+            bucket_signed_score(Some(-30), &[-40, -20, 20, 40]),
+            "-40..-21"
+        );
     }
 
     #[test]
@@ -566,13 +569,19 @@ mod tests {
     #[test]
     fn extract_labeled_block_meta() {
         let text = "META:\n{\"rating\":\"Buy\"}\n\nDECISION:\nhold\n";
-        assert_eq!(extract_labeled_block(text, "META"), Some("{\"rating\":\"Buy\"}\n"));
+        assert_eq!(
+            extract_labeled_block(text, "META"),
+            Some("{\"rating\":\"Buy\"}\n")
+        );
     }
 
     #[test]
     fn extract_labeled_block_decision() {
         let text = "META:\nmeta content\n\nDECISION:\ndecision content\n\nREFLECTION:\nreflect\n";
-        assert_eq!(extract_labeled_block(text, "DECISION"), Some("decision content\n"));
+        assert_eq!(
+            extract_labeled_block(text, "DECISION"),
+            Some("decision content\n")
+        );
     }
 
     #[test]

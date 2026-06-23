@@ -522,3 +522,184 @@ impl MarketDataClient {
             .collect())
     }
 }
+
+#[cfg(test)]
+mod search_tests {
+    use super::*;
+
+    // --- search_market_kind ---
+
+    #[test]
+    fn search_market_kind_a_share() {
+        assert_eq!(search_market_kind("A股"), MarketKind::AShare);
+        assert_eq!(search_market_kind("a_share"), MarketKind::AShare);
+        assert_eq!(search_market_kind("cn"), MarketKind::AShare);
+    }
+
+    #[test]
+    fn search_market_kind_hong_kong() {
+        assert_eq!(search_market_kind("港股"), MarketKind::HongKong);
+        assert_eq!(search_market_kind("hk"), MarketKind::HongKong);
+        assert_eq!(search_market_kind("hong_kong"), MarketKind::HongKong);
+    }
+
+    #[test]
+    fn search_market_kind_us() {
+        assert_eq!(search_market_kind("美股"), MarketKind::UsEquity);
+        assert_eq!(search_market_kind("us"), MarketKind::UsEquity);
+        assert_eq!(search_market_kind("unknown"), MarketKind::UsEquity);
+    }
+
+    // --- market_to_eastmoney_label ---
+
+    #[test]
+    fn market_to_eastmoney_label_all() {
+        assert_eq!(market_to_eastmoney_label("A股"), "A股");
+        assert_eq!(market_to_eastmoney_label("港股"), "港股");
+        assert_eq!(market_to_eastmoney_label("美股"), "美股");
+    }
+
+    // --- stock_market_key ---
+
+    #[test]
+    fn stock_market_key_all() {
+        assert_eq!(stock_market_key("A股"), "a_share");
+        assert_eq!(stock_market_key("港股"), "hk_equity");
+        assert_eq!(stock_market_key("美股"), "us_equity");
+    }
+
+    // --- normalize_search_text ---
+
+    #[test]
+    fn normalize_search_text_basic() {
+        assert_eq!(normalize_search_text("AAPL"), "aapl");
+    }
+
+    #[test]
+    fn normalize_search_text_strips_whitespace() {
+        assert_eq!(normalize_search_text("AA PL"), "aapl");
+    }
+
+    #[test]
+    fn normalize_search_text_strips_special() {
+        assert_eq!(normalize_search_text("AA-PL_US.A"), "aaplusa");
+    }
+
+    #[test]
+    fn normalize_search_text_chinese() {
+        assert_eq!(normalize_search_text("贵州茅台"), "贵州茅台");
+    }
+
+    // --- preferred_search_language_for_query ---
+
+    #[test]
+    fn preferred_search_language_chinese() {
+        assert_eq!(preferred_search_language_for_query("贵州茅台"), "zh-CN");
+    }
+
+    #[test]
+    fn preferred_search_language_english() {
+        assert_eq!(preferred_search_language_for_query("AAPL"), "en-US");
+    }
+
+    #[test]
+    fn preferred_search_language_mixed() {
+        // Chinese takes priority
+        assert_eq!(preferred_search_language_for_query("AAPL贵州"), "zh-CN");
+    }
+
+    #[test]
+    fn preferred_search_language_numeric() {
+        assert_eq!(preferred_search_language_for_query("600519"), "all");
+    }
+
+    // --- is_cjk_character ---
+
+    #[test]
+    fn is_cjk_character_basic() {
+        assert!(is_cjk_character('中'));
+        assert!(is_cjk_character('文'));
+        assert!(!is_cjk_character('A'));
+        assert!(!is_cjk_character('1'));
+    }
+
+    // --- excel_cell_string ---
+
+    #[test]
+    fn excel_cell_string_string() {
+        assert_eq!(excel_cell_string(Some(&Data::String("hello".into()))), "hello");
+    }
+
+    #[test]
+    fn excel_cell_string_float_integer() {
+        assert_eq!(excel_cell_string(Some(&Data::Float(42.0))), "42");
+    }
+
+    #[test]
+    fn excel_cell_string_float_decimal() {
+        let result = excel_cell_string(Some(&Data::Float(3.14)));
+        assert!(result.contains("3.14"));
+    }
+
+    #[test]
+    fn excel_cell_string_int() {
+        assert_eq!(excel_cell_string(Some(&Data::Int(42))), "42");
+    }
+
+    #[test]
+    fn excel_cell_string_bool() {
+        assert_eq!(excel_cell_string(Some(&Data::Bool(true))), "Y");
+        assert_eq!(excel_cell_string(Some(&Data::Bool(false))), "");
+    }
+
+    #[test]
+    fn excel_cell_string_none() {
+        assert_eq!(excel_cell_string(None), "");
+    }
+
+    // --- is_preferred_equity_listing ---
+
+    #[test]
+    fn is_preferred_equity_listing_normal() {
+        let item = StockSearchResult {
+            symbol: "0700".into(),
+            name: "TENCENT".into(),
+            market: "港股".into(),
+            exchange: "HKEX".into(),
+        };
+        assert!(is_preferred_equity_listing(&item));
+    }
+
+    #[test]
+    fn is_preferred_equity_listing_warrant() {
+        let item = StockSearchResult {
+            symbol: "12345".into(),
+            name: "TEST WR".into(),
+            market: "港股".into(),
+            exchange: "HKEX".into(),
+        };
+        assert!(!is_preferred_equity_listing(&item));
+    }
+
+    #[test]
+    fn is_preferred_equity_listing_bull() {
+        let item = StockSearchResult {
+            symbol: "12345".into(),
+            name: "TEST BULL".into(),
+            market: "港股".into(),
+            exchange: "HKEX".into(),
+        };
+        assert!(!is_preferred_equity_listing(&item));
+    }
+
+    #[test]
+    fn is_preferred_equity_listing_us_always_preferred() {
+        let item = StockSearchResult {
+            symbol: "AAPL".into(),
+            name: "Apple Inc".into(),
+            market: "美股".into(),
+            exchange: "NASDAQ".into(),
+        };
+        assert!(is_preferred_equity_listing(&item));
+    }
+}

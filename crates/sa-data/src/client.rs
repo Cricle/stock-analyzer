@@ -395,7 +395,7 @@ impl MarketDataClient {
         }.instrument(span).await
     }
 
-    /// Batch fetch quotes for multiple symbols. Returns (symbol, Option<QuoteSnapshot>).
+    /// Batch fetch quotes for multiple symbols. Returns (symbol, `Option<QuoteSnapshot>`).
     /// Cache hits are returned from Redis MGET; misses are fetched concurrently via akshare.
     pub async fn fetch_quotes_batch(
         &self,

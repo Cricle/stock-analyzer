@@ -525,7 +525,7 @@ impl StructuredReport {
         Self {
             report_flavor: ReportFlavor::Execution,
             title: format!("{} / {}", result.symbol, result.stock_name).into(),
-            summary: portfolio_decision.executive_summary.clone().into(),
+            summary: portfolio_decision.executive_summary.clone(),
             recommendation: calibration.final_rating.into(),
             raw_llm_recommendation,
             recommendation_calibration_reason: calibration_rationale.key,

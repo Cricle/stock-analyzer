@@ -915,9 +915,9 @@ mod snapshots {
         if let Some((amount_str, rest)) = lower.split_once(' ') {
             if let Ok(amount) = amount_str.parse::<i64>() {
                 let now = Utc::now().date_naive();
-                if rest.starts_with("minute") || rest.starts_with("min") {
-                    return Some(now);
-                } else if rest.starts_with("hour") || rest.starts_with("hr") {
+                if rest.starts_with("minute") || rest.starts_with("min")
+                    || rest.starts_with("hour") || rest.starts_with("hr")
+                {
                     return Some(now);
                 } else if rest.starts_with("day") {
                     return Some(now - chrono::Duration::days(amount));

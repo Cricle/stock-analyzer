@@ -326,7 +326,7 @@ impl MarketDataClient {
         };
         // Tencent kline API rejects requests with limit > 2000 ("param error").
         // Cap to 2000; the API returns all available data up to the limit.
-        let capped_limit = limit.min(2000).max(5);
+        let capped_limit = limit.clamp(5, 2000);
         let response = self
             .http
             .get("https://web.ifzq.gtimg.cn/appstock/app/fqkline/get")
@@ -1099,8 +1099,7 @@ impl MarketDataClient {
             .unwrap_or_default();
         let search_match = search_items
             .drain(..)
-            .find(|item| item.symbol == symbol.trim())
-            .or_else(|| None);
+            .find(|item| item.symbol == symbol.trim());
         let info = self.fetch_a_share_individual_info(symbol).await.ok();
         let quote = self.fetch_a_share_quote_from_eastmoney(symbol).await.ok();
         let quote_market_cap = self
@@ -1487,7 +1486,7 @@ impl MarketDataClient {
         let eastmoney_result = self.fetch_a_share_eastmoney_news(ts_code, limit).await;
         let has_eastmoney = eastmoney_result
             .as_ref()
-            .map_or(false, |items| !items.is_empty());
+            .is_ok_and(|items| !items.is_empty());
 
         let search_timeout_secs = if has_eastmoney { 6 } else { 12 };
         let (google_items, google_attempts) = match tokio::time::timeout(

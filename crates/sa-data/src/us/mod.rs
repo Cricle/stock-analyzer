@@ -582,7 +582,7 @@ impl MarketDataClient {
             let existing_titles: std::collections::HashSet<String> =
                 items.iter().map(|i| i.title.to_lowercase()).collect();
             let mut bing_added = 0usize;
-            let bing_queries = vec![
+            let bing_queries = [
                 format!("{} stock news", symbol),
                 format!("{} stock", company_name),
             ];

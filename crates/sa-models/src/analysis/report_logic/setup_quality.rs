@@ -188,7 +188,7 @@ fn related_gap_items(item: &ReportDiagnosticItem, pool: &[String]) -> Vec<String
         .map(|entry| (entry, score_related_gap_match(&tokens, entry)))
         .filter(|(_, score)| *score > 0)
         .collect::<Vec<_>>();
-    ranked.sort_by(|left, right| right.1.cmp(&left.1));
+    ranked.sort_by_key(|right| std::cmp::Reverse(right.1));
     ranked
         .into_iter()
         .take(2)

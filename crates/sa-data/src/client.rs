@@ -218,16 +218,16 @@ impl MarketDataClient {
             if let Some(data_error) = cause.downcast_ref::<DataError>() {
                 return data_error.kind.as_str();
             }
-            if let Some(reqwest_error) = cause.downcast_ref::<reqwest::Error>() {
-                if let Some(status) = reqwest_error.status() {
-                    return match status {
-                        reqwest::StatusCode::FORBIDDEN | reqwest::StatusCode::UNAUTHORIZED => {
-                            DataErrorKind::Restricted.as_str()
-                        }
-                        reqwest::StatusCode::NOT_FOUND => DataErrorKind::NotFound.as_str(),
-                        _ => DataErrorKind::Upstream.as_str(),
-                    };
-                }
+            if let Some(reqwest_error) = cause.downcast_ref::<reqwest::Error>()
+                && let Some(status) = reqwest_error.status()
+            {
+                return match status {
+                    reqwest::StatusCode::FORBIDDEN | reqwest::StatusCode::UNAUTHORIZED => {
+                        DataErrorKind::Restricted.as_str()
+                    }
+                    reqwest::StatusCode::NOT_FOUND => DataErrorKind::NotFound.as_str(),
+                    _ => DataErrorKind::Upstream.as_str(),
+                };
             }
         }
         DataErrorKind::Upstream.as_str()

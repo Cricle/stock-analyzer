@@ -1,3 +1,19 @@
+#![allow(
+    clippy::collapsible_if,
+    clippy::let_and_return,
+    clippy::type_complexity,
+    clippy::redundant_closure,
+    clippy::needless_question_mark,
+    clippy::unnecessary_lazy_evaluations,
+    clippy::manual_contains,
+    clippy::unnecessary_map_or,
+    clippy::manual_clamp,
+    clippy::too_many_arguments,
+    clippy::unnecessary_sort_by,
+    clippy::useless_conversion,
+    clippy::manual_is_ascii_check
+)]
+
 use std::fmt;
 
 use rust_decimal::Decimal;

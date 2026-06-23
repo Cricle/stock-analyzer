@@ -701,7 +701,7 @@ fn extract_baidu_source(html: &str) -> Option<(String, String)> {
             let text = decode_html_entities(&text);
             if !text.trim().is_empty() {
                 // Try to split "source time" patterns
-                let parts: Vec<&str> = text.trim().split_whitespace().collect();
+                let parts: Vec<&str> = text.split_whitespace().collect();
                 if let Some(last) = parts.last().filter(|_| parts.len() >= 2) {
                     if last.contains('-') || last.contains(':') {
                         let source = parts[..parts.len() - 1].join(" ");

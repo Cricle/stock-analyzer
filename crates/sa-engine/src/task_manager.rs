@@ -422,3 +422,71 @@ fn seconds_until_local_midnight() -> i64 {
         };
     (next_midnight - now).num_seconds().max(1)
 }
+
+#[cfg(test)]
+mod task_manager_tests {
+    use super::*;
+
+    #[test]
+    fn memory_snapshot_from_bundle_maps_fields() {
+        let bundle = crate::memory::MemoryContextBundleWithTags {
+            context_text: "test context".into(),
+            source: "vector".into(),
+            retrieval_mode: "hybrid".into(),
+            embedding_provider: "openai".into(),
+            embedding_failure_reason: None,
+            same_ticker_count: 3,
+            cross_ticker_count: 5,
+            vector_hit_count: 8,
+            effective_top_k: 10,
+            same_ticker_highlights: vec![],
+            cross_ticker_highlights: vec![],
+            setup_tags: vec!["trend".into()],
+            used_setup_filtered_retrieval: true,
+            used_setup_fallback_calibration: false,
+            setup_calibration_sample_count: 10,
+            setup_match_count: 5,
+            setup_pending_match_count: 2,
+            setup_resolved_match_count: 3,
+            setup_match_hit_rate: 0.7,
+            setup_match_avg_alpha_return: 0.05,
+            setup_long_match_count: 4,
+            setup_short_match_count: 1,
+            setup_neutral_match_count: 0,
+        };
+        let snapshot = memory_snapshot_from_bundle(&bundle);
+        assert_eq!(snapshot.source, "vector");
+        assert_eq!(snapshot.retrieval_mode, "hybrid");
+        assert_eq!(snapshot.same_ticker_count, 3);
+        assert_eq!(snapshot.cross_ticker_count, 5);
+        assert_eq!(snapshot.vector_hit_count, 8);
+        assert!(snapshot.used_setup_filtered_retrieval);
+        assert_eq!(snapshot.setup_match_hit_rate, 0.7);
+    }
+
+    #[test]
+    fn memory_snapshot_from_bundle_truncates_context() {
+        let long_text = "x".repeat(2000);
+        let bundle = crate::memory::MemoryContextBundleWithTags {
+            context_text: long_text,
+            ..Default::default()
+        };
+        let snapshot = memory_snapshot_from_bundle(&bundle);
+        assert_eq!(snapshot.context_excerpt.len(), 1200);
+    }
+
+    #[test]
+    fn memory_snapshot_from_bundle_default_bundle() {
+        let bundle = crate::memory::MemoryContextBundleWithTags::default();
+        let snapshot = memory_snapshot_from_bundle(&bundle);
+        assert!(snapshot.source.is_empty());
+        assert_eq!(snapshot.same_ticker_count, 0);
+    }
+
+    #[test]
+    fn seconds_until_local_midnight_positive() {
+        let result = seconds_until_local_midnight();
+        assert!(result > 0, "expected positive seconds, got {}", result);
+        assert!(result <= 86400, "expected <= 86400 seconds, got {}", result);
+    }
+}

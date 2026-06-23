@@ -1096,4 +1096,450 @@ mod news_filter_tests {
     fn normalize_news_text_whitespace() {
         assert_eq!(normalize_news_text("  a  b  c  "), "abc");
     }
+
+    // --- build_dated_news_query ---
+
+    #[test]
+    fn build_dated_news_query_basic() {
+        assert_eq!(build_dated_news_query("Apple Inc", None, None), "Apple Inc");
+    }
+
+    #[test]
+    fn build_dated_news_query_trims() {
+        assert_eq!(build_dated_news_query("  hello  ", None, None), "hello");
+    }
+
+    // --- within_date_window ---
+
+    #[test]
+    fn within_date_window_empty_date() {
+        assert!(within_date_window("", Some("2025-01-01"), Some("2025-12-31")));
+    }
+
+    #[test]
+    fn within_date_window_in_range() {
+        assert!(within_date_window("2025-06-15", Some("2025-01-01"), Some("2025-12-31")));
+    }
+
+    #[test]
+    fn within_date_window_before_start() {
+        assert!(!within_date_window("2024-06-15", Some("2025-01-01"), Some("2025-12-31")));
+    }
+
+    #[test]
+    fn within_date_window_after_end() {
+        assert!(!within_date_window("2026-06-15", Some("2025-01-01"), Some("2025-12-31")));
+    }
+
+    #[test]
+    fn within_date_window_no_bounds() {
+        assert!(within_date_window("2025-06-15", None, None));
+    }
+
+    #[test]
+    fn within_date_window_only_start() {
+        assert!(within_date_window("2025-06-15", Some("2025-01-01"), None));
+        assert!(!within_date_window("2024-06-15", Some("2025-01-01"), None));
+    }
+
+    #[test]
+    fn within_date_window_only_end() {
+        assert!(within_date_window("2025-06-15", None, Some("2025-12-31")));
+        assert!(!within_date_window("2026-06-15", None, Some("2025-12-31")));
+    }
+
+    // --- news_search_dedup_key ---
+
+    #[test]
+    fn news_search_dedup_key_basic() {
+        let item = NewsItem {
+            title: "Apple Reports Earnings".to_string(),
+            source: "Reuters".to_string(),
+            url: Some("http://example.com".to_string()),
+            published_at: "2025-01-15".to_string(),
+            summary: "Summary".to_string(),
+        };
+        let key = news_search_dedup_key(&item);
+        assert!(key.contains("apple reports earnings"));
+        assert!(key.contains("reuters"));
+    }
+
+    // --- source_priority ---
+
+    #[test]
+    fn source_priority_reuters() {
+        assert!(source_priority("Reuters") > 0);
+    }
+
+    #[test]
+    fn source_priority_bloomberg() {
+        assert!(source_priority("Bloomberg") > 0);
+    }
+
+    #[test]
+    fn source_priority_unknown() {
+        // Default priority is 24 for unrecognized sources
+        assert_eq!(source_priority("unknown-blog"), 24);
+    }
+
+    // --- title_is_generic_market_wrap ---
+
+    #[test]
+    fn title_is_generic_market_wrap_true() {
+        assert!(title_is_generic_market_wrap("marketswrap"));
+        assert!(title_is_generic_market_wrap("dowjonesfuturesrise"));
+        assert!(title_is_generic_market_wrap("stockmarkettoday"));
+    }
+
+    #[test]
+    fn title_is_generic_market_wrap_false() {
+        assert!(!title_is_generic_market_wrap("applerecordrevenue"));
+    }
+
+    // --- title_is_reference_or_overview_page ---
+
+    #[test]
+    fn title_is_reference_overview_true() {
+        assert!(title_is_reference_or_overview_page("stockoverview", ""));
+        assert!(title_is_reference_or_overview_page("", "engagesinthedesigndevelopmentmanufactureandsale"));
+    }
+
+    #[test]
+    fn title_is_reference_overview_false() {
+        assert!(!title_is_reference_or_overview_page("earningsreport", "quarterlyresults"));
+    }
+
+    // --- url_is_quote_or_overview_page ---
+
+    #[test]
+    fn url_is_quote_yahoo() {
+        assert!(url_is_quote_or_overview_page("https://finance.yahoo.com/quote/AAPL"));
+    }
+
+    #[test]
+    fn url_is_quote_nasdaq() {
+        assert!(url_is_quote_or_overview_page(
+            "https://www.nasdaq.com/market-activity/stocks/aapl"
+        ));
+    }
+
+    #[test]
+    fn url_is_quote_normal_article() {
+        assert!(!url_is_quote_or_overview_page(
+            "https://www.reuters.com/technology/apple-earnings"
+        ));
+    }
+
+    #[test]
+    fn url_is_quote_xueqiu() {
+        assert!(url_is_quote_or_overview_page("https://xueqiu.com/s/AAPL"));
+    }
+
+    // --- url_is_ir_landing_page ---
+
+    #[test]
+    fn url_is_ir_landing_page_investor_subdomain() {
+        assert!(url_is_ir_landing_page(
+            "https://investor.apple.com/investor-relations/"
+        ));
+    }
+
+    #[test]
+    fn url_is_ir_landing_page_normal() {
+        assert!(!url_is_ir_landing_page("https://www.apple.com/newsroom"));
+    }
+
+    // --- is_sec_filing_item ---
+
+    #[test]
+    fn is_sec_filing_item_8k() {
+        let item = NewsItem {
+            title: "Apple 8-K Filing".to_string(),
+            source: "SEC".to_string(),
+            url: Some("https://sec.gov/filing".to_string()),
+            published_at: "2025-01-15".to_string(),
+            summary: "".to_string(),
+        };
+        assert!(is_sec_filing_item(&item));
+    }
+
+    #[test]
+    fn is_sec_filing_item_normal_news() {
+        let item = NewsItem {
+            title: "Apple Reports Record Revenue".to_string(),
+            source: "Reuters".to_string(),
+            url: Some("https://reuters.com/article".to_string()),
+            published_at: "2025-01-15".to_string(),
+            summary: "".to_string(),
+        };
+        assert!(!is_sec_filing_item(&item));
+    }
+
+    // --- title_or_summary_has_high_value_company_event ---
+
+    #[test]
+    fn high_value_event_earnings() {
+        assert!(title_or_summary_has_high_value_company_event(
+            "earningsreport",
+            ""
+        ));
+    }
+
+    #[test]
+    fn high_value_event_buyback() {
+        assert!(title_or_summary_has_high_value_company_event(
+            "",
+            "sharebuybackannouncement"
+        ));
+    }
+
+    #[test]
+    fn high_value_event_chinese() {
+        assert!(title_or_summary_has_high_value_company_event(
+            "财报",
+            ""
+        ));
+    }
+
+    #[test]
+    fn high_value_event_false() {
+        assert!(!title_or_summary_has_high_value_company_event(
+            "regularnews",
+            "nothinginteresting"
+        ));
+    }
+
+    // --- title_or_summary_has_low_value_corporate_filing_noise ---
+
+    #[test]
+    fn low_value_noise_proxy_form() {
+        assert!(title_or_summary_has_low_value_corporate_filing_noise(
+            "proxyform",
+            ""
+        ));
+    }
+
+    #[test]
+    fn low_value_noise_false() {
+        assert!(!title_or_summary_has_low_value_corporate_filing_noise(
+            "earningsreport",
+            "quarterlyresults"
+        ));
+    }
+
+    // --- merge_ranked_news ---
+
+    #[test]
+    fn merge_ranked_news_basic() {
+        let items = vec![
+            NewsItem {
+                title: "Apple Earnings".to_string(),
+                source: "Reuters".to_string(),
+                url: Some("http://test1.com".to_string()),
+                published_at: "2025-06-15".to_string(),
+                summary: "".to_string(),
+            },
+            NewsItem {
+                title: "Apple Dividend".to_string(),
+                source: "Bloomberg".to_string(),
+                url: Some("http://test2.com".to_string()),
+                published_at: "2025-06-14".to_string(),
+                summary: "".to_string(),
+            },
+        ];
+        let result = merge_ranked_news(items, 10, None, None, &[]);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn merge_ranked_news_dedup() {
+        let items = vec![
+            NewsItem {
+                title: "Same Title".to_string(),
+                source: "Reuters".to_string(),
+                url: Some("http://test1.com".to_string()),
+                published_at: "2025-06-15".to_string(),
+                summary: "".to_string(),
+            },
+            NewsItem {
+                title: "Same Title".to_string(),
+                source: "Bloomberg".to_string(),
+                url: Some("http://test2.com".to_string()),
+                published_at: "2025-06-15".to_string(),
+                summary: "".to_string(),
+            },
+        ];
+        let result = merge_ranked_news(items, 10, None, None, &[]);
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn merge_ranked_news_date_filter() {
+        let items = vec![NewsItem {
+            title: "Old News".to_string(),
+            source: "Reuters".to_string(),
+            url: Some("http://test.com".to_string()),
+            published_at: "2020-01-01".to_string(),
+            summary: "".to_string(),
+        }];
+        let result = merge_ranked_news(
+            items,
+            10,
+            Some("2025-01-01"),
+            Some("2025-12-31"),
+            &[],
+        );
+        assert_eq!(result.len(), 0);
+    }
+
+    // --- normalize_relative_news_date additional ---
+
+    #[test]
+    fn normalize_relative_minutes_ago() {
+        let now = Utc::now();
+        let result = normalize_relative_news_date("30 minutes ago", now);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn normalize_relative_weeks_ago() {
+        let now = Utc::now();
+        let result = normalize_relative_news_date("2 weeks ago", now);
+        let expected = (now.date_naive() - ChronoDuration::weeks(2))
+            .format("%Y-%m-%d")
+            .to_string();
+        assert_eq!(result, Some(expected));
+    }
+
+    #[test]
+    fn normalize_relative_unknown_unit() {
+        assert_eq!(
+            normalize_relative_news_date("5 months ago", Utc::now()),
+            None
+        );
+    }
+
+    // --- gdelt_timestamp additional ---
+
+    #[test]
+    fn gdelt_timestamp_exact_14_digits() {
+        assert_eq!(
+            gdelt_timestamp_to_published_at("20260101000000"),
+            "2026-01-01 00:00:00"
+        );
+    }
+
+    #[test]
+    fn gdelt_timestamp_non_digit() {
+        assert_eq!(gdelt_timestamp_to_published_at("2026010100000x"), "2026010100000x");
+    }
+
+    // --- extract_site_name_from_url ---
+
+    #[test]
+    fn extract_site_name_https() {
+        assert_eq!(
+            extract_site_name_from_url("https://www.reuters.com/article/123"),
+            Some("reuters.com")
+        );
+    }
+
+    #[test]
+    fn extract_site_name_http() {
+        assert_eq!(
+            extract_site_name_from_url("http://finance.yahoo.com/quote/AAPL"),
+            Some("finance.yahoo.com")
+        );
+    }
+
+    #[test]
+    fn extract_site_name_no_scheme() {
+        assert_eq!(
+            extract_site_name_from_url("reuters.com/article"),
+            Some("reuters.com")
+        );
+    }
+
+    #[test]
+    fn extract_site_name_strips_www() {
+        assert_eq!(
+            extract_site_name_from_url("https://www.bloomberg.com/news"),
+            Some("bloomberg.com")
+        );
+    }
+
+    #[test]
+    fn extract_site_name_empty() {
+        assert_eq!(extract_site_name_from_url(""), None);
+    }
+
+    #[test]
+    fn extract_site_name_just_host() {
+        assert_eq!(
+            extract_site_name_from_url("https://apple.com"),
+            Some("apple.com")
+        );
+    }
+
+    // --- is_sec_biasing_keyword ---
+
+    #[test]
+    fn is_sec_biasing_keyword_filing() {
+        assert!(is_sec_biasing_keyword("filing"));
+    }
+
+    #[test]
+    fn is_sec_biasing_keyword_sec() {
+        assert!(is_sec_biasing_keyword("sec"));
+    }
+
+    #[test]
+    fn is_sec_biasing_keyword_form() {
+        assert!(is_sec_biasing_keyword("form"));
+    }
+
+    #[test]
+    fn is_sec_biasing_keyword_8k() {
+        assert!(is_sec_biasing_keyword("8-k"));
+    }
+
+    #[test]
+    fn is_sec_biasing_keyword_normal() {
+        assert!(!is_sec_biasing_keyword("technology"));
+    }
+
+    #[test]
+    fn is_sec_biasing_keyword_earnings() {
+        assert!(!is_sec_biasing_keyword("earnings"));
+    }
+
+    // --- news_item_rank ---
+
+    #[test]
+    fn news_item_rank_high_value_event() {
+        let item = NewsItem {
+            title: "Apple Earnings Report".to_string(),
+            source: "Reuters".to_string(),
+            url: Some("http://test.com".to_string()),
+            published_at: "2025-06-15".to_string(),
+            summary: "".to_string(),
+        };
+        let rank = news_item_rank(&item, &[]);
+        // Reuters has high source priority, earnings is high-value event
+        assert!(rank > 0, "expected positive rank, got {}", rank);
+    }
+
+    #[test]
+    fn news_item_rank_keyword_match() {
+        let item = NewsItem {
+            title: "Apple Revenue Growth".to_string(),
+            source: "Reuters".to_string(),
+            url: Some("http://test.com".to_string()),
+            published_at: "2025-06-15".to_string(),
+            summary: "".to_string(),
+        };
+        let with_kw = news_item_rank(&item, &["Apple".into()]);
+        let without_kw = news_item_rank(&item, &[]);
+        assert!(with_kw >= without_kw);
+    }
 }

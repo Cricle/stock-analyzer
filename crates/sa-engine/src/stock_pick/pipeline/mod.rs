@@ -2,8 +2,6 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::Context;
 use futures::{StreamExt, stream};
-use rust_decimal::Decimal;
-use rust_decimal::prelude::ToPrimitive;
 
 use crate::llm::{self as llm, LlmClient};
 use sa_data::{BillboardEntry, CapitalFlowPoint, MarketDataClient, MarketKind, NewsItem};
@@ -226,7 +224,7 @@ pub async fn run(
     )
     .ok();
 
-    let mut memory_context_parts = Vec::new();
+    let mut memory_context_parts = Vec::with_capacity(4);
     if let Some(ref mem) = memory_log {
         // Get cross-ticker lessons for this market
         if let Ok(lessons) = mem.cross_ticker_lessons(&request.market, &[], 3).await {
@@ -375,7 +373,7 @@ pub async fn run(
 
     // Score each pick with the scoring system
     let score_config = crate::score::config::ScoreConfig::from_env();
-    let mut scored_picks = Vec::new();
+    let mut scored_picks = Vec::with_capacity(picks.len());
     for pick in picks {
         let scoreable = crate::score::scorer::ScoreablePick {
             symbol: pick.symbol.clone(),
@@ -816,7 +814,7 @@ async fn resolve_a_share_candidates(
 
 fn dedup_candidates(items: Vec<CandidateContext>, limit: usize) -> Vec<CandidateContext> {
     let mut seen = HashSet::new();
-    let mut output = Vec::new();
+    let mut output = Vec::with_capacity(limit);
     for item in items {
         if seen.insert(item.symbol.clone()) {
             output.push(item);
@@ -1266,10 +1264,8 @@ fn capital_flow_source_score(items: &[CapitalFlowPoint]) -> f64 {
     let Some(latest) = items.first().or_else(|| items.last()) else {
         return 0.0;
     };
-    let hundred_million = Decimal::from(100_000_000u64);
+    let hundred_million = 100_000_000.0;
     let inflow_component = (latest.main_net_inflow / hundred_million)
-        .to_f64()
-        .unwrap_or_default()
         .clamp(-8.0, 12.0);
     let ratio_component = latest.main_net_inflow_ratio_pct.clamp(-10.0, 20.0) * 0.35;
     let price_component = latest.change_pct.clamp(-5.0, 12.0) * 0.5;

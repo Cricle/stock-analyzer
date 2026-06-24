@@ -3,11 +3,11 @@ fn e2e_store_trait_implementations_exist() {
     // Verify that the store traits are properly implemented
     // by checking that key types can be constructed
     // This is a compile-time check wrapped in a runtime test
-    fn assert_cache_store<T: sa_models::CacheStore>() {}
-    fn assert_vector_store<T: sa_models::VectorStore>() {}
-    fn assert_analysis_store<T: sa_models::AnalysisStore>() {}
-    fn assert_checkpoint_store<T: sa_models::CheckpointStore>() {}
-    fn assert_guidance_store<T: sa_models::GuidanceStore>() {}
+    fn assert_cache_store<T: sa::CacheStore>() {}
+    fn assert_vector_store<T: sa::VectorStore>() {}
+    fn assert_analysis_store<T: sa::AnalysisStore>() {}
+    fn assert_checkpoint_store<T: sa::CheckpointStore>() {}
+    fn assert_guidance_store<T: sa::GuidanceStore>() {}
 
     // If these compile, the traits are implemented
     // We can't actually instantiate them without Redis/PostgreSQL,
@@ -16,7 +16,7 @@ fn e2e_store_trait_implementations_exist() {
 
 #[test]
 fn e2e_task_status_roundtrip() {
-    use sa_models::task::TaskStatus;
+    use sa::task::TaskStatus;
 
     let statuses = vec![
         TaskStatus::Pending,
@@ -39,7 +39,7 @@ fn e2e_task_status_roundtrip() {
 
 #[test]
 fn e2e_user_preferences_watchlist() {
-    use sa_models::user_preferences::{UserPreferences, WatchlistItem};
+    use sa::user_preferences::{UserPreferences, WatchlistItem};
 
     let mut prefs = UserPreferences::default();
 
@@ -85,7 +85,7 @@ fn e2e_user_preferences_watchlist() {
 
 #[test]
 fn e2e_user_preferences_serialization() {
-    use sa_models::user_preferences::UserPreferences;
+    use sa::user_preferences::UserPreferences;
 
     let mut prefs = UserPreferences::default();
     prefs.language = "zh".into();
@@ -107,16 +107,16 @@ fn e2e_value_utils_normalization() {
     use serde_json::json;
 
     // Probability normalization
-    let prob = sa_models::value_utils::normalize_probability(&json!(0.75));
+    let prob = sa::value_utils::normalize_probability(&json!(0.75));
     assert!((prob - 0.75).abs() < 0.01);
 
-    let prob = sa_models::value_utils::normalize_probability(&json!("75%"));
+    let prob = sa::value_utils::normalize_probability(&json!("75%"));
     assert!((prob - 0.75).abs() < 0.01);
 
     // Value normalization
-    let val = sa_models::value_utils::normalize_value(&json!("  hello  "));
+    let val = sa::value_utils::normalize_value(&json!("  hello  "));
     assert_eq!(val, "hello");
 
-    let val = sa_models::value_utils::normalize_value(&json!(42));
+    let val = sa::value_utils::normalize_value(&json!(42));
     assert_eq!(val, "42");
 }

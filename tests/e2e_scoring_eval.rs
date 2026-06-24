@@ -1,14 +1,14 @@
 mod common;
 
 use common::stocks::TEST_STOCKS;
-use sa_engine::score::dimensions::{
+use sa::score::dimensions::{
     fundamental::{self, FundamentalInput},
     technical::{self, TechnicalInput},
 };
-use sa_engine::score::types::score_label;
+use sa::score::types::score_label;
 
 /// Build a TechnicalInput from real market data.
-async fn build_technical_input(client: &sa_data::MarketDataClient, symbol: &str) -> TechnicalInput {
+async fn build_technical_input(client: &sa::MarketDataClient, symbol: &str) -> TechnicalInput {
     let candles = client
         .fetch_candles(symbol, "qfq", 200)
         .await
@@ -103,7 +103,7 @@ fn compute_ema(closes: &[f64], period: usize) -> Option<f64> {
 
 /// Build a FundamentalInput from real market data.
 async fn build_fundamental_input(
-    client: &sa_data::MarketDataClient,
+    client: &sa::MarketDataClient,
     symbol: &str,
 ) -> FundamentalInput {
     let fund = client.fetch_fundamentals(symbol).await.ok();
@@ -127,7 +127,7 @@ async fn build_fundamental_input(
 
 #[tokio::test]
 async fn e2e_scoring_technical_dimension() {
-    let client = sa_data::MarketDataClient::new().await.unwrap();
+    let client = sa::MarketDataClient::new().await.unwrap();
 
     for stock in TEST_STOCKS {
         let input = build_technical_input(&client, stock.symbol).await;
@@ -155,7 +155,7 @@ async fn e2e_scoring_technical_dimension() {
 
 #[tokio::test]
 async fn e2e_scoring_fundamental_dimension() {
-    let client = sa_data::MarketDataClient::new().await.unwrap();
+    let client = sa::MarketDataClient::new().await.unwrap();
 
     for stock in TEST_STOCKS {
         let input = build_fundamental_input(&client, stock.symbol).await;

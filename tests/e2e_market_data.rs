@@ -8,7 +8,7 @@ use common::stocks::TEST_STOCKS;
 
 #[tokio::test]
 async fn e2e_fetch_all_market_data() {
-    let client = sa_data::MarketDataClient::new().await.unwrap();
+    let client = sa::MarketDataClient::new().await.unwrap();
     let mut results = Vec::new();
 
     for stock in TEST_STOCKS {
@@ -129,7 +129,7 @@ async fn e2e_fetch_all_market_data() {
 
 #[tokio::test]
 async fn e2e_market_detection() {
-    let client = sa_data::MarketDataClient::new().await.unwrap();
+    let client = sa::MarketDataClient::new().await.unwrap();
 
     for stock in TEST_STOCKS {
         let detected = client.detect_market(stock.symbol);

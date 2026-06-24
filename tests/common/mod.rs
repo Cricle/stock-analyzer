@@ -1,5 +1,4 @@
 pub mod eval;
-pub mod memory_stores;
 pub mod stocks;
 
 use serde_json::Value;
@@ -11,8 +10,8 @@ pub fn load_fixture(name: &str) -> Value {
     serde_json::from_str(&content).unwrap()
 }
 
-pub fn sample_scoreable_pick() -> sa_engine::score::scorer::ScoreablePick {
-    sa_engine::score::scorer::ScoreablePick {
+pub fn sample_scoreable_pick() -> sa::score::scorer::ScoreablePick {
+    sa::score::scorer::ScoreablePick {
         symbol: "AAPL".into(),
         market: "美股".into(),
         rsi: Some(55.0),

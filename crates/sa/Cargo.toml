@@ -1,0 +1,45 @@
+[package]
+name = "sa"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = ["report", "guide", "pick", "score"]
+local-rag-embeddings = ["fastembed"]
+report = []
+guide = []
+pick = []
+score = []
+
+[dependencies]
+# External data
+akshare = { path = "../../../akshare-rs/crates/akshare", features = ["market-client"] }
+
+# Core
+adk-graph = { version = "0.8.0" }
+anyhow = "1"
+async-trait = "0.1"
+backoff = { version = "0.4", features = ["tokio"] }
+calamine = "0.31"
+chrono = { version = "0.4", features = ["serde"] }
+fastembed = { version = "4", optional = true }
+futures = "0.3"
+hex = "0.4"
+opentelemetry = "0.28"
+regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+reqwest-middleware = { version = "0.4", features = ["json"] }
+schemars = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tempfile = "3"
+tokio = { version = "1", features = ["sync"] }
+tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
+zeroize = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+axum = { version = "0.8", features = ["json"] }
+tokio = { version = "1", features = ["full"] }

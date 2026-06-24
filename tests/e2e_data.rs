@@ -1,6 +1,6 @@
 #[test]
 fn e2e_data_fetch_diagnosis() {
-    let diagnosis = sa_data::DataFetchDiagnosis::new("quote", "AAPL");
+    let diagnosis = sa::DataFetchDiagnosis::new("quote", "AAPL");
     assert_eq!(diagnosis.data_type, "quote");
     assert_eq!(diagnosis.symbol, "AAPL");
     assert!(diagnosis.attempts.is_empty());
@@ -15,11 +15,11 @@ fn e2e_data_fetch_diagnosis() {
 #[test]
 fn e2e_news_date_normalization() {
     // Valid date
-    let result = sa_data::normalized_news_date("2026-06-21");
+    let result = sa::normalized_news_date("2026-06-21");
     assert!(result.is_some());
     assert_eq!(result.unwrap(), "2026-06-21");
 
     // Invalid date
-    let result = sa_data::normalized_news_date("not a date");
+    let result = sa::normalized_news_date("not a date");
     assert!(result.is_none());
 }

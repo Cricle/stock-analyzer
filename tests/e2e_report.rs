@@ -1,6 +1,6 @@
 #[test]
 fn e2e_rating_types() {
-    use sa_models::Rating;
+    use sa::Rating;
 
     let buy = Rating::parse("buy");
     assert!(buy.is_bullish());
@@ -20,7 +20,7 @@ fn e2e_rating_types() {
 
 #[test]
 fn e2e_rating_bias_scoring() {
-    use sa_models::Rating;
+    use sa::Rating;
 
     assert_eq!(Rating::Buy.bias(100), 100);
     assert_eq!(Rating::Sell.bias(100), -100);
@@ -33,7 +33,7 @@ fn e2e_rating_bias_scoring() {
 
 #[test]
 fn e2e_local_text_i18n() {
-    use sa_models::LocalText;
+    use sa::LocalText;
 
     let lt = LocalText::new("setup_gap_missing_data")
         .with_str("field", "cash_flow")
@@ -47,7 +47,7 @@ fn e2e_local_text_i18n() {
 
 #[test]
 fn e2e_scenario_market_classification() {
-    use sa_models::AnalysisScenarioMarket;
+    use sa::AnalysisScenarioMarket;
 
     assert_eq!(
         AnalysisScenarioMarket::from_market_type("A股"),
@@ -70,7 +70,7 @@ fn e2e_scenario_market_classification() {
 
 #[test]
 fn e2e_scenario_context_construction() {
-    use sa_models::AnalysisScenarioContext;
+    use sa::AnalysisScenarioContext;
 
     let ctx = AnalysisScenarioContext::from_market_type("A股");
     assert!(ctx.supports_company_news);

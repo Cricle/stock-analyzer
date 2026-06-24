@@ -71,7 +71,7 @@ impl LlmClient {
                     t.prompt_tokens += input_tokens;
                     t.completion_tokens += output_tokens;
                     t.total_tokens += input_tokens + output_tokens;
-                    let entry = t.by_model.entry(model.clone()).or_default();
+                    let entry = t.by_model.entry(model).or_default();
                     entry.requests += 1;
                     entry.prompt_tokens += input_tokens;
                     entry.completion_tokens += output_tokens;

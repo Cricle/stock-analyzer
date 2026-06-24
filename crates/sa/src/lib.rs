@@ -69,6 +69,8 @@ pub mod user_preferences;
 pub mod value_utils;
 
 pub mod scoring;
+/// Backward-compatibility alias: `sa::score` → `sa::scoring`.
+pub use scoring as score;
 
 // ── Feature modules ──
 
@@ -134,3 +136,11 @@ pub use scoring::{
 pub use task_manager::TASK_STEPS;
 pub use task_manager::{TaskManager, TaskRunParams};
 pub use telemetry::{SharedTelemetry, TelemetryState};
+
+// ── Convenience re-exports from types (used by tests) ──
+
+pub use types::{
+    BatchFundamentalsResult, BatchQuoteResult, CandlePoint, DataFetchDiagnosis,
+    FundamentalsSnapshot, MarketDataClient, MarketKind, NewsItem, QuoteSnapshot,
+    normalized_news_date,
+};

@@ -32,11 +32,11 @@ impl DailyGuidanceGenerator {
         let fund_map: std::collections::HashMap<&str, &crate::data::FundamentalsSnapshot> =
             fundamentals
                 .iter()
-                .filter_map(|(s, f)| f.as_ref().map(|f| (s.as_str(), f)))
+                .filter_map(|r| r.fundamentals.as_ref().map(|f| (r.symbol.as_str(), f)))
                 .collect();
 
-        for (guidance, (_, quote_opt)) in stock_guidances.iter_mut().zip(quotes.iter()) {
-            if let Some(quote) = quote_opt {
+        for (guidance, bqr) in stock_guidances.iter_mut().zip(quotes.iter()) {
+            if let Some(quote) = &bqr.quote {
                 guidance.current_price = Some(quote.close);
                 let open = quote.open;
                 if open > 0.0 {

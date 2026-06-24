@@ -38,7 +38,7 @@ impl DailyGuidanceGenerator {
         let quotes = self.market_data.fetch_quotes_batch(&symbols).await;
         let quote_map: std::collections::HashMap<&str, &crate::data::QuoteSnapshot> = quotes
             .iter()
-            .filter_map(|(s, q)| q.as_ref().map(|q| (s.as_str(), q)))
+            .filter_map(|r| r.quote.as_ref().map(|q| (r.symbol.as_str(), q)))
             .collect();
 
         index_defs

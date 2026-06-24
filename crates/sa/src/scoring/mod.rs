@@ -14,6 +14,8 @@ pub mod config;
 pub mod dimensions;
 pub mod history;
 pub mod score_types;
+/// Backward-compatibility alias: `scoring::types` → `scoring::score_types`.
+pub use score_types as types;
 pub mod scorer;
 
 pub use scorer::score_stock_pick;

@@ -117,7 +117,7 @@ fn graph_error(error: anyhow::Error) -> GraphError {
     }
 }
 
-pub(crate) fn tool_history_text(history: &[crate::ToolObservation]) -> String {
+pub(crate) fn tool_history_text(history: &[crate::types::ToolObservation]) -> String {
     history
         .iter()
         .map(|item| {

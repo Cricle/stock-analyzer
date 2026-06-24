@@ -15,11 +15,11 @@ async fn build_technical_input(client: &sa::MarketDataClient, symbol: &str) -> T
         .unwrap_or_default();
     let quote = client.fetch_quote(symbol).await.ok();
 
-    let current_price = quote.as_ref().map(|q| q.close.to_f64().unwrap_or(0.0));
+    let current_price = quote.as_ref().map(|q| q.close);
 
     let closes: Vec<f64> = candles
         .iter()
-        .map(|c| c.close.to_f64().unwrap_or(0.0))
+        .map(|c| c.close)
         .collect();
 
     let rsi = compute_rsi(&closes, 14);
@@ -113,15 +113,9 @@ async fn build_fundamental_input(
         ps_like: None,
         roe: None,
         leverage: None,
-        market_cap: fund
-            .as_ref()
-            .and_then(|f| f.market_cap.and_then(|mc| mc.to_f64())),
-        revenues_usd: fund
-            .as_ref()
-            .and_then(|f| f.revenues_usd.and_then(|r| r.to_f64())),
-        net_income_usd: fund
-            .as_ref()
-            .and_then(|f| f.net_income_usd.and_then(|n| n.to_f64())),
+        market_cap: fund.as_ref().and_then(|f| f.market_cap),
+        revenues_usd: fund.as_ref().and_then(|f| f.revenues_usd),
+        net_income_usd: fund.as_ref().and_then(|f| f.net_income_usd),
     }
 }
 

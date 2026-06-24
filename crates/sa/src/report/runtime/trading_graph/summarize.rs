@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-pub(super) fn summarize_tool_observation(item: &crate::ToolObservation) -> String {
+pub(super) fn summarize_tool_observation(item: &crate::types::ToolObservation) -> String {
     if !item.success {
         return item.output.clone();
     }

@@ -125,6 +125,7 @@ pub use task::{
 
 pub use llm_config::LlmProviderConfig;
 pub use user_preferences::{UserPreferences, WatchlistItem};
+pub use types::ToolObservation;
 
 pub use scoring::{
     ActionAssessment, CalibrationProfile, ConfidenceAssessment, DirectionAssessment,

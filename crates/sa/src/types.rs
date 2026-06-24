@@ -10,3 +10,6 @@ pub use akshare::types::{
     NewsItem, QuoteSnapshot, SectorConstituent, SectorSnapshot, StockSearchResult,
     TradeCalendarItem,
 };
+
+// Re-export tool types from akshare-rs
+pub use akshare::provider::market_client::tools::{PendingToolCall, ToolObservation};

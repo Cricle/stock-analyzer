@@ -76,7 +76,7 @@ pub(super) fn format_fund_flow_summary(
 
 pub(super) fn format_billboard_summary(
     symbol: &str,
-    result: Result<anyhow::Result<Vec<crate::data::LhbStockStatistic>>, tokio::time::error::Elapsed>,
+    result: Result<anyhow::Result<Vec<crate::data::BillboardStockStatistic>>, tokio::time::error::Elapsed>,
 ) -> String {
     match result {
         Ok(Ok(items)) if !items.is_empty() => {

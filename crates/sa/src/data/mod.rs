@@ -18,7 +18,7 @@ pub use akshare::types::{
 
 // Re-export stock feature types from akshare-rs
 pub use akshare::stock::feature::{
-    EarningsForecast, FundFlowEntry, HotStockXq, LhbStockStatistic, MarginRatioPa, ZtPool,
+    EarningsForecast, FundFlowEntry, HotStockXq, BillboardStockStatistic, MarginRatioPa, ZtPool,
 };
 
 // Re-export DataFetchDiagnosis from akshare-rs

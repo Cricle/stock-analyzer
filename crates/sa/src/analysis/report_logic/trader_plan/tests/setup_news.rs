@@ -11,7 +11,7 @@
         is_semantically_similar, DecisionAction, DecisionConfidenceBand, DecisionView,
         DecisionViewDirection, LocalText, TechnicalValues,
     };
-    use crate::{HistoricalMemoryHighlight, ToolObservation};
+    use crate::{HistoricalMemoryHighlight, types::ToolObservation};
     use serde_json::json;
 
     #[test]

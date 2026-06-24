@@ -1,4 +1,3 @@
-use super::*;
 use crate::data::CandlePoint;
 
 pub(super) fn candle_volume_ratio(candles: &[CandlePoint], period: usize) -> Option<f64> {

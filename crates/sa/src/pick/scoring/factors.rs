@@ -1,4 +1,3 @@
-use super::*;
 use crate::pick::{EnrichedCandidate, FactorBreakdown};
 
 pub(super) fn compute_factor_breakdown(item: &EnrichedCandidate) -> FactorBreakdown {

@@ -4,6 +4,7 @@
 //! the types and client the engine needs.
 
 pub mod traits;
+pub mod mock;
 pub use traits::MarketDataProvider;
 
 // Re-export MarketDataClient and config types from akshare-rs

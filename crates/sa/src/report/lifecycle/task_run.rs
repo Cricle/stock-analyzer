@@ -2,7 +2,7 @@ use anyhow::Context;
 use chrono::Utc;
 use std::time::Instant;
 
-use super::fetch::{analysis_news_start, fetch_core_market_data, hydrate_scenario_data};
+use super::fetch::analysis_news_start;
 use super::format::build_technical_summary;
 use super::{build_user_context, build_user_context_prompt};
 use crate::{TaskManager, TaskRunParams};
@@ -276,7 +276,7 @@ impl TaskManager {
             let news_start_val = analysis_news_start(&task.analysis_date);
             news_start = news_start_val.clone();
 
-            let core_data = fetch_core_market_data(self, &task, news_start_val).await;
+            let core_data = self.fetch_core_market_data(&task, news_start_val).await;
             self.fetch_enrichment_and_store(&task, &mut result).await;
 
             result.artifacts.scenario_data.fetch_diagnosis = core_data.fetch_diagnosis;
@@ -305,7 +305,7 @@ impl TaskManager {
 
         result.artifacts.scenario_context = params.scenario.clone();
         if !is_resume_with_data {
-            hydrate_scenario_data(
+            Self::hydrate_scenario_data(
                 &mut result,
                 market_chart,
                 &quote,

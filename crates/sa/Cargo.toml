@@ -5,8 +5,12 @@ edition.workspace = true
 license.workspace = true
 
 [features]
-default = []
+default = ["report", "guide", "pick", "score"]
 local-rag-embeddings = ["fastembed"]
+report = []
+guide = []
+pick = []
+score = []
 
 [dependencies]
 # External data

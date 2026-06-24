@@ -15,13 +15,7 @@ pub(super) fn sma_candles(candles: &[CandlePoint], period: usize) -> Option<f64>
         return None;
     }
     let slice = &candles[candles.len() - period..];
-    Some(
-        slice
-            .iter()
-            .map(|row| row.close)
-            .sum::<f64>()
-            / period as f64,
-    )
+    Some(slice.iter().map(|row| row.close).sum::<f64>() / period as f64)
 }
 
 pub(super) fn ema_candles(candles: &[CandlePoint], period: usize) -> Option<f64> {
@@ -44,8 +38,7 @@ pub(super) fn rsi_candles(candles: &[CandlePoint], period: usize) -> Option<f64>
     let mut gains = 0.0;
     let mut losses = 0.0;
     for pair in candles[candles.len() - period - 1..].windows(2) {
-        let change = pair[1].close
-            - pair[0].close;
+        let change = pair[1].close - pair[0].close;
         if change >= 0.0 {
             gains += change;
         } else {
@@ -120,11 +113,7 @@ fn ema_series_candles(candles: &[CandlePoint], period: usize) -> Option<Vec<f64>
     }
     let multiplier = 2.0 / (period as f64 + 1.0);
     let mut values = Vec::new();
-    let mut ema = candles[..period]
-        .iter()
-        .map(|row| row.close)
-        .sum::<f64>()
-        / period as f64;
+    let mut ema = candles[..period].iter().map(|row| row.close).sum::<f64>() / period as f64;
     values.push(ema);
     for candle in &candles[period..] {
         let close = candle.close;
@@ -185,12 +174,7 @@ pub(super) fn cci_candles(candles: &[CandlePoint], period: usize) -> Option<f64>
     let slice = &candles[candles.len() - period..];
     let typical = slice
         .iter()
-        .map(|row| {
-            (row.high
-                + row.low
-                + row.close)
-                / 3.0
-        })
+        .map(|row| (row.high + row.low + row.close) / 3.0)
         .collect::<Vec<_>>();
     let ma = typical.iter().sum::<f64>() / period as f64;
     let mean_deviation =

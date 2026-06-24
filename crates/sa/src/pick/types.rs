@@ -2,9 +2,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::llm;
 use crate::data::FundamentalsSnapshot;
 use crate::data::NewsItem;
+use crate::llm;
 use crate::{
     StockPickDataQualitySnapshot, StockPickFundamentalSnapshot, StockPickHistoryMatchSnapshot,
     StockPickMarketSnapshot, StockPickNewsSnapshot, StockPickRiskSnapshot,

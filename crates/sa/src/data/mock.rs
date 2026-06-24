@@ -50,11 +50,15 @@ impl MarketDataProvider for MockMarketProvider {
     }
 
     async fn fetch_quote(&self, _symbol: &str) -> Result<QuoteSnapshot> {
-        self.quote.clone().ok_or_else(|| anyhow::anyhow!("no quote data"))
+        self.quote
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("no quote data"))
     }
 
     async fn fetch_fundamentals(&self, _symbol: &str) -> Result<FundamentalsSnapshot> {
-        self.fundamentals.clone().ok_or_else(|| anyhow::anyhow!("no fundamentals data"))
+        self.fundamentals
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("no fundamentals data"))
     }
 
     async fn fetch_balance_sheet(&self, _symbol: &str) -> Result<Value> {

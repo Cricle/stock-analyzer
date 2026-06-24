@@ -1,6 +1,6 @@
+use crate::AnalysisResult;
 use crate::llm::parse::{DiagnosisIssue, IssueSeverity};
 use crate::task_manager::TaskRunParams;
-use crate::AnalysisResult;
 
 use super::prepare::compact_decision_context;
 
@@ -434,58 +434,57 @@ impl crate::TaskManager {
                 portfolio_decision.expect("at least one LLM attempt must succeed");
             result.agent_state.sender = "Portfolio Manager".to_string();
             result.agent_state.final_trade_decision = portfolio_decision.rendered_decision();
-            result.agent_state.structured_portfolio_decision =
-                crate::StructuredPortfolioDecision {
-                    rating: crate::Rating::parse(&portfolio_decision.rating),
-                    raw_rating: portfolio_decision.rating.clone(),
-                    calibrated_rating: portfolio_decision.rating.clone(),
-                    confidence: portfolio_decision.confidence_string().into(),
-                    risk_assessment: portfolio_decision.risk_assessment.clone().into(),
-                    executive_summary: portfolio_decision.executive_summary.clone().into(),
-                    investment_thesis: portfolio_decision.investment_thesis.clone().into(),
-                    rationale: portfolio_decision.rationale.clone().into(),
-                    price_target: portfolio_decision
-                        .price_target
-                        .as_ref()
-                        .map(crate::llm::parse::normalize_value)
-                        .unwrap_or_default(),
-                    confirmation_level: portfolio_decision
-                        .confirmation_level
-                        .as_ref()
-                        .map(crate::llm::parse::normalize_value)
-                        .unwrap_or_default(),
-                    invalidation_level: portfolio_decision
-                        .invalidation_level
-                        .as_ref()
-                        .map(crate::llm::parse::normalize_value)
-                        .unwrap_or_default(),
-                    target_type: String::new(),
-                    target_reference: portfolio_decision
-                        .target_reference
-                        .clone()
-                        .unwrap_or_default(),
-                    target_condition: portfolio_decision
-                        .target_condition
-                        .clone()
-                        .unwrap_or_default(),
-                    time_horizon: portfolio_decision.time_horizon.clone().unwrap_or_default(),
-                    missing_evidence_ladder: crate::MissingEvidenceLadder {
-                        tolerable_gaps: portfolio_decision
-                            .missing_evidence_ladder
-                            .tolerable_gaps
-                            .clone(),
-                        manageable_gaps: portfolio_decision
-                            .missing_evidence_ladder
-                            .manageable_gaps
-                            .clone(),
-                        blocking_gaps: portfolio_decision
-                            .missing_evidence_ladder
-                            .blocking_gaps
-                            .clone(),
-                    },
-                    trigger_checklist: portfolio_decision.trigger_checklist.clone(),
-                    markdown: result.agent_state.final_trade_decision.clone(),
-                };
+            result.agent_state.structured_portfolio_decision = crate::StructuredPortfolioDecision {
+                rating: crate::Rating::parse(&portfolio_decision.rating),
+                raw_rating: portfolio_decision.rating.clone(),
+                calibrated_rating: portfolio_decision.rating.clone(),
+                confidence: portfolio_decision.confidence_string().into(),
+                risk_assessment: portfolio_decision.risk_assessment.clone().into(),
+                executive_summary: portfolio_decision.executive_summary.clone().into(),
+                investment_thesis: portfolio_decision.investment_thesis.clone().into(),
+                rationale: portfolio_decision.rationale.clone().into(),
+                price_target: portfolio_decision
+                    .price_target
+                    .as_ref()
+                    .map(crate::llm::parse::normalize_value)
+                    .unwrap_or_default(),
+                confirmation_level: portfolio_decision
+                    .confirmation_level
+                    .as_ref()
+                    .map(crate::llm::parse::normalize_value)
+                    .unwrap_or_default(),
+                invalidation_level: portfolio_decision
+                    .invalidation_level
+                    .as_ref()
+                    .map(crate::llm::parse::normalize_value)
+                    .unwrap_or_default(),
+                target_type: String::new(),
+                target_reference: portfolio_decision
+                    .target_reference
+                    .clone()
+                    .unwrap_or_default(),
+                target_condition: portfolio_decision
+                    .target_condition
+                    .clone()
+                    .unwrap_or_default(),
+                time_horizon: portfolio_decision.time_horizon.clone().unwrap_or_default(),
+                missing_evidence_ladder: crate::MissingEvidenceLadder {
+                    tolerable_gaps: portfolio_decision
+                        .missing_evidence_ladder
+                        .tolerable_gaps
+                        .clone(),
+                    manageable_gaps: portfolio_decision
+                        .missing_evidence_ladder
+                        .manageable_gaps
+                        .clone(),
+                    blocking_gaps: portfolio_decision
+                        .missing_evidence_ladder
+                        .blocking_gaps
+                        .clone(),
+                },
+                trigger_checklist: portfolio_decision.trigger_checklist.clone(),
+                markdown: result.agent_state.final_trade_decision.clone(),
+            };
             // Wire time-stop from portfolio decision if trader didn't provide it
             if result
                 .agent_state

@@ -9,8 +9,8 @@ cargo build
 # Release build
 cargo build --release
 
-# Build specific crate
-cargo build -p sa-engine
+# Build the sa crate
+cargo build -p sa
 ```
 
 ## Testing
@@ -19,14 +19,27 @@ cargo build -p sa-engine
 # Run all tests
 cargo test --workspace
 
+# Run sa crate tests
+cargo test -p sa
+
 # Run specific test
 cargo test test_name
 
 # Run tests with output
 cargo test -- --nocapture
 
-# Run integration tests
-cargo test --test e2e_full_report
+# Run doc tests
+cargo test -p sa --doc
+```
+
+## Linting
+
+```bash
+# Clippy
+cargo clippy -p sa
+
+# Format
+cargo fmt -p sa
 ```
 
 ## Test Coverage
@@ -42,30 +55,32 @@ cargo tarpaulin --workspace --out Stdout --fail-under 90
 ```
 stock-analyzer/
 ├── crates/
-│   ├── sa-types/      — Core types
-│   ├── sa-models/     — Analysis models
-│   ├── sa-data/       — Market data
-│   ├── sa-engine/     — Engine
-│   └── sa-storage/    — Storage
+│   └── sa/            — Unified analysis crate
 ├── src/
-│   ├── main.rs        — CLI
-│   └── mcp.rs         — MCP server
+│   ├── main.rs        — CLI binary
+│   └── mcp.rs         — MCP server binary
 ├── tests/             — Integration tests
 └── docs/              — Documentation
 ```
 
-## Crate Dependencies
+Data fetching is delegated to `akshare-rs` (path dependency).
+
+## Module Map
 
 ```
-sa-types (foundation)
-    ↑
-sa-models (depends on sa-types)
-    ↑
-sa-data (depends on sa-types, sa-models)
-    ↑
-sa-engine (depends on all above)
-    ↑
-sa-storage (depends on sa-types, sa-models)
+sa/src/
+├── analysis/          — Core analysis types, report logic
+├── checkpoint/        — Resumable workflow checkpoints
+├── data/              — MarketDataProvider trait + akshare-rs re-exports
+├── guide/             — Daily market guidance
+├── llm/               — LLM client, prompts, parsing
+├── memory/            — Vector-based historical memory (RAG)
+├── pick/              — Stock picking pipeline
+├── report/            — Analysis pipeline lifecycle + runtime
+├── scoring/           — Multi-dimensional scoring
+├── store/             — Storage traits + in-memory implementations
+├── task_manager/      — Task lifecycle management
+└── types.rs           — Type re-exports from akshare-rs
 ```
 
 ## Adding Tests
@@ -83,6 +98,21 @@ mod tests {
     fn test_function() {
         assert_eq!(function(), expected);
     }
+}
+```
+
+### Mock Testing
+
+Use `MarketDataProvider` trait with `MockMarketProvider` for data-layer tests:
+
+```rust
+use sa::data::{MarketDataProvider, mock::MockMarketProvider};
+
+#[tokio::test]
+async fn test_with_mock_data() {
+    let provider = MockMarketProvider::default();
+    // Set up test data on provider fields
+    // Call analysis functions with &provider
 }
 ```
 

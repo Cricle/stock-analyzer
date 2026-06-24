@@ -180,7 +180,11 @@ impl TaskManager {
     }
 
     /// Fetch enrichment data and format summaries into the result.
-    pub(super) async fn fetch_enrichment_and_store(&self, task: &PersistedTask, result: &mut AnalysisResult) {
+    pub(super) async fn fetch_enrichment_and_store(
+        &self,
+        task: &PersistedTask,
+        result: &mut AnalysisResult,
+    ) {
         use super::format::{
             format_billboard_summary, format_earnings_forecast_summary, format_fund_flow_summary,
             format_hot_rank_summary, format_limit_pool_summary, format_margin_summary,

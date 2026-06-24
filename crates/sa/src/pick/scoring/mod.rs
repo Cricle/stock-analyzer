@@ -97,13 +97,9 @@ async fn light_enrich_candidate(
         .fetch_candles(&candidate.symbol, "qfq", 260)
         .await
         .unwrap_or_default();
-    let price = quote
-        .as_ref()
-        .map(|item| item.close);
+    let price = quote.as_ref().map(|item| item.close);
     let change_pct = candles.last().map(|item| item.change_pct);
-    let market_cap = fundamentals
-        .as_ref()
-        .and_then(|item| item.market_cap);
+    let market_cap = fundamentals.as_ref().and_then(|item| item.market_cap);
     let company_name = fundamentals
         .as_ref()
         .map(|item| item.company_name.clone())
@@ -278,14 +274,13 @@ mod snapshots {
 
     pub(super) fn build_market_snapshot(item: &EnrichedCandidate) -> StockPickMarketSnapshot {
         let lookback_candles = item.candles.len();
-        let period_return_pct = item
-            .candles
-            .first()
-            .zip(item.candles.last())
-            .and_then(|(first, last)| {
-                (first.close > 0.0)
-                    .then_some(((last.close / first.close) - 1.0) * 100.0)
-            });
+        let period_return_pct =
+            item.candles
+                .first()
+                .zip(item.candles.last())
+                .and_then(|(first, last)| {
+                    (first.close > 0.0).then_some(((last.close / first.close) - 1.0) * 100.0)
+                });
         let latest_volume = item.candles.last().map(|row| row.volume);
         let volume_ratio = candle_volume_ratio(&item.candles, 20);
         StockPickMarketSnapshot {
@@ -324,16 +319,14 @@ mod snapshots {
         };
         let roe = match (
             f.net_income_usd,
-            f.stockholders_equity_usd
-                .filter(|value| *value > 0.0),
+            f.stockholders_equity_usd.filter(|value| *value > 0.0),
         ) {
             (Some(ni), Some(eq)) => Some(ni / eq),
             _ => None,
         };
         let leverage = match (
             f.total_debt_usd,
-            f.stockholders_equity_usd
-                .filter(|value| *value > 0.0),
+            f.stockholders_equity_usd.filter(|value| *value > 0.0),
         ) {
             (Some(debt), Some(eq)) => Some(debt / eq),
             _ => None,

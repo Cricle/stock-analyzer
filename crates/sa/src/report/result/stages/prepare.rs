@@ -1,5 +1,5 @@
-use crate::task_manager::TaskRunParams;
 use crate::AnalysisResult;
+use crate::task_manager::TaskRunParams;
 
 pub(super) fn compact_decision_context(text: &str, max_chars: usize) -> String {
     let text = text.trim();
@@ -86,7 +86,10 @@ pub(super) fn compact_decision_context(text: &str, max_chars: usize) -> String {
 }
 
 impl crate::TaskManager {
-    pub(super) fn research_manager_needs_deep_llm(result: &AnalysisResult, params: &TaskRunParams) -> bool {
+    pub(super) fn research_manager_needs_deep_llm(
+        result: &AnalysisResult,
+        params: &TaskRunParams,
+    ) -> bool {
         if crate::env_config::analysis_debug_quick_only() {
             return false;
         }

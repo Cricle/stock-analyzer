@@ -48,9 +48,7 @@ impl crate::TaskManager {
             bull_turn.response
         ));
         let mut turns = debate_turns;
-        turns.push(crate::report::graph::debate_turn_from_generated(
-            &bull_turn,
-        ));
+        turns.push(crate::report::graph::debate_turn_from_generated(&bull_turn));
         result.graph.investment_debate = InvestmentDebateState {
             bull_history: bull_history.trim().to_string(),
             bear_history: bear_history.trim().to_string(),
@@ -122,9 +120,7 @@ impl crate::TaskManager {
             bear_turn.response
         ));
         let mut turns = debate_turns;
-        turns.push(crate::report::graph::debate_turn_from_generated(
-            &bear_turn,
-        ));
+        turns.push(crate::report::graph::debate_turn_from_generated(&bear_turn));
         result.graph.investment_debate = InvestmentDebateState {
             bull_history: bull_history.trim().to_string(),
             bear_history: bear_history.trim().to_string(),

@@ -268,52 +268,34 @@ pub(super) fn format_fundamental_metrics(sd: &crate::AnalysisScenarioData) -> St
     let hundred = 100.0;
     if let (Some(mc), Some(ni)) = (f.market_cap, f.net_income_usd) {
         if ni > 0.0 {
-            lines.push(format!(
-                "PE Ratio: {:.2}",
-                mc / ni
-            ));
+            lines.push(format!("PE Ratio: {:.2}", mc / ni));
         } else {
             lines.push("PE Ratio: N/A (negative earnings)".to_string());
         }
     }
     if let (Some(mc), Some(eq)) = (f.market_cap, f.stockholders_equity_usd) {
         if eq.abs() > 0.0 {
-            lines.push(format!(
-                "PB Ratio: {:.2}",
-                mc / eq
-            ));
+            lines.push(format!("PB Ratio: {:.2}", mc / eq));
         }
     }
     if let (Some(gp), Some(rev)) = (f.gross_profit_usd, f.revenues_usd) {
         if rev.abs() > 0.0 {
-            lines.push(format!(
-                "Gross Margin: {:.1}%",
-                gp / rev * hundred
-            ));
+            lines.push(format!("Gross Margin: {:.1}%", gp / rev * hundred));
         }
     }
     if let (Some(ni), Some(rev)) = (f.net_income_usd, f.revenues_usd) {
         if rev.abs() > 0.0 {
-            lines.push(format!(
-                "Net Margin: {:.1}%",
-                ni / rev * hundred
-            ));
+            lines.push(format!("Net Margin: {:.1}%", ni / rev * hundred));
         }
     }
     if let (Some(oi), Some(rev)) = (f.operating_income_usd, f.revenues_usd) {
         if rev.abs() > 0.0 {
-            lines.push(format!(
-                "Operating Margin: {:.1}%",
-                oi / rev * hundred
-            ));
+            lines.push(format!("Operating Margin: {:.1}%", oi / rev * hundred));
         }
     }
     if let (Some(mc), Some(shares)) = (f.market_cap, f.shares_outstanding) {
         if shares > 0 {
-            lines.push(format!(
-                "Market Cap: {:.0}",
-                mc
-            ));
+            lines.push(format!("Market Cap: {:.0}", mc));
             lines.push(format!("Shares Outstanding: {}", shares));
         }
     }

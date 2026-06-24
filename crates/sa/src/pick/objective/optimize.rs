@@ -1,12 +1,8 @@
-use crate::{
-    StockPickItem, StockPickObjectiveOverview, StockPickObjectiveBucket,
-};
+use crate::{StockPickItem, StockPickObjectiveBucket, StockPickObjectiveOverview};
 
 use crate::pick::EnrichedCandidate;
 
-use super::constraints::{
-    build_valuation_vs_industry_block, stock_pick_objective_grade,
-};
+use super::constraints::{build_valuation_vs_industry_block, stock_pick_objective_grade};
 
 pub(crate) fn build_prompt(
     market: &str,

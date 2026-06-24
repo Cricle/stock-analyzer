@@ -24,12 +24,47 @@
 
 //! sa — Unified stock analysis crate.
 //!
+//! Data fetching is delegated to [`akshare-rs`]; this crate focuses on
+//! analysis, scoring, LLM-powered reports, and stock picking.
+//!
 //! # Features
 //!
 //! - `report` — Full analysis report generation
 //! - `guide` — Daily market guidance
 //! - `pick` — Stock picking and screening
 //! - `score` — Stock scoring system
+//! - `local-rag-embeddings` — Local vector embeddings via `fastembed`
+//!
+//! # Quick Start
+//!
+//! ```rust
+//! use sa::data::MarketDataProvider;
+//! use sa::data::mock::MockMarketProvider;
+//!
+//! // MockMarketProvider implements MarketDataProvider for testing.
+//! let provider = MockMarketProvider::default();
+//! // Use provider in analysis functions that accept `&impl MarketDataProvider`.
+//! ```
+//!
+//! # Key Types
+//!
+//! ```rust
+//! use sa::{Rating, LocalText};
+//! use sa::store::InMemoryAnalysisStore;
+//!
+//! // Rating enum for buy/hold/sell recommendations
+//! let rating = Rating::parse("buy");
+//! assert!(rating.is_bullish());
+//! assert!(!rating.is_bearish());
+//!
+//! // LocalText for i18n key storage
+//! let text = LocalText::new("report.buy_signal");
+//! assert_eq!(text.as_str(), "report.buy_signal");
+//! assert!(!text.is_empty());
+//!
+//! // In-memory store for testing
+//! let _store = InMemoryAnalysisStore::new();
+//! ```
 
 // ── Base modules ──
 
@@ -50,14 +85,14 @@ pub mod data;
 // ── Type re-exports (from akshare) ──
 
 pub mod types {
-    pub use akshare::types::*;
-    pub use akshare::provider::market_client::{GeneralSearchIntent, MarketDataClient};
     pub use akshare::provider::market_client::DataFetchDiagnosis;
     pub use akshare::provider::market_client::normalized_news_date;
     pub use akshare::provider::market_client::tools::{
         PendingToolCall, ScenarioData, ToolObservation, TradingToolbox,
     };
+    pub use akshare::provider::market_client::{GeneralSearchIntent, MarketDataClient};
     pub use akshare::stock::feature::*;
+    pub use akshare::types::*;
 }
 
 // ── Models ──
@@ -74,9 +109,9 @@ pub use scoring as score;
 
 // ── Feature modules ──
 
-pub mod report;
 pub mod guide;
 pub mod pick;
+pub mod report;
 
 // ── Re-exports ──
 
@@ -93,11 +128,11 @@ pub use analysis::{
     DiagnosisSummary, DirectionBreakdown, ExecutionReadiness, HistoricalMemoryHighlight,
     IcDisciplineView, IcNavigatorView, InvestmentDebateState, LlmTokenUsageByModel,
     LlmTokenUsageSummary, LocalText, MemoryContextSnapshot, MissingEvidenceLadder, NewsInsight,
-    PriceContext, ProbabilityDriver, ProbabilityView, ProfitRiskView, Rating,
-    ReferenceFactItem, ReportActionGuides, ReportCandle, ReportDiagnosticItem, ReportDiagnostics,
-    ReportEvidenceCard, ReportFlavor, ReportMarketChart, ReportReferenceSnapshot, ReportSection,
-    ReportStageState, ResumeAnalysisRequest, ReviewChecklist, ReviewItem, RiskControl,
-    RiskDebateState, RuntimeNodeTrace, ScoreDimension, SetupMatchExplanation, SignedScoreDimension,
+    PriceContext, ProbabilityDriver, ProbabilityView, ProfitRiskView, Rating, ReferenceFactItem,
+    ReportActionGuides, ReportCandle, ReportDiagnosticItem, ReportDiagnostics, ReportEvidenceCard,
+    ReportFlavor, ReportMarketChart, ReportReferenceSnapshot, ReportSection, ReportStageState,
+    ResumeAnalysisRequest, ReviewChecklist, ReviewItem, RiskControl, RiskDebateState,
+    RuntimeNodeTrace, ScoreDimension, SetupMatchExplanation, SignedScoreDimension,
     SingleAnalysisRequest, StockPickDataQualitySnapshot, StockPickEvidenceCoverageSummary,
     StockPickFactorBreakdown, StockPickFailureInfo, StockPickFundamentalSnapshot,
     StockPickHistoryMatchSnapshot, StockPickItem, StockPickMarketSnapshot, StockPickNewsSnapshot,
@@ -107,10 +142,10 @@ pub use analysis::{
     StockPickTechnicalSnapshot, StructuredPortfolioDecision, StructuredReflection,
     StructuredReport, StructuredResearchPlan, StructuredRiskAssessment, StructuredTraderPlan,
     TechnicalIndicatorCategory, TechnicalIndicatorConclusion, TechnicalIndicatorItem,
-    TechnicalIndicatorView, ThesisState, TradeSetupQuality, TrendLine,
-    TrendLinePoint, adx_report, atr_report, bollinger_report, derive_report_diagnostics,
-    derive_setup_tags, ema_report, kdj_report, macd_report, obv_report,
-    render_action_guides_markdown, render_calibration_discipline_markdown, rsi_report, sma_report,
+    TechnicalIndicatorView, ThesisState, TradeSetupQuality, TrendLine, TrendLinePoint, adx_report,
+    atr_report, bollinger_report, derive_report_diagnostics, derive_setup_tags, ema_report,
+    kdj_report, macd_report, obv_report, render_action_guides_markdown,
+    render_calibration_discipline_markdown, rsi_report, sma_report,
 };
 
 pub use store::{
@@ -124,8 +159,8 @@ pub use task::{
 };
 
 pub use llm_config::LlmProviderConfig;
-pub use user_preferences::{UserPreferences, WatchlistItem};
 pub use types::ToolObservation;
+pub use user_preferences::{UserPreferences, WatchlistItem};
 
 pub use scoring::{
     ActionAssessment, CalibrationProfile, ConfidenceAssessment, DirectionAssessment,

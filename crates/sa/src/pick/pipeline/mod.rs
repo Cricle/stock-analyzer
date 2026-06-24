@@ -6,12 +6,11 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::Context;
 
-use crate::llm::{self as llm, LlmClient};
 use crate::data::MarketDataClient;
+use crate::llm::{self as llm, LlmClient};
 use crate::{
-    StockPickFactorBreakdown, StockPickItem,
-    StockPickObjectiveAssessment, StockPickRequest, StockPickResponse,
-    StockPickSelectionDiagnostics, StockPickStorageWriteSummary,
+    StockPickFactorBreakdown, StockPickItem, StockPickObjectiveAssessment, StockPickRequest,
+    StockPickResponse, StockPickSelectionDiagnostics, StockPickStorageWriteSummary,
 };
 
 use crate::pick::{
@@ -30,13 +29,16 @@ use crate::pick::objective::{
 };
 
 use filter::{market_display_label, market_kind_from_value, resolve_candidates};
-use rank::{default_selection_reason_codes, dedupe_news_items, news_items_to_evidence_records,
-           score_evidence_quality, summarize_history_matches};
-use select::{build_candidate_search_queries, build_light_search_queries,
-             deep_search_limit, derive_coarse_candidate_limit, derive_deep_candidate_limit,
-             derive_llm_review_limit, normalize_stock_pick_search_depth,
-             normalize_target_output_mode, should_skip_light_stage_search,
-             stock_pick_search_time_range};
+use rank::{
+    dedupe_news_items, default_selection_reason_codes, news_items_to_evidence_records,
+    score_evidence_quality, summarize_history_matches,
+};
+use select::{
+    build_candidate_search_queries, build_light_search_queries, deep_search_limit,
+    derive_coarse_candidate_limit, derive_deep_candidate_limit, derive_llm_review_limit,
+    normalize_stock_pick_search_depth, normalize_target_output_mode,
+    should_skip_light_stage_search, stock_pick_search_time_range,
+};
 
 pub async fn run(
     market_data: &MarketDataClient,

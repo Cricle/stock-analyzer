@@ -4,6 +4,8 @@
 
 Stock Analyzer is a Rust-based analysis engine that provides market guidance, stock selection, and per-symbol analysis reports. It supports A-share, Hong Kong, and US markets.
 
+Data fetching is delegated to [akshare-rs](https://github.com/Cricle/akshare-rs); this crate focuses purely on analysis.
+
 ## Documentation Index
 
 - [Architecture](../ARCHITECTURE.md) — Workspace structure and design principles
@@ -32,9 +34,9 @@ sa mcp --transport stdio
 
 | Market | Code | Data Sources |
 |--------|------|--------------|
-| A-share | `a-share` | Tencent, Eastmoney, Akshare |
-| Hong Kong | `hk` | HKEX, Yahoo Finance |
-| US | `us` | Yahoo Finance, Finnhub |
+| A-share | `a-share` | akshare-rs (Tencent, Eastmoney) |
+| Hong Kong | `hk` | akshare-rs (HKEX, Yahoo Finance) |
+| US | `us` | akshare-rs (Yahoo Finance, Finnhub) |
 
 ## Output Format
 

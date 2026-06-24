@@ -246,7 +246,10 @@ mod value_utils_tests {
 
     #[test]
     fn normalize_probability_object_all_zeros() {
-        assert_eq!(normalize_probability(&json!({"value": 0.0, "score": 0.0})), 0.0);
+        assert_eq!(
+            normalize_probability(&json!({"value": 0.0, "score": 0.0})),
+            0.0
+        );
     }
 
     #[test]

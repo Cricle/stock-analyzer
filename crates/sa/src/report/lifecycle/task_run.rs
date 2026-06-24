@@ -5,8 +5,8 @@ use std::time::Instant;
 use super::fetch::analysis_news_start;
 use super::format::build_technical_summary;
 use super::{build_user_context, build_user_context_prompt};
-use crate::{TaskManager, TaskRunParams};
 use crate::{AnalysisResult, PersistedTask, SingleAnalysisRequest, TaskEvent, TaskStatus};
+use crate::{TaskManager, TaskRunParams};
 
 // ---------------------------------------------------------------------------
 // TaskManager impl — task lifecycle methods
@@ -394,9 +394,8 @@ impl TaskManager {
                 issues_count = consistency_issues.len(),
                 "consistency validator applied auto-fixes"
             );
-            result.artifacts.diagnosis_summary = Some(crate::DiagnosisSummary::from_issues(
-                &consistency_issues,
-            ));
+            result.artifacts.diagnosis_summary =
+                Some(crate::DiagnosisSummary::from_issues(&consistency_issues));
         }
 
         self.analysis_store

@@ -292,7 +292,8 @@ mod llm_tests {
     #[test]
     fn openai_compatible_strips_trailing_slash() {
         let http = reqwest_middleware::ClientBuilder::new(reqwest::Client::new()).build();
-        let client = LlmClient::openai_compatible(http, "https://api.example.com/v1/", "key", "model", 60);
+        let client =
+            LlmClient::openai_compatible(http, "https://api.example.com/v1/", "key", "model", 60);
         assert_eq!(client.openai_base_url, "https://api.example.com/v1");
         assert_eq!(client.provider_type, "openai");
     }
@@ -300,7 +301,8 @@ mod llm_tests {
     #[test]
     fn anthropic_sets_provider_type() {
         let http = reqwest_middleware::ClientBuilder::new(reqwest::Client::new()).build();
-        let client = LlmClient::anthropic(http, "https://api.anthropic.com/", "key", "claude-3", 60);
+        let client =
+            LlmClient::anthropic(http, "https://api.anthropic.com/", "key", "claude-3", 60);
         assert_eq!(client.provider_type, "anthropic");
         assert_eq!(client.openai_base_url, "https://api.anthropic.com");
     }
@@ -314,5 +316,4 @@ mod llm_tests {
         assert_eq!(acc.total_tokens, 0);
         assert!(acc.by_model.is_empty());
     }
-
 }

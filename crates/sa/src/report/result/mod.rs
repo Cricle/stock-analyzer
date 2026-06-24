@@ -4,8 +4,8 @@ mod stages;
 
 use chrono::Utc;
 
-use crate::task_manager::TaskRunParams;
 use crate::data::{FundamentalsSnapshot, NewsItem, QuoteSnapshot};
+use crate::task_manager::TaskRunParams;
 use crate::{
     AgentStateSnapshot, AnalysisArtifacts, AnalysisGraph, AnalysisResult, PersistedTask,
     RuntimeNodeTrace, TaskStatus,

@@ -258,8 +258,7 @@ fn score_pick_market_validation(pick: &StockPickItem, item: &EnrichedCandidate) 
         .first()
         .zip(recent_window.last())
         .and_then(|(latest, earliest)| {
-            (earliest.close > 0.0)
-                .then_some(((latest.close / earliest.close) - 1.0) * 100.0)
+            (earliest.close > 0.0).then_some(((latest.close / earliest.close) - 1.0) * 100.0)
         })
         .unwrap_or_default();
     let up_days = item
@@ -272,11 +271,7 @@ fn score_pick_market_validation(pick: &StockPickItem, item: &EnrichedCandidate) 
     } else {
         0.0
     };
-    let latest_close = item
-        .candles
-        .last()
-        .map(|row| row.close)
-        .unwrap_or_default();
+    let latest_close = item.candles.last().map(|row| row.close).unwrap_or_default();
     let rolling_high = item
         .candles
         .iter()
@@ -644,7 +639,10 @@ pub(super) fn stock_pick_objective_grade(score: i32) -> &'static str {
     }
 }
 
-pub(super) fn stock_pick_objective_gaps(pick: &StockPickItem, item: &EnrichedCandidate) -> Vec<String> {
+pub(super) fn stock_pick_objective_gaps(
+    pick: &StockPickItem,
+    item: &EnrichedCandidate,
+) -> Vec<String> {
     let mut gaps = Vec::new();
     let fundamentals = item.fundamentals.as_ref();
     if fundamentals.is_none() {

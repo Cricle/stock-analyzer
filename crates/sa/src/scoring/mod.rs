@@ -18,5 +18,5 @@ pub mod score_types;
 pub use score_types as types;
 pub mod scorer;
 
-pub use scorer::score_stock_pick;
 pub use score_types::{DimensionScore, ScoreWeights, StockScore, score_label};
+pub use scorer::score_stock_pick;

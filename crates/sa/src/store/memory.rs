@@ -11,8 +11,8 @@ use tokio::sync::RwLock;
 
 use super::{CacheEntry, CheckpointInfo, GuidanceRule, StoredAnalysisSummary, StoredCheckpoint};
 use crate::{
-    AnalysisResult, AnalysisStore, CacheStore, CheckpointStore, GuidanceStore,
-    PersistedTask, SingleAnalysisRequest, TaskStatus,
+    AnalysisResult, AnalysisStore, CacheStore, CheckpointStore, GuidanceStore, PersistedTask,
+    SingleAnalysisRequest, TaskStatus,
 };
 
 // ---------------------------------------------------------------------------
@@ -451,8 +451,14 @@ mod tests {
     #[tokio::test]
     async fn analysis_store_list_tasks() {
         let store = InMemoryAnalysisStore::new();
-        store.insert_task(&make_task("t1", "AAPL", TaskStatus::Pending)).await.unwrap();
-        store.insert_task(&make_task("t2", "GOOGL", TaskStatus::Running)).await.unwrap();
+        store
+            .insert_task(&make_task("t1", "AAPL", TaskStatus::Pending))
+            .await
+            .unwrap();
+        store
+            .insert_task(&make_task("t2", "GOOGL", TaskStatus::Running))
+            .await
+            .unwrap();
         let tasks = store.list_tasks(10, 0).await.unwrap();
         assert_eq!(tasks.len(), 2);
     }
@@ -460,8 +466,14 @@ mod tests {
     #[tokio::test]
     async fn analysis_store_list_tasks_with_limit() {
         let store = InMemoryAnalysisStore::new();
-        store.insert_task(&make_task("t1", "AAPL", TaskStatus::Pending)).await.unwrap();
-        store.insert_task(&make_task("t2", "GOOGL", TaskStatus::Running)).await.unwrap();
+        store
+            .insert_task(&make_task("t1", "AAPL", TaskStatus::Pending))
+            .await
+            .unwrap();
+        store
+            .insert_task(&make_task("t2", "GOOGL", TaskStatus::Running))
+            .await
+            .unwrap();
         let tasks = store.list_tasks(1, 0).await.unwrap();
         assert_eq!(tasks.len(), 1);
     }
@@ -483,8 +495,14 @@ mod tests {
     #[tokio::test]
     async fn analysis_store_find_cached_task() {
         let store = InMemoryAnalysisStore::new();
-        store.insert_task(&make_task("t1", "AAPL", TaskStatus::Completed)).await.unwrap();
-        store.insert_task(&make_task("t2", "AAPL", TaskStatus::Running)).await.unwrap();
+        store
+            .insert_task(&make_task("t1", "AAPL", TaskStatus::Completed))
+            .await
+            .unwrap();
+        store
+            .insert_task(&make_task("t2", "AAPL", TaskStatus::Running))
+            .await
+            .unwrap();
         let found = store.find_cached_task("AAPL", "2026-01-01").await.unwrap();
         assert_eq!(found, Some("t1".to_string()));
     }
@@ -492,14 +510,17 @@ mod tests {
     #[tokio::test]
     async fn analysis_store_find_cached_task_not_found() {
         let store = InMemoryAnalysisStore::new();
-        store.insert_task(&make_task("t1", "AAPL", TaskStatus::Running)).await.unwrap();
+        store
+            .insert_task(&make_task("t1", "AAPL", TaskStatus::Running))
+            .await
+            .unwrap();
         let found = store.find_cached_task("AAPL", "2026-01-01").await.unwrap();
         assert!(found.is_none());
     }
 
     #[tokio::test]
     async fn analysis_store_save_and_load_result() {
-        use crate::analysis::{AnalysisGraph, AgentStateSnapshot, StructuredReport};
+        use crate::analysis::{AgentStateSnapshot, AnalysisGraph, StructuredReport};
         let store = InMemoryAnalysisStore::new();
         let result = AnalysisResult {
             task_id: "t1".to_string(),
@@ -530,8 +551,14 @@ mod tests {
     #[tokio::test]
     async fn analysis_store_list_analyses() {
         let store = InMemoryAnalysisStore::new();
-        store.insert_task(&make_task("t1", "AAPL", TaskStatus::Completed)).await.unwrap();
-        store.insert_task(&make_task("t2", "GOOGL", TaskStatus::Completed)).await.unwrap();
+        store
+            .insert_task(&make_task("t1", "AAPL", TaskStatus::Completed))
+            .await
+            .unwrap();
+        store
+            .insert_task(&make_task("t2", "GOOGL", TaskStatus::Completed))
+            .await
+            .unwrap();
         let analyses = store.list_analyses(None, 10).await.unwrap();
         assert_eq!(analyses.len(), 2);
     }
@@ -539,8 +566,14 @@ mod tests {
     #[tokio::test]
     async fn analysis_store_list_analyses_filtered() {
         let store = InMemoryAnalysisStore::new();
-        store.insert_task(&make_task("t1", "AAPL", TaskStatus::Completed)).await.unwrap();
-        store.insert_task(&make_task("t2", "GOOGL", TaskStatus::Completed)).await.unwrap();
+        store
+            .insert_task(&make_task("t1", "AAPL", TaskStatus::Completed))
+            .await
+            .unwrap();
+        store
+            .insert_task(&make_task("t2", "GOOGL", TaskStatus::Completed))
+            .await
+            .unwrap();
         let analyses = store.list_analyses(Some("AAPL"), 10).await.unwrap();
         assert_eq!(analyses.len(), 1);
     }
@@ -548,7 +581,10 @@ mod tests {
     #[tokio::test]
     async fn analysis_store_delete_analysis() {
         let store = InMemoryAnalysisStore::new();
-        store.insert_task(&make_task("t1", "AAPL", TaskStatus::Pending)).await.unwrap();
+        store
+            .insert_task(&make_task("t1", "AAPL", TaskStatus::Pending))
+            .await
+            .unwrap();
         store.delete_analysis("t1").await.unwrap();
         let got = store.get_task("t1").await.unwrap();
         assert!(got.is_none());
@@ -709,30 +745,39 @@ mod tests {
     #[tokio::test]
     async fn guidance_store_list_rules() {
         let store = InMemoryGuidanceStore::new();
-        store.upsert_rule(&GuidanceRule {
-            id: "r1".to_string(),
-            market_type: "US".to_string(),
-            rule_type: "risk".to_string(),
-            content: "Rule 1".to_string(),
-            priority: 1,
-            enabled: true,
-        }).await.unwrap();
-        store.upsert_rule(&GuidanceRule {
-            id: "r2".to_string(),
-            market_type: "US".to_string(),
-            rule_type: "risk".to_string(),
-            content: "Rule 2".to_string(),
-            priority: 2,
-            enabled: true,
-        }).await.unwrap();
-        store.upsert_rule(&GuidanceRule {
-            id: "r3".to_string(),
-            market_type: "CN".to_string(),
-            rule_type: "risk".to_string(),
-            content: "Rule 3".to_string(),
-            priority: 1,
-            enabled: true,
-        }).await.unwrap();
+        store
+            .upsert_rule(&GuidanceRule {
+                id: "r1".to_string(),
+                market_type: "US".to_string(),
+                rule_type: "risk".to_string(),
+                content: "Rule 1".to_string(),
+                priority: 1,
+                enabled: true,
+            })
+            .await
+            .unwrap();
+        store
+            .upsert_rule(&GuidanceRule {
+                id: "r2".to_string(),
+                market_type: "US".to_string(),
+                rule_type: "risk".to_string(),
+                content: "Rule 2".to_string(),
+                priority: 2,
+                enabled: true,
+            })
+            .await
+            .unwrap();
+        store
+            .upsert_rule(&GuidanceRule {
+                id: "r3".to_string(),
+                market_type: "CN".to_string(),
+                rule_type: "risk".to_string(),
+                content: "Rule 3".to_string(),
+                priority: 1,
+                enabled: true,
+            })
+            .await
+            .unwrap();
         let rules = store.list_rules("US").await.unwrap();
         assert_eq!(rules.len(), 2);
     }
@@ -740,14 +785,17 @@ mod tests {
     #[tokio::test]
     async fn guidance_store_delete_rule() {
         let store = InMemoryGuidanceStore::new();
-        store.upsert_rule(&GuidanceRule {
-            id: "r1".to_string(),
-            market_type: "US".to_string(),
-            rule_type: "risk".to_string(),
-            content: "Rule 1".to_string(),
-            priority: 1,
-            enabled: true,
-        }).await.unwrap();
+        store
+            .upsert_rule(&GuidanceRule {
+                id: "r1".to_string(),
+                market_type: "US".to_string(),
+                rule_type: "risk".to_string(),
+                content: "Rule 1".to_string(),
+                priority: 1,
+                enabled: true,
+            })
+            .await
+            .unwrap();
         store.delete_rule("r1").await.unwrap();
         let got = store.get_rule("r1").await.unwrap();
         assert!(got.is_none());

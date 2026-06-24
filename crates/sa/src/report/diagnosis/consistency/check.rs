@@ -3,6 +3,7 @@ use crate::{AnalysisResult, DiagnosisIssue};
 /// Severity of a consistency issue.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum IssueSeverity {
+    #[allow(dead_code)]
     Error,
     Warning,
     Info,
@@ -102,8 +103,7 @@ pub(super) fn fix_probabilities(result: &mut AnalysisResult) -> Vec<DiagnosisIss
 
         let scale = 100.0 / directional_sum;
         pv.upside_probability_pct = (pv.upside_probability_pct * scale * 10.0).round() / 10.0;
-        pv.downside_probability_pct =
-            (pv.downside_probability_pct * scale * 10.0).round() / 10.0;
+        pv.downside_probability_pct = (pv.downside_probability_pct * scale * 10.0).round() / 10.0;
         pv.sideways_probability_pct =
             (100.0 - pv.upside_probability_pct - pv.downside_probability_pct).max(0.0);
 

@@ -1,5 +1,5 @@
-use adk_graph::state::State;
 use crate::AnalysisResult;
+use adk_graph::state::State;
 
 use super::{
     CHANNEL_RESULT, NODE_BEAR, NODE_BULL, NODE_RESEARCH, analyst_already_completed,

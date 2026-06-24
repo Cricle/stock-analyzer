@@ -6,7 +6,9 @@
 
 mod memory;
 
-pub use memory::{InMemoryAnalysisStore, InMemoryCacheStore, InMemoryCheckpointStore, InMemoryGuidanceStore};
+pub use memory::{
+    InMemoryAnalysisStore, InMemoryCacheStore, InMemoryCheckpointStore, InMemoryGuidanceStore,
+};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

@@ -87,7 +87,10 @@ impl super::super::TradingMemoryLog {
         output
     }
 
-    pub(in crate::memory) fn setup_overlap_count(entry: &MemoryEntry, query: &MemoryQuery) -> usize {
+    pub(in crate::memory) fn setup_overlap_count(
+        entry: &MemoryEntry,
+        query: &MemoryQuery,
+    ) -> usize {
         let effective_query = Self::effective_setup_tags(&query.setup_tags);
         if effective_query.is_empty() {
             return 0;

@@ -375,21 +375,27 @@ mod tests {
     #[test]
     fn is_uniform_distribution_detects_33_33_33() {
         assert!(is_uniform_distribution(
-            &json!(0.33), &json!(0.33), &json!(0.34)
+            &json!(0.33),
+            &json!(0.33),
+            &json!(0.34)
         ));
     }
 
     #[test]
     fn is_uniform_distribution_rejects_skewed() {
         assert!(!is_uniform_distribution(
-            &json!(0.6), &json!(0.2), &json!(0.2)
+            &json!(0.6),
+            &json!(0.2),
+            &json!(0.2)
         ));
     }
 
     #[test]
     fn is_uniform_distribution_rejects_non_numbers() {
         assert!(!is_uniform_distribution(
-            &json!("high"), &json!("low"), &json!("mid")
+            &json!("high"),
+            &json!("low"),
+            &json!("mid")
         ));
     }
 
@@ -455,17 +461,15 @@ mod tests {
 
     #[test]
     fn derive_probabilities_from_text_bullish() {
-        let (up, down, sideways) = derive_probabilities_from_text(
-            "strong bullish breakout momentum", "", ""
-        );
+        let (up, down, sideways) =
+            derive_probabilities_from_text("strong bullish breakout momentum", "", "");
         assert!(up > down, "expected up ({}) > down ({})", up, down);
     }
 
     #[test]
     fn derive_probabilities_from_text_bearish() {
-        let (up, down, sideways) = derive_probabilities_from_text(
-            "bearish decline sell breakdown", "", ""
-        );
+        let (up, down, sideways) =
+            derive_probabilities_from_text("bearish decline sell breakdown", "", "");
         assert!(down > up, "expected down ({}) > up ({})", down, up);
     }
 
@@ -553,8 +557,13 @@ mod tests {
     #[test]
     fn role_report_probabilities_uses_valid_values() {
         let (up, down, sideways) = role_report_probabilities(
-            Some(json!(0.6)), Some(json!(0.2)), Some(json!(0.2)),
-            "", "", "", &[]
+            Some(json!(0.6)),
+            Some(json!(0.2)),
+            Some(json!(0.2)),
+            "",
+            "",
+            "",
+            &[],
         );
         // Non-uniform, should use directly
         assert!((up.as_f64().unwrap() - 0.6).abs() < 0.01);
@@ -563,8 +572,13 @@ mod tests {
     #[test]
     fn role_report_probabilities_derives_from_text_when_uniform() {
         let (up, down, _sideways) = role_report_probabilities(
-            Some(json!(0.33)), Some(json!(0.33)), Some(json!(0.34)),
-            "bullish strong growth", "", "", &[]
+            Some(json!(0.33)),
+            Some(json!(0.33)),
+            Some(json!(0.34)),
+            "bullish strong growth",
+            "",
+            "",
+            &[],
         );
         // Should derive from text since uniform distribution detected
         assert!(up.as_f64().unwrap() > 0.0);
@@ -572,10 +586,7 @@ mod tests {
 
     #[test]
     fn role_report_probabilities_derives_when_all_none() {
-        let (up, down, sideways) = role_report_probabilities(
-            None, None, None,
-            "", "", "", &[]
-        );
+        let (up, down, sideways) = role_report_probabilities(None, None, None, "", "", "", &[]);
         // Should derive defaults
         assert!(up.as_f64().unwrap() > 0.0);
     }

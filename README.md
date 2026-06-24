@@ -2,6 +2,8 @@
 
 Stock analysis engine — CLI & MCP server for market guidance, stock selection, and analysis reports.
 
+Data fetching is delegated to [akshare-rs](https://github.com/Cricle/akshare-rs); this crate focuses on analysis, scoring, and LLM-powered report generation.
+
 ## What it does
 
 - **Guidance** — daily market overview: sentiment, sector highlights, risk alerts, key news

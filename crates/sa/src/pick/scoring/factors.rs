@@ -71,16 +71,14 @@ fn quality_score(item: &EnrichedCandidate) -> f64 {
     };
     let roe: f64 = match (
         f.net_income_usd,
-        f.stockholders_equity_usd
-            .filter(|value| *value > 0.0),
+        f.stockholders_equity_usd.filter(|value| *value > 0.0),
     ) {
         (Some(ni), Some(eq)) => ni / eq,
         _ => 0.0,
     };
     let leverage: f64 = match (
         f.total_debt_usd,
-        f.stockholders_equity_usd
-            .filter(|value| *value > 0.0),
+        f.stockholders_equity_usd.filter(|value| *value > 0.0),
     ) {
         (Some(debt), Some(eq)) => debt / eq,
         _ => 1.0,
@@ -168,8 +166,7 @@ fn event_score(item: &EnrichedCandidate) -> f64 {
         .news_snapshot
         .deep_item_count
         .max(item.news_snapshot.light_item_count) as f64;
-    let recency_support =
-        (!item.news_snapshot.latest_published_at.trim().is_empty()) as i32 as f64;
+    let recency_support = (!item.news_snapshot.latest_published_at.trim().is_empty()) as i32 as f64;
     let catalyst_support = item.news_snapshot.catalyst_count.min(4) as f64;
     (35.0 + disclosure_count.min(8.0) * 4.0 + recency_support * 8.0 + catalyst_support * 6.0)
         .clamp(0.0, 100.0)
@@ -179,8 +176,7 @@ fn evidence_score(item: &EnrichedCandidate) -> f64 {
     let evidence_count = item.evidence_records.len() as f64;
     let source_count = item.news_snapshot.unique_source_count as f64;
     let hard_negative_penalty = item.news_snapshot.hard_negative_count.min(4) as f64 * 10.0;
-    (35.0 + evidence_count.min(12.0) * 4.5 + source_count.min(6.0) * 4.0
-        - hard_negative_penalty)
+    (35.0 + evidence_count.min(12.0) * 4.5 + source_count.min(6.0) * 4.0 - hard_negative_penalty)
         .clamp(0.0, 100.0)
 }
 

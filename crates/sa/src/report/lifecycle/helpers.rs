@@ -1,8 +1,8 @@
-use crate::{TaskManager, TaskRunParams};
 use crate::data::{FundamentalsSnapshot, NewsItem, QuoteSnapshot};
 use crate::{
     AnalysisOutcomeRequest, AnalysisResult, AnalysisStep, ResultStage, StepStatus, TaskStatus,
 };
+use crate::{TaskManager, TaskRunParams};
 
 impl TaskManager {
     pub(super) async fn resolve_pending_entries(
@@ -140,10 +140,7 @@ impl TaskManager {
                 let hundred = 100.0;
                 let intraday_change = ((quote.close - quote.open) / quote.close.abs()) * hundred;
                 let intraday_range = ((quote.high - quote.low) / quote.close.abs()) * hundred;
-                if intraday_change >= 2.0
-                    || (quote.close > quote.open
-                        && intraday_range >= 3.5)
-                {
+                if intraday_change >= 2.0 || (quote.close > quote.open && intraday_range >= 3.5) {
                     tags.push("trend_confirmed".to_string());
                 }
                 if intraday_range >= 4.5 {
@@ -158,17 +155,12 @@ impl TaskManager {
             let revenue = fundamentals.revenues_usd.unwrap_or_default();
             let free_cash_flow = fundamentals.free_cash_flow_usd.unwrap_or_default();
             let billion = 1_000_000_000.0;
-            let has_quality_scale = market_cap > 0.0
-                && (net_income > 0.0
-                    || free_cash_flow > 0.0
-                    || revenue > billion);
+            let has_quality_scale =
+                market_cap > 0.0 && (net_income > 0.0 || free_cash_flow > 0.0 || revenue > billion);
             if has_quality_scale {
                 tags.push("fundamental_quality".to_string());
             }
-            if market_cap > 0.0
-                && free_cash_flow > 0.0
-                && (free_cash_flow / market_cap) < 0.03
-            {
+            if market_cap > 0.0 && free_cash_flow > 0.0 && (free_cash_flow / market_cap) < 0.03 {
                 tags.push("valuation_sensitive".to_string());
             }
         }

@@ -431,8 +431,8 @@ impl TradingMemoryLog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::memory::{EmbeddingBackend, RagConfig};
     use crate::LocalText;
+    use crate::memory::{EmbeddingBackend, RagConfig};
 
     fn make_entry(ticker: &str, rating: &str) -> MemoryEntry {
         MemoryEntry {

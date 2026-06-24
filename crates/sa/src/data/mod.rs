@@ -3,8 +3,8 @@
 //! All data fetching is delegated to akshare-rs. This crate only re-exports
 //! the types and client the engine needs.
 
-pub mod traits;
 pub mod mock;
+pub mod traits;
 pub use traits::MarketDataProvider;
 
 // Re-export MarketDataClient and config types from akshare-rs
@@ -18,7 +18,7 @@ pub use akshare::types::{
 
 // Re-export stock feature types from akshare-rs
 pub use akshare::stock::feature::{
-    EarningsForecast, FundFlowEntry, HotStockXq, BillboardStockStatistic, MarginRatioPa, ZtPool,
+    BillboardStockStatistic, EarningsForecast, FundFlowEntry, HotStockXq, MarginRatioPa, ZtPool,
 };
 
 // Re-export DataFetchDiagnosis from akshare-rs

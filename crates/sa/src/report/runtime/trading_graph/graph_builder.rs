@@ -6,9 +6,9 @@ use adk_graph::{
 };
 use anyhow::Context;
 
+use crate::AnalysisResult;
 use crate::TaskManager;
 use crate::llm::LlmClient;
-use crate::AnalysisResult;
 
 use crate::report::runtime::propagation::Propagator;
 use crate::task_manager::TaskRunParams;

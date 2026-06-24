@@ -5,46 +5,69 @@
 ```
 stock-analyzer/
 ├── crates/
-│   ├── sa-types/      — Core market data types and shared models
-│   ├── sa-models/     — Analysis models, scoring, report logic, storage traits
-│   ├── sa-data/       — Market data fetching (A-share, HK, US, news)
-│   ├── sa-engine/     — Analysis pipeline, LLM, guidance, stock pick, task management
-│   └── sa-storage/    — Storage implementations (Redis, SQLite, Qdrant)
+│   └── sa/            — Unified analysis crate (report, guide, pick, score)
 ├── src/
 │   ├── main.rs        — CLI binary
 │   └── mcp.rs         — MCP server binary
-└── tests/             — Integration and E2E tests
+├── tests/             — Integration and E2E tests
+└── docs/              — Documentation
 ```
 
-## Crate Dependency Graph
+Data fetching is delegated to [`akshare-rs`](https://github.com/Cricle/akshare-rs) via path dependency.
+
+## Module Structure
 
 ```
-sa-types (foundation)
+sa/src/
+├── lib.rs             — Crate root, re-exports
+├── analysis/          — Core analysis types, report logic, derived calculations
+├── checkpoint/        — Resumable workflow checkpoints
+├── data/              — MarketDataProvider trait + re-exports from akshare-rs
+├── env_config/        — Environment variable configuration
+├── guide/             — Daily market guidance (report, store, embedding)
+├── llm/               — LLM client (OpenAI/Anthropic), prompts, parsing
+├── llm_config/        — LLM provider configuration
+├── memory/            — Vector-based historical memory (RAG)
+├── pick/              — Stock picking (pipeline, scoring, objective, history)
+├── report/            — Analysis pipeline (lifecycle, runtime, diagnosis, result)
+├── scoring/           — Multi-dimensional scoring (technical, fundamental, sentiment)
+├── shared/            — Shared utilities
+├── store/             — Storage traits + in-memory implementations
+├── task/              — Task status types
+├── task_manager/      — Task lifecycle management
+├── telemetry/         — OpenTelemetry integration
+├── types.rs           — Type re-exports from akshare-rs
+├── user_preferences/  — User watchlist and preferences
+└── value_utils/       — Value utility functions
+```
+
+## Dependency Graph
+
+```
+akshare-rs (data layer — news, quotes, candles, fundamentals)
     ↑
-sa-models (depends on sa-types)
+    sa (analysis engine — all analysis, scoring, LLM, storage)
     ↑
-sa-data (depends on sa-types, sa-models)
-    ↑
-sa-engine (depends on all above)
-    ↑
-sa-storage (depends on sa-types, sa-models)
+    CLI / MCP server
 ```
 
 ## Design Principles
 
-- **Workspace crates** — separation of concerns across focused crates
-- **Trait-based storage** — storage access through traits in sa-models, no direct DB dependencies in engine
-- **Graph-based execution** — analysis pipeline uses adk-graph for node-based orchestration
+- **Single analysis crate** — `sa` owns all analysis logic; data fetching lives in `akshare-rs`
+- **Trait-based data access** — `MarketDataProvider` trait enables mock testing without network calls
+- **Trait-based storage** — `AnalysisStore`, `CacheStore`, `VectorStore`, `CheckpointStore` define storage contracts
+- **Graph-based execution** — analysis pipeline uses `adk-graph` for node-based orchestration
 - **i18n keys** — code returns translation keys, JSON files provide display text
-- **Feature-gated backends** — Redis caching behind `redis-cache`, local embeddings behind `local-rag-embeddings`
+- **Feature flags** — `report`, `guide`, `pick`, `score` control module inclusion; `local-rag-embeddings` enables vector embeddings
 
 ## Data Flow
 
-1. **Data ingestion** (sa-data) — fetches market quotes, fundamentals, news from various sources
-2. **Analysis pipeline** (sa-engine) — runs market, fundamental, news, research, and portfolio decision steps
-3. **Memory & guidance** — stores/retrieves vector embeddings for RAG context
-4. **Scoring** — multi-dimensional scoring (technical, fundamental, sentiment, LLM-based)
-5. **Output** — returns JSON with i18n keys, optionally resolved to display text
+1. **Data ingestion** (akshare-rs) — fetches market quotes, fundamentals, news from A-share, HK, US sources
+2. **Analysis pipeline** (`report/`) — runs market, fundamental, news, research, and portfolio decision steps via graph execution
+3. **Memory & guidance** (`memory/`, `guide/`) — stores/retrieves vector embeddings for RAG context; generates daily guidance
+4. **Scoring** (`scoring/`) — multi-dimensional scoring (technical, fundamental, sentiment, LLM-based)
+5. **Stock picking** (`pick/`) — candidate resolution, multi-factor scoring, LLM selection
+6. **Output** — returns JSON with i18n keys, optionally resolved to display text
 
 ## Binary Architecture
 
@@ -64,42 +87,4 @@ Both binaries share initialization code via `bin_helpers`.
 | `AnalysisStore` | Task CRUD, result persistence |
 | `CacheStore` | Key-value cache with TTL |
 | `VectorStore` | Semantic vector search |
-| `CheckpointStore` | Resumable workflow checkpoints |
-
-## Crate Details
-
-### sa-types
-Core types shared across the workspace: `CandlePoint`, `QuoteSnapshot`, `NewsItem`, `MarketType`, `Rating`, `LocalText`, etc.
-
-### sa-models
-Analysis models and business logic:
-- Scoring models (technical, fundamental, sentiment)
-- Report generation logic (setup tags, calibration, chart computation)
-- Storage trait definitions
-- Configuration types
-
-### sa-data
-Market data fetching from multiple sources:
-- A-share: Tencent, Eastmoney, Akshare
-- Hong Kong: HKEX, Yahoo Finance
-- US: Yahoo Finance, Finnhub
-- News: SearXNG, GDELT, Baidu News, Uapis
-
-### sa-engine
-Core analysis engine:
-- LLM client (OpenAI-compatible, Anthropic)
-- Analysis pipeline with graph-based execution
-- Task management and lifecycle
-- Guidance generation
-- Stock pick scoring and selection
-- Memory and RAG context
-
-### sa-storage
-Storage implementations:
-- Redis-based caching
-- SQLite persistence
-- Qdrant vector search
-
-## Test Coverage
-
-Unit tests cover pure logic functions across all crates. Integration tests verify end-to-end pipeline behavior. CI runs `cargo tarpaulin` with 90% coverage threshold.
+| `CheckpointStore` | Resumable workflow ch

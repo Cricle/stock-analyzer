@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use futures::{StreamExt, stream};
 
-use crate::data::{BillboardEntry, CapitalFlowPoint, MarketDataClient, MarketKind};
 use crate::StockPickRequest;
+use crate::data::{BillboardEntry, CapitalFlowPoint, MarketDataClient, MarketKind};
 
 use super::CandidateContext;
 
@@ -375,8 +375,7 @@ fn capital_flow_source_score(items: &[CapitalFlowPoint]) -> f64 {
         return 0.0;
     };
     let hundred_million = 100_000_000.0;
-    let inflow_component = (latest.main_net_inflow / hundred_million)
-        .clamp(-8.0, 12.0);
+    let inflow_component = (latest.main_net_inflow / hundred_million).clamp(-8.0, 12.0);
     let ratio_component = latest.main_net_inflow_ratio_pct.clamp(-10.0, 20.0) * 0.35;
     let price_component = latest.change_pct.clamp(-5.0, 12.0) * 0.5;
     inflow_component + ratio_component + price_component

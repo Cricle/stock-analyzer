@@ -402,7 +402,9 @@ mod tests {
             .collect();
         assert_eq!(rr_issues.len(), 1);
 
-        let target = super::super::check::parse_price(result.report.decision_view.target_reference.as_str()).unwrap();
+        let target =
+            super::super::check::parse_price(result.report.decision_view.target_reference.as_str())
+                .unwrap();
         // Expected: 100 + 1.5 * 5 = 107.50
         assert!(
             (target - 107.5).abs() < 0.1,

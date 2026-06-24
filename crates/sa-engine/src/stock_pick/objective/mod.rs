@@ -1,7 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use rust_decimal::Decimal;
-use rust_decimal::prelude::ToPrimitive;
 use sa_data::MarketKind;
 #[cfg(test)]
 use sa_data::{CandlePoint, NewsItem};
@@ -450,10 +448,9 @@ fn score_pick_market_validation(pick: &StockPickItem, item: &EnrichedCandidate) 
         .first()
         .zip(recent_window.last())
         .and_then(|(latest, earliest)| {
-            (earliest.close > Decimal::ZERO)
-                .then_some(((latest.close / earliest.close) - Decimal::ONE) * Decimal::from(100))
+            (earliest.close > 0.0)
+                .then_some(((latest.close / earliest.close) - 1.0) * 100.0)
         })
-        .map(|v| v.to_f64().unwrap_or_default())
         .unwrap_or_default();
     let up_days = item
         .candles
@@ -468,12 +465,12 @@ fn score_pick_market_validation(pick: &StockPickItem, item: &EnrichedCandidate) 
     let latest_close = item
         .candles
         .last()
-        .map(|row| row.close.to_f64().unwrap_or_default())
+        .map(|row| row.close)
         .unwrap_or_default();
     let rolling_high = item
         .candles
         .iter()
-        .map(|row| row.close.to_f64().unwrap_or_default())
+        .map(|row| row.close)
         .fold(0.0_f64, f64::max);
     let trailing_drawdown_pct = if rolling_high > 0.0 {
         ((rolling_high - latest_close) / rolling_high) * 100.0
@@ -848,13 +845,13 @@ pub(crate) fn test_objective_score_signal_separation(
         currency: "USD".to_string(),
         fiscal_year_end: None,
         shares_outstanding: Some(1_000_000_000),
-        market_cap: Some(Decimal::from(100_000_000_000u64)),
-        net_income_usd: with_financials.then_some(Decimal::from(10_000_000_000u64)),
-        revenues_usd: with_financials.then_some(Decimal::from(50_000_000_000u64)),
-        assets_usd: with_financials.then_some(Decimal::from(80_000_000_000u64)),
-        liabilities_usd: with_financials.then_some(Decimal::from(20_000_000_000u64)),
-        stockholders_equity_usd: with_financials.then_some(Decimal::from(60_000_000_000u64)),
-        cash_and_equivalents_usd: with_financials.then_some(Decimal::from(12_000_000_000u64)),
+        market_cap: Some(100_000_000_000.0),
+        net_income_usd: with_financials.then_some(10_000_000_000.0),
+        revenues_usd: with_financials.then_some(50_000_000_000.0),
+        assets_usd: with_financials.then_some(80_000_000_000.0),
+        liabilities_usd: with_financials.then_some(20_000_000_000.0),
+        stockholders_equity_usd: with_financials.then_some(60_000_000_000.0),
+        cash_and_equivalents_usd: with_financials.then_some(12_000_000_000.0),
         gross_profit_usd: None,
         operating_income_usd: None,
         operating_expenses_usd: None,
@@ -907,17 +904,15 @@ pub(crate) fn test_objective_score_signal_separation(
         candles: (0..12)
             .map(|index| CandlePoint {
                 trade_date: format!("2026-05-{:02}", index + 1),
-                open: Decimal::from(10),
-                close: Decimal::from(10) + Decimal::from(index) / Decimal::from(10),
-                high: Decimal::from(102) / Decimal::from(10)
-                    + Decimal::from(index) / Decimal::from(10),
-                low: Decimal::from(98) / Decimal::from(10)
-                    + Decimal::from(index) / Decimal::from(10),
+                open: 10.0,
+                close: 10.0 + index as f64 / 10.0,
+                high: 102.0 / 10.0 + index as f64 / 10.0,
+                low: 98.0 / 10.0 + index as f64 / 10.0,
                 volume: 1_000_000 + index as i64,
-                amount: Decimal::ZERO,
+                amount: 0.0,
                 amplitude_pct: 1.0,
                 change_pct: 1.0,
-                change_amount: Decimal::from(1) / Decimal::from(10),
+                change_amount: 1.0 / 10.0,
                 turnover_pct: 1.0,
             })
             .collect(),

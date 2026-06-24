@@ -6,27 +6,6 @@ license.workspace = true
 
 [features]
 default = []
-redis-cache = ["redis"]
 
 [dependencies]
-sa-types = { path = "../sa-types" }
-sa-models = { path = "../sa-models" }
-akshare = "0.1.8"
-anyhow = "1"
-async-trait = "0.1"
-calamine = "0.31"
-chrono = { version = "0.4", features = ["serde"] }
-futures = "0.3"
-opentelemetry = "0.28"
-quick-xml = "0.38"
-redis = { version = "0.32", features = ["tokio-comp", "connection-manager"], optional = true }
-regex = "1"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
-reqwest-middleware = { version = "0.4", features = ["json"] }
-reqwest-tracing = { version = "0.5", features = ["opentelemetry_0_28"] }
-rust_decimal = { version = "1", features = ["serde"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-sha2 = "0.10"
-tokio = { version = "1", features = ["full"] }
-tracing = "0.1"
+akshare = { path = "/root/github/akshare-rs/crates/akshare", features = ["market-client"] }

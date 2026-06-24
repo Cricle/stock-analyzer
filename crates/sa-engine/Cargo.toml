@@ -23,9 +23,8 @@ futures = "0.3"
 hex = "0.4"
 opentelemetry = "0.28"
 regex = "1"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 reqwest-middleware = { version = "0.4", features = ["json"] }
-rust_decimal = { version = "1", features = ["serde"] }
 schemars = { version = "1", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

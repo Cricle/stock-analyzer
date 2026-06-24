@@ -1,6 +1,4 @@
 use crate::{TaskManager, TaskRunParams};
-use rust_decimal::Decimal;
-use rust_decimal::prelude::FromStr;
 use sa_data::{FundamentalsSnapshot, NewsItem, QuoteSnapshot};
 use sa_models::{
     AnalysisOutcomeRequest, AnalysisResult, AnalysisStep, ResultStage, StepStatus, TaskStatus,
@@ -138,17 +136,17 @@ impl TaskManager {
         let mut tags = Vec::new();
 
         if let Some(quote) = quote {
-            if quote.close > Decimal::ZERO {
-                let hundred = Decimal::from(100);
+            if quote.close > 0.0 {
+                let hundred = 100.0;
                 let intraday_change = ((quote.close - quote.open) / quote.close.abs()) * hundred;
                 let intraday_range = ((quote.high - quote.low) / quote.close.abs()) * hundred;
-                if intraday_change >= Decimal::from(2)
+                if intraday_change >= 2.0
                     || (quote.close > quote.open
-                        && intraday_range >= Decimal::from_str("3.5").unwrap())
+                        && intraday_range >= 3.5)
                 {
                     tags.push("trend_confirmed".to_string());
                 }
-                if intraday_range >= Decimal::from_str("4.5").unwrap() {
+                if intraday_range >= 4.5 {
                     tags.push("event_driven".to_string());
                 }
             }
@@ -159,17 +157,17 @@ impl TaskManager {
             let net_income = fundamentals.net_income_usd.unwrap_or_default();
             let revenue = fundamentals.revenues_usd.unwrap_or_default();
             let free_cash_flow = fundamentals.free_cash_flow_usd.unwrap_or_default();
-            let billion = Decimal::from(1_000_000_000u64);
-            let has_quality_scale = market_cap > Decimal::ZERO
-                && (net_income > Decimal::ZERO
-                    || free_cash_flow > Decimal::ZERO
+            let billion = 1_000_000_000.0;
+            let has_quality_scale = market_cap > 0.0
+                && (net_income > 0.0
+                    || free_cash_flow > 0.0
                     || revenue > billion);
             if has_quality_scale {
                 tags.push("fundamental_quality".to_string());
             }
-            if market_cap > Decimal::ZERO
-                && free_cash_flow > Decimal::ZERO
-                && (free_cash_flow / market_cap) < Decimal::from_str("0.03").unwrap()
+            if market_cap > 0.0
+                && free_cash_flow > 0.0
+                && (free_cash_flow / market_cap) < 0.03
             {
                 tags.push("valuation_sensitive".to_string());
             }

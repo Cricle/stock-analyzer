@@ -1,5 +1,3 @@
-use rust_decimal::Decimal;
-use rust_decimal::prelude::ToPrimitive;
 use serde_json::Value;
 
 pub(super) fn summarize_tool_observation(item: &sa_models::ToolObservation) -> String {
@@ -267,46 +265,46 @@ pub(super) fn format_fundamental_metrics(sd: &sa_models::AnalysisScenarioData) -
         return String::new();
     };
     let mut lines = Vec::new();
-    let hundred = Decimal::from(100);
+    let hundred = 100.0;
     if let (Some(mc), Some(ni)) = (f.market_cap, f.net_income_usd) {
-        if ni > Decimal::ZERO {
+        if ni > 0.0 {
             lines.push(format!(
                 "PE Ratio: {:.2}",
-                (mc / ni).to_f64().unwrap_or_default()
+                mc / ni
             ));
         } else {
             lines.push("PE Ratio: N/A (negative earnings)".to_string());
         }
     }
     if let (Some(mc), Some(eq)) = (f.market_cap, f.stockholders_equity_usd) {
-        if eq.abs() > Decimal::ZERO {
+        if eq.abs() > 0.0 {
             lines.push(format!(
                 "PB Ratio: {:.2}",
-                (mc / eq).to_f64().unwrap_or_default()
+                mc / eq
             ));
         }
     }
     if let (Some(gp), Some(rev)) = (f.gross_profit_usd, f.revenues_usd) {
-        if rev.abs() > Decimal::ZERO {
+        if rev.abs() > 0.0 {
             lines.push(format!(
                 "Gross Margin: {:.1}%",
-                (gp / rev * hundred).to_f64().unwrap_or_default()
+                gp / rev * hundred
             ));
         }
     }
     if let (Some(ni), Some(rev)) = (f.net_income_usd, f.revenues_usd) {
-        if rev.abs() > Decimal::ZERO {
+        if rev.abs() > 0.0 {
             lines.push(format!(
                 "Net Margin: {:.1}%",
-                (ni / rev * hundred).to_f64().unwrap_or_default()
+                ni / rev * hundred
             ));
         }
     }
     if let (Some(oi), Some(rev)) = (f.operating_income_usd, f.revenues_usd) {
-        if rev.abs() > Decimal::ZERO {
+        if rev.abs() > 0.0 {
             lines.push(format!(
                 "Operating Margin: {:.1}%",
-                (oi / rev * hundred).to_f64().unwrap_or_default()
+                oi / rev * hundred
             ));
         }
     }
@@ -314,7 +312,7 @@ pub(super) fn format_fundamental_metrics(sd: &sa_models::AnalysisScenarioData) -
         if shares > 0 {
             lines.push(format!(
                 "Market Cap: {:.0}",
-                mc.to_f64().unwrap_or_default()
+                mc
             ));
             lines.push(format!("Shares Outstanding: {}", shares));
         }

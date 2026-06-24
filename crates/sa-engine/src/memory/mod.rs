@@ -209,7 +209,7 @@ mod core;
 pub mod cross_collection;
 mod embedding;
 mod format;
-mod qdrant;
+mod vector_store;
 mod stats;
 
 pub(crate) use stats::*;

@@ -1,7 +1,5 @@
 //! Stock pick enrichment and price/name lookups.
 
-use rust_decimal::prelude::ToPrimitive;
-
 use super::*;
 
 impl DailyGuidanceGenerator {
@@ -39,10 +37,10 @@ impl DailyGuidanceGenerator {
 
         for (guidance, (_, quote_opt)) in stock_guidances.iter_mut().zip(quotes.iter()) {
             if let Some(quote) = quote_opt {
-                guidance.current_price = Some(quote.close.to_f64().unwrap_or_default());
-                let open = quote.open.to_f64().unwrap_or_default();
+                guidance.current_price = Some(quote.close);
+                let open = quote.open;
                 if open > 0.0 {
-                    let close = quote.close.to_f64().unwrap_or_default();
+                    let close = quote.close;
                     guidance.price_change_pct = Some(((close - open) / open) * 100.0);
                 }
             }

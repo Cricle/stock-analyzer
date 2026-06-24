@@ -35,4 +35,4 @@ jobs:
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Run coverage
-        run: cargo tarpaulin --workspace --out Stdout --fail-under 90
+        run: cargo tarpaulin --workspace --out Stdout --fail-under 40

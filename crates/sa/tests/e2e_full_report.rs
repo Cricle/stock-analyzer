@@ -119,8 +119,7 @@ async fn setup_task_manager() -> Option<(sa::TaskManager, tempfile::TempDir)> {
     let data_dir = tempfile::tempdir().unwrap();
     let analysis_store: Arc<dyn sa::AnalysisStore> = Arc::new(InMemoryAnalysisStore::new());
     let cache_store: Arc<dyn sa::CacheStore> = Arc::new(InMemoryCacheStore::new());
-    let checkpoint_inner: Arc<dyn sa::CheckpointStore> =
-        Arc::new(InMemoryCheckpointStore::new());
+    let checkpoint_inner: Arc<dyn sa::CheckpointStore> = Arc::new(InMemoryCheckpointStore::new());
     let checkpoint_store = sa::checkpoint::TaskCheckpointStore::new(checkpoint_inner);
     let market_data = sa::MarketDataClient::new().await.unwrap();
     let memory_log =

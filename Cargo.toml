@@ -6,26 +6,6 @@ resolver = "2"
 edition = "2024"
 license = "MIT"
 
-[package]
-name = "stock-analyzer-tests"
-version = "0.1.0"
-edition.workspace = true
-license.workspace = true
-
-[dev-dependencies]
-sa = { path = "crates/sa" }
-serde_json = "1"
-serde = { version = "1", features = ["derive"] }
-rust_decimal = "1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
-anyhow = "1"
-async-trait = "0.1"
-chrono = { version = "0.4", features = ["serde"] }
-tempfile = "3"
-reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
-reqwest-middleware = "0.4"
-dirs = "5"
-
 [profile.dev]
 debug = 0
 incremental = false

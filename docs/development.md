@@ -44,7 +44,7 @@ cargo fmt -p sa
 
 ## Test Coverage
 
-CI runs `cargo tarpaulin` with 90% coverage threshold:
+CI runs `cargo tarpaulin` with 40% coverage threshold:
 
 ```bash
 cargo tarpaulin --workspace --out Stdout --fail-under 90

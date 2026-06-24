@@ -57,8 +57,7 @@ pub fn assert_fundamentals_valid(fund: &FundamentalsSnapshot) -> (bool, bool) {
     let has_metric = fund.net_income_usd.is_some()
         || fund.revenues_usd.is_some()
         || fund.stockholders_equity_usd.is_some();
-    let has_market_cap =
-        fund.market_cap.is_some() && fund.market_cap.unwrap() > 0.0;
+    let has_market_cap = fund.market_cap.is_some() && fund.market_cap.unwrap() > 0.0;
     let is_complete = has_metric && has_market_cap && !fund.company_name.is_empty();
     let is_partial = has_metric || has_market_cap;
     (is_complete, is_partial)
@@ -75,12 +74,9 @@ pub fn assert_candles_valid(candles: &[CandlePoint]) -> bool {
     if candles.len() < 60 {
         return false;
     }
-    candles.iter().all(|c| {
-        c.open > 0.0
-            && c.close > 0.0
-            && c.high >= c.low
-            && c.volume > 0
-    })
+    candles
+        .iter()
+        .all(|c| c.open > 0.0 && c.close > 0.0 && c.high >= c.low && c.volume > 0)
 }
 
 pub fn print_completeness_table(results: &[StockEvalResult]) {

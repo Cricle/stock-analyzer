@@ -42,7 +42,6 @@ pub mod telemetry;
 pub mod checkpoint;
 pub mod llm;
 pub mod memory;
-pub mod tools;
 
 // ── Data module ──
 
@@ -55,6 +54,9 @@ pub mod types {
     pub use akshare::provider::market_client::{GeneralSearchIntent, MarketDataClient};
     pub use akshare::provider::market_client::DataFetchDiagnosis;
     pub use akshare::provider::market_client::normalized_news_date;
+    pub use akshare::provider::market_client::tools::{
+        PendingToolCall, ScenarioData, ToolObservation, TradingToolbox,
+    };
     pub use akshare::stock::feature::*;
 }
 
@@ -89,7 +91,7 @@ pub use analysis::{
     DiagnosisSummary, DirectionBreakdown, ExecutionReadiness, HistoricalMemoryHighlight,
     IcDisciplineView, IcNavigatorView, InvestmentDebateState, LlmTokenUsageByModel,
     LlmTokenUsageSummary, LocalText, MemoryContextSnapshot, MissingEvidenceLadder, NewsInsight,
-    PendingToolCall, PriceContext, ProbabilityDriver, ProbabilityView, ProfitRiskView, Rating,
+    PriceContext, ProbabilityDriver, ProbabilityView, ProfitRiskView, Rating,
     ReferenceFactItem, ReportActionGuides, ReportCandle, ReportDiagnosticItem, ReportDiagnostics,
     ReportEvidenceCard, ReportFlavor, ReportMarketChart, ReportReferenceSnapshot, ReportSection,
     ReportStageState, ResumeAnalysisRequest, ReviewChecklist, ReviewItem, RiskControl,
@@ -103,7 +105,7 @@ pub use analysis::{
     StockPickTechnicalSnapshot, StructuredPortfolioDecision, StructuredReflection,
     StructuredReport, StructuredResearchPlan, StructuredRiskAssessment, StructuredTraderPlan,
     TechnicalIndicatorCategory, TechnicalIndicatorConclusion, TechnicalIndicatorItem,
-    TechnicalIndicatorView, ThesisState, ToolObservation, TradeSetupQuality, TrendLine,
+    TechnicalIndicatorView, ThesisState, TradeSetupQuality, TrendLine,
     TrendLinePoint, adx_report, atr_report, bollinger_report, derive_report_diagnostics,
     derive_setup_tags, ema_report, kdj_report, macd_report, obv_report,
     render_action_guides_markdown, render_calibration_discipline_markdown, rsi_report, sma_report,

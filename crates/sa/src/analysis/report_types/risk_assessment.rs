@@ -1,4 +1,6 @@
 
+use crate::types::{PendingToolCall, ToolObservation};
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StructuredReflection {
     #[serde(default, deserialize_with = "deserialize_local_text_or_string")]
@@ -60,26 +62,6 @@ pub struct AnalystRuntimeState {
     pub final_messages: Vec<String>,
     #[serde(default)]
     pub cleared: bool,
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct PendingToolCall {
-    pub tool_name: String,
-    #[serde(default)]
-    pub arguments: Value,
-    pub reason: String,
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct ToolObservation {
-    pub tool_name: String,
-    #[serde(default)]
-    pub arguments: Value,
-    pub output: String,
-    #[serde(default)]
-    pub meta: Value,
-    pub success: bool,
-    pub created_at: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

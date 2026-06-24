@@ -247,12 +247,13 @@ pub(super) fn tool_node(
                 tool = %pending.tool_name,
                 "execute analyst tool"
             );
+            let scenario = result.artifacts.scenario_data.to_scenario_data();
             let observation = manager
                 .toolbox
                 .execute(
                     &result.symbol,
                     &result.market_type,
-                    Some(&result.artifacts.scenario_data),
+                    Some(&scenario),
                     &pending,
                 )
                 .await;

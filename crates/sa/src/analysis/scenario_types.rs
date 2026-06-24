@@ -171,6 +171,16 @@ impl AnalysisScenarioData {
             message: message.into(),
         });
     }
+
+    /// Convert to a [`crate::types::ScenarioData`] for use with the trading toolbox.
+    pub fn to_scenario_data(&self) -> crate::types::ScenarioData {
+        crate::types::ScenarioData {
+            candles: self.candles.clone(),
+            fundamentals: self.fundamentals.clone(),
+            company_news: self.company_news.clone(),
+            quote: self.quote.clone(),
+        }
+    }
 }
 
 #[cfg(test)]

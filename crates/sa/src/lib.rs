@@ -24,7 +24,7 @@
 
 //! sa — Unified stock analysis crate.
 //!
-//! Data fetching is delegated to [`akshare-rs`]; this crate focuses on
+//! Data fetching is delegated to [akshare-rs](https://github.com/Cricle/akshare-rs); this crate focuses on
 //! analysis, scoring, LLM-powered reports, and stock picking.
 //!
 //! # Features

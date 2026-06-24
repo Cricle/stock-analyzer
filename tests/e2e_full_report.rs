@@ -122,7 +122,7 @@ async fn setup_task_manager() -> Option<(sa_engine::TaskManager, tempfile::TempD
     let checkpoint_inner: Arc<dyn sa_models::CheckpointStore> =
         Arc::new(InMemoryCheckpointStore::new());
     let checkpoint_store = sa_engine::checkpoint::TaskCheckpointStore::new(checkpoint_inner);
-    let market_data = sa_data::MarketDataClient::new().await;
+    let market_data = sa_data::MarketDataClient::new().await.unwrap();
     let memory_log =
         sa_engine::memory::TradingMemoryLog::new(data_dir.path().to_str().unwrap(), 100).unwrap();
     let telemetry = sa_engine::telemetry::init_telemetry();

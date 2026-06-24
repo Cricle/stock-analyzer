@@ -1,7 +1,6 @@
 mod common;
 
 use common::stocks::TEST_STOCKS;
-use rust_decimal::prelude::ToPrimitive;
 use sa_engine::score::dimensions::{
     fundamental::{self, FundamentalInput},
     technical::{self, TechnicalInput},
@@ -128,7 +127,7 @@ async fn build_fundamental_input(
 
 #[tokio::test]
 async fn e2e_scoring_technical_dimension() {
-    let client = sa_data::MarketDataClient::new().await;
+    let client = sa_data::MarketDataClient::new().await.unwrap();
 
     for stock in TEST_STOCKS {
         let input = build_technical_input(&client, stock.symbol).await;
@@ -156,7 +155,7 @@ async fn e2e_scoring_technical_dimension() {
 
 #[tokio::test]
 async fn e2e_scoring_fundamental_dimension() {
-    let client = sa_data::MarketDataClient::new().await;
+    let client = sa_data::MarketDataClient::new().await.unwrap();
 
     for stock in TEST_STOCKS {
         let input = build_fundamental_input(&client, stock.symbol).await;

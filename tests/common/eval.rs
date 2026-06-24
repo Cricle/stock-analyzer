@@ -48,7 +48,7 @@ impl StockEvalResult {
 }
 
 pub fn assert_quote_valid(quote: &QuoteSnapshot) -> bool {
-    let price_ok = quote.close > rust_decimal::Decimal::ZERO;
+    let price_ok = quote.close > 0.0;
     let volume_ok = quote.volume > 0;
     price_ok && volume_ok
 }
@@ -58,7 +58,7 @@ pub fn assert_fundamentals_valid(fund: &FundamentalsSnapshot) -> (bool, bool) {
         || fund.revenues_usd.is_some()
         || fund.stockholders_equity_usd.is_some();
     let has_market_cap =
-        fund.market_cap.is_some() && fund.market_cap.unwrap() > rust_decimal::Decimal::ZERO;
+        fund.market_cap.is_some() && fund.market_cap.unwrap() > 0.0;
     let is_complete = has_metric && has_market_cap && !fund.company_name.is_empty();
     let is_partial = has_metric || has_market_cap;
     (is_complete, is_partial)
@@ -76,8 +76,8 @@ pub fn assert_candles_valid(candles: &[CandlePoint]) -> bool {
         return false;
     }
     candles.iter().all(|c| {
-        c.open > rust_decimal::Decimal::ZERO
-            && c.close > rust_decimal::Decimal::ZERO
+        c.open > 0.0
+            && c.close > 0.0
             && c.high >= c.low
             && c.volume > 0
     })

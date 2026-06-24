@@ -2,8 +2,6 @@ mod constraints;
 mod optimize;
 
 pub(crate) use constraints::evaluate_stock_pick_objective_assessment;
-#[cfg(test)]
-pub(crate) use constraints::test_objective_score_signal_separation;
 
 pub(crate) use optimize::build_prompt;
 pub(crate) use optimize::default_catalysts;

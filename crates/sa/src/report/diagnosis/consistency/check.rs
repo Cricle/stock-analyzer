@@ -3,7 +3,6 @@ use crate::{AnalysisResult, DiagnosisIssue};
 /// Severity of a consistency issue.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum IssueSeverity {
-    #[allow(dead_code)]
     Error,
     Warning,
     Info,

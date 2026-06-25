@@ -1,4 +1,3 @@
-use sha2::{Digest, Sha256};
 #[cfg(feature = "local-rag-embeddings")]
 use std::path::PathBuf;
 

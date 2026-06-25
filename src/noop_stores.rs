@@ -6,7 +6,12 @@ impl crate::CacheStore for NoopCacheStore {
     async fn get(&self, _key: &str) -> anyhow::Result<Option<Vec<u8>>> {
         Ok(None)
     }
-    async fn set(&self, _key: &str, _value: &[u8], _ttl_seconds: Option<u64>) -> anyhow::Result<()> {
+    async fn set(
+        &self,
+        _key: &str,
+        _value: &[u8],
+        _ttl_seconds: Option<u64>,
+    ) -> anyhow::Result<()> {
         Ok(())
     }
     async fn delete(&self, _key: &str) -> anyhow::Result<()> {

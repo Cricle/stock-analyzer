@@ -237,7 +237,10 @@ pub fn build_highlights(
     same_entries: &[MemoryEntry],
     cross_entries: &[MemoryEntry],
     highlight_from_entry: impl Fn(&MemoryEntry, bool) -> HistoricalMemoryHighlight,
-) -> (Vec<HistoricalMemoryHighlight>, Vec<HistoricalMemoryHighlight>) {
+) -> (
+    Vec<HistoricalMemoryHighlight>,
+    Vec<HistoricalMemoryHighlight>,
+) {
     let same_highlights = same_entries
         .iter()
         .take(3)

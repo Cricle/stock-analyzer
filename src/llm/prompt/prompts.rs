@@ -49,6 +49,7 @@ impl LlmClient {
              Reliability and calibration memo:\n{calibration_memo}\n\n\
              Your role is to critically evaluate the debate and deliver a disciplined, actionable investment plan for the Trader.\n             The report must provide clear trading discipline: when to act, when to wait, and when to exit -- not just directional calls.\n             Every recommendation must include specific trigger conditions, invalidation rules, and position sizing guidance.\n\
              Commit to a clear stance whenever the strongest arguments warrant one; reserve Hold only for genuinely balanced evidence.\n\
+             CRITICAL: Do NOT default to Hold when evidence leans directional. If technical indicators and/or fundamentals clearly favor one side, recommend that direction (Buy or Sell). Hold is ONLY appropriate when bull and bear arguments are genuinely of equal weight -- not when one side has stronger evidence but you lack perfect certainty.\n\
              Surface the key thesis, what matters most, and what would falsify the plan.\n\n\
              Market desk:\n{market_report}\n\n\
              Fundamentals desk:\n{fundamentals_report}\n\n\
@@ -137,7 +138,8 @@ impl LlmClient {
              Reliability and calibration memo:\n{calibration_memo}\n\n\
              As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.\n\
              Be decisive. Every conclusion should point back to specific evidence and explicit risk framing.\n\
-             If the correct action is inaction, defend that with discipline rather than vague hedging.\n\n\
+             If the correct action is inaction, defend that with discipline rather than vague hedging.\n\
+             CRITICAL: Do NOT default to Hold when evidence leans directional. If technical indicators and/or fundamentals clearly favor one side, recommend that direction (Buy or Sell). Hold is ONLY appropriate when bull and bear arguments are genuinely of equal weight.\n\n\
              Research plan:\n{investment_plan}\n\n\
              Trader proposal:\n{trader_plan}\n\n\
              Bull evidence set:\n{bull_case}\n\n\

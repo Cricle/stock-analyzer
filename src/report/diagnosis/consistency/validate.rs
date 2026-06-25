@@ -92,8 +92,8 @@ impl ConsistencyValidator {
     // Check 5: Recommendation-probability consistency
     // ------------------------------------------------------------------
 
-    /// If recommendation=Buy but downside_probability > 60%, downgrade to
-    /// Hold. Similarly for Sell with upside > 60%.
+    /// If recommendation=Buy but downside_probability > 80%, downgrade to
+    /// Hold. Similarly for Sell with upside > 80%.
     fn fix_recommendation_consistency(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
         let rec = result.report.recommendation.trim().to_string();
         if rec.is_empty() {
@@ -104,12 +104,12 @@ impl ConsistencyValidator {
         let up = result.report.probability_view.upside_probability_pct;
         let down = result.report.probability_view.downside_probability_pct;
 
-        let (should_downgrade, reason) = if rating.is_bullish() && down > 60.0 {
+        let (should_downgrade, reason) = if rating.is_bullish() && down > 80.0 {
             (
                 true,
                 format!("Buy recommendation but downside probability {:.1}%", down),
             )
-        } else if rating.is_bearish() && up > 60.0 {
+        } else if rating.is_bearish() && up > 80.0 {
             (
                 true,
                 format!("Sell recommendation but upside probability {:.1}%", up),

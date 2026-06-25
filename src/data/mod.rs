@@ -4,6 +4,7 @@
 //! the types and client the engine needs.
 
 pub mod mock;
+pub mod pipeline;
 pub mod traits;
 pub use traits::MarketDataProvider;
 

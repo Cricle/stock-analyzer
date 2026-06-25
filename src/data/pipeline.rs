@@ -64,7 +64,11 @@ pub struct ParallelExecutor {
 
 impl ParallelExecutor {
     /// Create a new ParallelExecutor.
-    pub fn new(config: DataPipelineConfig, cache: DataCacheLayer, validator: DataValidator) -> Self {
+    pub fn new(
+        config: DataPipelineConfig,
+        cache: DataCacheLayer,
+        validator: DataValidator,
+    ) -> Self {
         Self {
             config,
             cache,
@@ -75,6 +79,11 @@ impl ParallelExecutor {
     /// Get a reference to the config.
     pub fn config(&self) -> &DataPipelineConfig {
         &self.config
+    }
+
+    /// Get a reference to the validator.
+    pub fn validator(&self) -> &DataValidator {
+        &self.validator
     }
 
     /// Fetch data with retry logic.

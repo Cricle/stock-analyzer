@@ -21,7 +21,6 @@ pub(super) struct CoreMarketData {
 
 impl TaskManager {
     pub(super) const MARKET_DATA_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
-    pub(super) const MARKET_NEWS_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
 
     /// Create a ParallelExecutor for data fetching.
     pub fn create_data_executor(&self) -> crate::data::pipeline::ParallelExecutor {
@@ -55,16 +54,27 @@ impl TaskManager {
                 self.market_data.fetch_fundamentals(symbol)
             }),
             executor.fetch_with_retry("news", || {
-                self.market_data.fetch_news(symbol, 15, news_start.as_deref(), Some(&task.analysis_date))
+                self.market_data.fetch_news(
+                    symbol,
+                    15,
+                    news_start.as_deref(),
+                    Some(&task.analysis_date),
+                )
             }),
             executor.fetch_with_retry("candles", || async {
-                Ok(self.market_data.fetch_candles_with_rotation(symbol, "qfq", candle_limit).await)
+                Ok(self
+                    .market_data
+                    .fetch_candles_with_rotation(symbol, "qfq", candle_limit)
+                    .await)
             })
         );
         let (quote, quote_diagnosis) = match _quote_result {
             Some(result) => result,
             None => {
-                tracing::warn!("quote fetch failed for {}: all retries exhausted", task.symbol);
+                tracing::warn!(
+                    "quote fetch failed for {}: all retries exhausted",
+                    task.symbol
+                );
                 (
                     None,
                     crate::data::DataFetchDiagnosis::new("quote", &task.symbol),
@@ -84,7 +94,10 @@ impl TaskManager {
         let (candles_data, candles_diagnosis) = match _candles_result {
             Some(result) => result,
             None => {
-                tracing::warn!("candles fetch failed for {}: all retries exhausted", task.symbol);
+                tracing::warn!(
+                    "candles fetch failed for {}: all retries exhausted",
+                    task.symbol
+                );
                 (
                     None,
                     crate::data::DataFetchDiagnosis::new("candles", &task.symbol),

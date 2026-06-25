@@ -13,6 +13,12 @@ pub struct DataQualityReport {
 
 impl DataQualityReport {
     pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Default for DataQualityReport {
+    fn default() -> Self {
         Self {
             score: 0.0,
             missing_fields: Vec::new(),
@@ -57,7 +63,9 @@ impl DataValidator {
         if fundamentals.operating_income_usd.is_some() {
             score += 20.0;
         } else {
-            report.missing_fields.push("operating_income_usd".to_string());
+            report
+                .missing_fields
+                .push("operating_income_usd".to_string());
         }
 
         report.score = score;

@@ -291,20 +291,21 @@ impl TaskManager {
 
         // Calculate data quality scores
         let validator = crate::data::validator::DataValidator;
-        let fundamentals_score = fundamentals.as_ref()
+        let fundamentals_score = fundamentals
+            .as_ref()
             .map(|f| validator.validate_fundamentals(f).score)
             .unwrap_or(0.0);
 
         let quote_score = if quote.is_some() { 100.0 } else { 0.0 };
         let news_score = if news_items.is_empty() { 0.0 } else { 80.0 };
-        let candles_score = if market_chart.candles.is_empty() { 0.0 } else { 90.0 };
+        let candles_score = if market_chart.candles.is_empty() {
+            0.0
+        } else {
+            90.0
+        };
 
-        let overall_quality = validator.overall_score(
-            quote_score,
-            fundamentals_score,
-            news_score,
-            candles_score,
-        );
+        let overall_quality =
+            validator.overall_score(quote_score, fundamentals_score, news_score, candles_score);
 
         tracing::info!(
             task_id = %task.task_id,

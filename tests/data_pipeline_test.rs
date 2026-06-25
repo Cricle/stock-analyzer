@@ -1,14 +1,18 @@
+use sa::data::FundamentalsSnapshot;
 use sa::data::cache::DataCacheLayer;
 use sa::data::pipeline::{DataPipelineConfig, ParallelExecutor};
 use sa::data::validator::{DataQualityReport, DataValidator};
-use sa::data::FundamentalsSnapshot;
 use std::time::Duration;
 
 #[test]
 fn test_cache_set_and_get() {
     let cache = DataCacheLayer::new(100, Duration::from_secs(300));
     let data = serde_json::json!({"price": 100.0});
-    cache.set("AAPL_quote".to_string(), data.clone(), Duration::from_secs(60));
+    cache.set(
+        "AAPL_quote".to_string(),
+        data.clone(),
+        Duration::from_secs(60),
+    );
 
     let cached = cache.get("AAPL_quote");
     assert!(cached.is_some());
@@ -26,7 +30,11 @@ fn test_cache_miss() {
 fn test_cache_expiry() {
     let cache = DataCacheLayer::new(100, Duration::from_secs(300));
     let data = serde_json::json!({"price": 100.0});
-    cache.set("AAPL_quote".to_string(), data.clone(), Duration::from_millis(1));
+    cache.set(
+        "AAPL_quote".to_string(),
+        data.clone(),
+        Duration::from_millis(1),
+    );
 
     // Wait for expiry
     std::thread::sleep(Duration::from_millis(10));
@@ -136,9 +144,7 @@ async fn test_fetch_with_retry_success() {
     let validator = DataValidator;
     let executor = ParallelExecutor::new(config, cache, validator);
 
-    let result = executor
-        .fetch_with_retry("test", || async { Ok(42) })
-        .await;
+    let result = executor.fetch_with_retry("test", || async { Ok(42) }).await;
     assert_eq!(result, Some(42));
 }
 
@@ -154,9 +160,7 @@ async fn test_fetch_with_retry_failure() {
     let executor = ParallelExecutor::new(config, cache, validator);
 
     let result: Option<i32> = executor
-        .fetch_with_retry("test", || async {
-            Err(anyhow::anyhow!("test error"))
-        })
+        .fetch_with_retry("test", || async { Err(anyhow::anyhow!("test error")) })
         .await;
     assert!(result.is_none());
 }

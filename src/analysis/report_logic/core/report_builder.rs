@@ -379,27 +379,11 @@ impl StructuredReport {
         // the LLM's own conflicting ratio (e.g. 0.13) from appearing alongside
         // the authoritative computed value (e.g. 4.98).
         if let Some(rr) = profit_risk.reward_risk_ratio {
-            let rr_label = if rr >= 2.0 {
-                "赔率充裕"
-            } else if rr >= 1.2 {
-                "赔率尚可"
-            } else if rr >= 0.5 {
-                "赔率偏弱"
-            } else {
-                "赔率极差"
-            };
+            let rr_label = crate::analysis::rr_label(rr);
             if let Some(crr) = profit_risk.current_position_reward_risk_ratio
                 && (crr - rr).abs() > 0.01
             {
-                let crr_label = if crr >= 2.0 {
-                    "赔率充裕"
-                } else if crr >= 1.2 {
-                    "赔率尚可"
-                } else if crr >= 0.5 {
-                    "赔率偏弱"
-                } else {
-                    "赔率极差"
-                };
+                let crr_label = crate::analysis::rr_label(crr);
                 portfolio_decision.executive_summary.key.push_str(&format!(
                     " 系统计算盈亏比（当前→确认位）: {:.2}（{}），（当前→目标位）: {:.2}（{}），以代码计算值为准。",
                     crr, crr_label, rr, rr_label

@@ -175,3 +175,16 @@ impl AnalysisResult {
         }
     }
 }
+
+/// Label for reward-risk ratio in Chinese.
+pub fn rr_label(rr: f64) -> &'static str {
+    if rr >= 2.0 {
+        "赔率充裕"
+    } else if rr >= 1.2 {
+        "赔率尚可"
+    } else if rr >= 0.5 {
+        "赔率偏弱"
+    } else {
+        "赔率极差"
+    }
+}

@@ -295,28 +295,12 @@ fn build_ic_report_sections(result: &AnalysisResult, report: &StructuredReport) 
         // This prevents the LLM from generating its own conflicting ratio in
         // reasoning text (e.g. 0.13 when the computed value is 4.98).
         if let Some(rr) = report.profit_risk.reward_risk_ratio {
-            let rr_label = if rr >= 2.0 {
-                "赔率充裕"
-            } else if rr >= 1.2 {
-                "赔率尚可"
-            } else if rr >= 0.5 {
-                "赔率偏弱"
-            } else {
-                "赔率极差"
-            };
+            let rr_label = crate::analysis::rr_label(rr);
             let current_rr = report.profit_risk.current_position_reward_risk_ratio;
             if let Some(crr) = current_rr
                 && (crr - rr).abs() > 0.01
             {
-                let crr_label = if crr >= 2.0 {
-                    "赔率充裕"
-                } else if crr >= 1.2 {
-                    "赔率尚可"
-                } else if crr >= 0.5 {
-                    "赔率偏弱"
-                } else {
-                    "赔率极差"
-                };
+                let crr_label = crate::analysis::rr_label(crr);
                 lines.push(format!(
                     "- 系统计算盈亏比（当前价位→确认位）: **{:.2}**（{}）；盈亏比（当前价位→目标位）: **{:.2}**（{}）。两者区别：前者是当前价格到确认突破位的赔率，后者是突破后到目标位的赔率。以代码计算值为准。",
                     crr, crr_label, rr, rr_label

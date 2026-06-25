@@ -104,6 +104,21 @@ fn test_overall_score_clamped() {
     assert!((score - 100.0).abs() < f64::EPSILON);
 }
 
+#[test]
+fn test_overall_score_calculation() {
+    let validator = DataValidator;
+    let score = validator.overall_score(80.0, 60.0, 90.0, 70.0);
+    // 80*0.3 + 60*0.3 + 90*0.2 + 70*0.2 = 24 + 18 + 18 + 14 = 74
+    assert!((score - 74.0).abs() < 0.1);
+}
+
+#[test]
+fn test_overall_score_clamping() {
+    let validator = DataValidator;
+    let score = validator.overall_score(100.0, 100.0, 100.0, 100.0);
+    assert_eq!(score, 100.0);
+}
+
 #[tokio::test]
 async fn test_parallel_executor_creation() {
     let config = DataPipelineConfig::default();
@@ -112,4 +127,36 @@ async fn test_parallel_executor_creation() {
 
     let executor = ParallelExecutor::new(config, cache, validator);
     assert_eq!(executor.config().max_retries, 2);
+}
+
+#[tokio::test]
+async fn test_fetch_with_retry_success() {
+    let config = DataPipelineConfig::default();
+    let cache = DataCacheLayer::new(100, Duration::from_secs(300));
+    let validator = DataValidator;
+    let executor = ParallelExecutor::new(config, cache, validator);
+
+    let result = executor
+        .fetch_with_retry("test", || async { Ok(42) })
+        .await;
+    assert_eq!(result, Some(42));
+}
+
+#[tokio::test]
+async fn test_fetch_with_retry_failure() {
+    let config = DataPipelineConfig {
+        max_retries: 1,
+        retry_base_delay_ms: 10,
+        ..Default::default()
+    };
+    let cache = DataCacheLayer::new(100, Duration::from_secs(300));
+    let validator = DataValidator;
+    let executor = ParallelExecutor::new(config, cache, validator);
+
+    let result: Option<i32> = executor
+        .fetch_with_retry("test", || async {
+            Err(anyhow::anyhow!("test error"))
+        })
+        .await;
+    assert!(result.is_none());
 }

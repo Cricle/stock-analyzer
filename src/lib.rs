@@ -98,6 +98,7 @@ pub mod types {
 // ── Models ──
 
 pub mod analysis;
+pub mod indicators;
 pub mod store;
 pub mod task;
 pub mod user_preferences;

@@ -6,7 +6,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub mod client;
 pub mod parse;
-mod prompt;
+pub mod prompt;
 pub mod retry;
 
 /// Configuration for the LLM client.

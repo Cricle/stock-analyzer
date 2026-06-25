@@ -182,3 +182,55 @@ impl LlmClient {
         )
     }
 }
+
+/// Build a decision framework prompt based on data completeness.
+pub fn build_decision_framework_prompt(
+    technical_completeness: f64,
+    fundamental_completeness: f64,
+    news_completeness: f64,
+    sentiment_completeness: f64,
+) -> String {
+    let overall = (technical_completeness * 0.3
+        + fundamental_completeness * 0.3
+        + news_completeness * 0.2
+        + sentiment_completeness * 0.2)
+        .clamp(0.0, 100.0);
+
+    let decision_rule = if overall < 60.0 {
+        "If data completeness < 60%, give Hold and explain missing data"
+    } else {
+        "If data completeness >= 60%, must give clear directional judgment"
+    };
+
+    format!(
+        r#"## Decision Framework
+
+You are a professional stock analyst. Make investment decisions based on the following data:
+
+### Data Completeness
+- Technical data: {technical:.1}%
+- Fundamental data: {fundamental:.1}%
+- News data: {news:.1}%
+- Sentiment data: {sentiment:.1}%
+- Overall: {overall:.1}%
+
+### Decision Rules
+1. {decision_rule}
+2. Use this decision matrix:
+   - Technical bullish + Fundamentals healthy → Buy
+   - Technical bearish + Fundamentals deteriorating → Sell
+   - Contradictory signals or insufficient data → Hold
+
+### Output Requirements
+1. Must give clear Buy/Sell/Hold recommendation
+2. Must give confidence score (0-100)
+3. Must list supporting and opposing evidence
+4. Must explain impact of missing data on decision"#,
+        technical = technical_completeness,
+        fundamental = fundamental_completeness,
+        news = news_completeness,
+        sentiment = sentiment_completeness,
+        overall = overall,
+        decision_rule = decision_rule,
+    )
+}

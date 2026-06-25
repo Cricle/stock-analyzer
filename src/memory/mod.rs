@@ -232,6 +232,25 @@ pub(crate) fn format_memory_parts(
     parts
 }
 
+/// Build highlights from memory entries (top 3 from each group).
+pub(crate) fn build_highlights(
+    same_entries: &[MemoryEntry],
+    cross_entries: &[MemoryEntry],
+    highlight_from_entry: impl Fn(&MemoryEntry, bool) -> HistoricalMemoryHighlight,
+) -> (Vec<HistoricalMemoryHighlight>, Vec<HistoricalMemoryHighlight>) {
+    let same_highlights = same_entries
+        .iter()
+        .take(3)
+        .map(|entry| highlight_from_entry(entry, true))
+        .collect();
+    let cross_highlights = cross_entries
+        .iter()
+        .take(3)
+        .map(|entry| highlight_from_entry(entry, false))
+        .collect();
+    (same_highlights, cross_highlights)
+}
+
 /// Generate a hash-based embedding vector from text.
 /// Uses SHA-256 to deterministically map tokens to vector indices.
 pub(crate) fn hash_embed_text(text: &str, dimension: usize) -> Vec<f32> {

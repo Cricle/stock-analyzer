@@ -158,6 +158,12 @@ impl super::super::TradingMemoryLog {
             Self::format_reflection_only,
         );
 
+        let (same_ticker_highlights, cross_ticker_highlights) = crate::memory::build_highlights(
+            &same_entries,
+            &cross_entries,
+            Self::highlight_from_entry,
+        );
+
         Ok(MemoryContextBundle {
             context_text: Self::compact_context_text(&parts.join("\n\n"), 3200),
             source: "local".to_string(),
@@ -172,16 +178,8 @@ impl super::super::TradingMemoryLog {
             cross_ticker_count: cross_entries.len(),
             vector_hit_count: 0,
             effective_top_k: same_limit + cross_limit,
-            same_ticker_highlights: same_entries
-                .iter()
-                .take(3)
-                .map(|entry| Self::highlight_from_entry(entry, true))
-                .collect(),
-            cross_ticker_highlights: cross_entries
-                .iter()
-                .take(3)
-                .map(|entry| Self::highlight_from_entry(entry, false))
-                .collect(),
+            same_ticker_highlights,
+            cross_ticker_highlights,
         })
     }
 

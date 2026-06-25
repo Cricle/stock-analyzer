@@ -3,6 +3,7 @@
 //! All data fetching is delegated to akshare-rs. This crate only re-exports
 //! the types and client the engine needs.
 
+pub mod cache;
 pub mod mock;
 pub mod pipeline;
 pub mod traits;

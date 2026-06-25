@@ -1,4 +1,39 @@
+use sa::data::cache::DataCacheLayer;
 use sa::data::pipeline::DataPipelineConfig;
+use sa::data::validator::{DataQualityReport, DataValidator};
+use sa::data::FundamentalsSnapshot;
+use std::time::Duration;
+
+#[test]
+fn test_cache_set_and_get() {
+    let cache = DataCacheLayer::new(100, Duration::from_secs(300));
+    let data = serde_json::json!({"price": 100.0});
+    cache.set("AAPL_quote".to_string(), data.clone(), Duration::from_secs(60));
+
+    let cached = cache.get("AAPL_quote");
+    assert!(cached.is_some());
+    assert_eq!(cached.unwrap(), data);
+}
+
+#[test]
+fn test_cache_miss() {
+    let cache = DataCacheLayer::new(100, Duration::from_secs(300));
+    let cached = cache.get("NONEXISTENT");
+    assert!(cached.is_none());
+}
+
+#[test]
+fn test_cache_expiry() {
+    let cache = DataCacheLayer::new(100, Duration::from_secs(300));
+    let data = serde_json::json!({"price": 100.0});
+    cache.set("AAPL_quote".to_string(), data.clone(), Duration::from_millis(1));
+
+    // Wait for expiry
+    std::thread::sleep(Duration::from_millis(10));
+
+    let cached = cache.get("AAPL_quote");
+    assert!(cached.is_none());
+}
 
 #[test]
 fn test_default_config() {

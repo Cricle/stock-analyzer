@@ -1,5 +1,5 @@
 use sa::data::cache::DataCacheLayer;
-use sa::data::pipeline::DataPipelineConfig;
+use sa::data::pipeline::{DataPipelineConfig, ParallelExecutor};
 use sa::data::validator::{DataQualityReport, DataValidator};
 use sa::data::FundamentalsSnapshot;
 use std::time::Duration;
@@ -102,4 +102,14 @@ fn test_overall_score_clamped() {
     // Even with huge inputs, score should clamp to 100
     let score = validator.overall_score(200.0, 200.0, 200.0, 200.0);
     assert!((score - 100.0).abs() < f64::EPSILON);
+}
+
+#[tokio::test]
+async fn test_parallel_executor_creation() {
+    let config = DataPipelineConfig::default();
+    let cache = DataCacheLayer::new(100, Duration::from_secs(300));
+    let validator = DataValidator;
+
+    let executor = ParallelExecutor::new(config, cache, validator);
+    assert_eq!(executor.config().max_retries, 2);
 }

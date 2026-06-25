@@ -45,34 +45,26 @@ impl TaskManager {
             .and_then(|value| value.parse::<usize>().ok())
             .unwrap_or(3000)
             .clamp(1, 5000);
+        let executor = self.create_data_executor();
+        let symbol = &task.symbol;
         let (_quote_result, _fundamentals, _news_items, _candles_result) = tokio::join!(
-            tokio::time::timeout(
-                Self::MARKET_DATA_TIMEOUT,
-                self.market_data.fetch_quote_with_rotation(&task.symbol)
-            ),
-            tokio::time::timeout(
-                Self::MARKET_DATA_TIMEOUT,
-                self.market_data.fetch_fundamentals(&task.symbol)
-            ),
-            tokio::time::timeout(
-                Self::MARKET_NEWS_TIMEOUT,
-                self.market_data.fetch_news(
-                    &task.symbol,
-                    15,
-                    news_start.as_deref(),
-                    Some(&task.analysis_date),
-                )
-            ),
-            tokio::time::timeout(
-                Self::MARKET_DATA_TIMEOUT,
-                self.market_data
-                    .fetch_candles_with_rotation(&task.symbol, "qfq", candle_limit)
-            )
+            executor.fetch_with_retry("quote", || async {
+                Ok(self.market_data.fetch_quote_with_rotation(symbol).await)
+            }),
+            executor.fetch_with_retry("fundamentals", || {
+                self.market_data.fetch_fundamentals(symbol)
+            }),
+            executor.fetch_with_retry("news", || {
+                self.market_data.fetch_news(symbol, 15, news_start.as_deref(), Some(&task.analysis_date))
+            }),
+            executor.fetch_with_retry("candles", || async {
+                Ok(self.market_data.fetch_candles_with_rotation(symbol, "qfq", candle_limit).await)
+            })
         );
         let (quote, quote_diagnosis) = match _quote_result {
-            Ok(result) => result,
-            Err(error) => {
-                tracing::warn!("quote fetch timed out for {}: {}", task.symbol, error);
+            Some(result) => result,
+            None => {
+                tracing::warn!("quote fetch failed for {}: all retries exhausted", task.symbol);
                 (
                     None,
                     crate::data::DataFetchDiagnosis::new("quote", &task.symbol),
@@ -87,28 +79,12 @@ impl TaskManager {
                 "quote fetch diagnosis"
             );
         }
-        let fundamentals = match _fundamentals {
-            Ok(result) => result.ok(),
-            Err(error) => {
-                tracing::warn!(
-                    "fundamentals fetch timed out for {}: {}",
-                    task.symbol,
-                    error
-                );
-                None
-            }
-        };
-        let news_items = match _news_items {
-            Ok(result) => result.unwrap_or_default(),
-            Err(error) => {
-                tracing::warn!("news fetch timed out for {}: {}", task.symbol, error);
-                Vec::new()
-            }
-        };
+        let fundamentals = _fundamentals;
+        let news_items = _news_items.unwrap_or_default();
         let (candles_data, candles_diagnosis) = match _candles_result {
-            Ok(result) => result,
-            Err(error) => {
-                tracing::warn!("candles fetch timed out for {}: {}", task.symbol, error);
+            Some(result) => result,
+            None => {
+                tracing::warn!("candles fetch failed for {}: all retries exhausted", task.symbol);
                 (
                     None,
                     crate::data::DataFetchDiagnosis::new("candles", &task.symbol),

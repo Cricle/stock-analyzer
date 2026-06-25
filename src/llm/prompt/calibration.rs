@@ -1,3 +1,48 @@
+/// Confidence calibration based on data completeness and signal consistency.
+#[derive(Debug, Clone)]
+pub struct ConfidenceCalibration {
+    /// Base confidence score
+    pub base_confidence: f64,
+    /// Factor for data completeness (multiplier)
+    pub data_completeness_factor: f64,
+    /// Factor for signal consistency (multiplier)
+    pub signal_consistency_factor: f64,
+    /// Factor for historical accuracy (multiplier)
+    pub historical_accuracy_factor: f64,
+}
+
+impl ConfidenceCalibration {
+    /// Create a new calibration with the given base confidence.
+    pub fn new(base_confidence: f64) -> Self {
+        Self {
+            base_confidence: base_confidence.clamp(0.0, 100.0),
+            data_completeness_factor: 1.0,
+            signal_consistency_factor: 1.0,
+            historical_accuracy_factor: 1.0,
+        }
+    }
+
+    /// Calibrate confidence based on input factors.
+    pub fn calibrate(
+        &self,
+        data_completeness: f64,
+        signal_consistency: f64,
+        historical_accuracy: f64,
+    ) -> f64 {
+        let adjusted = self.base_confidence
+            * (1.0 + (data_completeness - 0.5) * self.data_completeness_factor)
+            * (1.0 + (signal_consistency - 0.5) * self.signal_consistency_factor)
+            * (1.0 + (historical_accuracy - 0.5) * self.historical_accuracy_factor);
+        adjusted.clamp(0.0, 100.0)
+    }
+}
+
+impl Default for ConfidenceCalibration {
+    fn default() -> Self {
+        Self::new(50.0)
+    }
+}
+
 impl LlmClient {
     pub fn calibration_memo(
         memory_context: &crate::MemoryContextSnapshot,

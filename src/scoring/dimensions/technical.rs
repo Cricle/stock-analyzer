@@ -96,18 +96,5 @@ pub fn score_technical(input: &TechnicalInput) -> DimensionScore {
     };
     total += vol_score;
 
-    let score = if weight_sum > 0.0 {
-        (total / weight_sum * 100.0).clamp(0.0, 100.0) as u8
-    } else {
-        50
-    };
-
-    DimensionScore {
-        score,
-        reason: if reasons.is_empty() {
-            "技术面信号中性".into()
-        } else {
-            reasons.join("；")
-        },
-    }
+    super::weighted_score(total, weight_sum, "技术面信号中性", &reasons)
 }

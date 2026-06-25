@@ -89,18 +89,5 @@ pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
         }
     }
 
-    let score = if weight_sum > 0.0 {
-        (total / weight_sum * 100.0).clamp(0.0, 100.0) as u8
-    } else {
-        50
-    };
-
-    DimensionScore {
-        score,
-        reason: if reasons.is_empty() {
-            "基本面数据不足，给予中性评分".into()
-        } else {
-            reasons.join("；")
-        },
-    }
+    super::weighted_score(total, weight_sum, "基本面数据不足，给予中性评分", &reasons)
 }

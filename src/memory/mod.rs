@@ -232,4 +232,29 @@ pub(crate) fn format_memory_parts(
     parts
 }
 
+/// Generate a hash-based embedding vector from text.
+/// Uses SHA-256 to deterministically map tokens to vector indices.
+pub(crate) fn hash_embed_text(text: &str, dimension: usize) -> Vec<f32> {
+    use sha2::{Digest, Sha256};
+    let mut vector = vec![0.0f32; dimension];
+    for token in text
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .filter(|token| !token.is_empty())
+    {
+        let normalized = token.to_ascii_lowercase();
+        let digest = Sha256::digest(normalized.as_bytes());
+        let index = (u16::from_le_bytes([digest[0], digest[1]]) as usize) % dimension.max(1);
+        let sign = if digest[2] % 2 == 0 { 1.0 } else { -1.0 };
+        let magnitude = 1.0 + (digest[3] as f32 / 255.0);
+        vector[index] += sign * magnitude;
+    }
+    let norm = vector.iter().map(|value| value * value).sum::<f32>().sqrt();
+    if norm > 0.0 {
+        for value in &mut vector {
+            *value /= norm;
+        }
+    }
+    vector
+}
+
 pub use stats::*;

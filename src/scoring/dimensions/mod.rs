@@ -2,3 +2,22 @@ pub mod fundamental;
 pub mod llm_analysis;
 pub mod sentiment;
 pub mod technical;
+
+use super::score_types::DimensionScore;
+
+/// Compute a weighted score from total and weight_sum, with a default of 50 when no data.
+pub(crate) fn weighted_score(total: f64, weight_sum: f64, default_reason: &str, reasons: &[String]) -> DimensionScore {
+    let score = if weight_sum > 0.0 {
+        (total / weight_sum * 100.0).clamp(0.0, 100.0) as u8
+    } else {
+        50
+    };
+    DimensionScore {
+        score,
+        reason: if reasons.is_empty() {
+            default_reason.into()
+        } else {
+            reasons.join("；")
+        },
+    }
+}

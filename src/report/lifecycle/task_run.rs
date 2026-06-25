@@ -289,6 +289,31 @@ impl TaskManager {
             market_chart = core_data.market_chart;
         } // end else (fresh run)
 
+        // Calculate data quality scores
+        let validator = crate::data::validator::DataValidator;
+        let fundamentals_score = fundamentals.as_ref()
+            .map(|f| validator.validate_fundamentals(f).score)
+            .unwrap_or(0.0);
+
+        let quote_score = if quote.is_some() { 100.0 } else { 0.0 };
+        let news_score = if news_items.is_empty() { 0.0 } else { 80.0 };
+        let candles_score = if market_chart.candles.is_empty() { 0.0 } else { 90.0 };
+
+        let overall_quality = validator.overall_score(
+            quote_score,
+            fundamentals_score,
+            news_score,
+            candles_score,
+        );
+
+        tracing::info!(
+            task_id = %task.task_id,
+            symbol = %task.symbol,
+            data_quality = overall_quality,
+            fundamentals_score = fundamentals_score,
+            "data quality assessment"
+        );
+
         let refined_memory_context = self
             .initial_memory_context(
                 &task.symbol,

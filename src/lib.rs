@@ -99,6 +99,7 @@ pub mod types {
 
 pub mod analysis;
 pub mod indicators;
+mod noop_stores;
 pub mod store;
 pub mod task;
 pub mod user_preferences;

@@ -16,7 +16,7 @@ score = []
 
 [dependencies]
 # External data
-akshare = { version = "0.1.9", features = ["market-client"] }
+akshare = { version = "0.1.10", features = ["market-client"] }
 
 # Core
 adk-graph = { version = "0.8.0" }

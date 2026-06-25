@@ -7,6 +7,7 @@ pub mod cache;
 pub mod mock;
 pub mod pipeline;
 pub mod traits;
+pub mod validator;
 pub use traits::MarketDataProvider;
 
 // Re-export MarketDataClient and config types from akshare-rs

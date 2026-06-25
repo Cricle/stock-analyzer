@@ -58,3 +58,48 @@ fn test_timeout_for_data_type() {
     assert_eq!(config.timeout_ms("candles"), 15000);
     assert_eq!(config.timeout_ms("unknown"), 15000); // default
 }
+
+#[test]
+fn test_validate_with_complete_data() {
+    let validator = DataValidator;
+    let fundamentals = FundamentalsSnapshot {
+        market_cap: Some(1_000_000.0),
+        revenues_usd: Some(500_000.0),
+        net_income_usd: Some(100_000.0),
+        gross_profit_usd: Some(200_000.0),
+        operating_income_usd: Some(150_000.0),
+        ..Default::default()
+    };
+
+    let report = validator.validate_fundamentals(&fundamentals);
+    assert!(report.score > 0.0);
+    assert!(report.missing_fields.is_empty());
+}
+
+#[test]
+fn test_validate_with_missing_data() {
+    let validator = DataValidator;
+    let fundamentals = FundamentalsSnapshot::default();
+
+    let report = validator.validate_fundamentals(&fundamentals);
+    assert_eq!(report.score, 0.0);
+    assert!(!report.missing_fields.is_empty());
+}
+
+#[test]
+fn test_overall_score_weighted_average() {
+    let validator = DataValidator;
+    let score = validator.overall_score(100.0, 100.0, 100.0, 100.0);
+    assert!((score - 100.0).abs() < f64::EPSILON);
+
+    let score_zero = validator.overall_score(0.0, 0.0, 0.0, 0.0);
+    assert!((score_zero - 0.0).abs() < f64::EPSILON);
+}
+
+#[test]
+fn test_overall_score_clamped() {
+    let validator = DataValidator;
+    // Even with huge inputs, score should clamp to 100
+    let score = validator.overall_score(200.0, 200.0, 200.0, 200.0);
+    assert!((score - 100.0).abs() < f64::EPSILON);
+}

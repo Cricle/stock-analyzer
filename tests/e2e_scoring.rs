@@ -17,27 +17,11 @@ fn e2e_fixture_loading() {
 fn e2e_score_consistency_bullish() {
     let pick = common::sample_scoreable_pick();
     // Verify pick has all bullish signals
-    assert!(pick.rsi.unwrap() < 70.0);
-    assert!(pick.volume_elevated);
-    assert!(pick.latest_positive);
+    assert!(pick.technical.rsi.unwrap() < 70.0);
+    assert!(pick.technical.volume_elevated);
+    assert!(pick.technical.latest_positive);
     // Score should be above neutral
-    // Note: score_stock_pick is async and needs LLM client,
-    // so we test the individual dimensions here
-    let tech_input = sa::score::dimensions::technical::TechnicalInput {
-        rsi: pick.rsi,
-        macd: pick.macd,
-        macd_signal: pick.macd_signal,
-        macd_hist: pick.macd_hist,
-        adx: pick.adx,
-        close_10_ema: pick.close_10_ema,
-        close_50_sma: pick.close_50_sma,
-        close_200_sma: pick.close_200_sma,
-        obv: pick.obv,
-        current_price: pick.current_price,
-        volume_elevated: pick.volume_elevated,
-        latest_positive: pick.latest_positive,
-    };
-    let tech = sa::score::dimensions::technical::score_technical(&tech_input);
+    let tech = sa::score::dimensions::technical::score_technical(&pick.technical);
     assert!(
         tech.score >= 60,
         "expected bullish tech score, got {}",

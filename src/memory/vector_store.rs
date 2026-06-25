@@ -293,18 +293,12 @@ impl TradingMemoryLog {
             return Ok(None);
         }
 
-        let mut parts = Vec::new();
-        if !same_entries.is_empty() {
-            parts.push(format!(
-                "Past analyses of {} (most relevant first):",
-                query.ticker.trim().to_uppercase()
-            ));
-            parts.extend(same_entries.iter().map(Self::format_full_entry));
-        }
-        if !cross_entries.is_empty() {
-            parts.push("Recent cross-ticker lessons:".to_string());
-            parts.extend(cross_entries.iter().map(Self::format_reflection_only));
-        }
+        let parts = crate::memory::format_memory_parts(
+            &same_entries,
+            &cross_entries,
+            Self::format_full_entry,
+            Self::format_reflection_only,
+        );
         Ok(Some(MemoryContextBundle {
             context_text: Self::compact_context_text(&parts.join("\n\n"), 3200),
             source: "vector".to_string(),

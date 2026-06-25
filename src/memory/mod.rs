@@ -210,4 +210,26 @@ pub mod format;
 pub mod stats;
 mod vector_store;
 
+/// Format memory context parts from same-ticker and cross-ticker entries.
+pub(crate) fn format_memory_parts(
+    same_entries: &[MemoryEntry],
+    cross_entries: &[MemoryEntry],
+    format_full: impl Fn(&MemoryEntry) -> String,
+    format_reflection: impl Fn(&MemoryEntry) -> String,
+) -> Vec<String> {
+    let mut parts = Vec::new();
+    if !same_entries.is_empty() {
+        parts.push(format!(
+            "Past analyses of {} (most relevant first):",
+            same_entries[0].ticker.trim().to_uppercase()
+        ));
+        parts.extend(same_entries.iter().map(|e| format_full(e)));
+    }
+    if !cross_entries.is_empty() {
+        parts.push("Recent cross-ticker lessons:".to_string());
+        parts.extend(cross_entries.iter().map(|e| format_reflection(e)));
+    }
+    parts
+}
+
 pub use stats::*;

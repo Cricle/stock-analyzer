@@ -392,22 +392,24 @@ pub async fn run(
         let scoreable = crate::scoring::scorer::ScoreablePick {
             symbol: pick.symbol.clone(),
             market: pick.market.clone(),
-            rsi: pick.technical_snapshot.rsi,
-            macd: pick.technical_snapshot.macd,
-            macd_signal: pick.technical_snapshot.macd_signal,
-            macd_hist: pick.technical_snapshot.macd_hist,
-            adx: pick.technical_snapshot.adx,
-            close_10_ema: pick.technical_snapshot.close_10_ema,
-            close_50_sma: pick.technical_snapshot.close_50_sma,
-            close_200_sma: pick.technical_snapshot.close_200_sma,
-            obv: pick.technical_snapshot.obv,
-            current_price: pick.price,
-            volume_elevated: pick
-                .market_snapshot
-                .volume_ratio
-                .map(|v| v > 1.2)
-                .unwrap_or(false),
-            latest_positive: pick.change_pct.map(|c| c > 0.0).unwrap_or(false),
+            technical: crate::scoring::dimensions::technical::TechnicalInput {
+                rsi: pick.technical_snapshot.rsi,
+                macd: pick.technical_snapshot.macd,
+                macd_signal: pick.technical_snapshot.macd_signal,
+                macd_hist: pick.technical_snapshot.macd_hist,
+                adx: pick.technical_snapshot.adx,
+                close_10_ema: pick.technical_snapshot.close_10_ema,
+                close_50_sma: pick.technical_snapshot.close_50_sma,
+                close_200_sma: pick.technical_snapshot.close_200_sma,
+                obv: pick.technical_snapshot.obv,
+                current_price: pick.price,
+                volume_elevated: pick
+                    .market_snapshot
+                    .volume_ratio
+                    .map(|v| v > 1.2)
+                    .unwrap_or(false),
+                latest_positive: pick.change_pct.map(|c| c > 0.0).unwrap_or(false),
+            },
             pe_like: pick.fundamental_snapshot.pe_like,
             ps_like: pick.fundamental_snapshot.ps_like,
             roe: pick.fundamental_snapshot.roe,

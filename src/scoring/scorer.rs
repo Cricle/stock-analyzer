@@ -13,19 +13,7 @@ use chrono::Utc;
 pub struct ScoreablePick {
     pub symbol: String,
     pub market: String,
-    // Technical
-    pub rsi: Option<f64>,
-    pub macd: Option<f64>,
-    pub macd_signal: Option<f64>,
-    pub macd_hist: Option<f64>,
-    pub adx: Option<f64>,
-    pub close_10_ema: Option<f64>,
-    pub close_50_sma: Option<f64>,
-    pub close_200_sma: Option<f64>,
-    pub obv: Option<f64>,
-    pub current_price: Option<f64>,
-    pub volume_elevated: bool,
-    pub latest_positive: bool,
+    pub technical: TechnicalInput,
     // Fundamental
     pub pe_like: Option<f64>,
     pub ps_like: Option<f64>,
@@ -53,21 +41,7 @@ pub async fn score_stock_pick(
     pick: &ScoreablePick,
     config: &ScoreConfig,
 ) -> StockScore {
-    let technical_input = TechnicalInput {
-        rsi: pick.rsi,
-        macd: pick.macd,
-        macd_signal: pick.macd_signal,
-        macd_hist: pick.macd_hist,
-        adx: pick.adx,
-        close_10_ema: pick.close_10_ema,
-        close_50_sma: pick.close_50_sma,
-        close_200_sma: pick.close_200_sma,
-        obv: pick.obv,
-        current_price: pick.current_price,
-        volume_elevated: pick.volume_elevated,
-        latest_positive: pick.latest_positive,
-    };
-    let technical = technical::score_technical(&technical_input);
+    let technical = technical::score_technical(&pick.technical);
 
     let fundamental_input = FundamentalInput {
         pe_like: pick.pe_like,

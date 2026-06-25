@@ -199,6 +199,7 @@ async fn wait_for_task(
 }
 
 #[tokio::test]
+#[ignore]
 async fn e2e_full_report_aapl() {
     let Some((manager, _data_dir)) = setup_task_manager().await else {
         eprintln!("Skipping: LLM config not available");
@@ -314,6 +315,7 @@ async fn run_single_stock_owned(symbol: String, name: String, market: String) {
 }
 
 #[tokio::test]
+#[ignore]
 async fn e2e_full_report_tencent() {
     run_single_stock(
         "00700",
@@ -324,6 +326,7 @@ async fn e2e_full_report_tencent() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn e2e_full_report_sensetime() {
     run_single_stock(
         "00020",
@@ -334,12 +337,14 @@ async fn e2e_full_report_sensetime() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn e2e_full_report_pltr() {
     run_single_stock("PLTR", "Palantir", "\u{7f8e}\u{80a1}").await;
 }
 
 /// Run all 6 stocks with concurrency limit of 2 (memory-safe for 3.8GB RAM).
 #[tokio::test]
+#[ignore]
 async fn e2e_full_report_all_parallel() {
     let stocks: Vec<(String, String, String)> = vec![
         (

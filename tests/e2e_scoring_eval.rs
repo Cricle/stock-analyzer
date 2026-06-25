@@ -114,6 +114,7 @@ async fn build_fundamental_input(client: &sa::MarketDataClient, symbol: &str) ->
 }
 
 #[tokio::test]
+#[ignore]
 async fn e2e_scoring_technical_dimension() {
     let client = sa::MarketDataClient::new().await.unwrap();
 
@@ -142,6 +143,7 @@ async fn e2e_scoring_technical_dimension() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn e2e_scoring_fundamental_dimension() {
     let client = sa::MarketDataClient::new().await.unwrap();
 

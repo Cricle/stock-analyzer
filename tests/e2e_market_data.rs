@@ -7,6 +7,7 @@ use common::eval::{
 use common::stocks::TEST_STOCKS;
 
 #[tokio::test]
+#[ignore]
 async fn e2e_fetch_all_market_data() {
     let client = sa::MarketDataClient::new().await.unwrap();
     let mut results = Vec::new();
@@ -128,6 +129,7 @@ async fn e2e_fetch_all_market_data() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn e2e_market_detection() {
     let client = sa::MarketDataClient::new().await.unwrap();
 

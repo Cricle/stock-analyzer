@@ -22,6 +22,7 @@ akshare = { version = "0.1.10", features = ["market-client"] }
 adk-graph = { version = "0.8.0" }
 anyhow = "1"
 async-trait = "0.1"
+lru = "0.12"
 backoff = { version = "0.4", features = ["tokio"] }
 chrono = { version = "0.4", features = ["serde"] }
 fastembed = { version = "4", optional = true }

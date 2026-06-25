@@ -23,6 +23,17 @@ impl TaskManager {
     pub(super) const MARKET_DATA_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
     pub(super) const MARKET_NEWS_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
 
+    /// Create a ParallelExecutor for data fetching.
+    pub fn create_data_executor(&self) -> crate::data::pipeline::ParallelExecutor {
+        let config = crate::data::pipeline::DataPipelineConfig::default();
+        let cache = crate::data::cache::DataCacheLayer::new(
+            config.cache_max_size,
+            std::time::Duration::from_secs(config.cache_ttl_seconds),
+        );
+        let validator = crate::data::validator::DataValidator;
+        crate::data::pipeline::ParallelExecutor::new(config, cache, validator)
+    }
+
     /// Fetch core market data (quote, fundamentals, news, candles) for a fresh run.
     pub(super) async fn fetch_core_market_data(
         &self,

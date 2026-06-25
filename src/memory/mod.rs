@@ -211,7 +211,7 @@ pub mod stats;
 mod vector_store;
 
 /// Format memory context parts from same-ticker and cross-ticker entries.
-pub(crate) fn format_memory_parts(
+pub fn format_memory_parts(
     same_entries: &[MemoryEntry],
     cross_entries: &[MemoryEntry],
     format_full: impl Fn(&MemoryEntry) -> String,
@@ -233,7 +233,7 @@ pub(crate) fn format_memory_parts(
 }
 
 /// Build highlights from memory entries (top 3 from each group).
-pub(crate) fn build_highlights(
+pub fn build_highlights(
     same_entries: &[MemoryEntry],
     cross_entries: &[MemoryEntry],
     highlight_from_entry: impl Fn(&MemoryEntry, bool) -> HistoricalMemoryHighlight,
@@ -253,7 +253,7 @@ pub(crate) fn build_highlights(
 
 /// Generate a hash-based embedding vector from text.
 /// Uses SHA-256 to deterministically map tokens to vector indices.
-pub(crate) fn hash_embed_text(text: &str, dimension: usize) -> Vec<f32> {
+pub fn hash_embed_text(text: &str, dimension: usize) -> Vec<f32> {
     use sha2::{Digest, Sha256};
     let mut vector = vec![0.0f32; dimension];
     for token in text

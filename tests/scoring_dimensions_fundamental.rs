@@ -1,4 +1,3 @@
-use sa::scoring::DimensionScore;
 use sa::scoring::dimensions::fundamental::{FundamentalInput, score_fundamental};
 
 #[test]

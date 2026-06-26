@@ -1,5 +1,6 @@
 use crate::AnalysisResult;
 use crate::llm::parse::{DiagnosisIssue, IssueSeverity};
+use crate::llm::types::HasConfidence;
 use crate::task_manager::TaskRunParams;
 
 use super::prepare::compact_decision_context;

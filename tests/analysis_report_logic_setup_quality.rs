@@ -1,5 +1,5 @@
 use sa::analysis::{
-    LocalText, ReportDiagnosticItem, ReportDiagnostics, StructuredPortfolioDecision,
+    ReportDiagnosticItem, ReportDiagnostics, StructuredPortfolioDecision,
     StructuredResearchPlan, StructuredTraderPlan,
 };
 use sa::analysis::{

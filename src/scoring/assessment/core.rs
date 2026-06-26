@@ -36,8 +36,8 @@ pub fn score_trend_confirmation(
     } else {
         5
     };
-    score += evidence_points.min(6) as i32;
-    score += numeric_levels.min(6);
+    score += evidence_points.min(12) as i32;
+    score += numeric_levels.min(12);
     score += probability_quality;
 
     ScoreDimension {
@@ -66,8 +66,8 @@ pub fn score_fundamentals(
     } else {
         6
     };
-    score += evidence_points.min(6) as i32;
-    score += numeric_levels.min(6);
+    score += evidence_points.min(12) as i32;
+    score += numeric_levels.min(12);
     score += (probability_quality / 2).max(0);
 
     ScoreDimension {
@@ -93,10 +93,10 @@ pub fn score_catalyst_quality(
     let date_hits = count_numeric_dates(news_report);
     let horizon_dates = count_numeric_dates(&portfolio_decision.time_horizon);
 
-    let mut score = if news_report.trim().is_empty() { 0 } else { 4 };
-    score += evidence_points.min(5) as i32;
-    score += next_steps.min(3) as i32;
-    score += (date_hits + horizon_dates).min(3);
+    let mut score = if news_report.trim().is_empty() { 0 } else { 5 };
+    score += evidence_points.min(8) as i32;
+    score += next_steps.min(5) as i32;
+    score += (date_hits + horizon_dates).min(5);
 
     ScoreDimension {
         score: score.clamp(0, CATALYST_QUALITY_MAX),
@@ -241,7 +241,7 @@ pub fn score_cross_agent_consistency(result: &AnalysisResult) -> ScoreDimension 
         .collect::<Vec<_>>();
     if nets.is_empty() {
         return ScoreDimension {
-            score: 6,
+            score: 8,
             max_score: CROSS_AGENT_CONSISTENCY_MAX,
             rationale: "缺少结构化概率节点，只能给基础分。".into(),
         };
@@ -253,13 +253,13 @@ pub fn score_cross_agent_consistency(result: &AnalysisResult) -> ScoreDimension 
     let avg_abs = nets.iter().map(|item| item.abs()).sum::<f64>() / nets.len() as f64;
 
     let score = if positive == nets.len() || negative == nets.len() {
-        if avg_abs >= 0.20 { 15 } else { 13 }
+        if avg_abs >= 0.20 { 25 } else { 22 }
     } else if positive == 0 || negative == 0 {
-        if avg_abs >= 0.12 { 12 } else { 10 }
+        if avg_abs >= 0.12 { 18 } else { 15 }
     } else if neutral > 0 {
-        8
+        12
     } else {
-        6
+        8
     };
 
     ScoreDimension {

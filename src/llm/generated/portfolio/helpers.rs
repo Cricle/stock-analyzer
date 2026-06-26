@@ -5,10 +5,6 @@ impl GeneratedPortfolioDecision {
             .and_then(parse::normalize_numeric)
     }
 
-    pub fn confidence_string(&self) -> String {
-        parse::normalize_value(&self.confidence)
-    }
-
     pub fn rendered_decision(&self) -> String {
         let mut parts = vec![
             "# Portfolio Manager Decision".to_string(),
@@ -139,29 +135,18 @@ impl GeneratedPortfolioDecision {
             parse::text_or_default(risk_assessment_raw.clone(), "模型未返回风险评估。");
         let trigger_checklist = parse::string_list_or_default(field("trigger_checklist"), &[]);
         let trigger_checklist = if trigger_checklist.is_empty() {
-            let object_triggers = extract_object_string_list(
+            extract_object_string_list(
                 risk_assessment_raw.as_ref(),
                 &[
                     "trigger_checklist",
                     "upgrade_trigger_checklist",
                     "action_trigger_checklist",
                 ],
-            );
-            if object_triggers.is_empty() {
-                extract_numbered_trigger_lines(&investment_thesis)
-                    .into_iter()
-                    .chain(extract_numbered_trigger_lines(&rationale))
-                    .collect::<Vec<_>>()
-            } else {
-                object_triggers
-            }
+            )
         } else {
             trigger_checklist
         };
-        let inferred_price_target = meaningful_value(field("price_target")).or_else(|| {
-            extract_price_target_from_texts(&[&executive_summary, &risk_assessment])
-                .map(Value::from)
-        });
+        let inferred_price_target = meaningful_value(field("price_target"));
         let inferred_confirmation_level = meaningful_value(field("confirmation_level"))
             .or_else(|| {
                 extract_object_value(
@@ -171,7 +156,7 @@ impl GeneratedPortfolioDecision {
             })
             .or_else(|| {
                 extract_object_value(
-                    object_value(field("trade_levels")).as_ref(),
+                    meaningful_value(field("trade_levels")).as_ref(),
                     &["confirmation_level", "confirmation", "breakout_level"],
                 )
             });
@@ -184,18 +169,9 @@ impl GeneratedPortfolioDecision {
             })
             .or_else(|| {
                 extract_object_value(
-                    object_value(field("trade_levels")).as_ref(),
+                    meaningful_value(field("trade_levels")).as_ref(),
                     &["invalidation_level", "invalidation_price", "stop_loss"],
                 )
-            })
-            .or_else(|| {
-                extract_stop_loss_from_texts(&[
-                    &executive_summary,
-                    &investment_thesis,
-                    &rationale,
-                    &risk_assessment,
-                ])
-                .map(Value::from)
             });
         let inferred_target_reference = meaningful_value(field("target_reference"))
             .map(|value| parse::normalize_value(&value))
@@ -225,13 +201,6 @@ impl GeneratedPortfolioDecision {
             .filter(|value| !value.trim().is_empty());
         let inferred_time_horizon = meaningful_value(field("time_horizon"))
             .map(|value| parse::normalize_value(&value))
-            .or_else(|| {
-                extract_time_horizon_from_texts(&[
-                    &executive_summary,
-                    &investment_thesis,
-                    &rationale,
-                ])
-            })
             .map(|value| {
                 let first_line = value.lines().next().unwrap_or("").trim();
                 let compact = first_line

@@ -1,4 +1,4 @@
-use sa::analysis::{CalibrationBias, LocalText, MemoryContextSnapshot, Rating};
+use sa::analysis::{MemoryContextSnapshot, Rating};
 use sa::analysis::{derive_calibration_bias, fallback_sizing_reference};
 
 #[test]

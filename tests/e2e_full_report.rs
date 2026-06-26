@@ -279,7 +279,7 @@ async fn run_single_stock_owned(symbol: String, name: String, market: String) {
         parameters: Some(sa::AnalysisParameters {
             market_type: Some(market.to_string()),
             analysis_date: Some(chrono::Local::now().format("%Y-%m-%d").to_string()),
-            selected_analysts: Some(vec!["market".to_string()]),
+            // Run full analyst pipeline (market + fundamentals + news + sentiment)
             ..Default::default()
         }),
         force_refresh: true,
@@ -340,6 +340,12 @@ async fn e2e_full_report_sensetime() {
 #[ignore]
 async fn e2e_full_report_pltr() {
     run_single_stock("PLTR", "Palantir", "\u{7f8e}\u{80a1}").await;
+}
+
+#[tokio::test]
+#[ignore]
+async fn e2e_full_report_maotai() {
+    run_single_stock("600519", "\u{8d35}\u{5dde}\u{8305}\u{53f0}", "A\u{80a1}").await;
 }
 
 /// Run all 6 stocks with concurrency limit of 2 (memory-safe for 3.8GB RAM).

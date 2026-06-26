@@ -103,8 +103,10 @@ pub fn analyst_probability_quality(analyst: Option<&AgentReportNode>) -> i32 {
     let sum = analyst.up_probability + analyst.down_probability + analyst.sideways_probability;
     let gap = (sum - 1.0).abs();
     if gap <= 0.05 {
-        4
+        6
     } else if gap <= 0.15 {
+        4
+    } else if gap <= 0.25 {
         2
     } else {
         0

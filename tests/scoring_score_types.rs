@@ -1,4 +1,3 @@
-use sa::scoring::DimensionScore;
 use sa::scoring::{ScoreWeights, score_label};
 
 // --- ScoreWeights::validate ---

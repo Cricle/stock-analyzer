@@ -1,10 +1,10 @@
-pub const DATA_QUALITY_MAX: i32 = 20;
-pub const TREND_CONFIRMATION_MAX: i32 = 20;
-pub const FUNDAMENTAL_CONFIRMATION_MAX: i32 = 20;
-pub const CATALYST_QUALITY_MAX: i32 = 15;
-pub const HISTORICAL_TRANSFERABILITY_MAX: i32 = 10;
-pub const CROSS_AGENT_CONSISTENCY_MAX: i32 = 15;
-pub const RISK_CLARITY_MAX: i32 = 10;
+pub const DATA_QUALITY_MAX: i32 = 25;
+pub const TREND_CONFIRMATION_MAX: i32 = 25;
+pub const FUNDAMENTAL_CONFIRMATION_MAX: i32 = 25;
+pub const CATALYST_QUALITY_MAX: i32 = 25;
+pub const HISTORICAL_TRANSFERABILITY_MAX: i32 = 15;
+pub const CROSS_AGENT_CONSISTENCY_MAX: i32 = 25;
+pub const RISK_CLARITY_MAX: i32 = 15;
 
 pub struct ConfidenceAssessment {
     pub final_score: i32,

@@ -1027,7 +1027,7 @@ fn evaluate_profile_candidate_underweight() {
 fn suggested_calibration_profile_basic() {
     use sa::memory::MemoryEntry;
     let entries: Vec<_> = (0..15)
-        .map(|i| MemoryEntry {
+        .map(|_i| MemoryEntry {
             ticker: "AAPL".to_string(),
             rating: "Buy".to_string(),
             direction_score: Some(80),

@@ -2,10 +2,7 @@ use serde_json::Value;
 
 use super::super::parse;
 use super::helpers::{
-    extract_entry_price_from_texts, extract_numbered_trigger_lines, extract_object_string_list,
-    extract_object_value, extract_position_sizing_from_texts, extract_price_target_from_texts,
-    extract_stop_loss_from_texts, extract_time_horizon_from_texts, format_price_like_text,
-    meaningful_value, object_value,
+    extract_object_string_list, extract_object_value, meaningful_value, FieldExtractor,
 };
 use super::types::GeneratedTraderDecision;
 
@@ -89,15 +86,14 @@ impl GeneratedTraderDecision {
     }
 
     pub(crate) fn from_value(raw: Value) -> Self {
-        let object = raw.as_object();
-        let field = |key: &str| object.and_then(|map| map.get(key)).cloned();
-        let action = parse::text_or_default(field("action"), "Hold");
-        let reasoning = parse::text_or_default(field("reasoning"), "模型未返回交易推理。");
-        let trader_plan = parse::text_or_default(field("trader_plan"), "");
-        let entry_price = meaningful_value(field("entry_price"))
+        let ex = FieldExtractor::from_raw(&raw);
+        let action = ex.text("action", "Hold");
+        let reasoning = ex.text("reasoning", "模型未返回交易推理。");
+        let trader_plan = ex.text("trader_plan", "");
+        let entry_price = meaningful_value(ex.field("entry_price"))
             .or_else(|| {
                 extract_object_value(
-                    object_value(field("trade_levels")).as_ref(),
+                    meaningful_value(ex.field("trade_levels")).as_ref(),
                     &[
                         "entry_price",
                         "entry",
@@ -109,7 +105,7 @@ impl GeneratedTraderDecision {
             })
             .or_else(|| {
                 extract_object_value(
-                    object_value(field("execution_plan")).as_ref(),
+                    meaningful_value(ex.field("execution_plan")).as_ref(),
                     &[
                         "entry_price",
                         "entry",
@@ -118,28 +114,24 @@ impl GeneratedTraderDecision {
                         "entry_level",
                     ],
                 )
-            })
-            .or_else(|| {
-                extract_entry_price_from_texts(&[&reasoning, &trader_plan]).map(Value::from)
             });
-        let stop_loss = meaningful_value(field("stop_loss"))
+        let stop_loss = meaningful_value(ex.field("stop_loss"))
             .or_else(|| {
                 extract_object_value(
-                    object_value(field("trade_levels")).as_ref(),
+                    meaningful_value(ex.field("trade_levels")).as_ref(),
                     &["stop_loss", "stop", "invalidation_price"],
                 )
             })
             .or_else(|| {
                 extract_object_value(
-                    object_value(field("execution_plan")).as_ref(),
+                    meaningful_value(ex.field("execution_plan")).as_ref(),
                     &["stop_loss", "stop", "invalidation_price"],
                 )
-            })
-            .or_else(|| extract_stop_loss_from_texts(&[&reasoning, &trader_plan]).map(Value::from));
-        let confirmation_level = meaningful_value(field("confirmation_level"))
+            });
+        let confirmation_level = meaningful_value(ex.field("confirmation_level"))
             .or_else(|| {
                 extract_object_value(
-                    object_value(field("trade_levels")).as_ref(),
+                    meaningful_value(ex.field("trade_levels")).as_ref(),
                     &[
                         "confirmation_level",
                         "confirmation",
@@ -150,7 +142,7 @@ impl GeneratedTraderDecision {
             })
             .or_else(|| {
                 extract_object_value(
-                    object_value(field("execution_plan")).as_ref(),
+                    meaningful_value(ex.field("execution_plan")).as_ref(),
                     &[
                         "confirmation_level",
                         "confirmation",
@@ -162,21 +154,21 @@ impl GeneratedTraderDecision {
         let entry_price = entry_price
             .or_else(|| {
                 extract_object_value(
-                    object_value(field("trade_levels")).as_ref(),
+                    meaningful_value(ex.field("trade_levels")).as_ref(),
                     &["conditional_pullback_zone", "pullback_zone", "retest_zone"],
                 )
             })
             .or_else(|| {
                 extract_object_value(
-                    object_value(field("execution_plan")).as_ref(),
+                    meaningful_value(ex.field("execution_plan")).as_ref(),
                     &["conditional_pullback_zone", "pullback_zone", "retest_zone"],
                 )
             });
-        let target_reference = meaningful_value(field("target_reference"))
+        let target_reference = meaningful_value(ex.field("target_reference"))
             .map(|value| parse::normalize_value(&value))
             .or_else(|| {
                 extract_object_value(
-                    object_value(field("trade_levels")).as_ref(),
+                    meaningful_value(ex.field("trade_levels")).as_ref(),
                     &[
                         "target_reference",
                         "target_zone",
@@ -186,16 +178,12 @@ impl GeneratedTraderDecision {
                 )
                 .map(|value| parse::normalize_value(&value))
             })
-            .or_else(|| {
-                extract_price_target_from_texts(&[&reasoning, &trader_plan])
-                    .map(format_price_like_text)
-            })
             .filter(|value| !value.is_empty());
-        let target_condition = meaningful_value(field("target_condition"))
+        let target_condition = meaningful_value(ex.field("target_condition"))
             .map(|value| parse::normalize_value(&value))
             .or_else(|| {
                 extract_object_value(
-                    object_value(field("execution_plan")).as_ref(),
+                    meaningful_value(ex.field("execution_plan")).as_ref(),
                     &[
                         "target_condition",
                         "target_trigger",
@@ -205,31 +193,24 @@ impl GeneratedTraderDecision {
                 .map(|value| parse::normalize_value(&value))
             })
             .filter(|value| !value.is_empty());
-        let time_horizon = meaningful_value(field("time_horizon"))
+        let time_horizon = meaningful_value(ex.field("time_horizon"))
             .map(|value| parse::normalize_value(&value))
-            .or_else(|| extract_time_horizon_from_texts(&[&reasoning, &trader_plan]))
             .filter(|value| !value.is_empty());
-        let position_sizing = meaningful_value(field("position_sizing"))
+        let position_sizing = meaningful_value(ex.field("position_sizing"))
             .map(|value| parse::normalize_value(&value))
-            .or_else(|| extract_position_sizing_from_texts(&[&reasoning, &trader_plan]))
             .filter(|value| !value.is_empty());
         let execution_trigger_checklist =
-            parse::string_list_or_default(field("execution_trigger_checklist"), &[]);
+            parse::string_list_or_default(ex.field("execution_trigger_checklist"), &[]);
         let execution_trigger_checklist = if execution_trigger_checklist.is_empty() {
-            let object_triggers = extract_object_string_list(
-                object_value(field("execution_plan")).as_ref(),
+            extract_object_string_list(
+                meaningful_value(ex.field("execution_plan")).as_ref(),
                 &[
                     "execution_trigger_checklist",
                     "trigger_checklist",
                     "upgrade_triggers",
                     "entry_triggers",
                 ],
-            );
-            if object_triggers.is_empty() {
-                extract_numbered_trigger_lines(&reasoning)
-            } else {
-                object_triggers
-            }
+            )
         } else {
             execution_trigger_checklist
         };
@@ -247,10 +228,10 @@ impl GeneratedTraderDecision {
             position_sizing,
             execution_trigger_checklist,
             blocking_gaps: {
-                let blocking_gaps = parse::string_list_or_default(field("blocking_gaps"), &[]);
+                let blocking_gaps = parse::string_list_or_default(ex.field("blocking_gaps"), &[]);
                 if blocking_gaps.is_empty() {
                     extract_object_string_list(
-                        object_value(field("execution_plan")).as_ref(),
+                        meaningful_value(ex.field("execution_plan")).as_ref(),
                         &[
                             "blocking_gaps",
                             "blocking_conditions",
@@ -261,16 +242,13 @@ impl GeneratedTraderDecision {
                     blocking_gaps
                 }
             },
-            time_stop_deadline: field("time_stop_deadline")
+            time_stop_deadline: ex.field("time_stop_deadline")
                 .and_then(|v| v.as_str().map(String::from)),
-            time_stop_reason: field("time_stop_reason").and_then(|v| v.as_str().map(String::from)),
+            time_stop_reason: ex.field("time_stop_reason").and_then(|v| v.as_str().map(String::from)),
         };
         if result.trader_plan.trim().is_empty() {
             result.trader_plan = result.rendered_proposal();
         }
-        // Dedup: if entry_price and confirmation_level are the same numeric value,
-        // clear confirmation_level so rebuild_confirmation_level() derives a
-        // different value from other sources (thesis text, anchors, etc.).
         if let (Some(entry), Some(confirm)) = (
             result
                 .entry_price

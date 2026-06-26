@@ -8,6 +8,7 @@ pub mod client;
 pub mod parse;
 pub mod prompt;
 pub mod retry;
+pub mod tools;
 
 /// Configuration for the LLM client.
 #[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]

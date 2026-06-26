@@ -1,5 +1,5 @@
 use sa::memory::{EmbeddingBackend, MemoryEntry, RagConfig, TradingMemoryLog};
-use sa::{HistoricalMemoryHighlight, LocalText, StructuredReflection, StructuredRiskAssessment};
+use sa::{LocalText, StructuredReflection, StructuredRiskAssessment};
 
 fn make_entry(ticker: &str, rating: &str) -> MemoryEntry {
     MemoryEntry {

@@ -1,8 +1,11 @@
+#[allow(dead_code)]
 pub mod eval;
+#[allow(dead_code)]
 pub mod stocks;
 
 use serde_json::Value;
 
+#[allow(dead_code)]
 pub fn load_fixture(name: &str) -> Value {
     let path = format!("tests/fixtures/{}.json", name);
     let content = std::fs::read_to_string(&path)
@@ -10,6 +13,7 @@ pub fn load_fixture(name: &str) -> Value {
     serde_json::from_str(&content).unwrap()
 }
 
+#[allow(dead_code)]
 pub fn sample_scoreable_pick() -> sa::score::scorer::ScoreablePick {
     sa::score::scorer::ScoreablePick {
         symbol: "AAPL".into(),

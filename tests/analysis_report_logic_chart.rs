@@ -1,7 +1,4 @@
-use sa::analysis::{
-    ChartOverlay, LocalText, PriceContext, ReportCandle, ReportMarketChart, TrendLine,
-    TrendLinePoint,
-};
+use sa::analysis::{ReportCandle, ReportMarketChart};
 use sa::analysis::{add_overlay, compute_trend_lines, derive_price_context};
 
 fn make_candle(date: &str, close: f64, high: f64, low: f64, volume: i64) -> ReportCandle {

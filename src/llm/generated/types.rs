@@ -2,6 +2,16 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::llm::parse;
+
+/// Common trait for types with a `confidence: Value` field.
+pub trait HasConfidence {
+    fn confidence(&self) -> &Value;
+    fn confidence_string(&self) -> String {
+        parse::normalize_value(self.confidence())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GeneratedRoleReport {
     pub key: String,
@@ -17,6 +27,12 @@ pub struct GeneratedRoleReport {
     pub rationale: String,
     pub next_steps: Vec<String>,
     pub risks: Vec<String>,
+}
+
+impl HasConfidence for GeneratedRoleReport {
+    fn confidence(&self) -> &Value {
+        &self.confidence
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -38,6 +54,12 @@ pub struct GeneratedDebateTurn {
     pub risks: Vec<String>,
 }
 
+impl HasConfidence for GeneratedDebateTurn {
+    fn confidence(&self) -> &Value {
+        &self.confidence
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GeneratedResearchManager {
     pub recommendation: String,
@@ -51,6 +73,12 @@ pub struct GeneratedResearchManager {
     pub trigger_checklist: Vec<String>,
     #[serde(default)]
     pub accounting_scope_hypothesis: Option<String>,
+}
+
+impl HasConfidence for GeneratedResearchManager {
+    fn confidence(&self) -> &Value {
+        &self.confidence
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -110,6 +138,12 @@ pub struct GeneratedPortfolioDecision {
     pub time_stop_reason: Option<String>,
     #[serde(default)]
     pub reflection: Option<GeneratedReflection>,
+}
+
+impl HasConfidence for GeneratedPortfolioDecision {
+    fn confidence(&self) -> &Value {
+        &self.confidence
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]

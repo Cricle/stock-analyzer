@@ -1,4 +1,3 @@
-use sa::scoring::DimensionScore;
 use sa::scoring::dimensions::llm_analysis::{LlmAnalysisInput, score_llm_analysis};
 
 fn base_input() -> LlmAnalysisInput {

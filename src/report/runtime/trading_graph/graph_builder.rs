@@ -250,15 +250,15 @@ impl TradingAgentsGraph {
                 portfolio_node(self.manager.clone(), self.params.clone(), deep_llm.clone()),
             );
 
-        // Sequential analyst chain: START → first_analyst → ... → last_analyst → bull
+        // Parallel analyst chain: START → all_analysts → bull
+        // All analysts start from START and converge to NODE_BULL
         let mut graph = graph;
-        let first_analyst = &self.selected_analysts[0];
-        graph = graph.add_edge(START, analyst_node_name(first_analyst));
-        for pair in self.selected_analysts.windows(2) {
-            graph = graph.add_edge(clear_node_name(&pair[0]), analyst_node_name(&pair[1]));
+        for analyst in &self.selected_analysts {
+            graph = graph.add_edge(START, analyst_node_name(analyst));
         }
-        let last_analyst = &self.selected_analysts[self.selected_analysts.len() - 1];
-        graph = graph.add_edge(clear_node_name(last_analyst), NODE_BULL);
+        for analyst in &self.selected_analysts {
+            graph = graph.add_edge(clear_node_name(analyst), NODE_BULL);
+        }
 
         graph = graph
             .add_conditional_edges(

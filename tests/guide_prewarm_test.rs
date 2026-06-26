@@ -1,4 +1,4 @@
-use sa::guide::{PrewarmTask, generate_prewarm_tasks};
+use sa::guide::generate_prewarm_tasks;
 
 #[test]
 fn generate_prewarm_tasks_returns_three_markets() {

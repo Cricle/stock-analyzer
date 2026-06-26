@@ -1,5 +1,5 @@
 use sa::report::diagnosis::consistency::check::{
-    IssueSeverity, extract_pct, fix_entry_stop, fix_probabilities, fix_risk_reward, make_issue,
+    extract_pct, fix_entry_stop, fix_probabilities, fix_risk_reward,
     parse_price, round_price,
 };
 use sa::{AnalysisResult, LocalText};

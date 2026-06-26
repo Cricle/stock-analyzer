@@ -1,4 +1,3 @@
-use sa::scoring::DimensionScore;
 use sa::scoring::dimensions::sentiment::parse_sentiment_response;
 
 #[test]

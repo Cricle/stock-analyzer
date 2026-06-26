@@ -1,4 +1,3 @@
-use sa::scoring::DimensionScore;
 use sa::scoring::dimensions::technical::{TechnicalInput, score_technical};
 
 fn bullish_input() -> TechnicalInput {

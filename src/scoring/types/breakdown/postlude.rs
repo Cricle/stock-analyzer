@@ -216,10 +216,10 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
     }
 
     let applied_cap = caps.iter().map(|item| item.cap).min().unwrap_or(100);
-    let pre_cap_score = (direction_confidence.score as f64 * 0.30
+    let pre_cap_score = (direction_confidence.score as f64 * 0.35
         + execution_confidence.score as f64 * 0.25
         + evidence_completeness.score as f64 * 0.25
-        + (historical_calibration.score + 10).clamp(0, 100) as f64 * 0.20)
+        + (historical_calibration.score + 10).clamp(0, 100) as f64 * 0.15)
         .round() as i32;
     let final_score = pre_cap_score.clamp(0, applied_cap);
 

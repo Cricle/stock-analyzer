@@ -8,10 +8,6 @@ use super::types::{
 };
 
 impl GeneratedRoleReport {
-    pub fn confidence_string(&self) -> String {
-        parse::normalize_value(&self.confidence)
-    }
-
     pub(crate) fn from_value(raw: Value) -> Self {
         let object = raw.as_object();
         let field = |key: &str| object.and_then(|map| map.get(key)).cloned();

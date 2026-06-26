@@ -2,13 +2,9 @@ use serde_json::Value;
 
 use super::super::parse;
 use super::helpers::{extract_object_string_list, extract_object_value, meaningful_value};
-use super::types::{GeneratedDebateTurn, GeneratedMissingEvidenceLadder, GeneratedResearchManager};
+use super::types::{GeneratedDebateTurn, GeneratedMissingEvidenceLadder, GeneratedResearchManager, HasConfidence};
 
 impl GeneratedDebateTurn {
-    pub fn confidence_string(&self) -> String {
-        parse::normalize_value(&self.confidence)
-    }
-
     pub(crate) fn from_value(raw: Value) -> Self {
         let object = raw.as_object();
         let field = |key: &str| object.and_then(|map| map.get(key)).cloned();
@@ -27,10 +23,6 @@ impl GeneratedDebateTurn {
 }
 
 impl GeneratedResearchManager {
-    pub fn confidence_string(&self) -> String {
-        parse::normalize_value(&self.confidence)
-    }
-
     pub fn rendered_plan(&self) -> String {
         [
             "# Research Plan".to_string(),

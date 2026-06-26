@@ -26,6 +26,8 @@
 - 全部 6 只均为 Hold 评级，无 Buy/Sell
 - AAPL/PLTR 详细数据被测试 harness 吞掉，仅知通过
 
+**根因分析**: LLM API 代理 (mimo-v2.5-pro via xiaomimimo) 返回 500 Internal Server Error (KVTransferError: prefill timeout)。`is_retryable_llm_error` 未包含 500 状态码，导致不重试直接失败。已修复。
+
 ---
 
 ### 优化后测试结果 (2026-06-25 重测)

@@ -45,8 +45,8 @@ fn make_result_with_analysts(analysts: Vec<AgentReportNode>) -> AnalysisResult {
 #[test]
 fn score_data_quality_all_present() {
     let d = score_data_quality(4, 4, 5, 0);
-    assert_eq!(d.score, 20);
-    assert_eq!(d.max_score, 20);
+    assert_eq!(d.score, 21);
+    assert_eq!(d.max_score, 25);
 }
 
 #[test]

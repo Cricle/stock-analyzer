@@ -96,7 +96,10 @@ impl StructuredReport {
         }
         let reflection = StructuredReflection::from_text(&result.graph.reflection.reflection);
         let risk_assessment = StructuredRiskAssessment::from_text(&result.derived_risk_assessment());
-        let confidence_assessment = crate::scoring::evaluate_confidence_score(result);
+        let confidence_assessment = crate::scoring::evaluate_confidence_score(
+            result,
+            &crate::config::SaConfig::load().score_config().caps,
+        );
         let direction_assessment = crate::scoring::evaluate_direction_score(result);
         let action_assessment = crate::scoring::evaluate_action_score(
             result,

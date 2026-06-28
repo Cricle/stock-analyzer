@@ -1,5 +1,9 @@
 
-pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessment {
+pub fn evaluate_confidence_score(
+    result: &AnalysisResult,
+    caps_config: &crate::scoring::config::ConfidenceCapsConfig,
+) -> ConfidenceAssessment {
+    let _ = caps_config; // used below via caps_config.field calls
     let research_plan = result.structured_research_plan();
     let trader_plan = result.structured_trader_plan();
     let portfolio_decision = result.structured_portfolio_decision();
@@ -99,7 +103,7 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
         caps.push(ConfidenceCap {
             key: "missing_core_data".to_string(),
             label: LocalText::new("cap_label_missing_core_data"),
-            cap: if non_empty_core < 3 { 80 } else { 82 },
+            cap: if non_empty_core < 3 { caps_config.missing_core_data } else { caps_config.missing_core_data + 2 },
             reason: LocalText::new("missing_core_data_reason")
                 .with_i32("core_count", non_empty_core as i32)
                 .with_i32("total", 4)
@@ -110,7 +114,7 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
         caps.push(ConfidenceCap {
             key: "thin_evidence_density".to_string(),
             label: LocalText::new("cap_label_thin_evidence_density"),
-            cap: 82,
+            cap: caps_config.thin_evidence_density,
             reason: LocalText::new("thin_evidence_density_reason")
                 .with_f64("evidence_density", evidence_density),
         });
@@ -119,7 +123,7 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
         caps.push(ConfidenceCap {
             key: "execution_boundary_missing".to_string(),
             label: LocalText::new("cap_label_execution_boundary_missing"),
-            cap: 83,
+            cap: caps_config.execution_boundary_missing,
             reason: LocalText::new("execution_boundary_missing_reason"),
         });
     }
@@ -127,7 +131,7 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
         caps.push(ConfidenceCap {
             key: "cross_agent_divergence".to_string(),
             label: LocalText::new("cap_label_cross_agent_divergence"),
-            cap: 85,
+            cap: caps_config.cross_agent_divergence,
             reason: LocalText::new("cross_agent_divergence_reason")
                 .with_str("consistency_detail", &cross_agent_consistency.rationale.key),
         });
@@ -144,9 +148,9 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
                 || result.artifacts.memory_context.same_ticker_count > 0
                 || result.artifacts.memory_context.cross_ticker_count > 0
             {
-                85
+                caps_config.thin_setup_history_with_data
             } else {
-                80
+                caps_config.thin_setup_history_no_data
             },
             reason: LocalText::new("thin_setup_history_reason")
                 .with_i32("resolved_count", result.artifacts.memory_context.setup_resolved_match_count as i32)
@@ -158,7 +162,7 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
         caps.push(ConfidenceCap {
             key: "missing_follow_up_plan".to_string(),
             label: LocalText::new("cap_label_missing_follow_up_plan"),
-            cap: 82,
+            cap: caps_config.missing_follow_up_plan,
             reason: LocalText::new("missing_follow_up_plan_reason"),
         });
     }
@@ -171,7 +175,7 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
         caps.push(ConfidenceCap {
             key: "decision_blocking_gaps_present".to_string(),
             label: LocalText::new("cap_label_decision_blocking_gaps_present"),
-            cap: 82,
+            cap: caps_config.decision_blocking_gaps_present,
             reason: LocalText::new("decision_blocking_gaps_present_reason"),
         });
     }
@@ -183,7 +187,7 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
         caps.push(ConfidenceCap {
             key: "fundamentals_period_mixed".to_string(),
             label: LocalText::new("cap_label_fundamentals_period_mixed"),
-            cap: 80,
+            cap: caps_config.fundamentals_period_mixed,
             reason: LocalText::new("fundamentals_period_mixed_reason"),
         });
     }
@@ -202,7 +206,7 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
         caps.push(ConfidenceCap {
             key: "near_resistance_without_fresh_catalyst".to_string(),
             label: LocalText::new("cap_label_near_resistance_without_fresh_catalyst"),
-            cap: 80,
+            cap: caps_config.near_resistance_without_fresh_catalyst,
             reason: LocalText::new("near_resistance_without_fresh_catalyst_reason"),
         });
     }
@@ -210,7 +214,7 @@ pub fn evaluate_confidence_score(result: &AnalysisResult) -> ConfidenceAssessmen
         caps.push(ConfidenceCap {
             key: "zero_resolved_setup_history".to_string(),
             label: LocalText::new("cap_label_zero_resolved_setup_history"),
-            cap: 82,
+            cap: caps_config.zero_resolved_setup_history,
             reason: LocalText::new("zero_resolved_setup_history_reason"),
         });
     }

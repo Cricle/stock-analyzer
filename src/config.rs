@@ -18,6 +18,8 @@ pub struct SaConfig {
     pub scoring: Option<ScoringSection>,
     #[serde(default)]
     pub api_keys: Option<ApiKeysSection>,
+    #[serde(default)]
+    pub confidence_caps: Option<ConfidenceCapsSection>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -40,6 +42,21 @@ pub struct ScoringWeightsSection {
 pub struct ApiKeysSection {
     #[serde(default)]
     pub finnhub: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ConfidenceCapsSection {
+    pub missing_core_data: Option<i32>,
+    pub thin_evidence_density: Option<i32>,
+    pub execution_boundary_missing: Option<i32>,
+    pub cross_agent_divergence: Option<i32>,
+    pub thin_setup_history_with_data: Option<i32>,
+    pub thin_setup_history_no_data: Option<i32>,
+    pub missing_follow_up_plan: Option<i32>,
+    pub decision_blocking_gaps_present: Option<i32>,
+    pub fundamentals_period_mixed: Option<i32>,
+    pub near_resistance_without_fresh_catalyst: Option<i32>,
+    pub zero_resolved_setup_history: Option<i32>,
 }
 
 impl SaConfig {
@@ -106,6 +123,29 @@ impl SaConfig {
         }
 
         // Layer 2: env var overrides
+        cfg.apply_env_overrides();
+
+        // Layer 1b: config.toml [confidence_caps]
+        if let Some(ref caps) = self.confidence_caps {
+            macro_rules! cap_field {
+                ($field:ident) => {
+                    if let Some(v) = caps.$field { cfg.caps.$field = v; }
+                };
+            }
+            cap_field!(missing_core_data);
+            cap_field!(thin_evidence_density);
+            cap_field!(execution_boundary_missing);
+            cap_field!(cross_agent_divergence);
+            cap_field!(thin_setup_history_with_data);
+            cap_field!(thin_setup_history_no_data);
+            cap_field!(missing_follow_up_plan);
+            cap_field!(decision_blocking_gaps_present);
+            cap_field!(fundamentals_period_mixed);
+            cap_field!(near_resistance_without_fresh_catalyst);
+            cap_field!(zero_resolved_setup_history);
+        }
+
+        // Layer 2: env var overrides (also covers caps via CONF_CAP_*)
         cfg.apply_env_overrides();
 
         cfg

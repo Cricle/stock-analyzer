@@ -87,7 +87,8 @@ fn confidence_caps_missing_core_data_without_text_matching() {
         sideways_probability: 0.25,
         ..Default::default()
     }];
-    let assessment = evaluate_confidence_score(&result);
+    let caps = sa::scoring::config::ConfidenceCapsConfig::default();
+    let assessment = evaluate_confidence_score(&result, &caps);
     assert!(assessment.final_score <= 65);
     assert!(
         assessment
@@ -105,7 +106,8 @@ fn setup_history_gap_adds_confidence_cap() {
         .memory_context
         .used_setup_filtered_retrieval = true;
     result.artifacts.memory_context.setup_match_count = 1;
-    let assessment = evaluate_confidence_score(&result);
+    let caps = sa::scoring::config::ConfidenceCapsConfig::default();
+    let assessment = evaluate_confidence_score(&result, &caps);
     assert!(
         assessment
             .caps
@@ -162,7 +164,8 @@ fn single_tool_failure_does_not_trigger_missing_core_data_cap_when_core_is_prese
         ..Default::default()
     }];
 
-    let assessment = evaluate_confidence_score(&result);
+    let caps = sa::scoring::config::ConfidenceCapsConfig::default();
+    let assessment = evaluate_confidence_score(&result, &caps);
     assert!(
         assessment
             .caps
@@ -180,7 +183,8 @@ fn setup_history_cap_is_relaxed_when_fallback_samples_exist() {
         .used_setup_filtered_retrieval = true;
     result.artifacts.memory_context.setup_match_count = 1;
     result.artifacts.memory_context.same_ticker_count = 2;
-    let assessment = evaluate_confidence_score(&result);
+    let caps = sa::scoring::config::ConfidenceCapsConfig::default();
+    let assessment = evaluate_confidence_score(&result, &caps);
     let cap = assessment
         .caps
         .iter()

@@ -68,6 +68,7 @@
 
 // ── Base modules ──
 
+pub mod config;
 pub mod env_config;
 pub mod llm_config;
 pub mod shared;
@@ -160,6 +161,8 @@ pub use task::{
     AnalysisStep, PersistedTask, ResultStage, StepStatus, TaskEvent, TaskStatus, TaskStatusResponse,
 };
 
+pub use config::SaConfig;
+pub use env_config::env_flag;
 pub use llm_config::LlmProviderConfig;
 pub use types::ToolObservation;
 pub use user_preferences::{UserPreferences, WatchlistItem};

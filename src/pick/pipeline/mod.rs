@@ -386,7 +386,7 @@ pub async fn run(
         .collect::<Vec<_>>();
 
     // Score each pick with the scoring system
-    let score_config = crate::scoring::config::ScoreConfig::from_env();
+    let score_config = crate::config::SaConfig::load().score_config();
     let mut scored_picks = Vec::with_capacity(picks.len());
     for pick in picks {
         let scoreable = crate::scoring::scorer::ScoreablePick {

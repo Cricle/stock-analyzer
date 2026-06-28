@@ -12,3 +12,18 @@ finnhub = []
 # Leave empty or omit to disable authentication.
 # Override with SA_MCP_KEY env var.
 # mcp_key = ""
+
+[scoring]
+# Scoring weight configuration (must sum to 100).
+# Override with SCORE_WEIGHT_TECHNICAL / SCORE_WEIGHT_FUNDAMENTAL /
+# SCORE_WEIGHT_SENTIMENT / SCORE_WEIGHT_LLM_ANALYSIS env vars.
+
+[scoring.weights]
+technical = 30
+fundamental = 25
+sentiment = 20
+llm_analysis = 25
+
+# Max news headlines sent to LLM for sentiment scoring.
+# Override with SCORE_SENTIMENT_NEWS_LIMIT env var.
+# sentiment_news_limit = 10

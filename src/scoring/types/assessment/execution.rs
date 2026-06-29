@@ -165,7 +165,7 @@ pub fn evaluate_action_score(
     direction_score: i32,
     confidence_score: i32,
 ) -> ActionAssessment {
-    let alignment = score_action_alignment(result, trader_plan, direction_score, confidence_score);
+    let alignment = score_action_alignment(result, trader_plan, direction_score, confidence_score, false); // TODO: pass actual uniformity_flag
     let execution_levels = score_execution_levels(trader_plan, portfolio_decision);
     let sizing_discipline = score_sizing_discipline(trader_plan);
     let horizon_clarity = score_horizon_clarity(portfolio_decision);

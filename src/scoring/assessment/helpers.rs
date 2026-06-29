@@ -71,6 +71,7 @@ fn score_action_alignment(
     trader_plan: &StructuredTraderPlan,
     direction_score: i32,
     confidence_score: i32,
+    uniformity_flag: bool,
 ) -> ScoreDimension {
     let recommendation = &result.structured_portfolio_decision().rating;
     let recommendation_bias = semantic_direction(recommendation);
@@ -108,6 +109,11 @@ fn score_action_alignment(
         && (action_bias == 0 || action_bias == direction_bias)
     {
         score += 4;
+    }
+
+    // Penalize uniform outputs that suggest LLM isn't differentiating stocks
+    if uniformity_flag {
+        score = score.min(12);
     }
 
     ScoreDimension {

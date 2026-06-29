@@ -354,6 +354,41 @@ fn build_wait_cost(
         .with_f64("distance_pct", distance)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum AnalystConsensus {
+    StrongBearish,
+    ModerateBearish,
+    Mixed,
+    ModerateBullish,
+    StrongBullish,
+    NoData,
+}
+
+pub(super) fn analyst_consensus(analysts: &[AgentReportNode]) -> AnalystConsensus {
+    if analysts.is_empty() {
+        return AnalystConsensus::NoData;
+    }
+    let bearish_count = analysts.iter()
+        .filter(|a| a.down_probability > 0.5)
+        .count();
+    let bullish_count = analysts.iter()
+        .filter(|a| a.up_probability > 0.5)
+        .count();
+    let total = analysts.len();
+
+    if bearish_count >= total * 3 / 4 {
+        AnalystConsensus::StrongBearish
+    } else if bearish_count >= total / 2 {
+        AnalystConsensus::ModerateBearish
+    } else if bullish_count >= total * 3 / 4 {
+        AnalystConsensus::StrongBullish
+    } else if bullish_count >= total / 2 {
+        AnalystConsensus::ModerateBullish
+    } else {
+        AnalystConsensus::Mixed
+    }
+}
+
 fn derive_core_research_call(
     research_plan: &StructuredResearchPlan,
     raw_llm_recommendation: &str,
@@ -361,6 +396,7 @@ fn derive_core_research_call(
     research_confidence_score: i32,
     research_reliability: &ResearchReliability,
     portfolio_decision: &StructuredPortfolioDecision,
+    consensus: AnalystConsensus,
 ) -> CoreResearchCall {
     let research_anchor = primary_research_rating(
         research_plan,
@@ -370,8 +406,11 @@ fn derive_core_research_call(
     let confirmation_gated_bullish_hold =
         hold_language_implies_buy_on_confirmation(research_plan, portfolio_decision);
     if research_anchor.is_bearish() || direction_score <= -45 {
-        if !portfolio_decision.invalidation_level.trim().is_empty() {
-            return CoreResearchCall::SellOnBreak;
+        if matches!(consensus, AnalystConsensus::StrongBearish | AnalystConsensus::ModerateBearish) {
+            if !portfolio_decision.invalidation_level.trim().is_empty() {
+                return CoreResearchCall::SellOnBreak;
+            }
+            return CoreResearchCall::LeanSell;
         }
         return CoreResearchCall::LeanSell;
     }
@@ -385,7 +424,10 @@ fn derive_core_research_call(
         return CoreResearchCall::BuyOnConfirmation;
     }
     if direction_score <= -25 && research_reliability.score >= 70 {
-        return CoreResearchCall::SellOnBreak;
+        if matches!(consensus, AnalystConsensus::StrongBearish | AnalystConsensus::ModerateBearish) {
+            return CoreResearchCall::SellOnBreak;
+        }
+        return CoreResearchCall::LeanSell;
     }
     if research_anchor == Rating::Hold
         && !portfolio_decision.confirmation_level.trim().is_empty()
@@ -403,7 +445,10 @@ fn derive_core_research_call(
         && direction_score <= -20
         && research_reliability.score >= 60
     {
-        return CoreResearchCall::SellOnBreak;
+        if matches!(consensus, AnalystConsensus::StrongBearish | AnalystConsensus::ModerateBearish) {
+            return CoreResearchCall::SellOnBreak;
+        }
+        return CoreResearchCall::LeanSell;
     }
     CoreResearchCall::Neutral
 }

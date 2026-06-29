@@ -298,6 +298,7 @@ impl StructuredReport {
                 &calibration.rationale.key,
             ).into();
         }
+        let consensus = analyst_consensus(&result.graph.analysts);
         let core_research_call = derive_core_research_call(
             &research_plan,
             &raw_llm_recommendation,
@@ -305,6 +306,7 @@ impl StructuredReport {
             research_confidence_score,
             &research_reliability,
             &portfolio_decision,
+            consensus,
         );
         let forced_hold = !execution_boundary_complete
             && !matches!(

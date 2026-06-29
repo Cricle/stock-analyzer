@@ -101,9 +101,9 @@ fn factor_breakdown_no_fundamentals_quality_default() {
         None,
     );
     let fb = compute_factor_breakdown(&item);
-    assert_eq!(fb.quality, 40.0);
-    assert_eq!(fb.value, 45.0);
-    assert_eq!(fb.profitability, 40.0);
+    assert_eq!(fb.quality, 50.0);
+    assert_eq!(fb.value, 50.0);
+    assert_eq!(fb.profitability, 50.0);
 }
 
 #[test]
@@ -353,6 +353,30 @@ fn penalty_low_change_no_penalty() {
         None,
     );
     assert_eq!(penalty_score(&item), 0.0);
+}
+
+#[test]
+fn missing_fundamentals_gives_neutral_not_depressed() {
+    let item = make_enriched(
+        Vec::new(),
+        None,
+        StockPickNewsSnapshot::default(),
+        StockPickRiskSnapshot::default(),
+        StockPickHistoryMatchSnapshot::default(),
+        None,
+        None,
+    );
+    let factors = compute_factor_breakdown(&item);
+    assert!(
+        factors.quality >= 48.0,
+        "quality should be neutral when fundamentals missing, got {}",
+        factors.quality
+    );
+    assert!(
+        factors.profitability >= 48.0,
+        "profitability should be neutral when fundamentals missing, got {}",
+        factors.profitability
+    );
 }
 
 // --- risk_score edge case ---

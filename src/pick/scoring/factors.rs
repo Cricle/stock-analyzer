@@ -67,7 +67,7 @@ fn momentum_score(item: &EnrichedCandidate) -> f64 {
 
 fn quality_score(item: &EnrichedCandidate) -> f64 {
     let Some(f) = item.fundamentals.as_ref() else {
-        return 40.0;
+        return 50.0;
     };
     let roe: f64 = match (
         f.net_income_usd,
@@ -88,7 +88,7 @@ fn quality_score(item: &EnrichedCandidate) -> f64 {
 
 fn value_score(item: &EnrichedCandidate) -> f64 {
     let Some(f) = item.fundamentals.as_ref() else {
-        return 45.0;
+        return 50.0;
     };
     let pe_like: f64 = match (
         f.market_cap.filter(|value| *value > 0.0),
@@ -122,7 +122,7 @@ fn value_score(item: &EnrichedCandidate) -> f64 {
 
 fn profitability_score(item: &EnrichedCandidate) -> f64 {
     let Some(f) = item.fundamentals.as_ref() else {
-        return 40.0;
+        return 50.0;
     };
     let margin: f64 = match (
         f.net_income_usd,

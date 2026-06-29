@@ -239,39 +239,38 @@ pub(super) fn tool_node(
         let manager = manager.clone();
         Box::pin(async move {
             let mut result = load_result(&ctx)?;
-            let pending_runtime = result.analyst_runtime_state_mut(analyst_key).clone();
-            tracing::info!(
-                task_id = %result.task_id,
-                symbol = %result.symbol,
-                analyst = analyst_key,
-                runtime = ?pending_runtime,
-                "loaded analyst runtime state before tool execution"
-            );
-            let pending = pending_runtime.pending_tool.clone().ok_or_else(|| {
-                GraphError::NodeExecutionFailed {
+            let pending_runtime = result.analyst_runtime_state(analyst_key).cloned().unwrap_or_default();
+            let pending_tools = pending_runtime.pending_tools.clone();
+            if pending_tools.is_empty() {
+                return Err(GraphError::NodeExecutionFailed {
                     node: tool_node_name(analyst_key).to_string(),
-                    message: "pending tool call missing".to_string(),
-                }
-            })?;
+                    message: "pending tool calls missing".to_string(),
+                });
+            }
             tracing::info!(
                 task_id = %result.task_id,
                 symbol = %result.symbol,
                 analyst = analyst_key,
-                tool = %pending.tool_name,
-                "execute analyst tool"
+                tool_count = pending_tools.len(),
+                "execute analyst batch tools"
             );
             let scenario = result.artifacts.scenario_data.to_scenario_data();
-            let observation = manager
-                .toolbox
-                .execute(
-                    &result.symbol,
-                    &result.market_type,
-                    Some(&scenario),
-                    &pending,
-                )
-                .await;
+            // Execute all tools in parallel
+            let futures: Vec<_> = pending_tools.iter().map(|pending| {
+                let mgr = manager.clone();
+                let sym = result.symbol.clone();
+                let mkt = result.market_type.clone();
+                let sc = scenario.clone();
+                let p = pending.clone();
+                async move {
+                    mgr.toolbox.execute(&sym, &mkt, Some(&sc), &p).await
+                }
+            }).collect();
+            let observations = futures::future::join_all(futures).await;
             let runtime = result.analyst_runtime_state_mut(analyst_key);
-            runtime.tool_history.push(observation);
+            for obs in observations {
+                runtime.tool_history.push(obs);
+            }
             runtime.pending_tools.clear();
             manager
                 .persist_runtime_stage(

@@ -19,7 +19,7 @@ pub(super) fn analyst_route(state: &State, analyst_key: &str) -> String {
     }
     let runtime = result.analyst_runtime_state(analyst_key);
     if runtime
-        .and_then(|item| item.pending_tool.as_ref())
+        .and_then(|item| item.pending_tools.first())
         .is_some()
     {
         return tool_node_name(analyst_key).to_string();

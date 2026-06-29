@@ -73,11 +73,11 @@ fn report_stage_state_serde_roundtrip() {
 fn analyst_runtime_state_serde_roundtrip() {
     let s = AnalystRuntimeState {
         key: "market".into(),
-        pending_tool: Some(PendingToolCall {
+        pending_tools: vec![PendingToolCall {
             tool_name: "search".into(),
             arguments: serde_json::json!({"q": "AAPL"}),
             reason: "need data".into(),
-        }),
+        }],
         tool_history: vec![ToolObservation {
             tool_name: "search".into(),
             arguments: serde_json::json!({}),
@@ -92,7 +92,7 @@ fn analyst_runtime_state_serde_roundtrip() {
     let json = serde_json::to_string(&s).unwrap();
     let restored: AnalystRuntimeState = serde_json::from_str(&json).unwrap();
     assert_eq!(restored.key, "market");
-    assert!(restored.pending_tool.is_some());
+    assert!(!restored.pending_tools.is_empty());
 }
 
 #[test]

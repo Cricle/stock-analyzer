@@ -260,21 +260,13 @@ fn derive_direction_confidence(
     catalyst_quality: &ScoreDimension,
     cross_agent_consistency: &ScoreDimension,
 ) -> ScoreDimension {
-    let recommendation = &result.structured_portfolio_decision().rating;
-    let is_hold = *recommendation == Rating::Hold;
-    let score = if is_hold {
-        // Hold still benefits from cross-agent consistency — include it at half weight
-        // so that a unanimous consensus isn't completely ignored for neutral ratings.
-        trend_confirmation.score
-            + (fundamental_confirmation.score / 2)
-            + catalyst_quality.score
-            + (cross_agent_consistency.score / 2)
-    } else {
-        trend_confirmation.score
-            + fundamental_confirmation.score
-            + catalyst_quality.score
-            + cross_agent_consistency.score
-    };
+    // All recommendations — including Hold — get full credit for evidence quality.
+    // The old code halved fundamentals and consistency for Hold, which created
+    // a self-reinforcing conservative loop: Hold → lower confidence → forced Hold.
+    let score = trend_confirmation.score
+        + fundamental_confirmation.score
+        + catalyst_quality.score
+        + cross_agent_consistency.score;
     ScoreDimension {
         score: score.clamp(0, 100),
         max_score: 100,

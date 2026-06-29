@@ -79,26 +79,22 @@ impl SaConfig {
     pub fn load() -> Self {
         let path = Self::config_path();
         match path {
-            Some(ref p) => {
-                match std::fs::read_to_string(p) {
-                    Ok(content) => {
-                        match toml::from_str::<SaConfig>(&content) {
-                            Ok(cfg) => {
-                                tracing::debug!(path = %p.display(), "loaded config file");
-                                cfg
-                            }
-                            Err(e) => {
-                                tracing::warn!(path = %p.display(), error = %e, "config file parse error, using defaults");
-                                SaConfig::default()
-                            }
-                        }
+            Some(ref p) => match std::fs::read_to_string(p) {
+                Ok(content) => match toml::from_str::<SaConfig>(&content) {
+                    Ok(cfg) => {
+                        tracing::debug!(path = %p.display(), "loaded config file");
+                        cfg
                     }
                     Err(e) => {
-                        tracing::warn!(path = %p.display(), error = %e, "cannot read config file, using defaults");
+                        tracing::warn!(path = %p.display(), error = %e, "config file parse error, using defaults");
                         SaConfig::default()
                     }
+                },
+                Err(e) => {
+                    tracing::warn!(path = %p.display(), error = %e, "cannot read config file, using defaults");
+                    SaConfig::default()
                 }
-            }
+            },
             None => SaConfig::default(),
         }
     }
@@ -112,10 +108,18 @@ impl SaConfig {
         // Layer 1: config.toml [scoring.weights]
         if let Some(ref scoring) = self.scoring {
             if let Some(ref w) = scoring.weights {
-                if let Some(v) = w.technical { cfg.weights.technical = v; }
-                if let Some(v) = w.fundamental { cfg.weights.fundamental = v; }
-                if let Some(v) = w.sentiment { cfg.weights.sentiment = v; }
-                if let Some(v) = w.llm_analysis { cfg.weights.llm_analysis = v; }
+                if let Some(v) = w.technical {
+                    cfg.weights.technical = v;
+                }
+                if let Some(v) = w.fundamental {
+                    cfg.weights.fundamental = v;
+                }
+                if let Some(v) = w.sentiment {
+                    cfg.weights.sentiment = v;
+                }
+                if let Some(v) = w.llm_analysis {
+                    cfg.weights.llm_analysis = v;
+                }
             }
             if let Some(v) = scoring.sentiment_news_limit {
                 cfg.sentiment_news_limit = v;
@@ -129,7 +133,9 @@ impl SaConfig {
         if let Some(ref caps) = self.confidence_caps {
             macro_rules! cap_field {
                 ($field:ident) => {
-                    if let Some(v) = caps.$field { cfg.caps.$field = v; }
+                    if let Some(v) = caps.$field {
+                        cfg.caps.$field = v;
+                    }
                 };
             }
             cap_field!(missing_core_data);

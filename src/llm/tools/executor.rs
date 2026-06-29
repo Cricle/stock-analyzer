@@ -12,13 +12,19 @@ pub fn execute_tool_call(
     match tool_name {
         // === Rating & Confidence ===
         "set_rating" => {
-            let rating = arguments.get("rating").and_then(Value::as_str).ok_or("missing 'rating'")?;
+            let rating = arguments
+                .get("rating")
+                .and_then(Value::as_str)
+                .ok_or("missing 'rating'")?;
             validate_rating(rating)?;
             collector.set_rating(rating);
             Ok(())
         }
         "set_confidence" => {
-            let score = arguments.get("score").and_then(Value::as_f64).ok_or("missing 'score'")?;
+            let score = arguments
+                .get("score")
+                .and_then(Value::as_f64)
+                .ok_or("missing 'score'")?;
             if !(0.0..=100.0).contains(&score) {
                 return Err("score must be 0-100".into());
             }
@@ -26,7 +32,10 @@ pub fn execute_tool_call(
             Ok(())
         }
         "set_action" => {
-            let action = arguments.get("value").and_then(Value::as_str).ok_or("missing 'value'")?;
+            let action = arguments
+                .get("value")
+                .and_then(Value::as_str)
+                .ok_or("missing 'value'")?;
             collector.set_action(action);
             Ok(())
         }
@@ -38,7 +47,10 @@ pub fn execute_tool_call(
         "set_confirmation_level" => set_price(collector, arguments, "set_confirmation_level"),
         "set_invalidation_level" => set_price(collector, arguments, "set_invalidation_level"),
         "set_risk_reward_ratio" => {
-            let value = arguments.get("value").and_then(Value::as_f64).ok_or("missing 'value'")?;
+            let value = arguments
+                .get("value")
+                .and_then(Value::as_f64)
+                .ok_or("missing 'value'")?;
             if value < 0.0 {
                 return Err("ratio must be >= 0".into());
             }
@@ -69,10 +81,20 @@ pub fn execute_tool_call(
 
         // === Probability ===
         "set_probability" => {
-            let up = arguments.get("up").and_then(Value::as_f64).ok_or("missing 'up'")?;
-            let down = arguments.get("down").and_then(Value::as_f64).ok_or("missing 'down'")?;
-            let sideways = arguments.get("sideways").and_then(Value::as_f64).ok_or("missing 'sideways'")?;
-            if up < 0.0 || up > 1.0 || down < 0.0 || down > 1.0 || sideways < 0.0 || sideways > 1.0 {
+            let up = arguments
+                .get("up")
+                .and_then(Value::as_f64)
+                .ok_or("missing 'up'")?;
+            let down = arguments
+                .get("down")
+                .and_then(Value::as_f64)
+                .ok_or("missing 'down'")?;
+            let sideways = arguments
+                .get("sideways")
+                .and_then(Value::as_f64)
+                .ok_or("missing 'sideways'")?;
+            if up < 0.0 || up > 1.0 || down < 0.0 || down > 1.0 || sideways < 0.0 || sideways > 1.0
+            {
                 return Err("probabilities must be 0-1".into());
             }
             collector.set_probability(up, down, sideways);
@@ -81,8 +103,14 @@ pub fn execute_tool_call(
 
         // === Scores ===
         "set_score" => {
-            let dim = arguments.get("dimension").and_then(Value::as_str).ok_or("missing 'dimension'")?;
-            let score = arguments.get("score").and_then(Value::as_f64).ok_or("missing 'score'")?;
+            let dim = arguments
+                .get("dimension")
+                .and_then(Value::as_str)
+                .ok_or("missing 'dimension'")?;
+            let score = arguments
+                .get("score")
+                .and_then(Value::as_f64)
+                .ok_or("missing 'score'")?;
             if !(0.0..=100.0).contains(&score) {
                 return Err("score must be 0-100".into());
             }
@@ -92,20 +120,45 @@ pub fn execute_tool_call(
 
         // === Scenario Paths ===
         "add_scenario_path" => {
-            let key = arguments.get("key").and_then(Value::as_str).ok_or("missing 'key'")?;
-            let name = arguments.get("name").and_then(Value::as_str).ok_or("missing 'name'")?;
-            let action = arguments.get("action").and_then(Value::as_str).ok_or("missing 'action'")?;
+            let key = arguments
+                .get("key")
+                .and_then(Value::as_str)
+                .ok_or("missing 'key'")?;
+            let name = arguments
+                .get("name")
+                .and_then(Value::as_str)
+                .ok_or("missing 'name'")?;
+            let action = arguments
+                .get("action")
+                .and_then(Value::as_str)
+                .ok_or("missing 'action'")?;
             if key.is_empty() || name.is_empty() {
                 return Err("key and name cannot be empty".into());
             }
             collector.add_scenario_path(ScenarioPathData {
                 key: key.to_string(),
                 name: name.to_string(),
-                trigger: arguments.get("trigger").and_then(Value::as_str).unwrap_or("").to_string(),
+                trigger: arguments
+                    .get("trigger")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string(),
                 action: action.to_string(),
-                risk_boundary: arguments.get("risk_boundary").and_then(Value::as_str).unwrap_or("").to_string(),
-                position_sizing: arguments.get("position_sizing").and_then(Value::as_str).unwrap_or("").to_string(),
-                stop_level: arguments.get("stop_level").and_then(Value::as_str).unwrap_or("").to_string(),
+                risk_boundary: arguments
+                    .get("risk_boundary")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string(),
+                position_sizing: arguments
+                    .get("position_sizing")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string(),
+                stop_level: arguments
+                    .get("stop_level")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string(),
                 entry_price: arguments.get("entry_price").and_then(Value::as_f64),
                 target: arguments.get("target").and_then(Value::as_f64),
             });
@@ -116,15 +169,30 @@ pub fn execute_tool_call(
         "set_time_horizon" => set_text(collector, arguments, "set_time_horizon"),
         "set_position_sizing" => set_text(collector, arguments, "set_position_sizing"),
         "set_time_stop" => {
-            let deadline = arguments.get("deadline").and_then(Value::as_str).ok_or("missing 'deadline'")?;
-            let reason = arguments.get("reason").and_then(Value::as_str).ok_or("missing 'reason'")?;
+            let deadline = arguments
+                .get("deadline")
+                .and_then(Value::as_str)
+                .ok_or("missing 'deadline'")?;
+            let reason = arguments
+                .get("reason")
+                .and_then(Value::as_str)
+                .ok_or("missing 'reason'")?;
             collector.set_time_stop(deadline, reason);
             Ok(())
         }
         "set_reflection" => {
-            let strongest = arguments.get("strongest_part").and_then(Value::as_str).ok_or("missing 'strongest_part'")?;
-            let weakest = arguments.get("weakest_uncertainty").and_then(Value::as_str).ok_or("missing 'weakest_uncertainty'")?;
-            let lesson = arguments.get("next_lesson").and_then(Value::as_str).ok_or("missing 'next_lesson'")?;
+            let strongest = arguments
+                .get("strongest_part")
+                .and_then(Value::as_str)
+                .ok_or("missing 'strongest_part'")?;
+            let weakest = arguments
+                .get("weakest_uncertainty")
+                .and_then(Value::as_str)
+                .ok_or("missing 'weakest_uncertainty'")?;
+            let lesson = arguments
+                .get("next_lesson")
+                .and_then(Value::as_str)
+                .ok_or("missing 'next_lesson'")?;
             collector.set_reflection(ReflectionData {
                 strongest_part: strongest.to_string(),
                 weakest_uncertainty: weakest.to_string(),
@@ -132,7 +200,9 @@ pub fn execute_tool_call(
             });
             Ok(())
         }
-        "set_accounting_scope_hypothesis" => set_text(collector, arguments, "set_accounting_scope_hypothesis"),
+        "set_accounting_scope_hypothesis" => {
+            set_text(collector, arguments, "set_accounting_scope_hypothesis")
+        }
         "set_speaker" => set_text(collector, arguments, "set_speaker"),
         "set_stance" => set_text(collector, arguments, "set_stance"),
         "set_response" => set_text(collector, arguments, "set_response"),
@@ -142,7 +212,10 @@ pub fn execute_tool_call(
 }
 
 fn set_price(collector: &AnalysisDataCollector, args: &Value, tool: &str) -> Result<(), String> {
-    let price = args.get("value").and_then(Value::as_f64).ok_or("missing 'value'")?;
+    let price = args
+        .get("value")
+        .and_then(Value::as_f64)
+        .ok_or("missing 'value'")?;
     if price <= 0.0 || !price.is_finite() {
         return Err("price must be positive and finite".into());
     }
@@ -158,7 +231,10 @@ fn set_price(collector: &AnalysisDataCollector, args: &Value, tool: &str) -> Res
 }
 
 fn set_text(collector: &AnalysisDataCollector, args: &Value, tool: &str) -> Result<(), String> {
-    let value = args.get("value").and_then(Value::as_str).ok_or("missing 'value'")?;
+    let value = args
+        .get("value")
+        .and_then(Value::as_str)
+        .ok_or("missing 'value'")?;
     if value.trim().is_empty() {
         return Err("value cannot be empty".into());
     }
@@ -183,7 +259,10 @@ fn set_text(collector: &AnalysisDataCollector, args: &Value, tool: &str) -> Resu
 }
 
 fn add_to_list(collector: &AnalysisDataCollector, args: &Value, tool: &str) -> Result<(), String> {
-    let value = args.get("value").and_then(Value::as_str).ok_or("missing 'value'")?;
+    let value = args
+        .get("value")
+        .and_then(Value::as_str)
+        .ok_or("missing 'value'")?;
     if value.trim().is_empty() {
         return Err("value cannot be empty".into());
     }
@@ -205,6 +284,8 @@ fn add_to_list(collector: &AnalysisDataCollector, args: &Value, tool: &str) -> R
 fn validate_rating(rating: &str) -> Result<(), String> {
     match rating {
         "Buy" | "Overweight" | "Hold" | "Underweight" | "Sell" => Ok(()),
-        _ => Err(format!("invalid rating '{rating}', must be: Buy, Overweight, Hold, Underweight, Sell")),
+        _ => Err(format!(
+            "invalid rating '{rating}', must be: Buy, Overweight, Hold, Underweight, Sell"
+        )),
     }
 }

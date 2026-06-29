@@ -162,39 +162,75 @@ impl AnalysisDataCollector {
     // === Evidence & Lists ===
 
     pub fn add_evidence_point(&self, value: impl Into<String>) {
-        self.inner.write().expect("lock").evidence_points.push(value.into());
+        self.inner
+            .write()
+            .expect("lock")
+            .evidence_points
+            .push(value.into());
     }
 
     pub fn add_key_risk(&self, value: impl Into<String>) {
-        self.inner.write().expect("lock").key_risks.push(value.into());
+        self.inner
+            .write()
+            .expect("lock")
+            .key_risks
+            .push(value.into());
     }
 
     pub fn add_trigger(&self, value: impl Into<String>) {
-        self.inner.write().expect("lock").trigger_checklist.push(value.into());
+        self.inner
+            .write()
+            .expect("lock")
+            .trigger_checklist
+            .push(value.into());
     }
 
     pub fn add_next_step(&self, value: impl Into<String>) {
-        self.inner.write().expect("lock").next_steps.push(value.into());
+        self.inner
+            .write()
+            .expect("lock")
+            .next_steps
+            .push(value.into());
     }
 
     pub fn add_blocking_gap(&self, value: impl Into<String>) {
-        self.inner.write().expect("lock").blocking_gaps.push(value.into());
+        self.inner
+            .write()
+            .expect("lock")
+            .blocking_gaps
+            .push(value.into());
     }
 
     pub fn add_tolerable_gap(&self, value: impl Into<String>) {
-        self.inner.write().expect("lock").tolerable_gaps.push(value.into());
+        self.inner
+            .write()
+            .expect("lock")
+            .tolerable_gaps
+            .push(value.into());
     }
 
     pub fn add_manageable_gap(&self, value: impl Into<String>) {
-        self.inner.write().expect("lock").manageable_gaps.push(value.into());
+        self.inner
+            .write()
+            .expect("lock")
+            .manageable_gaps
+            .push(value.into());
     }
 
     pub fn add_key_number(&self, value: impl Into<String>) {
-        self.inner.write().expect("lock").key_numbers.push(value.into());
+        self.inner
+            .write()
+            .expect("lock")
+            .key_numbers
+            .push(value.into());
     }
 
     pub fn add_reference(&self, value: impl Into<String>) {
-        self.inner.write().expect("lock").references.push(value.into());
+        self.inner
+            .write()
+            .expect("lock")
+            .references
+            .push(value.into());
     }
 
     // === Probability ===
@@ -212,7 +248,11 @@ impl AnalysisDataCollector {
     // === Scores ===
 
     pub fn set_score(&self, dimension: impl Into<String>, score: f64) {
-        self.inner.write().expect("lock").scores.insert(dimension.into(), score);
+        self.inner
+            .write()
+            .expect("lock")
+            .scores
+            .insert(dimension.into(), score);
     }
 
     // === Scenario Paths ===
@@ -243,7 +283,10 @@ impl AnalysisDataCollector {
     }
 
     pub fn set_accounting_scope_hypothesis(&self, value: impl Into<String>) {
-        self.inner.write().expect("lock").accounting_scope_hypothesis = Some(value.into());
+        self.inner
+            .write()
+            .expect("lock")
+            .accounting_scope_hypothesis = Some(value.into());
     }
 
     // === Debate Fields ===

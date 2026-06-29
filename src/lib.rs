@@ -119,8 +119,7 @@ pub mod report;
 // ── Re-exports ──
 
 pub use analysis::{
-    is_publishable_summary_reference, ActionBreakdown, ActionScenarioPath, AgentReportNode,
-    AgentStateSnapshot, AnalysisArtifacts,
+    ActionBreakdown, ActionScenarioPath, AgentReportNode, AgentStateSnapshot, AnalysisArtifacts,
     AnalysisCheckpoint, AnalysisGraph, AnalysisOutcomeRequest, AnalysisParameters, AnalysisResult,
     AnalysisReuseCandidate, AnalysisReuseCheckRequest, AnalysisReuseSemanticMatch,
     AnalysisScenarioContext, AnalysisScenarioData, AnalysisScenarioIssue, AnalysisScenarioMarket,
@@ -151,7 +150,7 @@ pub use analysis::{
     derive_memory_reference_facts, derive_news_diagnostics, derive_news_insights,
     derive_report_diagnostics, derive_setup_match_explanation, derive_setup_tags,
     derive_technical_conclusions, detect_disclosure_sequence_complexity, ema_report,
-    is_semantically_similar, kdj_report, macd_report, obv_report,
+    is_publishable_summary_reference, is_semantically_similar, kdj_report, macd_report, obv_report,
     render_action_guides_markdown, render_calibration_discipline_markdown, rsi_report, sma_report,
 };
 

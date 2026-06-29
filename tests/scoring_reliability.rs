@@ -47,16 +47,22 @@ fn default_reliability_is_high() {
 fn sentiment_parse_failure_is_missing_reliability() {
     let result = parse_sentiment_response("not json at all");
     assert_eq!(result.score, 50);
-    assert_eq!(result.reliability, sa::scoring::score_types::ScoreReliability::Missing);
+    assert_eq!(
+        result.reliability,
+        sa::scoring::score_types::ScoreReliability::Missing
+    );
 }
 
 #[test]
 fn sentiment_empty_headlines_is_missing() {
     let result = parse_sentiment_response("{}");
-    assert_eq!(result.reliability, sa::scoring::score_types::ScoreReliability::Missing);
+    assert_eq!(
+        result.reliability,
+        sa::scoring::score_types::ScoreReliability::Missing
+    );
 }
 
-use sa::scoring::dimensions::llm_analysis::{score_llm_analysis, LlmAnalysisInput};
+use sa::scoring::dimensions::llm_analysis::{LlmAnalysisInput, score_llm_analysis};
 
 #[test]
 fn llm_analysis_missing_history_is_low_reliability() {

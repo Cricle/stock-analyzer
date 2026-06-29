@@ -1,7 +1,7 @@
 use chrono::Utc;
 
-use crate::llm::{GeneratedDebateTurn, GeneratedRoleReport};
 use crate::llm::types::HasConfidence;
+use crate::llm::{GeneratedDebateTurn, GeneratedRoleReport};
 use crate::{AgentReportNode, AnalysisCheckpoint, AnalysisResult, DebateTurn};
 
 pub(crate) fn push_analyst_node(result: &mut AnalysisResult, node: GeneratedRoleReport) {

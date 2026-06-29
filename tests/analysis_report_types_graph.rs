@@ -1,9 +1,9 @@
 use sa::analysis::{
-    AgentReportNode, AgentStateSnapshot, AnalysisArtifacts, AnalysisGraph,
-    AnalysisScenarioContext, AnalysisScenarioData, AnalysisUserContext,
-    DiagnosisIssue, DiagnosisSummary, InvestmentDebateState, LlmTokenUsageSummary,
-    MemoryContextSnapshot, ReflectionState, ReportMarketChart, RiskDebateState,
-    StructuredPortfolioDecision, StructuredResearchPlan, StructuredTraderPlan,
+    AgentReportNode, AgentStateSnapshot, AnalysisArtifacts, AnalysisGraph, AnalysisScenarioContext,
+    AnalysisScenarioData, AnalysisUserContext, DiagnosisIssue, DiagnosisSummary,
+    InvestmentDebateState, LlmTokenUsageSummary, MemoryContextSnapshot, ReflectionState,
+    ReportMarketChart, RiskDebateState, StructuredPortfolioDecision, StructuredResearchPlan,
+    StructuredTraderPlan,
 };
 
 #[test]

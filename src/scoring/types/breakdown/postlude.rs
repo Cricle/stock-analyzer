@@ -254,7 +254,7 @@ pub fn evaluate_confidence_score(
 }
 
 fn derive_direction_confidence(
-    result: &AnalysisResult,
+    _result: &AnalysisResult,
     trend_confirmation: &ScoreDimension,
     fundamental_confirmation: &ScoreDimension,
     catalyst_quality: &ScoreDimension,

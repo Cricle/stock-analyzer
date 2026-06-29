@@ -1,9 +1,9 @@
 use sa::{
     AgentStateSnapshot, AnalysisArtifacts, AnalysisResult, AnalysisScenarioContext,
-    AnalysisScenarioData, AnalysisScenarioIssue, AnalystRuntimeState,
-    CalibrationProfile, CandlePoint, MissingEvidenceLadder, QuoteSnapshot,
-    StructuredPortfolioDecision, StructuredResearchPlan, StructuredTraderPlan,
-    ToolObservation, derive_news_diagnostics, derive_report_diagnostics,
+    AnalysisScenarioData, AnalysisScenarioIssue, AnalystRuntimeState, CalibrationProfile,
+    CandlePoint, MissingEvidenceLadder, QuoteSnapshot, StructuredPortfolioDecision,
+    StructuredResearchPlan, StructuredTraderPlan, ToolObservation, derive_news_diagnostics,
+    derive_report_diagnostics,
 };
 use serde_json::json;
 
@@ -51,8 +51,16 @@ fn news_diagnostics_flag_source_concentration_and_weak_fetch_coverage() {
     };
 
     let diagnostics = derive_news_diagnostics(&result);
-    assert!(diagnostics.iter().any(|item| item.code == "news_source_concentration"));
-    assert!(diagnostics.iter().any(|item| item.code == "news_fetch_coverage_weak"));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|item| item.code == "news_source_concentration")
+    );
+    assert!(
+        diagnostics
+            .iter()
+            .any(|item| item.code == "news_fetch_coverage_weak")
+    );
 }
 
 #[test]
@@ -73,9 +81,16 @@ fn availability_diagnostics_include_scenario_issues_and_market_minimums() {
                 }],
                 candles: vec![CandlePoint {
                     trade_date: "2026-05-20".to_string(),
-                    open: 1.0, close: 1.0, high: 1.0, low: 1.0,
-                    volume: 1, amount: 1.0, amplitude_pct: 0.0,
-                    change_pct: 0.0, change_amount: 0.0, turnover_pct: 0.0,
+                    open: 1.0,
+                    close: 1.0,
+                    high: 1.0,
+                    low: 1.0,
+                    volume: 1,
+                    amount: 1.0,
+                    amplitude_pct: 0.0,
+                    change_pct: 0.0,
+                    change_amount: 0.0,
+                    turnover_pct: 0.0,
                 }],
                 ..Default::default()
             },
@@ -85,8 +100,18 @@ fn availability_diagnostics_include_scenario_issues_and_market_minimums() {
     };
 
     let diagnostics = derive_report_diagnostics(&result);
-    assert!(diagnostics.availability.iter().any(|item| item.code == "quote_missing"));
-    assert!(diagnostics.availability.iter().any(|item| item.code == "scenario_minimum_hk_equity_incomplete"));
+    assert!(
+        diagnostics
+            .availability
+            .iter()
+            .any(|item| item.code == "quote_missing")
+    );
+    assert!(
+        diagnostics
+            .availability
+            .iter()
+            .any(|item| item.code == "scenario_minimum_hk_equity_incomplete")
+    );
 }
 
 #[test]
@@ -102,13 +127,24 @@ fn scenario_minimum_errors_become_execution_blocking_gaps() {
                 quote: Some(QuoteSnapshot {
                     symbol: "TEST-US".to_string(),
                     date: "2026-05-20".to_string(),
-                    open: 1.0, high: 1.0, low: 1.0, close: 1.0, volume: 1,
+                    open: 1.0,
+                    high: 1.0,
+                    low: 1.0,
+                    close: 1.0,
+                    volume: 1,
                 }),
                 candles: vec![CandlePoint {
                     trade_date: "2026-05-20".to_string(),
-                    open: 1.0, close: 1.0, high: 1.0, low: 1.0,
-                    volume: 1, amount: 1.0, amplitude_pct: 0.0,
-                    change_pct: 0.0, change_amount: 0.0, turnover_pct: 0.0,
+                    open: 1.0,
+                    close: 1.0,
+                    high: 1.0,
+                    low: 1.0,
+                    volume: 1,
+                    amount: 1.0,
+                    amplitude_pct: 0.0,
+                    change_pct: 0.0,
+                    change_amount: 0.0,
+                    turnover_pct: 0.0,
                 }],
                 ..Default::default()
             },
@@ -118,13 +154,15 @@ fn scenario_minimum_errors_become_execution_blocking_gaps() {
     };
 
     result.rebuild_report(&CalibrationProfile::default());
-    assert!(result
-        .report
-        .portfolio_decision
-        .missing_evidence_ladder
-        .blocking_gaps
-        .iter()
-        .any(|item| item.contains("scenario_minimum_incomplete")));
+    assert!(
+        result
+            .report
+            .portfolio_decision
+            .missing_evidence_ladder
+            .blocking_gaps
+            .iter()
+            .any(|item| item.contains("scenario_minimum_incomplete"))
+    );
 }
 
 #[test]
@@ -164,13 +202,24 @@ fn availability_diagnostics_include_related_gap_linkage() {
                 quote: Some(QuoteSnapshot {
                     symbol: "TEST-US-2".to_string(),
                     date: "2026-05-20".to_string(),
-                    open: 1.0, high: 1.0, low: 1.0, close: 1.0, volume: 1,
+                    open: 1.0,
+                    high: 1.0,
+                    low: 1.0,
+                    close: 1.0,
+                    volume: 1,
                 }),
                 candles: vec![CandlePoint {
                     trade_date: "2026-05-20".to_string(),
-                    open: 1.0, close: 1.0, high: 1.0, low: 1.0,
-                    volume: 1, amount: 1.0, amplitude_pct: 0.0,
-                    change_pct: 0.0, change_amount: 0.0, turnover_pct: 0.0,
+                    open: 1.0,
+                    close: 1.0,
+                    high: 1.0,
+                    low: 1.0,
+                    volume: 1,
+                    amount: 1.0,
+                    amplitude_pct: 0.0,
+                    change_pct: 0.0,
+                    change_amount: 0.0,
+                    turnover_pct: 0.0,
                 }],
                 ..Default::default()
             },
@@ -205,13 +254,24 @@ fn scenario_minimum_errors_are_injected_into_executive_summary() {
                 quote: Some(QuoteSnapshot {
                     symbol: "TEST-US-3".to_string(),
                     date: "2026-05-20".to_string(),
-                    open: 1.0, high: 1.0, low: 1.0, close: 1.0, volume: 1,
+                    open: 1.0,
+                    high: 1.0,
+                    low: 1.0,
+                    close: 1.0,
+                    volume: 1,
                 }),
                 candles: vec![CandlePoint {
                     trade_date: "2026-05-20".to_string(),
-                    open: 1.0, close: 1.0, high: 1.0, low: 1.0,
-                    volume: 1, amount: 1.0, amplitude_pct: 0.0,
-                    change_pct: 0.0, change_amount: 0.0, turnover_pct: 0.0,
+                    open: 1.0,
+                    close: 1.0,
+                    high: 1.0,
+                    low: 1.0,
+                    volume: 1,
+                    amount: 1.0,
+                    amplitude_pct: 0.0,
+                    change_pct: 0.0,
+                    change_amount: 0.0,
+                    turnover_pct: 0.0,
                 }],
                 ..Default::default()
             },
@@ -221,14 +281,18 @@ fn scenario_minimum_errors_are_injected_into_executive_summary() {
     };
 
     result.rebuild_report(&CalibrationProfile::default());
-    assert!(result
-        .report
-        .portfolio_decision
-        .executive_summary
-        .contains("当前不能升级结论的直接原因是"));
-    assert!(result
-        .report
-        .portfolio_decision
-        .executive_summary
-        .contains("scenario_minimum_incomplete"));
+    assert!(
+        result
+            .report
+            .portfolio_decision
+            .executive_summary
+            .contains("当前不能升级结论的直接原因是")
+    );
+    assert!(
+        result
+            .report
+            .portfolio_decision
+            .executive_summary
+            .contains("scenario_minimum_incomplete")
+    );
 }

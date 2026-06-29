@@ -81,11 +81,13 @@ fn watcher_guide_calls_out_unverified_setup_history() {
         }],
     );
     assert_eq!(guides.watchers.summary.key, "summary_watchers_weak");
-    assert!(guides
-        .watchers
-        .actions
-        .iter()
-        .any(|item| item.key == "action_watcher_weak_history"));
+    assert!(
+        guides
+            .watchers
+            .actions
+            .iter()
+            .any(|item| item.key == "action_watcher_weak_history")
+    );
 }
 
 #[test]
@@ -163,9 +165,11 @@ fn technical_conclusions_combine_strong_trend_with_fading_momentum() {
         },
         Some(101.0),
     );
-    assert!(conclusions
-        .iter()
-        .any(|item| item.key == "trend_strength_with_fading_momentum"));
+    assert!(
+        conclusions
+            .iter()
+            .any(|item| item.key == "trend_strength_with_fading_momentum")
+    );
 }
 
 #[test]

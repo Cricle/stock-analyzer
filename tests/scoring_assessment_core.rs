@@ -1,7 +1,6 @@
 use sa::analysis::{
     AgentReportNode, AgentStateSnapshot, AnalysisArtifacts, AnalysisGraph, AnalysisResult,
-    DebateTurn, StructuredPortfolioDecision,
-    StructuredResearchPlan, StructuredTraderPlan,
+    DebateTurn, StructuredPortfolioDecision, StructuredResearchPlan, StructuredTraderPlan,
 };
 use sa::scoring::{
     score_catalyst_quality, score_cross_agent_consistency, score_data_quality, score_fundamentals,

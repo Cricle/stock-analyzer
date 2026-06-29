@@ -132,9 +132,15 @@ impl ConfidenceCapsConfig {
         cap_env!(thin_setup_history_with_data, "THIN_SETUP_HISTORY_WITH_DATA");
         cap_env!(thin_setup_history_no_data, "THIN_SETUP_HISTORY_NO_DATA");
         cap_env!(missing_follow_up_plan, "MISSING_FOLLOW_UP_PLAN");
-        cap_env!(decision_blocking_gaps_present, "DECISION_BLOCKING_GAPS_PRESENT");
+        cap_env!(
+            decision_blocking_gaps_present,
+            "DECISION_BLOCKING_GAPS_PRESENT"
+        );
         cap_env!(fundamentals_period_mixed, "FUNDAMENTALS_PERIOD_MIXED");
-        cap_env!(near_resistance_without_fresh_catalyst, "NEAR_RESISTANCE_WITHOUT_FRESH_CATALYST");
+        cap_env!(
+            near_resistance_without_fresh_catalyst,
+            "NEAR_RESISTANCE_WITHOUT_FRESH_CATALYST"
+        );
         cap_env!(zero_resolved_setup_history, "ZERO_RESOLVED_SETUP_HISTORY");
     }
 }

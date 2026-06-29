@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use super::super::parse;
 use super::helpers::{
-    extract_object_string_list, extract_object_value, meaningful_value, FieldExtractor,
+    FieldExtractor, extract_object_string_list, extract_object_value, meaningful_value,
 };
 use super::types::GeneratedTraderDecision;
 
@@ -242,9 +242,12 @@ impl GeneratedTraderDecision {
                     blocking_gaps
                 }
             },
-            time_stop_deadline: ex.field("time_stop_deadline")
+            time_stop_deadline: ex
+                .field("time_stop_deadline")
                 .and_then(|v| v.as_str().map(String::from)),
-            time_stop_reason: ex.field("time_stop_reason").and_then(|v| v.as_str().map(String::from)),
+            time_stop_reason: ex
+                .field("time_stop_reason")
+                .and_then(|v| v.as_str().map(String::from)),
         };
         if result.trader_plan.trim().is_empty() {
             result.trader_plan = result.rendered_proposal();

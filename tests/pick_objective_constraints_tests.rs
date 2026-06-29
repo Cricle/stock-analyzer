@@ -5,9 +5,9 @@ use sa::pick::objective::{
 };
 use sa::pick::{EnrichedCandidate, FactorBreakdown};
 use sa::{
-    StockPickDataQualitySnapshot, StockPickFundamentalSnapshot,
-    StockPickHistoryMatchSnapshot, StockPickItem, StockPickMarketSnapshot, StockPickNewsSnapshot,
-    StockPickRiskSnapshot, StockPickTechnicalSnapshot,
+    StockPickDataQualitySnapshot, StockPickFundamentalSnapshot, StockPickHistoryMatchSnapshot,
+    StockPickItem, StockPickMarketSnapshot, StockPickNewsSnapshot, StockPickRiskSnapshot,
+    StockPickTechnicalSnapshot,
 };
 
 fn make_pick(

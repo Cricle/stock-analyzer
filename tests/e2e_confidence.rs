@@ -1,8 +1,8 @@
 use sa::scoring::config::ConfidenceCapsConfig;
 use sa::{
     AgentReportNode, AgentStateSnapshot, AnalysisArtifacts, AnalysisGraph, AnalysisResult,
-    AnalystRuntimeState, Rating, StructuredPortfolioDecision, StructuredTraderPlan, ToolObservation,
-    evaluate_confidence_score,
+    AnalystRuntimeState, Rating, StructuredPortfolioDecision, StructuredTraderPlan,
+    ToolObservation, evaluate_confidence_score,
 };
 
 /// Build a well-formed AnalysisResult with 4 analysts, non-empty core reports,
@@ -15,7 +15,11 @@ fn good_result() -> AnalysisResult {
             up_probability: up,
             down_probability: down,
             sideways_probability: sideways,
-            evidence_points: vec!["evidence_a".into(), "evidence_b".into(), "evidence_c".into()],
+            evidence_points: vec![
+                "evidence_a".into(),
+                "evidence_b".into(),
+                "evidence_c".into(),
+            ],
             next_steps: vec!["step_1".into(), "step_2".into()],
             ..Default::default()
         }
@@ -32,7 +36,8 @@ fn good_result() -> AnalysisResult {
     agent_state.market_report = "Strong uptrend with resistance at 150, support at 120".into();
     agent_state.fundamentals_report = "PE 18.5 ROE 22% growing revenue 15% YoY".into();
     agent_state.news_report = "Earnings beat expectations on 2026-07-15, new product launch".into();
-    agent_state.sentiment_report = "Positive sentiment from institutional investors, 65% bullish".into();
+    agent_state.sentiment_report =
+        "Positive sentiment from institutional investors, 65% bullish".into();
 
     let mut trader_plan = StructuredTraderPlan::default();
     trader_plan.entry_price = "135.50".into();
@@ -108,10 +113,7 @@ fn confidence_score_with_good_data_has_no_missing_core_data_cap() {
     let assessment = evaluate_confidence_score(&result, &caps);
 
     assert!(
-        assessment
-            .caps
-            .iter()
-            .all(|c| c.key != "missing_core_data"),
+        assessment.caps.iter().all(|c| c.key != "missing_core_data"),
         "should not trigger missing_core_data cap with 4 non-empty reports, got caps: {:?}",
         assessment.caps,
     );

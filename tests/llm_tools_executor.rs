@@ -39,18 +39,39 @@ fn test_all_evidence_tools() {
 #[test]
 fn test_probability_and_score() {
     let c = AnalysisDataCollector::new();
-    assert!(execute_tool_call(&c, "set_probability", &json!({"up": 0.5, "down": 0.3, "sideways": 0.2})).is_ok());
-    assert!(execute_tool_call(&c, "set_score", &json!({"dimension": "direction", "score": 75.0})).is_ok());
+    assert!(
+        execute_tool_call(
+            &c,
+            "set_probability",
+            &json!({"up": 0.5, "down": 0.3, "sideways": 0.2})
+        )
+        .is_ok()
+    );
+    assert!(
+        execute_tool_call(
+            &c,
+            "set_score",
+            &json!({"dimension": "direction", "score": 75.0})
+        )
+        .is_ok()
+    );
 }
 
 #[test]
 fn test_scenario_path() {
     let c = AnalysisDataCollector::new();
-    assert!(execute_tool_call(&c, "add_scenario_path", &json!({
-        "key": "breakout",
-        "name": "Breakout",
-        "action": "buy"
-    })).is_ok());
+    assert!(
+        execute_tool_call(
+            &c,
+            "add_scenario_path",
+            &json!({
+                "key": "breakout",
+                "name": "Breakout",
+                "action": "buy"
+            })
+        )
+        .is_ok()
+    );
     assert_eq!(c.build().scenario_paths.len(), 1);
 }
 
@@ -58,12 +79,26 @@ fn test_scenario_path() {
 fn test_meta_tools() {
     let c = AnalysisDataCollector::new();
     assert!(execute_tool_call(&c, "set_time_horizon", &json!({"value": "2-6 weeks"})).is_ok());
-    assert!(execute_tool_call(&c, "set_time_stop", &json!({"deadline": "10 days", "reason": "exit"})).is_ok());
-    assert!(execute_tool_call(&c, "set_reflection", &json!({
-        "strongest_part": "strong",
-        "weakest_uncertainty": "weak",
-        "next_lesson": "lesson"
-    })).is_ok());
+    assert!(
+        execute_tool_call(
+            &c,
+            "set_time_stop",
+            &json!({"deadline": "10 days", "reason": "exit"})
+        )
+        .is_ok()
+    );
+    assert!(
+        execute_tool_call(
+            &c,
+            "set_reflection",
+            &json!({
+                "strongest_part": "strong",
+                "weakest_uncertainty": "weak",
+                "next_lesson": "lesson"
+            })
+        )
+        .is_ok()
+    );
 }
 
 #[test]

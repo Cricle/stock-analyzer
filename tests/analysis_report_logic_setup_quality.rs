@@ -1,6 +1,6 @@
 use sa::analysis::{
-    ReportDiagnosticItem, ReportDiagnostics, StructuredPortfolioDecision,
-    StructuredResearchPlan, StructuredTraderPlan,
+    ReportDiagnosticItem, ReportDiagnostics, StructuredPortfolioDecision, StructuredResearchPlan,
+    StructuredTraderPlan,
 };
 use sa::analysis::{
     collect_execution_blocking_gaps, normalize_gap_match_text, normalize_gap_to_i18n_key,

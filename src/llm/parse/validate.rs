@@ -52,10 +52,11 @@ pub fn validate_analyst_decision(parsed: &super::GeneratedAnalystDecision, raw: 
     }
     if parsed.action == "tool"
         && (parsed.tool_name.is_none() || parsed.tool_name.as_deref() == Some(""))
+        && parsed.tool_calls.is_empty()
     {
         issues.push(DiagnosisIssue::error(
             "analyst_decision", "tool_name",
-            "tool action but no tool_name",
+            "tool action but no tool_name or tool_calls",
         ));
     }
     if !issues.is_empty() {

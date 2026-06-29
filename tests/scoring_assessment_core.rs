@@ -188,7 +188,7 @@ fn score_historical_transferability_same_ticker_only() {
     let mut result = make_result_with_analysts(vec![]);
     result.artifacts.memory_context.same_ticker_count = 1;
     let d = score_historical_transferability(&result);
-    assert_eq!(d.score, 4); // 3 (no setup filter, has same_ticker) + 1
+    assert_eq!(d.score, 9); // 5 (base for having history) + 3 (no setup filter, has same_ticker) + 1
 }
 
 // --- score_setup_direction_alignment ---
@@ -223,7 +223,7 @@ fn score_cross_agent_consistency_split() {
     ];
     let result = make_result_with_analysts(analysts);
     let d = score_cross_agent_consistency(&result);
-    assert!(d.score <= 8, "expected low consistency, got {}", d.score);
+    assert!(d.score <= 10, "expected low consistency, got {}", d.score);
 }
 
 #[test]

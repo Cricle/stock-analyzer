@@ -96,7 +96,7 @@ fn good_result() -> AnalysisResult {
 fn confidence_score_with_good_data_exceeds_60() {
     let result = good_result();
     let caps = ConfidenceCapsConfig::default();
-    let assessment = evaluate_confidence_score(&result, &caps);
+    let assessment = evaluate_confidence_score(&result, &caps, false, "");
 
     assert!(
         assessment.final_score >= 60,
@@ -110,7 +110,7 @@ fn confidence_score_with_good_data_exceeds_60() {
 fn confidence_score_with_good_data_has_no_missing_core_data_cap() {
     let result = good_result();
     let caps = ConfidenceCapsConfig::default();
-    let assessment = evaluate_confidence_score(&result, &caps);
+    let assessment = evaluate_confidence_score(&result, &caps, false, "");
 
     assert!(
         assessment.caps.iter().all(|c| c.key != "missing_core_data"),
@@ -123,7 +123,7 @@ fn confidence_score_with_good_data_has_no_missing_core_data_cap() {
 fn confidence_score_with_good_data_has_no_thin_evidence_cap() {
     let result = good_result();
     let caps = ConfidenceCapsConfig::default();
-    let assessment = evaluate_confidence_score(&result, &caps);
+    let assessment = evaluate_confidence_score(&result, &caps, false, "");
 
     assert!(
         assessment
@@ -139,7 +139,7 @@ fn confidence_score_with_good_data_has_no_thin_evidence_cap() {
 fn confidence_score_with_good_data_has_no_execution_boundary_cap() {
     let result = good_result();
     let caps = ConfidenceCapsConfig::default();
-    let assessment = evaluate_confidence_score(&result, &caps);
+    let assessment = evaluate_confidence_score(&result, &caps, false, "");
 
     assert!(
         assessment
@@ -155,7 +155,7 @@ fn confidence_score_with_good_data_has_no_execution_boundary_cap() {
 fn confidence_score_with_good_data_has_no_missing_follow_up_cap() {
     let result = good_result();
     let caps = ConfidenceCapsConfig::default();
-    let assessment = evaluate_confidence_score(&result, &caps);
+    let assessment = evaluate_confidence_score(&result, &caps, false, "");
 
     assert!(
         assessment
@@ -184,7 +184,7 @@ fn confidence_score_with_empty_data_is_lower() {
         created_at: "2026-06-29T00:00:00Z".into(),
     };
     let caps = ConfidenceCapsConfig::default();
-    let assessment = evaluate_confidence_score(&result, &caps);
+    let assessment = evaluate_confidence_score(&result, &caps, false, "");
 
     assert!(
         assessment.final_score < 60,
@@ -201,7 +201,7 @@ fn direction_confidence_is_not_halved_for_hold_recommendation() {
     result.agent_state.structured_portfolio_decision.raw_rating = "Hold".into();
 
     let caps = ConfidenceCapsConfig::default();
-    let assessment = evaluate_confidence_score(&result, &caps);
+    let assessment = evaluate_confidence_score(&result, &caps, false, "");
 
     // With good data and Hold rating, confidence should still be decent
     // (not crushed by a Hold penalty that no longer exists)

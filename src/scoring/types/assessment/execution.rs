@@ -5,7 +5,7 @@ fn derive_execution_confidence(
     portfolio_decision: &StructuredPortfolioDecision,
     execution_boundary_complete: bool,
 ) -> ScoreDimension {
-    let mut score = 48;
+    let mut score = 20;
     if execution_boundary_complete {
         score += 18;
     }
@@ -25,7 +25,7 @@ fn derive_execution_confidence(
         .rating == Rating::Hold
         && !execution_boundary_complete
     {
-        score = score.min(78);
+        score = score.min(65);
     }
     ScoreDimension {
         score: score.clamp(0, 100),

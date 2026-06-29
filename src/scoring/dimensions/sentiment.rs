@@ -13,7 +13,7 @@ pub async fn score_sentiment(
         return DimensionScore {
             score: 50,
             reason: "无新闻数据，情绪中性".into(),
-            reliability: ScoreReliability::High,
+            reliability: ScoreReliability::Missing,
         };
     }
 
@@ -37,7 +37,7 @@ pub async fn score_sentiment(
             return DimensionScore {
                 score: 50,
                 reason: format!("情绪分析LLM调用失败: {e}"),
-                reliability: ScoreReliability::High,
+                reliability: ScoreReliability::Missing,
             };
         }
     };
@@ -74,7 +74,7 @@ pub fn parse_sentiment_response(content: &str) -> DimensionScore {
             DimensionScore {
                 score: 50,
                 reason: "情绪分析解析失败，使用中性评分".into(),
-                reliability: ScoreReliability::High,
+                reliability: ScoreReliability::Missing,
             }
         }
     }

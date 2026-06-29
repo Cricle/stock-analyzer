@@ -1,3 +1,4 @@
+use sa::scoring::dimensions::sentiment::parse_sentiment_response;
 use sa::scoring::dimensions::weighted_score;
 use sa::scoring::score_types::{DimensionScore, ScoreReliability};
 
@@ -40,4 +41,17 @@ fn default_reliability_is_high() {
         reliability: ScoreReliability::default(),
     };
     assert_eq!(score.reliability, ScoreReliability::High);
+}
+
+#[test]
+fn sentiment_parse_failure_is_missing_reliability() {
+    let result = parse_sentiment_response("not json at all");
+    assert_eq!(result.score, 50);
+    assert_eq!(result.reliability, sa::scoring::score_types::ScoreReliability::Missing);
+}
+
+#[test]
+fn sentiment_empty_headlines_is_missing() {
+    let result = parse_sentiment_response("{}");
+    assert_eq!(result.reliability, sa::scoring::score_types::ScoreReliability::Missing);
 }

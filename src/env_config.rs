@@ -16,3 +16,19 @@ pub fn env_flag(name: &str) -> bool {
 pub fn analysis_debug_quick_only() -> bool {
     env_flag("ANALYSIS_DEBUG_MODE") || env_flag("ANALYSIS_DEBUG_QUICK_ONLY")
 }
+
+/// Number of bull/bear debate rounds (default: 3).
+pub fn debate_rounds() -> usize {
+    std::env::var("DEBATE_ROUNDS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(3)
+}
+
+/// Number of risk discussion rounds (default: 2).
+pub fn risk_discuss_rounds() -> usize {
+    std::env::var("RISK_DISCUSS_ROUNDS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(2)
+}

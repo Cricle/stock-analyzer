@@ -127,10 +127,18 @@ async fn main() -> anyhow::Result<()> {
     };
     println!("✅ LLM client ready\n");
 
-    let markets: Vec<(&str, &str, Vec<(&str, &str)>)> =
-        vec![("A股", "A股", vec![("600519.SH", "贵州茅台")])];
+    let markets: Vec<(&str, &str, Vec<(&str, &str)>)> = vec![(
+        "A股",
+        "A股",
+        vec![
+            ("600519.SH", "贵州茅台"),
+            ("601318.SH", "中国平安"),
+            ("000858.SZ", "五粮液"),
+            ("300750.SZ", "宁德时代"),
+        ],
+    )];
 
-    println!("=== 市场报告测试 (1 只股票) ===");
+    println!("=== 市场报告测试 (4 只股票) ===");
     println!("模式: debug_quick_only, K线: 60根\n");
 
     for (market_label, market_type, stocks) in &markets {
@@ -161,8 +169,8 @@ async fn main() -> anyhow::Result<()> {
                 data_dir.path().to_str().unwrap().to_string(),
                 memory_log,
                 checkpoint_store,
-                1,
-                1,
+                sa::env_config::debate_rounds(),
+                sa::env_config::risk_discuss_rounds(),
                 telemetry,
             )
             .await?;

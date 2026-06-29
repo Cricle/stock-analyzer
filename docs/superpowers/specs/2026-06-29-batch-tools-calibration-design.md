@@ -51,7 +51,10 @@ planner → [tool_1, tool_2, tool_3] parallel → planner → finalize
 4. **`src/report/runtime/trading_graph/mod.rs`** — `analyst_route`
    - Check `pending_tools.is_some()` (non-empty vector) instead of `pending_tool.is_some()`
 
-5. **`src/types.rs`** — `PendingToolCall` → keep as-is, add `PendingToolCalls` wrapper or change to `Vec<PendingToolCall>`
+5. **`src/types.rs`** — `AnalystRuntimeState`
+   - Change `pending_tool: Option<PendingToolCall>` → `pending_tools: Vec<PendingToolCall>`
+   - Add `#[serde(default, alias = "pending_tool")]` for backward compat with checkpoint data
+   - Remove old `pending_tool` field
 
 ### Backward Compatibility
 

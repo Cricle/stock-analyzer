@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Preserve LLM-generated executive_summary instead of overwriting with templates, and add multi-analyst cross-validation to CoreResearchCall so different stocks can produce different research conclusions.
+**Goal:** Preserve LLM-generated executive_summary, add multi-analyst cross-validation to CoreResearchCall, and increase debate rounds for deeper analysis.
 
-**Architecture:** Two independent changes: (1) check if LLM's executive_summary is substantive before falling back to template, (2) add AnalystConsensus enum that counts how many analysts agree on direction, require consensus for SellOnBreak.
+**Architecture:** Three independent changes: (1) check if LLM's executive_summary is substantive before falling back to template, (2) add AnalystConsensus enum that counts how many analysts agree on direction, require consensus for SellOnBreak, (3) increase debate rounds from 1→3 and risk discuss rounds from 1→2, configurable via env vars.
 
 **Tech Stack:** Rust, scoring pipeline
 
@@ -16,6 +16,8 @@
 |------|---------------|
 | `src/analysis/report_logic/core/report_builder.rs:365-370` | Preserve LLM summary, fall back to template |
 | `src/analysis/report_logic/decision_view/build_view/postlude.rs:357-409` | Add AnalystConsensus, modify derive_core_research_call |
+| `src/env_config.rs` | Add DEBATE_ROUNDS and RISK_DISCUSS_ROUNDS env vars |
+| `examples/market_test.rs:172-173` | Use env config for debate rounds |
 | `tests/trader_plan_summary.rs` | Test for LLM summary preservation |
 | `tests/core_research_call_consensus.rs` | Test for multi-analyst cross-validation |
 
@@ -364,7 +366,63 @@ git commit -m "feat: add multi-analyst cross-validation to CoreResearchCall"
 
 ---
 
-### Task 3: Integration Verification
+### Task 3: Increase Debate Rounds
+
+**Files:**
+- Modify: `examples/market_test.rs:172-173`
+- Modify: `src/env_config.rs` (add env var overrides)
+
+- [ ] **Step 1: Add env var overrides for debate rounds**
+
+In `src/env_config.rs`, add:
+
+```rust
+pub fn debate_rounds() -> usize {
+    std::env::var("DEBATE_ROUNDS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(3)
+}
+
+pub fn risk_discuss_rounds() -> usize {
+    std::env::var("RISK_DISCUSS_ROUNDS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(2)
+}
+```
+
+- [ ] **Step 2: Update market_test to use env vars**
+
+In `examples/market_test.rs`, replace lines 172-173:
+
+**Current:**
+```rust
+                1,
+                1,
+```
+
+**Replace with:**
+```rust
+                sa::env_config::debate_rounds(),
+                sa::env_config::risk_discuss_rounds(),
+```
+
+- [ ] **Step 3: Run tests**
+
+Run: `cargo test -- --nocapture 2>&1 | tail -10`
+Expected: All tests pass.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/env_config.rs examples/market_test.rs
+git commit -m "feat: increase default debate rounds to 3, risk discuss rounds to 2, configurable via env vars"
+```
+
+---
+
+### Task 4: Integration Verification
 
 **Files:**
 - Test: `examples/market_test.rs`
@@ -385,7 +443,7 @@ Run: `RECURSION_LIMIT=100 cargo run --release --example market_test 2>&1`
 Expected:
 - Each stock has a unique executive_summary (not template)
 - CoreResearchCall produces varied results (not all SellOnBreak)
-- Execution time similar to previous runs (~1000-1200s)
+- Execution time may increase due to more debate rounds (~1200-1500s)
 
 - [ ] **Step 4: Final commit if needed**
 

@@ -1,4 +1,19 @@
+use sa::scoring::dimensions::weighted_score;
 use sa::scoring::score_types::{DimensionScore, ScoreReliability};
+
+#[test]
+fn weighted_score_missing_when_no_data() {
+    let result = weighted_score(0.0, 0.0, "no data", &[]);
+    assert_eq!(result.score, 50);
+    assert_eq!(result.reliability, ScoreReliability::Missing);
+}
+
+#[test]
+fn weighted_score_high_when_data_present() {
+    let result = weighted_score(75.0, 100.0, "ok", &["reason".into()]);
+    assert_eq!(result.score, 75);
+    assert_eq!(result.reliability, ScoreReliability::High);
+}
 
 #[test]
 fn dimension_score_has_reliability() {

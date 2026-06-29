@@ -12,10 +12,18 @@ pub fn weighted_score(
     default_reason: &str,
     reasons: &[String],
 ) -> DimensionScore {
-    let score = if weight_sum > 0.0 {
-        (total / weight_sum * 100.0).clamp(0.0, 100.0) as u8
+    if weight_sum <= 0.0 {
+        return DimensionScore {
+            score: 50,
+            reason: default_reason.into(),
+            reliability: ScoreReliability::Missing,
+        };
+    }
+    let score = (total / weight_sum * 100.0).clamp(0.0, 100.0) as u8;
+    let reliability = if reasons.is_empty() {
+        ScoreReliability::Missing
     } else {
-        50
+        ScoreReliability::High
     };
     DimensionScore {
         score,
@@ -24,6 +32,6 @@ pub fn weighted_score(
         } else {
             reasons.join("；")
         },
-        reliability: ScoreReliability::High,
+        reliability,
     }
 }

@@ -121,6 +121,10 @@ pub fn score_historical_transferability(result: &AnalysisResult) -> ScoreDimensi
     let used_fallback = memory.used_setup_fallback_calibration;
 
     let mut score = 0;
+    // Give a base score when we have any historical context, even without setup matches
+    if same_ticker_count > 0 || cross_ticker_count > 0 {
+        score = score.max(5);
+    }
     if used_setup_filter {
         if used_fallback {
             score += setup_match_count.min(2);
@@ -256,6 +260,12 @@ pub fn score_cross_agent_consistency(result: &AnalysisResult) -> ScoreDimension 
         if avg_abs >= 0.20 { 25 } else { 22 }
     } else if positive == 0 || negative == 0 {
         if avg_abs >= 0.12 { 18 } else { 15 }
+    } else if positive == 1 && negative >= nets.len() - 1 {
+        // One bullish analyst among mostly bearish = slight differentiation
+        10
+    } else if negative == 1 && positive >= nets.len() - 1 {
+        // One bearish analyst among mostly bullish = slight differentiation
+        10
     } else if neutral > 0 {
         12
     } else {

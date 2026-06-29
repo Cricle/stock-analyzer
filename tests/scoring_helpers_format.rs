@@ -237,6 +237,7 @@ fn direction_penalty_can_block_marginal_buy_upgrade() {
     let profile = CalibrationProfile::default();
     let calibrated =
         calibrate_recommendation_with_profile("Hold", 22, 70, 65, true, &profile, 13, None);
-    assert_eq!(calibrated.final_rating, "Overweight");
-    assert_eq!(calibrated.final_action, "Buy");
+    // With strong_direction_abs=35 and penalty=13, floor=25; direction=22 < 25 blocks upgrade
+    assert_eq!(calibrated.final_rating, "Hold");
+    assert_eq!(calibrated.final_action, "Hold");
 }

@@ -134,7 +134,7 @@ impl LlmClient {
              Tool history and prior observations:\n{tool_history}\n\n\
              Additional context:\n{extra_context}\n\n\
              Decide whether you need another tool call or whether you have enough evidence to finalize the analyst report.\n\
-             If you need a tool, set `action` to `tool`, choose exactly one supported `tool_name`, and provide `tool_arguments` as a JSON object.\n\
+             If you need tools, set `action` to `tool` and provide `tool_calls` as an array of {{tool_name, tool_arguments}} objects. Request ALL needed tools at once — do not request one at a time. Each tool_name must be one of: {available_tools}.\n\
              If you can finalize, set `action` to `finalize` and provide `final_report` matching the required role report schema.\n\
              Never output markdown fences. Do not invent tool outputs.\n\
              For fundamentals analysis, do not finalize from a single overview snapshot when the ratios or statement scope may be inconsistent; fetch statement-level confirmation first.\n\
@@ -143,10 +143,10 @@ impl LlmClient {
              `detail` must be a compact evidence packet focused on actionable discipline: specific price levels, indicator readings, trigger conditions, and invalidation rules -- not directional speculation. Cover key numbers, causal read-through, what changed, and what would invalidate the desk view.\n\
              If evidence is sparse, say exactly what is missing and how that limits conviction, instead of pretending certainty.\n\n\
              Required top-level JSON fields only:\n\
-             action, reasoning, final_report, tool_name, tool_arguments.\n\
+             action, reasoning, final_report, tool_calls.\n\
              `action` must be exactly `tool` or `finalize`.\n\
-             `reasoning` must explain why another tool call is needed or why evidence is sufficient.\n\
-             When `action=tool`, `tool_name` must be one of: {available_tools}.\n\
+             `reasoning` must explain why tool calls are needed or why evidence is sufficient.\n\
+             When `action=tool`, `tool_calls` must be an array of objects with `tool_name` (one of: {available_tools}) and `tool_arguments` (JSON object).\n\
              When `action=finalize`, `final_report` must contain: key, title, agent, summary, detail, evidence_points, up_probability, down_probability, sideways_probability, confidence, rationale, next_steps, risks.\n\
              `up_probability`, `down_probability`, `sideways_probability` are numbers 0-1 summing to ~1.0. BE DECISIVE — timid probabilities are unacceptable. If bearish: down=0.50-0.70, up=0.10-0.25. If bullish: up=0.50-0.70, down=0.10-0.25. Only use sideways>0.40 when evidence is genuinely mixed. A clear directional lean with moderate probabilities (0.30/0.35/0.35) is a failure of analysis.\n\
              `evidence_points` must be 3-6 concrete items, not empty abstractions.",

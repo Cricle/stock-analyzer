@@ -22,3 +22,5 @@ include!("report_logic/diagnostics.rs");
 include!("report_logic/setup_tags.rs");
 include!("report_logic/trader_plan.rs");
 include!("report_logic/catalyst_review.rs");
+
+pub mod validation;

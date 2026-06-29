@@ -1,5 +1,5 @@
 use sa::scoring::scorer::weighted_total;
-use sa::scoring::{DimensionScore, ScoreWeights};
+use sa::scoring::{DimensionScore, ScoreReliability, ScoreWeights};
 
 #[test]
 fn test_weighted_total_equal_weights() {
@@ -12,18 +12,22 @@ fn test_weighted_total_equal_weights() {
     let tech = DimensionScore {
         score: 80,
         reason: String::new(),
+        reliability: ScoreReliability::High,
     };
     let fund = DimensionScore {
         score: 60,
         reason: String::new(),
+        reliability: ScoreReliability::High,
     };
     let sent = DimensionScore {
         score: 40,
         reason: String::new(),
+        reliability: ScoreReliability::High,
     };
     let llm = DimensionScore {
         score: 70,
         reason: String::new(),
+        reliability: ScoreReliability::High,
     };
     let total = weighted_total(&w, &tech, &fund, &sent, &llm);
     assert_eq!(total, 62); // (80*25 + 60*25 + 40*25 + 70*25) / 100 = 62.5 -> 62
@@ -40,18 +44,22 @@ fn test_weighted_total_unequal_weights() {
     let tech = DimensionScore {
         score: 90,
         reason: String::new(),
+        reliability: ScoreReliability::High,
     };
     let fund = DimensionScore {
         score: 30,
         reason: String::new(),
+        reliability: ScoreReliability::High,
     };
     let sent = DimensionScore {
         score: 30,
         reason: String::new(),
+        reliability: ScoreReliability::High,
     };
     let llm = DimensionScore {
         score: 30,
         reason: String::new(),
+        reliability: ScoreReliability::High,
     };
     let total = weighted_total(&w, &tech, &fund, &sent, &llm);
     assert_eq!(total, 60);
@@ -63,6 +71,7 @@ fn test_weighted_total_all_max() {
     let d = DimensionScore {
         score: 100,
         reason: String::new(),
+        reliability: ScoreReliability::High,
     };
     let total = weighted_total(&w, &d, &d, &d, &d);
     assert_eq!(total, 100);
@@ -74,6 +83,7 @@ fn test_weighted_total_all_min() {
     let d = DimensionScore {
         score: 0,
         reason: String::new(),
+        reliability: ScoreReliability::High,
     };
     let total = weighted_total(&w, &d, &d, &d, &d);
     assert_eq!(total, 0);

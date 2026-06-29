@@ -354,18 +354,22 @@ fn weighted_total_balanced() {
     let tech = sa::scoring::DimensionScore {
         score: 80,
         reason: String::new(),
+        reliability: sa::scoring::ScoreReliability::High,
     };
     let fund = sa::scoring::DimensionScore {
         score: 60,
         reason: String::new(),
+        reliability: sa::scoring::ScoreReliability::High,
     };
     let sent = sa::scoring::DimensionScore {
         score: 70,
         reason: String::new(),
+        reliability: sa::scoring::ScoreReliability::High,
     };
     let llm = sa::scoring::DimensionScore {
         score: 90,
         reason: String::new(),
+        reliability: sa::scoring::ScoreReliability::High,
     };
     let total = sa::scoring::scorer::weighted_total(&weights, &tech, &fund, &sent, &llm);
     assert!(total >= 70 && total <= 80, "expected ~75, got {total}");
@@ -1601,6 +1605,7 @@ fn weighted_total_all_zero() {
     let zero = sa::scoring::DimensionScore {
         score: 0,
         reason: String::new(),
+        reliability: sa::scoring::ScoreReliability::High,
     };
     let total = sa::scoring::scorer::weighted_total(&weights, &zero, &zero, &zero, &zero);
     assert_eq!(total, 0);
@@ -1612,6 +1617,7 @@ fn weighted_total_all_hundred() {
     let hundred = sa::scoring::DimensionScore {
         score: 100,
         reason: String::new(),
+        reliability: sa::scoring::ScoreReliability::High,
     };
     let total =
         sa::scoring::scorer::weighted_total(&weights, &hundred, &hundred, &hundred, &hundred);
@@ -1644,6 +1650,7 @@ fn dimension_score_construction() {
     let ds = sa::scoring::DimensionScore {
         score: 42,
         reason: "test".to_string(),
+        reliability: sa::scoring::ScoreReliability::High,
     };
     assert_eq!(ds.score, 42);
     assert_eq!(ds.reason, "test");

@@ -1,4 +1,4 @@
-use crate::scoring::score_types::DimensionScore;
+use crate::scoring::score_types::{DimensionScore, ScoreReliability};
 
 /// Input for LLM analysis scoring — cross-validates multiple independent signals.
 pub struct LlmAnalysisInput {
@@ -45,6 +45,7 @@ pub fn score_llm_analysis(input: &LlmAnalysisInput) -> DimensionScore {
     DimensionScore {
         score,
         reason: format!("共识度 {:.0}%，{}", consensus * 100.0, detail.join(" ")),
+        reliability: ScoreReliability::High,
     }
 }
 

@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::scoring::score_types::DimensionScore;
+use crate::scoring::score_types::{DimensionScore, ScoreReliability};
 
 /// Sentiment scoring via LLM. Takes news headlines and returns a score.
 pub async fn score_sentiment(
@@ -13,6 +13,7 @@ pub async fn score_sentiment(
         return DimensionScore {
             score: 50,
             reason: "无新闻数据，情绪中性".into(),
+            reliability: ScoreReliability::High,
         };
     }
 
@@ -36,6 +37,7 @@ pub async fn score_sentiment(
             return DimensionScore {
                 score: 50,
                 reason: format!("情绪分析LLM调用失败: {e}"),
+                reliability: ScoreReliability::High,
             };
         }
     };
@@ -65,12 +67,14 @@ pub fn parse_sentiment_response(content: &str) -> DimensionScore {
         Ok(resp) => DimensionScore {
             score: resp.score.clamp(0, 100),
             reason: resp.reason,
+            reliability: ScoreReliability::High,
         },
         Err(e) => {
             tracing::warn!(error = %e, raw = %content, "failed to parse sentiment JSON");
             DimensionScore {
                 score: 50,
                 reason: "情绪分析解析失败，使用中性评分".into(),
+                reliability: ScoreReliability::High,
             }
         }
     }

@@ -3,7 +3,7 @@ pub mod llm_analysis;
 pub mod sentiment;
 pub mod technical;
 
-use super::score_types::DimensionScore;
+use super::score_types::{DimensionScore, ScoreReliability};
 
 /// Compute a weighted score from total and weight_sum, with a default of 50 when no data.
 pub fn weighted_score(
@@ -24,5 +24,6 @@ pub fn weighted_score(
         } else {
             reasons.join("；")
         },
+        reliability: ScoreReliability::High,
     }
 }

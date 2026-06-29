@@ -1,11 +1,41 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+/// Indicates how much trust to place in a dimension score.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScoreReliability {
+    /// All required data present, score computed from real signals.
+    High,
+    /// Some data missing or degraded; score is a rough estimate.
+    Low,
+    /// Required data entirely missing; score is a hardcoded fallback.
+    Missing,
+}
+
+impl Default for ScoreReliability {
+    fn default() -> Self {
+        Self::High
+    }
+}
+
+impl std::fmt::Display for ScoreReliability {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::High => write!(f, "high"),
+            Self::Low => write!(f, "low"),
+            Self::Missing => write!(f, "missing"),
+        }
+    }
+}
+
 /// Per-dimension score with reasoning.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DimensionScore {
     pub score: u8,
     pub reason: String,
+    #[serde(default)]
+    pub reliability: ScoreReliability,
 }
 
 /// Full score for a single stock.

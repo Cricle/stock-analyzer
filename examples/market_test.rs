@@ -288,10 +288,14 @@ async fn main() -> anyhow::Result<()> {
             ("601318.SH", "中国平安"),
             ("000858.SZ", "五粮液"),
             ("300750.SZ", "宁德时代"),
+            ("600036.SH", "招商银行"),
+            ("000333.SZ", "美的集团"),
+            ("601012.SH", "隆基绿能"),
+            ("002594.SZ", "比亚迪"),
         ],
     )];
 
-    println!("=== 市场报告测试 (4 只股票) ===");
+    println!("=== 市场报告测试 ({} 只股票) ===", markets.iter().map(|(_, _, s)| s.len()).sum::<usize>());
     println!("模式: debug_quick_only, K线: 60根\n");
 
     for (market_label, market_type, stocks) in &markets {

@@ -107,7 +107,9 @@ fn print_result(label: &str, task: &sa::PersistedTask, result: &Option<sa::Analy
         let rec = &r.report.recommendation.key;
         let conf = r.report.confidence_score;
         let summary = &r.report.summary.key;
-        print!("  rec={:<12} conf={:<3}", rec, conf);
+        let tokens = r.artifacts.llm_token_usage.total_tokens;
+        let requests = r.artifacts.llm_token_usage.total_requests;
+        print!("  rec={:<12} conf={:<3} tokens={:<8} reqs={:<3}", rec, conf, tokens, requests);
         let truncated: String = summary.chars().take(60).collect();
         print!("  {}", truncated);
     }

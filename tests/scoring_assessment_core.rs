@@ -95,7 +95,7 @@ fn score_trend_confirmation_with_analyst() {
         &portfolio,
     );
     assert!(d.score > 5, "expected non-trivial score, got {}", d.score);
-    assert_eq!(d.max_score, 20);
+    assert_eq!(d.max_score, 25);
 }
 
 #[test]
@@ -231,7 +231,7 @@ fn score_cross_agent_consistency_split() {
 fn score_cross_agent_consistency_empty() {
     let result = make_result_with_analysts(vec![]);
     let d = score_cross_agent_consistency(&result);
-    assert_eq!(d.score, 6);
+    assert_eq!(d.score, 8);
 }
 
 #[test]

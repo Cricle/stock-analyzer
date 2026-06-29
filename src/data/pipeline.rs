@@ -58,6 +58,7 @@ impl DataPipelineConfig {
 /// Parallel data fetcher with retry and caching.
 pub struct ParallelExecutor {
     config: DataPipelineConfig,
+    #[allow(dead_code)]
     cache: DataCacheLayer,
     validator: DataValidator,
 }
@@ -108,33 +109,4 @@ impl ParallelExecutor {
         None
     }
 
-    /// Get cached data or fetch fresh data.
-    pub async fn get_or_fetch<T, F, Fut>(
-        &self,
-        cache_key: &str,
-        data_type: &str,
-        fetcher: F,
-    ) -> Option<T>
-    where
-        F: Fn() -> Fut,
-        Fut: Future<Output = anyhow::Result<T>>,
-        T: serde::Serialize + serde::de::DeserializeOwned,
-    {
-        if self.config.cache_enabled {
-            if let Some(cached) = self.cache.get(cache_key) {
-                if let Ok(data) = serde_json::from_value(cached) {
-                    return Some(data);
-                }
-            }
-        }
-        let data = self.fetch_with_retry(data_type, fetcher).await;
-        if let Some(ref data) = data {
-            if self.config.cache_enabled {
-                if let Ok(json) = serde_json::to_value(data) {
-                    self.cache.set_default(cache_key.to_string(), json);
-                }
-            }
-        }
-        data
-    }
 }

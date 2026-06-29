@@ -47,24 +47,7 @@ pub fn string_list_or_default(value: Option<Value>, defaults: &[&str]) -> Vec<St
 pub use crate::value_utils::normalize_probability;
 
 fn normalize_inline_value(value: &Value) -> String {
-    match value {
-        Value::Null => String::new(),
-        Value::String(text) => text.trim().to_string(),
-        Value::Number(number) => number.to_string(),
-        Value::Bool(boolean) => boolean.to_string(),
-        Value::Array(items) => items
-            .iter()
-            .map(normalize_inline_value)
-            .filter(|item| !item.is_empty())
-            .collect::<Vec<_>>()
-            .join("; "),
-        Value::Object(map) => map
-            .iter()
-            .map(|(key, value)| format!("{key}: {}", normalize_inline_value(value)))
-            .filter(|segment| !segment.ends_with(": "))
-            .collect::<Vec<_>>()
-            .join("; "),
-    }
+    crate::value_utils::normalize_inline_value_with_sep(value, "; ")
 }
 
 pub fn normalize_numeric(value: &Value) -> Option<f64> {

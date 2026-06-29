@@ -73,6 +73,10 @@ pub fn normalize_value(value: &Value) -> String {
 }
 
 fn normalize_inline_value(value: &Value) -> String {
+    normalize_inline_value_with_sep(value, ", ")
+}
+
+pub fn normalize_inline_value_with_sep(value: &Value, sep: &str) -> String {
     match value {
         Value::Null => String::new(),
         Value::String(text) => text.trim().to_string(),
@@ -80,15 +84,16 @@ fn normalize_inline_value(value: &Value) -> String {
         Value::Bool(boolean) => boolean.to_string(),
         Value::Array(items) => items
             .iter()
-            .map(normalize_inline_value)
+            .map(|v| normalize_inline_value_with_sep(v, sep))
             .filter(|item| !item.is_empty())
             .collect::<Vec<_>>()
-            .join(", "),
+            .join(sep),
         Value::Object(map) => map
             .iter()
-            .map(|(key, value)| format!("{key}: {}", normalize_inline_value(value)))
+            .map(|(key, value)| format!("{key}: {}", normalize_inline_value_with_sep(value, sep)))
+            .filter(|segment| !segment.ends_with(": "))
             .collect::<Vec<_>>()
-            .join(", "),
+            .join(sep),
     }
 }
 

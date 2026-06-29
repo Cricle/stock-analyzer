@@ -260,24 +260,6 @@ impl super::super::TradingMemoryLog {
         Ok(())
     }
 
-    /// Store a decision from a MemoryEntry struct directly.
-    pub async fn store_entry_async(&self, entry: &MemoryEntry) -> anyhow::Result<()> {
-        self.store_decision(
-            &entry.ticker,
-            &entry.trade_date,
-            &entry.final_trade_decision,
-            &entry.rating,
-            &entry.action,
-            &entry.market,
-            entry.direction_score.unwrap_or(0),
-            entry.confidence_score.unwrap_or(0),
-            entry.action_score.unwrap_or(0),
-            None,
-        )
-        .await?;
-        self.vector_upsert_entry(entry).await
-    }
-
     pub async fn update_outcome_async(
         &self,
         ticker: &str,

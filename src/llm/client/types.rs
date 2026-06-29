@@ -62,17 +62,6 @@ pub fn approximate_tokens_from_chars(chars: i64) -> i64 {
 }
 
 #[derive(Debug, Deserialize)]
-struct ModelsResponse {
-    #[serde(default)]
-    data: Vec<ModelItem>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ModelItem {
-    id: String,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct ChatChoice {
     pub message: ChatMessageResponse,
 }

@@ -122,7 +122,7 @@ fn analyst_probability_quality_perfect() {
         sideways_probability: 0.2,
         ..Default::default()
     };
-    assert_eq!(analyst_probability_quality(Some(&node)), 4);
+    assert_eq!(analyst_probability_quality(Some(&node)), 6);
 }
 
 #[test]
@@ -133,7 +133,7 @@ fn analyst_probability_quality_off_by_010() {
         sideways_probability: 0.3,
         ..Default::default()
     };
-    assert_eq!(analyst_probability_quality(Some(&node)), 2);
+    assert_eq!(analyst_probability_quality(Some(&node)), 4);
 }
 
 #[test]

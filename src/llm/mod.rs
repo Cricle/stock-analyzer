@@ -139,35 +139,6 @@ impl LlmClient {
         next
     }
 
-    pub fn from_provider_config(
-        http: reqwest_middleware::ClientWithMiddleware,
-        provider: &crate::LlmProviderConfig,
-        timeout_secs: u64,
-    ) -> Option<Self> {
-        let api_key = provider
-            .api_key
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())?;
-        let provider_type = provider.provider_type.as_deref().unwrap_or("openai");
-        match provider_type {
-            "anthropic" => Some(Self::anthropic(
-                http,
-                &provider.base_url,
-                api_key,
-                &provider.default_model,
-                timeout_secs,
-            )),
-            _ => Some(Self::openai_compatible(
-                http,
-                &provider.base_url,
-                api_key,
-                &provider.default_model,
-                timeout_secs,
-            )),
-        }
-    }
-
     #[tracing::instrument(skip_all, fields(model = %self.model, provider = %self.provider_type, prompt_len = prompt.len()))]
     pub async fn generate(&self, prompt: &str) -> anyhow::Result<String> {
         match self.provider_type.as_str() {

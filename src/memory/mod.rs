@@ -181,28 +181,6 @@ pub struct MemoryQuery {
     pub user_id: String,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct QaMemoryEntry {
-    pub qa_type: String,
-    pub question_type: String,
-    pub question_text: String,
-    pub answer_summary: String,
-    pub answer_conclusion: String,
-    pub ticker: String,
-    pub market: String,
-    pub username: String,
-    pub task_id: String,
-    #[serde(default)]
-    pub subscription_id: String,
-    #[serde(default)]
-    pub evidence_points: Vec<String>,
-    #[serde(default)]
-    pub risks: Vec<String>,
-    #[serde(default)]
-    pub actions: Vec<String>,
-    pub created_at: String,
-}
-
 mod core;
 pub mod cross_collection;
 mod embedding;

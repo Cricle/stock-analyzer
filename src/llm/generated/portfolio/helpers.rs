@@ -224,18 +224,9 @@ impl GeneratedPortfolioDecision {
             target_reference: inferred_target_reference,
             target_condition: inferred_target_condition,
             time_horizon: inferred_time_horizon,
-            missing_evidence_ladder: GeneratedMissingEvidenceLadder::from_value(
-                meaningful_value(field("missing_evidence_ladder")).or_else(|| {
-                    extract_object_value(
-                        risk_assessment_raw.as_ref(),
-                        &[
-                            "missing_evidence_ladder",
-                            "missing_evidence",
-                            "missing_evidence_classification",
-                            "missing_evidence_severity_ladder",
-                        ],
-                    )
-                }),
+            missing_evidence_ladder: GeneratedMissingEvidenceLadder::from_risk_assessment(
+                &field,
+                risk_assessment_raw.as_ref(),
             ),
             trigger_checklist,
             scenario_paths: {

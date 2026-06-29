@@ -277,4 +277,24 @@ impl GeneratedMissingEvidenceLadder {
             },
         }
     }
+
+    /// Extract missing_evidence_ladder from top-level field or nested inside risk_assessment.
+    pub(crate) fn from_risk_assessment(
+        field: &dyn Fn(&str) -> Option<Value>,
+        risk_assessment_raw: Option<&Value>,
+    ) -> Self {
+        Self::from_value(
+            meaningful_value(field("missing_evidence_ladder")).or_else(|| {
+                extract_object_value(
+                    risk_assessment_raw,
+                    &[
+                        "missing_evidence_ladder",
+                        "missing_evidence",
+                        "missing_evidence_classification",
+                        "missing_evidence_severity_ladder",
+                    ],
+                )
+            }),
+        )
+    }
 }

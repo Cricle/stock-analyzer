@@ -119,7 +119,8 @@ pub mod report;
 // ── Re-exports ──
 
 pub use analysis::{
-    ActionBreakdown, ActionScenarioPath, AgentReportNode, AgentStateSnapshot, AnalysisArtifacts,
+    is_publishable_summary_reference, ActionBreakdown, ActionScenarioPath, AgentReportNode,
+    AgentStateSnapshot, AnalysisArtifacts,
     AnalysisCheckpoint, AnalysisGraph, AnalysisOutcomeRequest, AnalysisParameters, AnalysisResult,
     AnalysisReuseCandidate, AnalysisReuseCheckRequest, AnalysisReuseSemanticMatch,
     AnalysisScenarioContext, AnalysisScenarioData, AnalysisScenarioIssue, AnalysisScenarioMarket,
@@ -145,10 +146,13 @@ pub use analysis::{
     StockPickTechnicalSnapshot, StructuredPortfolioDecision, StructuredReflection,
     StructuredReport, StructuredResearchPlan, StructuredRiskAssessment, StructuredTraderPlan,
     TechnicalIndicatorCategory, TechnicalIndicatorConclusion, TechnicalIndicatorItem,
-    TechnicalIndicatorView, ThesisState, TradeSetupQuality, TrendLine, TrendLinePoint, adx_report,
-    atr_report, bollinger_report, derive_report_diagnostics, derive_setup_tags, ema_report,
-    kdj_report, macd_report, obv_report, render_action_guides_markdown,
-    render_calibration_discipline_markdown, rsi_report, sma_report,
+    TechnicalIndicatorView, TechnicalValues, ThesisState, TradeSetupQuality, TrendLine,
+    TrendLinePoint, adx_report, atr_report, bollinger_report, derive_action_guides,
+    derive_memory_reference_facts, derive_news_diagnostics, derive_news_insights,
+    derive_report_diagnostics, derive_setup_match_explanation, derive_setup_tags,
+    derive_technical_conclusions, detect_disclosure_sequence_complexity, ema_report,
+    is_semantically_similar, kdj_report, macd_report, obv_report,
+    render_action_guides_markdown, render_calibration_discipline_markdown, rsi_report, sma_report,
 };
 
 pub use store::{

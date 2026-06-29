@@ -116,6 +116,157 @@ fn print_result(label: &str, task: &sa::PersistedTask, result: &Option<sa::Analy
     println!();
 }
 
+fn print_detailed_indicators(result: &sa::AnalysisResult) {
+    let r = &result.report;
+
+    // ── Core Scores ──
+    println!("  ┌─ 核心评分 ──────────────────────────────────────────");
+    println!("  │ 方向分 (direction_score): {}", r.direction_score);
+    println!("  │   市场: {}  基本面: {}  舆情: {}  情绪: {}  风险调整: {}",
+        r.direction_breakdown.market.score,
+        r.direction_breakdown.fundamentals.score,
+        r.direction_breakdown.news.score,
+        r.direction_breakdown.sentiment.score,
+        r.direction_breakdown.risk_adjustment.score,
+    );
+    println!("  │   隐含评级: {}", r.direction_breakdown.implied_rating.key);
+    println!("  │ 行动分 (action_score): {}", r.action_score);
+    println!("  │   一致性: {}  执行水平: {}  仓位纪律: {}  视野清晰: {}  盈亏比: {}",
+        r.action_breakdown.alignment.score,
+        r.action_breakdown.execution_levels.score,
+        r.action_breakdown.sizing_discipline.score,
+        r.action_breakdown.horizon_clarity.score,
+        r.action_breakdown.reward_to_risk.score,
+    );
+    println!("  │ 置信度 (confidence_score): {}", r.confidence_score);
+    println!("  │   数据质量: {}  趋势确认: {}  基本面确认: {}  催化剂: {}",
+        r.confidence_breakdown.data_quality.score,
+        r.confidence_breakdown.trend_confirmation.score,
+        r.confidence_breakdown.fundamental_confirmation.score,
+        r.confidence_breakdown.catalyst_quality.score,
+    );
+    println!("  │   历史可迁移: {}  跨代理一致: {}  风险清晰: {}",
+        r.confidence_breakdown.historical_transferability.score,
+        r.confidence_breakdown.cross_agent_consistency.score,
+        r.confidence_breakdown.risk_clarity.score,
+    );
+    println!("  │   上限前总分: {}  最终分: {}  应用上限: {}",
+        r.confidence_breakdown.total_before_caps,
+        r.confidence_breakdown.final_score,
+        r.confidence_breakdown.applied_cap,
+    );
+    println!("  │ 研究可靠度: {}/{}  ({})", r.research_reliability.score, r.research_reliability.max_score, r.research_reliability.label.key);
+
+    // ── Price Context ──
+    println!("  ├─ 价格上下文 ────────────────────────────────────────");
+    let pc = &r.price_context;
+    if let Some(p) = pc.current_price {
+        println!("  │ 当前价: {:.2}", p);
+    }
+    if let (Some(h), Some(l)) = (pc.high_price, pc.low_price) {
+        println!("  │ {}日高: {:.2} ({})  低: {:.2} ({})", pc.lookback_days, h, pc.high_date, l, pc.low_date);
+    }
+    if let Some(d) = pc.distance_to_high_pct {
+        println!("  │ 距高点: {:.1}%", d);
+    }
+    if let Some(d) = pc.distance_to_low_pct {
+        println!("  │ 距低点: {:.1}%", d);
+    }
+
+    // ── Probability View ──
+    println!("  ├─ 概率视角 ──────────────────────────────────────────");
+    let pv = &r.probability_view;
+    println!("  │ 上行概率: {:.0}%  下行概率: {:.0}%  横盘概率: {:.0}%  风险概率: {:.0}%",
+        pv.upside_probability_pct, pv.downside_probability_pct,
+        pv.sideways_probability_pct, pv.risk_probability_pct,
+    );
+    if let Some(t) = pv.upside_target {
+        print!("  │ 上行目标: {:.2}", t);
+        if let Some(pct) = pv.upside_pct {
+            print!("  ({:+.1}%)", pct);
+        }
+        println!();
+    }
+    if let Some(t) = pv.downside_target {
+        print!("  │ 下行目标: {:.2}", t);
+        if let Some(pct) = pv.downside_pct {
+            print!("  ({:+.1}%)", pct);
+        }
+        println!();
+    }
+
+    // ── Profit/Risk ──
+    println!("  ├─ 盈亏比 ────────────────────────────────────────────");
+    let pr = &r.profit_risk;
+    if let Some(rr) = pr.reward_risk_ratio {
+        println!("  │ 盈亏比: {:.2}", rr);
+    }
+    if let Some(rr) = pr.current_position_reward_risk_ratio {
+        println!("  │ 当前仓位盈亏比: {:.2}", rr);
+    }
+
+    // ── Core Research Call ──
+    println!("  ├─ 研究结论 ──────────────────────────────────────────");
+    println!("  │ CoreResearchCall: {}", r.core_research_call.key);
+    println!("  │ 推荐: {}  (原始LLM: {})", r.recommendation.key, r.raw_llm_recommendation);
+    println!("  │ 执行边界完整: {}  强制持有: {}  交易设置质量: {}",
+        r.execution_readiness.execution_boundary_complete,
+        r.execution_readiness.forced_hold,
+        r.trade_setup_quality.label.key);
+
+    // ── Technical Indicators ──
+    println!("  ├─ 技术指标 ──────────────────────────────────────────");
+    for cat in &r.technical_indicators.categories {
+        for ind in &cat.indicators {
+            if let Some(v) = ind.value {
+                println!("  │   {}: {:.2}  [{}]", ind.key, v, ind.signal_code);
+            }
+        }
+    }
+    for conc in &r.technical_indicators.conclusions {
+        println!("  │   结论: {} ({})", conc.key, conc.severity);
+    }
+
+    // ── IC Discipline ──
+    let ic = &r.ic_discipline;
+    if !ic.state.key.is_empty() {
+        println!("  ├─ IC纪律 ────────────────────────────────────────────");
+        println!("  │ 状态: {}", ic.state.key);
+        if let Some(p) = ic.current_price {
+            print!("  │ 当前: {:.2}", p);
+            if let Some(c) = ic.confirmation_price {
+                print!("  确认位: {:.2}", c);
+            }
+            if let Some(inv) = ic.invalidation_price {
+                print!("  止损位: {:.2}", inv);
+            }
+            println!();
+        }
+        if let Some(rsi) = ic.rsi {
+            print!("  │ RSI: {:.1}", rsi);
+            if let Some(macd) = ic.macd {
+                print!("  MACD: {:.4}", macd);
+            }
+            println!();
+        }
+        println!("  │ 上行概率: {:.0}%  下行概率: {:.0}%  风险概率: {:.0}%",
+            ic.upside_probability_pct, ic.downside_probability_pct, ic.risk_probability_pct);
+    }
+
+    // ── Portfolio Decision ──
+    println!("  ├─ 组合决策 ──────────────────────────────────────────");
+    let pd = &r.portfolio_decision;
+    println!("  │ 评级: {:?}  确认位: {}  止损位: {}",
+        pd.rating, pd.confirmation_level, pd.invalidation_level);
+    println!("  │ 目标参考: {}", pd.target_reference);
+
+    // ── Executive Summary ──
+    println!("  └─ 摘要 ──────────────────────────────────────────────");
+    let summary: String = pd.executive_summary.key.chars().take(200).collect();
+    println!("    {}", summary);
+    println!();
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     unsafe {
@@ -208,6 +359,9 @@ async fn main() -> anyhow::Result<()> {
             };
 
             print_result(&format!("{}/{}", symbol, name), &task, &result);
+            if let Some(ref r) = result {
+                print_detailed_indicators(r);
+            }
         }
     }
 

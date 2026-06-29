@@ -49,17 +49,17 @@ pub struct ConfidenceCapsConfig {
 impl Default for ConfidenceCapsConfig {
     fn default() -> Self {
         Self {
-            missing_core_data: 80,
-            thin_evidence_density: 82,
-            execution_boundary_missing: 83,
-            cross_agent_divergence: 85,
-            thin_setup_history_with_data: 85,
-            thin_setup_history_no_data: 80,
-            missing_follow_up_plan: 82,
-            decision_blocking_gaps_present: 82,
-            fundamentals_period_mixed: 80,
-            near_resistance_without_fresh_catalyst: 80,
-            zero_resolved_setup_history: 82,
+            missing_core_data: 88,
+            thin_evidence_density: 90,
+            execution_boundary_missing: 90,
+            cross_agent_divergence: 92,
+            thin_setup_history_with_data: 92,
+            thin_setup_history_no_data: 88,
+            missing_follow_up_plan: 90,
+            decision_blocking_gaps_present: 90,
+            fundamentals_period_mixed: 88,
+            near_resistance_without_fresh_catalyst: 88,
+            zero_resolved_setup_history: 90,
         }
     }
 }

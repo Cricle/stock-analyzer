@@ -43,21 +43,21 @@ pub fn score_technical(input: &TechnicalInput) -> DimensionScore {
 
     // MACD signal (weight 25)
     weight_sum += 25.0;
-    let macd_bullish = match (input.macd, input.macd_signal, input.macd_hist) {
+    let macd_score = match (input.macd, input.macd_signal, input.macd_hist) {
         (Some(macd), Some(sig), Some(hist)) => {
             if macd > sig && hist > 0.0 {
                 reasons.push("MACD 金叉".into());
-                true
+                20.0
             } else if macd < sig && hist < 0.0 {
                 reasons.push("MACD 死叉".into());
-                false
+                5.0
             } else {
-                true // neutral
+                12.5 // truly neutral
             }
         }
-        _ => true, // no data, give neutral
+        _ => 12.5, // missing data = neutral, not bullish
     };
-    total += if macd_bullish { 17.5 } else { 5.0 };
+    total += macd_score;
 
     // Moving average trend (weight 25)
     weight_sum += 25.0;

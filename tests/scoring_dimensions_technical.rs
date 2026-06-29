@@ -303,3 +303,53 @@ fn test_score_always_0_to_100() {
         result.score
     );
 }
+
+#[test]
+fn test_macd_missing_is_neutral_not_bullish() {
+    let input = TechnicalInput {
+        rsi: Some(50.0),
+        macd: None,
+        macd_signal: None,
+        macd_hist: None,
+        adx: None,
+        close_10_ema: None,
+        close_50_sma: None,
+        close_200_sma: None,
+        obv: None,
+        current_price: None,
+        volume_elevated: false,
+        latest_positive: false,
+    };
+    let result = score_technical(&input);
+    // With RSI 50 (neutral=12.5) + MACD neutral (12.5) + MA neutral (12.5) + volume neutral (12.5) = 50
+    assert!(
+        result.score >= 45 && result.score <= 55,
+        "expected neutral with all missing data, got {}",
+        result.score
+    );
+}
+
+#[test]
+fn test_macd_neutral_is_not_bullish() {
+    let input = TechnicalInput {
+        rsi: Some(50.0),
+        macd: Some(0.1),
+        macd_signal: Some(0.1),
+        macd_hist: Some(0.0),
+        adx: None,
+        close_10_ema: None,
+        close_50_sma: None,
+        close_200_sma: None,
+        obv: None,
+        current_price: None,
+        volume_elevated: false,
+        latest_positive: false,
+    };
+    let result = score_technical(&input);
+    // RSI 50=12.5 + MACD=12.5 + MA neutral=12.5 + volume neutral=12.5 = 50
+    assert!(
+        result.score >= 45 && result.score <= 55,
+        "expected neutral for flat MACD, got {}",
+        result.score
+    );
+}

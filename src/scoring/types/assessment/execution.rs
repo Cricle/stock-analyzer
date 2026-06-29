@@ -104,7 +104,25 @@ fn derive_historical_calibration(
 
 pub fn evaluate_direction_score(result: &AnalysisResult) -> DirectionAssessment {
     let recommendation = result.structured_portfolio_decision().rating.clone();
-    let market = score_market_direction(select_analyst(result, &["market"]), &recommendation);
+    // When the LLM outputs Hold/Unknown, the rating_bias contribution is 0,
+    // which suppresses the direction signal.  Use the analyst probabilities
+    // alone by passing the implied rating from the market analyst instead.
+    let direction_rating = if matches!(recommendation, Rating::Hold | Rating::Unknown) {
+        let analyst = select_analyst(result, &["market"]);
+        let net = analyst
+            .map(|a| a.up_probability - a.down_probability)
+            .unwrap_or(0.0);
+        if net >= 0.15 {
+            Rating::Buy
+        } else if net <= -0.15 {
+            Rating::Sell
+        } else {
+            Rating::Hold
+        }
+    } else {
+        recommendation.clone()
+    };
+    let market = score_market_direction(select_analyst(result, &["market"]), &direction_rating);
     let fundamentals = score_analyst_direction(
         select_analyst(result, &["fundamentals", "fundamental"]),
         "direction_score_fundamentals",
@@ -112,7 +130,7 @@ pub fn evaluate_direction_score(result: &AnalysisResult) -> DirectionAssessment 
     );
     let news = score_analyst_direction(select_analyst(result, &["news"]), "direction_score_news", 20);
     let sentiment = score_analyst_direction(select_analyst(result, &["sentiment"]), "direction_score_sentiment", 15);
-    let risk_adjustment = score_risk_adjustment(result, &recommendation);
+    let risk_adjustment = score_risk_adjustment(result, &direction_rating);
 
     let total_score = [
         market.score,
@@ -245,9 +263,10 @@ pub fn calibrate_recommendation_with_profile(
         action_score.min(profile.min_action_score + 15)
     };
 
-    let final_score = if confidence_score < profile.min_confidence_score
-        || effective_action_score < profile.min_action_score
+    let final_score = if confidence_score < profile.min_confidence_score - 15
+        || effective_action_score < profile.min_action_score - 10
     {
+        // Very low confidence or action — Hold regardless of direction
         0
     } else if confidence_score >= (profile.min_confidence_score + 25).min(85)
         && effective_action_score >= (profile.min_action_score + 30).min(85)
@@ -256,7 +275,6 @@ pub fn calibrate_recommendation_with_profile(
         if execution_boundary_complete {
             evidence_score
         } else {
-            // Strong direction but execution incomplete — allow moderate upgrade
             evidence_score.signum()
         }
     } else if confidence_score >= (profile.min_confidence_score + 3)
@@ -266,9 +284,14 @@ pub fn calibrate_recommendation_with_profile(
         if execution_boundary_complete {
             evidence_score.signum()
         } else {
-            // Direction is clear but execution boundary incomplete — allow mild upgrade
             evidence_score.signum()
         }
+    } else if confidence_score >= profile.min_confidence_score - 15
+        && effective_action_score >= profile.min_action_score - 10
+        && direction_score.abs() >= strong_direction_abs
+    {
+        // Moderate confidence but strong direction — allow directional signal
+        evidence_score.signum()
     } else {
         0
     };

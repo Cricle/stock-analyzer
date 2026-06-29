@@ -128,7 +128,7 @@ pub fn rating_bias(rating: &Rating, magnitude: i32) -> i32 {
     match rating {
         Rating::Buy => magnitude,
         Rating::Overweight => (magnitude * 3) / 4,
-        Rating::Hold => 0,
+        Rating::Hold | Rating::Unknown => 0,
         Rating::Underweight => -((magnitude * 3) / 4),
         Rating::Sell => -magnitude,
     }

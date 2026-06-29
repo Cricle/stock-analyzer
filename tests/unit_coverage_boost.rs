@@ -1855,7 +1855,7 @@ fn rating_parse_all() {
     ));
     assert!(matches!(
         sa::analysis::Rating::parse("unknown"),
-        sa::analysis::Rating::Hold
+        sa::analysis::Rating::Unknown
     ));
 }
 

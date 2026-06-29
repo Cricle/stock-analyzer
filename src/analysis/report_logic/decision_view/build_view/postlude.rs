@@ -73,7 +73,7 @@ fn build_decision_view(
     let next_downgrade_condition = if let Some(invalidation_level) =
         visible_invalidation_reference(portfolio_decision, Some(trader_plan))
     {
-        let is_hold = rating == Rating::Hold;
+        let is_hold = matches!(rating, Rating::Hold | Rating::Unknown);
         LocalText::new("next_downgrade_with_invalidation")
             .with_str("invalidation", invalidation_level)
             .with_bool("is_hold", is_hold)
@@ -87,7 +87,7 @@ fn build_decision_view(
         core_research_call,
         CoreResearchCall::LeanBuy | CoreResearchCall::LeanSell
     ) && has_confirmation_gate
-        && rating == Rating::Hold);
+        && matches!(rating, Rating::Hold | Rating::Unknown));
     let execution_ready_now = execution_boundary_complete && !research_waiting_confirmation;
     let probe_position_allowed =
         !forced_hold && allows_probe_position_before_confirmation(trader_plan, portfolio_decision);

@@ -49,15 +49,26 @@ impl AnalysisResult {
 
     pub fn derived_recommendation(&self) -> String {
         let portfolio_decision = self.structured_portfolio_decision();
-        if portfolio_decision.rating != Rating::Hold || !portfolio_decision.raw_rating.trim().is_empty() {
-            portfolio_decision.rating.to_string()
-        } else {
-            let research_plan = self.structured_research_plan();
-            if !research_plan.recommendation.trim().is_empty() {
-                research_plan.recommendation.to_string()
-            } else {
-                "Hold".to_string()
+        match portfolio_decision.rating {
+            Rating::Unknown => {
+                // LLM didn't extract a clear recommendation — fall back to
+                // research_plan, then to "Hold" as last resort.
+                let research_plan = self.structured_research_plan();
+                if !research_plan.recommendation.trim().is_empty() {
+                    research_plan.recommendation.to_string()
+                } else {
+                    "Hold".to_string()
+                }
             }
+            _ if portfolio_decision.raw_rating.trim().is_empty() => {
+                let research_plan = self.structured_research_plan();
+                if !research_plan.recommendation.trim().is_empty() {
+                    research_plan.recommendation.to_string()
+                } else {
+                    "Hold".to_string()
+                }
+            }
+            _ => portfolio_decision.rating.to_string(),
         }
     }
 

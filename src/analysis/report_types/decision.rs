@@ -149,6 +149,9 @@ pub enum Rating {
     Hold,
     Underweight,
     Sell,
+    /// LLM did not extract a clear recommendation — use analyst signals
+    /// instead of treating as Hold.
+    Unknown,
 }
 
 impl Rating {
@@ -159,7 +162,7 @@ impl Rating {
             "hold" => Self::Hold,
             "underweight" => Self::Underweight,
             "sell" => Self::Sell,
-            _ => Self::Hold,
+            _ => Self::Unknown,
         }
     }
 
@@ -172,14 +175,14 @@ impl Rating {
     }
 
     pub fn is_neutral(&self) -> bool {
-        matches!(self, Self::Hold)
+        matches!(self, Self::Hold | Self::Unknown)
     }
 
     pub fn bias(&self, magnitude: i32) -> i32 {
         match self {
             Self::Buy => magnitude,
             Self::Overweight => (magnitude * 3) / 4,
-            Self::Hold => 0,
+            Self::Hold | Self::Unknown => 0,
             Self::Underweight => -((magnitude * 3) / 4),
             Self::Sell => -magnitude,
         }
@@ -189,7 +192,7 @@ impl Rating {
         match self {
             Self::Buy => 2,
             Self::Overweight => 1,
-            Self::Hold => 0,
+            Self::Hold | Self::Unknown => 0,
             Self::Underweight => -1,
             Self::Sell => -2,
         }
@@ -198,7 +201,7 @@ impl Rating {
     pub fn to_action_group(&self) -> &'static str {
         match self {
             Self::Buy | Self::Overweight => "Buy",
-            Self::Hold => "Hold",
+            Self::Hold | Self::Unknown => "Hold",
             Self::Sell | Self::Underweight => "Sell",
         }
     }
@@ -212,6 +215,7 @@ impl std::fmt::Display for Rating {
             Self::Hold => "Hold",
             Self::Underweight => "Underweight",
             Self::Sell => "Sell",
+            Self::Unknown => "Unknown",
         };
         write!(f, "{value}")
     }

@@ -250,14 +250,25 @@ impl TradingAgentsGraph {
                 portfolio_node(self.manager.clone(), self.params.clone(), deep_llm.clone()),
             );
 
-        // Parallel analyst chain: START → all_analysts → bull
-        // All analysts start from START and converge to NODE_BULL
+        // Sequential analyst chain: START → market → sentiment → news → fundamentals → bull
+        // Each analyst builds on the previous one's context (market_report, sentiment_report, etc.)
+        // Running in parallel caused state overwrite (Reducer::Overwrite) losing all but one analyst.
         let mut graph = graph;
-        for analyst in &self.selected_analysts {
-            graph = graph.add_edge(START, analyst_node_name(analyst));
+        let ordered = ["market", "sentiment", "news", "fundamentals"];
+        let selected: Vec<&str> = ordered
+            .iter()
+            .filter(|a| self.selected_analysts.iter().any(|s| s == **a))
+            .copied()
+            .collect();
+
+        if let Some(first) = selected.first() {
+            graph = graph.add_edge(START, analyst_node_name(first));
         }
-        for analyst in &self.selected_analysts {
-            graph = graph.add_edge(clear_node_name(analyst), NODE_BULL);
+        for window in selected.windows(2) {
+            graph = graph.add_edge(clear_node_name(window[0]), analyst_node_name(window[1]));
+        }
+        if let Some(last) = selected.last() {
+            graph = graph.add_edge(clear_node_name(last), NODE_BULL);
         }
 
         graph = graph

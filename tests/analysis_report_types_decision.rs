@@ -128,7 +128,7 @@ fn rating_parse() {
     assert_eq!(Rating::parse("hold"), Rating::Hold);
     assert_eq!(Rating::parse("underweight"), Rating::Underweight);
     assert_eq!(Rating::parse("sell"), Rating::Sell);
-    assert_eq!(Rating::parse("unknown"), Rating::Hold);
+    assert_eq!(Rating::parse("unknown"), Rating::Unknown);
 }
 
 #[test]
@@ -136,6 +136,7 @@ fn rating_is_bullish() {
     assert!(Rating::Buy.is_bullish());
     assert!(Rating::Overweight.is_bullish());
     assert!(!Rating::Hold.is_bullish());
+    assert!(!Rating::Unknown.is_bullish());
     assert!(!Rating::Sell.is_bullish());
 }
 
@@ -144,12 +145,14 @@ fn rating_is_bearish() {
     assert!(Rating::Sell.is_bearish());
     assert!(Rating::Underweight.is_bearish());
     assert!(!Rating::Hold.is_bearish());
+    assert!(!Rating::Unknown.is_bearish());
     assert!(!Rating::Buy.is_bearish());
 }
 
 #[test]
 fn rating_is_neutral() {
     assert!(Rating::Hold.is_neutral());
+    assert!(Rating::Unknown.is_neutral());
     assert!(!Rating::Buy.is_neutral());
     assert!(!Rating::Sell.is_neutral());
 }

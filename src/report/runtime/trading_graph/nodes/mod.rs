@@ -141,11 +141,15 @@ pub(super) fn analyst_planner_node(
                 let runtime = result.analyst_runtime_state_mut(analyst_key);
                 // Support batch tool_calls or single tool_name fallback
                 let tools: Vec<PendingToolCall> = if !decision.tool_calls.is_empty() {
-                    decision.tool_calls.into_iter().map(|tc| PendingToolCall {
-                        tool_name: tc.tool_name,
-                        arguments: tc.tool_arguments,
-                        reason: decision.reasoning.clone(),
-                    }).collect()
+                    decision
+                        .tool_calls
+                        .into_iter()
+                        .map(|tc| PendingToolCall {
+                            tool_name: tc.tool_name,
+                            arguments: tc.tool_arguments,
+                            reason: decision.reasoning.clone(),
+                        })
+                        .collect()
                 } else if let Some(name) = decision.tool_name {
                     vec![PendingToolCall {
                         tool_name: name,
@@ -239,7 +243,10 @@ pub(super) fn tool_node(
         let manager = manager.clone();
         Box::pin(async move {
             let mut result = load_result(&ctx)?;
-            let pending_runtime = result.analyst_runtime_state(analyst_key).cloned().unwrap_or_default();
+            let pending_runtime = result
+                .analyst_runtime_state(analyst_key)
+                .cloned()
+                .unwrap_or_default();
             let pending_tools = pending_runtime.pending_tools.clone();
             if pending_tools.is_empty() {
                 return Err(GraphError::NodeExecutionFailed {
@@ -256,16 +263,17 @@ pub(super) fn tool_node(
             );
             let scenario = result.artifacts.scenario_data.to_scenario_data();
             // Execute all tools in parallel
-            let futures: Vec<_> = pending_tools.iter().map(|pending| {
-                let mgr = manager.clone();
-                let sym = result.symbol.clone();
-                let mkt = result.market_type.clone();
-                let sc = scenario.clone();
-                let p = pending.clone();
-                async move {
-                    mgr.toolbox.execute(&sym, &mkt, Some(&sc), &p).await
-                }
-            }).collect();
+            let futures: Vec<_> = pending_tools
+                .iter()
+                .map(|pending| {
+                    let mgr = manager.clone();
+                    let sym = result.symbol.clone();
+                    let mkt = result.market_type.clone();
+                    let sc = scenario.clone();
+                    let p = pending.clone();
+                    async move { mgr.toolbox.execute(&sym, &mkt, Some(&sc), &p).await }
+                })
+                .collect();
             let observations = futures::future::join_all(futures).await;
             let runtime = result.analyst_runtime_state_mut(analyst_key);
             for obs in observations {

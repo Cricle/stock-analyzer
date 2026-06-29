@@ -345,16 +345,35 @@ impl StructuredReport {
                 .find(|t| t.key == "MACD")
                 .map(|t| t.signal_code.as_str())
                 .unwrap_or("neutral");
-            crate::analysis::validation::check_consistency(
+            let mut v = crate::analysis::validation::check_consistency(
                 &recommendation, rsi, macd_signal,
-            )
+            );
+            // Also check price position consistency
+            let dist_low = price_context.distance_to_low_pct.unwrap_or(50.0);
+            let dist_high = price_context.distance_to_high_pct.unwrap_or(50.0);
+            let price_v = crate::analysis::validation::check_price_position(
+                &recommendation, dist_low, dist_high,
+            );
+            if price_v.consistency_flag && !v.consistency_flag {
+                v.consistency_flag = true;
+                v.consistency_reason = price_v.consistency_reason;
+                v.confidence_adjustment = price_v.confidence_adjustment;
+            } else if price_v.consistency_flag {
+                v.confidence_adjustment += price_v.confidence_adjustment;
+                v.consistency_reason = format!("{}; {}", v.consistency_reason, price_v.consistency_reason);
+            }
+            v
         };
+        // Apply validation penalties to effective confidence score
+        let mut effective_confidence_score = effective_confidence_score;
         if validation_result.consistency_flag {
             tracing::warn!(
                 stock = %result.symbol,
                 reason = %validation_result.consistency_reason,
-                "Recommendation contradicts technical indicators"
+                penalty = validation_result.confidence_adjustment,
+                "Recommendation contradicts technical indicators, applying penalty"
             );
+            effective_confidence_score = (effective_confidence_score + validation_result.confidence_adjustment).max(30);
         }
 
         let probability_view = derive_probability_view(

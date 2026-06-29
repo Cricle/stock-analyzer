@@ -2,8 +2,11 @@
 pub fn evaluate_confidence_score(
     result: &AnalysisResult,
     caps_config: &crate::scoring::config::ConfidenceCapsConfig,
+    consistency_flag: bool,
+    consistency_reason: &str,
 ) -> ConfidenceAssessment {
     let _ = caps_config; // used below via caps_config.field calls
+    let _ = consistency_reason; // used in cap reason
     let research_plan = result.structured_research_plan();
     let trader_plan = result.structured_trader_plan();
     let portfolio_decision = result.structured_portfolio_decision();
@@ -216,6 +219,14 @@ pub fn evaluate_confidence_score(
             label: LocalText::new("cap_label_zero_resolved_setup_history"),
             cap: caps_config.zero_resolved_setup_history,
             reason: LocalText::new("zero_resolved_setup_history_reason"),
+        });
+    }
+    if consistency_flag {
+        caps.push(ConfidenceCap {
+            key: "indicator_contradiction".to_string(),
+            label: LocalText::new("cap_label_indicator_contradiction"),
+            cap: 55,
+            reason: LocalText::new("indicator_contradiction_reason"),
         });
     }
 

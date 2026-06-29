@@ -99,6 +99,8 @@ impl StructuredReport {
         let confidence_assessment = crate::scoring::evaluate_confidence_score(
             result,
             &crate::config::SaConfig::load().score_config().caps,
+            false, // TODO: pass actual consistency_flag from validation
+            "",    // TODO: pass actual consistency_reason from validation
         );
         let direction_assessment = crate::scoring::evaluate_direction_score(result);
         let action_assessment = crate::scoring::evaluate_action_score(

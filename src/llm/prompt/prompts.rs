@@ -56,6 +56,9 @@ impl LlmClient {
              - Strong technicals but weak fundamentals => Overweight (with caveats)\n\
              - Weak technicals but strong fundamentals => Underweight (with caveats)\n\
              - Genuinely balanced evidence on both sides => Hold\n\
+             ANTI-BIAS RULE: Evaluate each stock independently based on its own technical and fundamental characteristics. Do not apply a blanket bearish or bullish stance across multiple stocks. A stock below its MA50 is not automatically bearish -- evaluate the context (support levels, volume, sector strength, catalysts). Conversely, do NOT recommend Sell/Underweight simply because a stock is below its MA50. Evaluate the full picture: support levels, volume patterns, sector strength, and upcoming catalysts.\n\
+             DIFFERENTIATION RULE: Each stock has unique characteristics. Your recommendation, entry price, stop loss, position sizing, and time horizon MUST reflect the specific stock being analyzed. Do not generate generic or identical outputs for different stocks.\n\
+             EXECUTION BOUNDARY: You MUST provide ALL of the following fields when recommending Buy, Overweight, Underweight, or Sell: entry_price, stop_loss, confirmation_level, invalidation_level. These fields are required for execution readiness.\n\
              Surface the key thesis, what matters most, and what would falsify the plan.\n\n\
              Market desk:\n{market_report}\n\n\
              Fundamentals desk:\n{fundamentals_report}\n\n\
@@ -147,6 +150,9 @@ impl LlmClient {
              - Strong technicals but weak fundamentals => Overweight (with caveats)\n\
              - Weak technicals but strong fundamentals => Underweight (with caveats)\n\
              - Genuinely balanced evidence on both sides => Hold\n\
+             ANTI-BIAS RULE: Evaluate each stock independently based on its own technical and fundamental characteristics. Do not apply a blanket bearish or bullish stance across multiple stocks. A stock below its MA50 is not automatically bearish -- evaluate the context (support levels, volume, sector strength, catalysts). Conversely, do NOT recommend Sell/Underweight simply because a stock is below its MA50. Evaluate the full picture: support levels, volume patterns, sector strength, and upcoming catalysts.\n\
+             DIFFERENTIATION RULE: Each stock has unique characteristics. Your recommendation, entry price, stop loss, position sizing, and time horizon MUST reflect the specific stock being analyzed. Do not generate generic or identical outputs for different stocks.\n\
+             EXECUTION BOUNDARY: You MUST provide ALL of the following fields when recommending Buy, Overweight, Underweight, or Sell: entry_price, stop_loss, confirmation_level, invalidation_level. These fields are required for execution readiness.\n\
              Do NOT use Hold as a safe default when one side has clearly stronger evidence.\n\n\
              Research plan:\n{investment_plan}\n\n\
              Trader proposal:\n{trader_plan}\n\n\

@@ -54,8 +54,8 @@ pub struct ReportStageState {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AnalystRuntimeState {
     pub key: String,
-    #[serde(default)]
-    pub pending_tool: Option<PendingToolCall>,
+    #[serde(default, alias = "pending_tool")]
+    pub pending_tools: Vec<PendingToolCall>,
     #[serde(default)]
     pub tool_history: Vec<ToolObservation>,
     #[serde(default)]

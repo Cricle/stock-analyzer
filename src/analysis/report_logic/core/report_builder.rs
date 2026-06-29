@@ -362,12 +362,33 @@ impl StructuredReport {
             &price_context,
             &probability_view,
         );
-        portfolio_decision.executive_summary = LocalText::new(portfolio_decision.authoritative_summary(
-            &trader_plan,
-            effective_confidence_score,
-            &core_research_call,
-            &decision_view,
-        ));
+        {
+            let llm_summary = portfolio_decision.executive_summary.clone();
+            let template_summary = portfolio_decision.authoritative_summary(
+                &trader_plan,
+                effective_confidence_score,
+                &core_research_call,
+                &decision_view,
+            );
+            if llm_summary.key.len() > 20
+                && !llm_summary.key.contains("Model did not return")
+                && !llm_summary.key.contains("模型未返回")
+            {
+                tracing::info!(
+                    task_id = %result.task_id,
+                    symbol = %result.symbol,
+                    summary_len = llm_summary.key.len(),
+                    "using LLM-generated executive summary"
+                );
+            } else {
+                portfolio_decision.executive_summary = LocalText::new(template_summary);
+                tracing::info!(
+                    task_id = %result.task_id,
+                    symbol = %result.symbol,
+                    "falling back to template executive summary"
+                );
+            }
+        }
         append_scenario_gap_narrative(
             &mut portfolio_decision.executive_summary,
             &diagnostics,

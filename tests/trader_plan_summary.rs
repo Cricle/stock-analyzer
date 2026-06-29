@@ -41,3 +41,47 @@ fn authoritative_summary_skips_unpublishable_confirmation_and_target_fragments()
     assert!(!summary.contains("目标参考先看"));
     assert!(!summary.contains("若出现 若补齐数据后显示"));
 }
+
+#[test]
+fn llm_summary_is_preserved_when_substantive() {
+    use sa::{LocalText, StructuredPortfolioDecision, StructuredTraderPlan, Rating, CoreResearchCall, DecisionView, DecisionAction};
+
+    let decision = StructuredPortfolioDecision {
+        rating: Rating::Hold,
+        executive_summary: LocalText::new("贵州茅台当前处于高位震荡格局，1800元附近有较强支撑，建议等待回调后再考虑加仓。"),
+        ..Default::default()
+    };
+    let llm_summary = decision.executive_summary.clone();
+    let template_summary = decision.authoritative_summary(
+        &StructuredTraderPlan { action: "Hold".into(), ..Default::default() },
+        65,
+        &CoreResearchCall::Neutral,
+        &DecisionView { action: DecisionAction::Hold, ..Default::default() },
+    );
+
+    // LLM summary should be kept (not overwritten by template)
+    assert_ne!(llm_summary.key, template_summary);
+    assert!(llm_summary.key.len() > 20);
+    assert!(!llm_summary.key.contains("Model did not return"));
+}
+
+#[test]
+fn template_fallback_when_llm_summary_is_placeholder() {
+    use sa::{LocalText, StructuredPortfolioDecision, StructuredTraderPlan, Rating, CoreResearchCall, DecisionView, DecisionAction};
+
+    let decision = StructuredPortfolioDecision {
+        rating: Rating::Hold,
+        executive_summary: LocalText::new("Model did not return portfolio manager executive summary."),
+        ..Default::default()
+    };
+    let template_summary = decision.authoritative_summary(
+        &StructuredTraderPlan { action: "Hold".into(), ..Default::default() },
+        65,
+        &CoreResearchCall::Neutral,
+        &DecisionView { action: DecisionAction::Hold, ..Default::default() },
+    );
+
+    // Template should be used when LLM output is placeholder
+    assert!(template_summary.len() > 20);
+    assert!(!template_summary.contains("Model did not return"));
+}

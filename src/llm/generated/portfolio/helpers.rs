@@ -117,7 +117,7 @@ impl GeneratedPortfolioDecision {
         let risk_assessment_raw = meaningful_value(field("risk_assessment"));
         let rating = parse::first_non_empty(
             &[field("rating").as_ref(), field("recommendation").as_ref()],
-            "Hold",
+            "Unknown",
         );
         let executive_summary = parse::first_non_empty(
             &[

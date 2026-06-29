@@ -1,6 +1,13 @@
 pub fn validate_research_manager(parsed: &super::GeneratedResearchManager, raw: &str) -> Vec<DiagnosisIssue> {
     let mut issues = Vec::new();
-    if parsed.recommendation == "Hold" && !raw.contains("recommendation") && !raw.contains("rating")
+    if parsed.recommendation == "Unknown" {
+        issues.push(DiagnosisIssue::error(
+            "research_manager", "recommendation",
+            "recommendation not extracted from LLM response",
+        ));
+    } else if parsed.recommendation == "Hold"
+        && !raw.contains("recommendation")
+        && !raw.contains("rating")
     {
         issues.push(DiagnosisIssue::warning(
             "research_manager", "recommendation",
@@ -96,6 +103,12 @@ pub fn validate_debate_turn(parsed: &super::GeneratedDebateTurn, raw: &str) -> V
 
 pub fn validate_trader_decision(parsed: &super::GeneratedTraderDecision, raw: &str) -> Vec<DiagnosisIssue> {
     let mut issues = Vec::new();
+    if parsed.action == "Unknown" {
+        issues.push(DiagnosisIssue::error(
+            "trader_decision", "action",
+            "action not extracted from LLM response",
+        ));
+    }
     if is_default_text(&parsed.trader_plan) {
         issues.push(DiagnosisIssue::error(
             "trader_decision", "trader_plan",
@@ -133,7 +146,15 @@ pub fn validate_portfolio_decision(parsed: &super::GeneratedPortfolioDecision, r
             "rationale is default placeholder",
         ));
     }
-    if parsed.rating == "Hold" && !raw.contains("rating") && !raw.contains("recommendation") {
+    if parsed.rating == "Unknown" {
+        issues.push(DiagnosisIssue::error(
+            "portfolio_decision", "rating",
+            "rating not extracted from LLM response",
+        ));
+    } else if parsed.rating == "Hold"
+        && !raw.contains("rating")
+        && !raw.contains("recommendation")
+    {
         issues.push(DiagnosisIssue::warning(
             "portfolio_decision", "rating",
             "rating defaulted to Hold (field missing)",

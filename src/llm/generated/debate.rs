@@ -49,7 +49,7 @@ impl GeneratedResearchManager {
             meaningful_value(field("strategic_actions").or_else(|| field("investment_plan")));
         let recommendation = parse::first_non_empty(
             &[field("recommendation").as_ref(), field("rating").as_ref()],
-            "Hold",
+            "Unknown",
         );
         let rationale = parse::first_non_empty(
             &[

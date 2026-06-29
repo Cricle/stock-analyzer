@@ -87,7 +87,7 @@ impl GeneratedTraderDecision {
 
     pub(crate) fn from_value(raw: Value) -> Self {
         let ex = FieldExtractor::from_raw(&raw);
-        let action = ex.text("action", "Hold");
+        let action = ex.text("action", "Unknown");
         let reasoning = ex.text("reasoning", "模型未返回交易推理。");
         let trader_plan = ex.text("trader_plan", "");
         let entry_price = meaningful_value(ex.field("entry_price"))

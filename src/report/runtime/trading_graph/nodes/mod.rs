@@ -139,17 +139,29 @@ pub(super) fn analyst_planner_node(
                 let task_id = result.task_id.clone();
                 let symbol = result.symbol.clone();
                 let runtime = result.analyst_runtime_state_mut(analyst_key);
-                runtime.pending_tool = Some(PendingToolCall {
-                    tool_name: decision.tool_name.unwrap_or_default(),
-                    arguments: decision.tool_arguments.unwrap_or_else(|| json!({})),
-                    reason: decision.reasoning,
-                });
+                // Support batch tool_calls or single tool_name fallback
+                let tools: Vec<PendingToolCall> = if !decision.tool_calls.is_empty() {
+                    decision.tool_calls.into_iter().map(|tc| PendingToolCall {
+                        tool_name: tc.tool_name,
+                        arguments: tc.tool_arguments,
+                        reason: decision.reasoning.clone(),
+                    }).collect()
+                } else if let Some(name) = decision.tool_name {
+                    vec![PendingToolCall {
+                        tool_name: name,
+                        arguments: decision.tool_arguments.unwrap_or_else(|| json!({})),
+                        reason: decision.reasoning.clone(),
+                    }]
+                } else {
+                    vec![]
+                };
+                runtime.pending_tools = tools;
                 tracing::info!(
                     task_id = %task_id,
                     symbol = %symbol,
                     analyst = analyst_key,
-                    pending_tool = ?runtime.pending_tool,
-                    "stored pending analyst tool call"
+                    pending_tools = ?runtime.pending_tools,
+                    "stored pending analyst tool calls"
                 );
                 result.artifacts.llm_token_usage = llm.usage_summary().await;
                 manager
@@ -260,7 +272,7 @@ pub(super) fn tool_node(
                 .await;
             let runtime = result.analyst_runtime_state_mut(analyst_key);
             runtime.tool_history.push(observation);
-            runtime.pending_tool = None;
+            runtime.pending_tools.clear();
             manager
                 .persist_runtime_stage(
                     &result,
@@ -543,7 +555,7 @@ async fn apply_analyst_report(
         _ => {}
     }
     let runtime = result.analyst_runtime_state_mut(analyst_key);
-    runtime.pending_tool = None;
+    runtime.pending_tools.clear();
     runtime.cleared = false;
     runtime.final_messages.push(format!(
         "{} finalized analyst report at {}",

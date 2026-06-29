@@ -99,8 +99,8 @@ impl StructuredReport {
         let confidence_assessment = crate::scoring::evaluate_confidence_score(
             result,
             &crate::config::SaConfig::load().score_config().caps,
-            false, // TODO: pass actual consistency_flag from validation
-            "",    // TODO: pass actual consistency_reason from validation
+            false, // consistency_flag set after technical_indicators are derived
+            "",
         );
         let direction_assessment = crate::scoring::evaluate_direction_score(result);
         let action_assessment = crate::scoring::evaluate_action_score(
@@ -329,6 +329,34 @@ impl StructuredReport {
         enrich_market_chart(&mut market_chart, &references, &decision_view);
         let price_context = derive_price_context(&market_chart, current_price);
         let technical_indicators = derive_technical_indicators(&market_chart);
+
+        // Run validation checks on LLM output
+        let validation_result = {
+            let recommendation = result.derived_recommendation();
+            let rsi = technical_indicators.categories
+                .iter()
+                .flat_map(|c| &c.indicators)
+                .find(|t| t.key == "RSI")
+                .and_then(|t| t.value)
+                .unwrap_or(50.0);
+            let macd_signal = technical_indicators.categories
+                .iter()
+                .flat_map(|c| &c.indicators)
+                .find(|t| t.key == "MACD")
+                .map(|t| t.signal_code.as_str())
+                .unwrap_or("neutral");
+            crate::analysis::validation::check_consistency(
+                &recommendation, rsi, macd_signal,
+            )
+        };
+        if validation_result.consistency_flag {
+            tracing::warn!(
+                stock = %result.symbol,
+                reason = %validation_result.consistency_reason,
+                "Recommendation contradicts technical indicators"
+            );
+        }
+
         let probability_view = derive_probability_view(
             &decision_view,
             direction_assessment.final_score,

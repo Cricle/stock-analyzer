@@ -26,6 +26,16 @@ pub fn score_llm_analysis(input: &LlmAnalysisInput) -> DimensionScore {
         signal_market(input.volume_ratio, input.period_return_pct),
     ];
 
+    // Count how many signals have real data vs defaults
+    let missing_count = [
+        input.hit_rate.is_none(),
+        input.volume_ratio.is_none(),
+        input.period_return_pct.is_none(),
+    ]
+    .iter()
+    .filter(|&&m| m)
+    .count();
+
     let avg = signals.iter().sum::<f64>() / signals.len() as f64;
     let min = signals.iter().cloned().fold(f64::MAX, f64::min);
     let max = signals.iter().cloned().fold(f64::MIN, f64::max);
@@ -34,6 +44,12 @@ pub fn score_llm_analysis(input: &LlmAnalysisInput) -> DimensionScore {
 
     let raw = avg * (0.6 + 0.4 * consensus);
     let score = raw.clamp(0.0, 100.0) as u8;
+
+    let reliability = if missing_count >= 1 {
+        ScoreReliability::Low
+    } else {
+        ScoreReliability::High
+    };
 
     let signal_names = ["LLM", "技术", "历史", "新闻", "市场"];
     let detail: Vec<String> = signal_names
@@ -45,7 +61,7 @@ pub fn score_llm_analysis(input: &LlmAnalysisInput) -> DimensionScore {
     DimensionScore {
         score,
         reason: format!("共识度 {:.0}%，{}", consensus * 100.0, detail.join(" ")),
-        reliability: ScoreReliability::High,
+        reliability,
     }
 }
 

@@ -55,3 +55,25 @@ fn sentiment_empty_headlines_is_missing() {
     let result = parse_sentiment_response("{}");
     assert_eq!(result.reliability, sa::scoring::score_types::ScoreReliability::Missing);
 }
+
+use sa::scoring::dimensions::llm_analysis::{score_llm_analysis, LlmAnalysisInput};
+
+#[test]
+fn llm_analysis_missing_history_is_low_reliability() {
+    let input = LlmAnalysisInput {
+        confidence: 60.0,
+        objective_final_score: 60.0,
+        momentum_score: 50.0,
+        hit_rate: None, // missing history
+        catalyst_count: 0,
+        hard_negative_count: 0,
+        volume_ratio: None, // missing market
+        period_return_pct: None,
+    };
+    let result = score_llm_analysis(&input);
+    assert_eq!(
+        result.reliability,
+        sa::scoring::score_types::ScoreReliability::Low,
+        "missing history and market data should yield Low reliability"
+    );
+}

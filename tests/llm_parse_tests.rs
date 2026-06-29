@@ -203,3 +203,32 @@ fn validate_research_manager_flags_default_rationale() {
     let issues = validate_research_manager(&parsed, "{}");
     assert!(issues.iter().any(|i| i.field == "rationale"));
 }
+
+#[test]
+fn parse_analyst_decision_batch_tool_calls() {
+    let content = r#"{
+        "action": "tool",
+        "reasoning": "need multiple data points",
+        "tool_calls": [
+            {"tool_name": "get_stock_data", "tool_arguments": {}},
+            {"tool_name": "get_indicators", "tool_arguments": {}}
+        ]
+    }"#;
+    let result = parse_generated_analyst_decision(content);
+    assert!(result.is_ok());
+    let decision = result.unwrap();
+    assert_eq!(decision.action, "tool");
+    assert_eq!(decision.tool_calls.len(), 2);
+    assert_eq!(decision.tool_calls[0].tool_name, "get_stock_data");
+    assert_eq!(decision.tool_calls[1].tool_name, "get_indicators");
+}
+
+#[test]
+fn parse_analyst_decision_single_tool_backward_compat() {
+    let content = r#"{"action":"tool","reasoning":"need data","tool_name":"get_stock_data","tool_arguments":"{}"}"#;
+    let result = parse_generated_analyst_decision(content);
+    assert!(result.is_ok());
+    let decision = result.unwrap();
+    assert_eq!(decision.tool_name.as_deref(), Some("get_stock_data"));
+    assert!(decision.tool_calls.is_empty());
+}

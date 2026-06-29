@@ -27,6 +27,7 @@ pub fn parse_generated_analyst_decision(
             final_report: Some(report),
             tool_name: None,
             tool_arguments: None,
+            tool_calls: vec![],
         });
     }
     validate_analyst_decision(&parsed, content);

@@ -4,7 +4,7 @@ use super::super::parse;
 use super::helpers::{meaningful_value, role_report_probabilities};
 use super::types::{
     GeneratedAnalystDecision, GeneratedRoleReport, GeneratedSubscriptionQaAnswer,
-    GeneratedSubscriptionQaSnapshot,
+    GeneratedSubscriptionQaSnapshot, ToolCall,
 };
 
 impl GeneratedRoleReport {
@@ -49,6 +49,28 @@ impl GeneratedAnalystDecision {
     pub(crate) fn from_value(raw: Value) -> Self {
         let object = raw.as_object();
         let field = |key: &str| object.and_then(|map| map.get(key)).cloned();
+        let tool_calls = field("tool_calls")
+            .and_then(|v| {
+                if let Value::Array(arr) = v {
+                    Some(
+                        arr.into_iter()
+                            .filter_map(|item| {
+                                let obj = item.as_object()?;
+                                Some(ToolCall {
+                                    tool_name: obj.get("tool_name")?.as_str()?.to_string(),
+                                    tool_arguments: obj
+                                        .get("tool_arguments")
+                                        .cloned()
+                                        .unwrap_or(Value::Object(Default::default())),
+                                })
+                            })
+                            .collect(),
+                    )
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default();
         Self {
             action: parse::text_or_default(field("action"), "finalize"),
             reasoning: parse::text_or_default(field("reasoning"), "模型未返回分析师动作原因。"),
@@ -57,6 +79,7 @@ impl GeneratedAnalystDecision {
                 .map(|value| parse::normalize_value(&value))
                 .filter(|value| !value.is_empty()),
             tool_arguments: field("tool_arguments"),
+            tool_calls,
         }
     }
 }

@@ -36,12 +36,21 @@ impl HasConfidence for GeneratedRoleReport {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ToolCall {
+    pub tool_name: String,
+    #[serde(default)]
+    pub tool_arguments: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GeneratedAnalystDecision {
     pub action: String,
     pub reasoning: String,
     pub final_report: Option<GeneratedRoleReport>,
     pub tool_name: Option<String>,
     pub tool_arguments: Option<Value>,
+    #[serde(default)]
+    pub tool_calls: Vec<ToolCall>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

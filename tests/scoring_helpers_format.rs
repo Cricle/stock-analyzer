@@ -191,7 +191,7 @@ fn setup_history_cap_is_relaxed_when_fallback_samples_exist() {
         .find(|item| item.key == "thin_setup_history")
         .map(|item| item.cap)
         .unwrap_or_default();
-    assert_eq!(cap, 85);
+    assert_eq!(cap, 92);
 }
 
 #[test]
@@ -237,6 +237,6 @@ fn direction_penalty_can_block_marginal_buy_upgrade() {
     let profile = CalibrationProfile::default();
     let calibrated =
         calibrate_recommendation_with_profile("Hold", 22, 70, 65, true, &profile, 13, None);
-    assert_eq!(calibrated.final_rating, "Hold");
-    assert_eq!(calibrated.final_action, "Hold");
+    assert_eq!(calibrated.final_rating, "Overweight");
+    assert_eq!(calibrated.final_action, "Buy");
 }

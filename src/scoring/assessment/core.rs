@@ -121,8 +121,9 @@ pub fn score_historical_transferability(result: &AnalysisResult) -> ScoreDimensi
     let used_fallback = memory.used_setup_fallback_calibration;
 
     let mut score = 0;
-    // Give a base score when we have any historical context, even without setup matches
-    if same_ticker_count > 0 || cross_ticker_count > 0 {
+    // Give a base score when memory system is active (has source) or has any historical context
+    let memory_active = !memory.source.is_empty() && memory.source != "disabled";
+    if memory_active || same_ticker_count > 0 || cross_ticker_count > 0 {
         score = score.max(5);
     }
     if used_setup_filter {

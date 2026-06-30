@@ -316,6 +316,71 @@ fn print_detailed_indicators(result: &sa::AnalysisResult) {
     println!();
 }
 
+async fn run_single_stock(
+    llm: &sa::llm::LlmClient,
+    symbol: &str,
+    name: &str,
+    market_type: &str,
+) -> anyhow::Result<(String, sa::PersistedTask, Option<sa::AnalysisResult>)> {
+    let data_dir = tempfile::tempdir()?;
+    let analysis_store: Arc<dyn sa::AnalysisStore> = Arc::new(InMemoryAnalysisStore::new());
+    let cache_store: Arc<dyn sa::CacheStore> = Arc::new(InMemoryCacheStore::new());
+    let checkpoint_inner: Arc<dyn sa::CheckpointStore> =
+        Arc::new(InMemoryCheckpointStore::new());
+    let checkpoint_store = sa::checkpoint::TaskCheckpointStore::new(checkpoint_inner);
+    let market_data = sa::MarketDataClient::new().await?;
+    let memory_log =
+        sa::memory::TradingMemoryLog::new(data_dir.path().to_str().unwrap(), 100)?;
+    let telemetry = sa::telemetry::init_telemetry();
+
+    let manager = sa::TaskManager::new(
+        analysis_store,
+        cache_store,
+        Some(llm.clone()),
+        Some(llm.clone()),
+        market_data,
+        data_dir.path().to_str().unwrap().to_string(),
+        memory_log,
+        checkpoint_store,
+        sa::env_config::debate_rounds(),
+        sa::env_config::risk_discuss_rounds(),
+        telemetry,
+    )
+    .await?;
+
+    let request = sa::SingleAnalysisRequest {
+        symbol: Some(symbol.to_string()),
+        stock_code: None,
+        stock_name: Some(name.to_string()),
+        parameters: Some(sa::AnalysisParameters {
+            market_type: Some(market_type.to_string()),
+            analysis_date: Some(chrono::Local::now().format("%Y-%m-%d").to_string()),
+            ..Default::default()
+        }),
+        force_refresh: true,
+    };
+
+    let task_id = manager
+        .create_task_and_run_blocking("", request, None)
+        .await
+        .expect("task creation should succeed");
+
+    let task =
+        wait_for_task(&manager, &task_id, std::time::Duration::from_secs(1800)).await;
+
+    let result = if task.status == sa::TaskStatus::Completed {
+        manager
+            .analysis_store()
+            .load_result(&task_id)
+            .await
+            .unwrap()
+    } else {
+        None
+    };
+
+    Ok((format!("{}/{}", symbol, name), task, result))
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     unsafe {
@@ -357,75 +422,38 @@ async fn main() -> anyhow::Result<()> {
     ];
 
     println!("=== 市场报告测试 ({} 只股票) ===", markets.iter().map(|(_, _, s)| s.len()).sum::<usize>());
-    println!("模式: debug_quick_only, K线: 60根\n");
+    println!("模式: debug_quick_only, K线: 60根, 并行执行\n");
 
     for (market_label, market_type, stocks) in &markets {
         println!("\n{}", "=".repeat(70));
-        println!("📈 {} — {} 只股票", market_label, stocks.len());
+        println!("📈 {} — {} 只股票 (并行)", market_label, stocks.len());
         println!("{}", "=".repeat(70));
 
+        // Run all stocks in this market in parallel
+        let mut handles = Vec::new();
         for (symbol, name) in stocks {
-            println!("\n--- {} ({}) ---", name, symbol);
+            let llm_clone = llm.clone();
+            let symbol = symbol.to_string();
+            let name = name.to_string();
+            let market_type = market_type.to_string();
+            handles.push(tokio::spawn(async move {
+                run_single_stock(&llm_clone, &symbol, &name, &market_type).await
+            }));
+        }
 
-            let data_dir = tempfile::tempdir()?;
-            let analysis_store: Arc<dyn sa::AnalysisStore> = Arc::new(InMemoryAnalysisStore::new());
-            let cache_store: Arc<dyn sa::CacheStore> = Arc::new(InMemoryCacheStore::new());
-            let checkpoint_inner: Arc<dyn sa::CheckpointStore> =
-                Arc::new(InMemoryCheckpointStore::new());
-            let checkpoint_store = sa::checkpoint::TaskCheckpointStore::new(checkpoint_inner);
-            let market_data = sa::MarketDataClient::new().await?;
-            let memory_log =
-                sa::memory::TradingMemoryLog::new(data_dir.path().to_str().unwrap(), 100)?;
-            let telemetry = sa::telemetry::init_telemetry();
-
-            let manager = sa::TaskManager::new(
-                analysis_store,
-                cache_store,
-                Some(llm.clone()),
-                Some(llm.clone()),
-                market_data,
-                data_dir.path().to_str().unwrap().to_string(),
-                memory_log,
-                checkpoint_store,
-                sa::env_config::debate_rounds(),
-                sa::env_config::risk_discuss_rounds(),
-                telemetry,
-            )
-            .await?;
-
-            let request = sa::SingleAnalysisRequest {
-                symbol: Some(symbol.to_string()),
-                stock_code: None,
-                stock_name: Some(name.to_string()),
-                parameters: Some(sa::AnalysisParameters {
-                    market_type: Some(market_type.to_string()),
-                    analysis_date: Some(chrono::Local::now().format("%Y-%m-%d").to_string()),
-                    ..Default::default()
-                }),
-                force_refresh: true,
-            };
-
-            let task_id = manager
-                .create_task_and_run_blocking("", request, None)
-                .await
-                .expect("task creation should succeed");
-
-            let task =
-                wait_for_task(&manager, &task_id, std::time::Duration::from_secs(1800)).await;
-
-            let result = if task.status == sa::TaskStatus::Completed {
-                manager
-                    .analysis_store()
-                    .load_result(&task_id)
-                    .await
-                    .unwrap()
-            } else {
-                None
-            };
-
-            print_result(&format!("{}/{}", symbol, name), &task, &result);
-            if let Some(ref r) = result {
-                print_detailed_indicators(r);
+        // Collect results
+        for handle in handles {
+            match handle.await? {
+                Ok((label, task, result)) => {
+                    println!("\n--- {} ---", label);
+                    print_result(&label, &task, &result);
+                    if let Some(ref r) = result {
+                        print_detailed_indicators(r);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("  ❌ Error: {}", e);
+                }
             }
         }
     }

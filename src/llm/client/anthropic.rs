@@ -31,7 +31,7 @@ impl LlmClient {
                             "content": prompt
                         }
                     ],
-                    "temperature": 0.2
+                    "temperature": 0.0
                 });
 
                 let response = tokio::time::timeout(

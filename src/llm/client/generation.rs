@@ -28,7 +28,7 @@ impl LlmClient {
                     content: prompt.to_string(),
                 },
             ],
-            temperature: 0.2,
+            temperature: 0.0,
             response_format: Some(ResponseFormat {
                 kind: "json_object".to_string(),
             }),

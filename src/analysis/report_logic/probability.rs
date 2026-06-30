@@ -50,6 +50,7 @@ fn derive_probability_view(
         round_to_100(upside * scale, downside * scale, sideways * scale);
     let risk_probability = (downside + (100.0 - confidence_score as f64) * 0.2).clamp(5.0, 90.0);
     let current = price_context.current_price;
+    let is_bearish = matches!(decision.view, DecisionViewDirection::Bearish);
     let upside_target = parse_first_numeric(decision.target_reference.as_str())
         .or(price_context.high_price)
         .filter(|value| value.is_finite() && *value > 0.0);
@@ -57,10 +58,22 @@ fn derive_probability_view(
         .or(price_context.low_price)
         .filter(|value| value.is_finite() && *value > 0.0);
     let upside_pct = current.zip(upside_target).and_then(|(current, target)| {
-        (current > 0.0 && target > current).then_some(((target - current) / current) * 100.0)
+        if is_bearish {
+            // Bearish: profit is stock going DOWN (target < current)
+            (current > 0.0 && target < current).then_some(((current - target) / current) * 100.0)
+        } else {
+            // Bullish/Neutral: profit is stock going UP (target > current)
+            (current > 0.0 && target > current).then_some(((target - current) / current) * 100.0)
+        }
     });
     let downside_pct = current.zip(downside_target).and_then(|(current, target)| {
-        (current > 0.0 && target < current).then_some(((current - target) / current) * 100.0)
+        if is_bearish {
+            // Bearish: loss is stock going UP (stop > current)
+            (current > 0.0 && target > current).then_some(((target - current) / current) * 100.0)
+        } else {
+            // Bullish/Neutral: loss is stock going DOWN (stop < current)
+            (current > 0.0 && target < current).then_some(((current - target) / current) * 100.0)
+        }
     });
     let mut drivers = vec![
         ProbabilityDriver {
@@ -134,6 +147,7 @@ fn derive_profit_risk(
     price_context: &PriceContext,
     probability: &ProbabilityView,
 ) -> ProfitRiskView {
+    let is_bearish = matches!(decision.view, DecisionViewDirection::Bearish);
     let reward_risk_ratio = probability
         .upside_pct
         .zip(probability.downside_pct)
@@ -144,20 +158,39 @@ fn derive_profit_risk(
             let target = parse_first_numeric(decision.target_reference.as_str())?;
             let stop = parse_first_numeric(&decision.invalidation_price)
                 .or(price_context.low_price)?;
-            if current > 0.0 && stop < current && target > current {
-                Some((target - current) / (current - stop))
+            if is_bearish {
+                // Bearish: target < current (profit down), stop > current (loss up)
+                if current > 0.0 && stop > current && target < current {
+                    Some((current - target) / (stop - current))
+                } else {
+                    None
+                }
             } else {
-                None
+                // Bullish/Neutral: target > current (profit up), stop < current (loss down)
+                if current > 0.0 && stop < current && target > current {
+                    Some((target - current) / (current - stop))
+                } else {
+                    None
+                }
             }
         });
     let upside_pct = probability.upside_pct.or_else(|| {
         let current = parse_first_numeric(&decision.current_price)
             .or(price_context.current_price)?;
         let target = parse_first_numeric(decision.target_reference.as_str())?;
-        if current > 0.0 && target > current {
-            Some(((target - current) / current) * 100.0)
+        if is_bearish {
+            // Bearish: profit is stock going DOWN
+            if current > 0.0 && target < current {
+                Some(((current - target) / current) * 100.0)
+            } else {
+                None
+            }
         } else {
-            None
+            if current > 0.0 && target > current {
+                Some(((target - current) / current) * 100.0)
+            } else {
+                None
+            }
         }
     });
     let downside_pct = probability.downside_pct.or_else(|| {
@@ -165,10 +198,19 @@ fn derive_profit_risk(
             .or(price_context.current_price)?;
         let stop = parse_first_numeric(&decision.invalidation_price)
             .or(price_context.low_price)?;
-        if current > 0.0 && stop < current {
-            Some(((current - stop) / current) * 100.0)
+        if is_bearish {
+            // Bearish: loss is stock going UP
+            if current > 0.0 && stop > current {
+                Some(((stop - current) / current) * 100.0)
+            } else {
+                None
+            }
         } else {
-            None
+            if current > 0.0 && stop < current {
+                Some(((current - stop) / current) * 100.0)
+            } else {
+                None
+            }
         }
     });
     // Current-position ratio: uses confirmation_price as upside (pre-breakout),

@@ -42,7 +42,7 @@ pub fn market_exchange_code(market: MarketKind) -> &'static str {
 fn default_market_candidate_query(market: MarketKind) -> &'static str {
     match market {
         MarketKind::AShare => "industry",
-        MarketKind::HongKong => "blue chip",
+        MarketKind::HongKong => "腾讯",
         MarketKind::UsEquity => "technology",
     }
 }
@@ -78,24 +78,25 @@ pub(super) async fn resolve_candidates(
     }
 
     let market_kind = market_kind_from_value(&request.market);
+    tracing::info!(market = ?market_kind, "resolving candidates");
     match market_kind {
         MarketKind::AShare => {
             resolve_a_share_candidates(market_data, request, candidate_limit).await
         }
         MarketKind::HongKong => {
-            let query = request
-                .sector_type
-                .as_deref()
-                .filter(|value| !value.trim().is_empty())
-                .unwrap_or(default_market_candidate_query(market_kind));
-            let items = market_data
-                .search_stocks(
-                    query,
-                    Some(market_search_label(market_kind)),
-                    candidate_limit,
-                )
-                .await?;
-            Ok(items
+            let mut all_items = Vec::new();
+            for query in ["腾讯", "阿里", "美团", "小米", "比亚迪", "汇丰", "友邦", "港交所"] {
+                let items = market_data
+                    .search_stocks(
+                        query,
+                        Some(market_search_label(market_kind)),
+                        candidate_limit,
+                    )
+                    .await
+                    .unwrap_or_default();
+                all_items.extend(items);
+            }
+            Ok(all_items
                 .into_iter()
                 .map(|item| CandidateContext {
                     symbol: item.symbol,
@@ -160,35 +161,27 @@ async fn resolve_a_share_candidates(
             .await
             .unwrap_or_default();
 
-        let mut by_inflow = sectors.clone();
-        by_inflow.sort_by(|left, right| {
-            right
-                .main_net_inflow
-                .partial_cmp(&left.main_net_inflow)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| {
-                    right
-                        .change_pct
-                        .partial_cmp(&left.change_pct)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                })
-        });
-        ranked_sectors.extend(by_inflow.into_iter().take(4));
+        tracing::info!(sector_type, sectors_count = sectors.len(), "fetched sector rankings");
 
-        let mut by_change = sectors;
+        // Sort by change_pct (Sina doesn't provide main_net_inflow)
+        let mut by_change = sectors.clone();
         by_change.sort_by(|left, right| {
             right
                 .change_pct
                 .partial_cmp(&left.change_pct)
                 .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| {
-                    right
-                        .main_net_inflow
-                        .partial_cmp(&left.main_net_inflow)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                })
         });
         ranked_sectors.extend(by_change.into_iter().take(4));
+
+        // Also take top sectors by main_net_inflow if available
+        let mut by_inflow = sectors;
+        by_inflow.sort_by(|left, right| {
+            right
+                .main_net_inflow
+                .partial_cmp(&left.main_net_inflow)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        ranked_sectors.extend(by_inflow.into_iter().take(4));
     }
 
     let mut sector_seen = HashSet::new();
@@ -255,14 +248,8 @@ async fn resolve_a_share_candidates(
 
     let mut search_candidates = Vec::new();
     for query in [
-        "AI",
-        "Robotics",
-        "Semiconductors",
-        "Innovative Pharma",
-        "Banking",
-        "Power",
-        "Advanced Manufacturing",
-        "Consumer Electronics",
+        "600", "000", "300", "688",
+        "贵州", "中国", "科技", "银行", "能源", "医药",
     ] {
         let items = market_data
             .search_stocks(
@@ -285,14 +272,16 @@ async fn resolve_a_share_candidates(
     all_candidates.extend(sector_candidates);
     all_candidates.extend(search_candidates);
     let all_candidates = dedup_candidates(all_candidates, candidate_limit.saturating_mul(4));
+    tracing::info!(all_candidates_count = all_candidates.len(), "deduped all candidates");
     let shortlist = shortlist_a_share_candidates_for_flow(all_candidates, candidate_limit);
-    Ok(
-        pre_rank_a_share_candidates(market_data, shortlist, candidate_limit)
-            .await
-            .into_iter()
-            .take(candidate_limit)
-            .collect(),
-    )
+    tracing::info!(shortlist_count = shortlist.len(), "shortlisted candidates");
+    let result = pre_rank_a_share_candidates(market_data, shortlist, candidate_limit)
+        .await
+        .into_iter()
+        .take(candidate_limit)
+        .collect::<Vec<_>>();
+    tracing::info!(final_count = result.len(), "final candidates");
+    Ok(result)
 }
 
 fn dedup_candidates(items: Vec<CandidateContext>, limit: usize) -> Vec<CandidateContext> {

@@ -509,8 +509,10 @@ pub async fn run(
         .trim()
         .eq_ignore_ascii_case("disagree")
     {
-        anyhow::bail!(
-            "llm review disagrees with system rank without supported override integration"
+        tracing::warn!(
+            agreement = %generated.agreement_with_system_rank,
+            override_count = generated.override_actions.len(),
+            "llm review disagrees with system rank; continuing with LLM picks"
         );
     }
 

@@ -1,14 +1,21 @@
 use sa::guide::generate_prewarm_tasks;
 
 #[test]
-fn generate_prewarm_tasks_returns_three_markets() {
-    let tasks = generate_prewarm_tasks();
-    assert_eq!(tasks.len(), 3);
+fn generate_prewarm_tasks_with_custom_tickers() {
+    let tasks = generate_prewarm_tasks(&[
+        ("a_share", vec!["000001".to_string(), "600036".to_string()]),
+        ("us_equity", vec!["AAPL".to_string(), "MSFT".to_string()]),
+    ]);
+    assert_eq!(tasks.len(), 2);
 }
 
 #[test]
 fn generate_prewarm_tasks_markets() {
-    let tasks = generate_prewarm_tasks();
+    let tasks = generate_prewarm_tasks(&[
+        ("a_share", vec!["000001".to_string()]),
+        ("hong_kong", vec!["00700".to_string()]),
+        ("us_equity", vec!["AAPL".to_string()]),
+    ]);
     let markets: Vec<&str> = tasks.iter().map(|t| t.market.as_str()).collect();
     assert!(markets.contains(&"a_share"));
     assert!(markets.contains(&"hong_kong"));
@@ -16,21 +23,20 @@ fn generate_prewarm_tasks_markets() {
 }
 
 #[test]
-fn generate_prewarm_tasks_ticker_counts() {
-    let tasks = generate_prewarm_tasks();
-    for task in &tasks {
-        assert_eq!(
-            task.tickers.len(),
-            5,
-            "{} should have 5 tickers",
-            task.market
-        );
-    }
+fn generate_prewarm_tasks_preserves_tickers() {
+    let tasks = generate_prewarm_tasks(&[
+        ("a_share", vec!["000001".to_string(), "600036".to_string()]),
+    ]);
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0].tickers.len(), 2);
+    assert!(tasks[0].tickers.contains(&"000001".to_string()));
 }
 
 #[test]
 fn generate_prewarm_tasks_date_is_today() {
-    let tasks = generate_prewarm_tasks();
+    let tasks = generate_prewarm_tasks(&[
+        ("a_share", vec!["000001".to_string()]),
+    ]);
     let today = chrono::Utc::now().date_naive().to_string();
     for task in &tasks {
         assert_eq!(task.date, today);
@@ -38,17 +44,12 @@ fn generate_prewarm_tasks_date_is_today() {
 }
 
 #[test]
-fn generate_prewarm_tasks_a_share_tickers() {
-    let tasks = generate_prewarm_tasks();
-    let a_share = tasks.iter().find(|t| t.market == "a_share").unwrap();
-    assert!(a_share.tickers.contains(&"600519".to_string()));
-    assert!(a_share.tickers.contains(&"000001".to_string()));
-}
-
-#[test]
-fn generate_prewarm_tasks_us_tickers() {
-    let tasks = generate_prewarm_tasks();
-    let us = tasks.iter().find(|t| t.market == "us_equity").unwrap();
-    assert!(us.tickers.contains(&"AAPL".to_string()));
-    assert!(us.tickers.contains(&"NVDA".to_string()));
+fn generate_prewarm_tasks_skips_empty_tickers() {
+    let tasks = generate_prewarm_tasks(&[
+        ("a_share", vec!["000001".to_string()]),
+        ("hong_kong", vec![]),
+        ("us_equity", vec!["AAPL".to_string()]),
+    ]);
+    assert_eq!(tasks.len(), 2);
+    assert!(tasks.iter().all(|t| !t.tickers.is_empty()));
 }

@@ -319,18 +319,17 @@ impl TaskManager {
         )
     }
 
-    /// Wait for a task to complete or fail, with optional progress callback.
+    /// Wait for a task to complete or fail.
     ///
     /// Returns the final `PersistedTask`. If timeout elapses, returns the current state.
     pub async fn wait_for_task(
         &self,
         task_id: &str,
         timeout: std::time::Duration,
-        mut on_progress: Option<&mut dyn FnMut(&crate::PersistedTask)>,
     ) -> anyhow::Result<crate::PersistedTask> {
         let deadline = std::time::Instant::now() + timeout;
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(3));
-        interval.tick().await; // first tick is immediate
+        interval.tick().await;
 
         loop {
             let task = self
@@ -341,11 +340,40 @@ impl TaskManager {
 
             match task.status {
                 crate::TaskStatus::Completed | crate::TaskStatus::Failed => return Ok(task),
-                _ => {
-                    if let Some(ref mut cb) = on_progress {
-                        cb(&task);
-                    }
-                }
+                _ => {}
+            }
+
+            if std::time::Instant::now() > deadline {
+                return Ok(task);
+            }
+            interval.tick().await;
+        }
+    }
+
+    /// Wait for a task with a progress callback.
+    pub async fn wait_for_task_with_progress<F>(
+        &self,
+        task_id: &str,
+        timeout: std::time::Duration,
+        mut on_progress: F,
+    ) -> anyhow::Result<crate::PersistedTask>
+    where
+        F: FnMut(&crate::PersistedTask),
+    {
+        let deadline = std::time::Instant::now() + timeout;
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(3));
+        interval.tick().await;
+
+        loop {
+            let task = self
+                .analysis_store()
+                .get_task(task_id)
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("task {task_id} not found"))?;
+
+            match task.status {
+                crate::TaskStatus::Completed | crate::TaskStatus::Failed => return Ok(task),
+                _ => on_progress(&task),
             }
 
             if std::time::Instant::now() > deadline {

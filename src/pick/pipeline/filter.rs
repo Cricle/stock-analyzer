@@ -9,7 +9,7 @@ use super::CandidateContext;
 
 /// Rotate a slice by a deterministic offset derived from current time.
 /// Ensures different stocks are picked each run without full randomness.
-fn rotate_by_time<T>(items: &mut Vec<T>) {
+fn rotate_by_time<T>(items: &mut [T]) {
     let offset = (chrono::Utc::now().timestamp_millis() as usize) % items.len().max(1);
     items.rotate_left(offset);
 }

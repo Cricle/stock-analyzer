@@ -82,6 +82,16 @@ fn print_result(label: &str, task: &sa::PersistedTask, result: &Option<sa::Analy
         print!("  rec={:<12} conf={:<3} tokens={:<8} reqs={:<3}", rec, conf, tokens, requests);
         let truncated: String = summary.chars().take(60).collect();
         print!("  {}", truncated);
+    } else if task.status == sa::TaskStatus::Failed {
+        if let Some(ref err) = task.error_message {
+            if !err.is_empty() {
+                print!("  error: {}", err);
+            } else {
+                print!("  (no error details)");
+            }
+        } else {
+            print!("  (no error details)");
+        }
     }
     println!();
 }

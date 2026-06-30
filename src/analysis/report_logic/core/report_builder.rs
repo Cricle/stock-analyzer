@@ -140,7 +140,7 @@ impl StructuredReport {
             }
         }
         if !execution_blocking_gaps.is_empty() {
-            eprintln!("[blocking_gaps] {:?}", execution_blocking_gaps);
+            tracing::debug!(gaps = ?execution_blocking_gaps, "execution blocking gaps detected");
         }
         let execution_boundary_complete =
             structural_execution_boundary && execution_blocking_gaps.is_empty();

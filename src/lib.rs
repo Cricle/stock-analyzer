@@ -103,7 +103,6 @@ pub mod indicators;
 mod noop_stores;
 pub mod store;
 pub mod task;
-pub mod user_preferences;
 pub mod value_utils;
 
 pub mod scoring;
@@ -168,7 +167,6 @@ pub use config::SaConfig;
 pub use env_config::env_flag;
 pub use llm_config::LlmProviderConfig;
 pub use types::ToolObservation;
-pub use user_preferences::{UserPreferences, WatchlistItem};
 
 pub use scoring::{
     ActionAssessment, CalibrationProfile, ConfidenceAssessment, DirectionAssessment,

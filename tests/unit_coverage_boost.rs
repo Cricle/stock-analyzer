@@ -589,32 +589,6 @@ fn build_valuation_vs_industry_block_empty() {
 }
 
 // =========================================================================
-// user_preferences.rs
-// =========================================================================
-
-#[test]
-fn user_preferences_default() {
-    let prefs = sa::user_preferences::UserPreferences::default();
-    assert!(prefs.watchlist.is_empty());
-}
-
-#[test]
-fn user_preferences_add_remove() {
-    let mut prefs = sa::user_preferences::UserPreferences::default();
-    let item = sa::user_preferences::WatchlistItem {
-        symbol: "AAPL".to_string(),
-        name: "Apple Inc.".to_string(),
-        market: "美股".to_string(),
-        notes: String::new(),
-        added_at: "2024-01-01".to_string(),
-    };
-    prefs.add_to_watchlist(item);
-    assert_eq!(prefs.watchlist.len(), 1);
-    prefs.remove_from_watchlist("AAPL", "美股");
-    assert!(prefs.watchlist.is_empty());
-}
-
-// =========================================================================
 // pick/pipeline/filter.rs — market helpers
 // =========================================================================
 

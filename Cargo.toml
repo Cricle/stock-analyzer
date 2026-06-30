@@ -56,6 +56,7 @@ tempfile = "3"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 reqwest-middleware = "0.4"
 dirs = "5"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [profile.dev]
 debug = 0

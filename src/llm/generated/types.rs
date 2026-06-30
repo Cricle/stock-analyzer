@@ -192,39 +192,3 @@ pub struct GeneratedMissingEvidenceLadder {
     #[serde(default)]
     pub blocking_gaps: Vec<String>,
 }
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
-pub struct GeneratedSubscriptionQaAnswer {
-    #[serde(default)]
-    pub summary: String,
-    #[serde(default)]
-    pub conclusion: String,
-    #[serde(default)]
-    pub confidence: String,
-    #[serde(default)]
-    pub evidence_points: Vec<String>,
-    #[serde(default)]
-    pub key_numbers: Vec<String>,
-    #[serde(default)]
-    pub risks: Vec<String>,
-    #[serde(default)]
-    pub actions: Vec<String>,
-    #[serde(default)]
-    pub references: Vec<String>,
-    #[serde(default)]
-    pub context_snapshot: GeneratedSubscriptionQaSnapshot,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
-pub struct GeneratedSubscriptionQaSnapshot {
-    #[serde(default)]
-    pub question_summary: String,
-    #[serde(default)]
-    pub conclusion: String,
-    #[serde(default)]
-    pub evidence_points: Vec<String>,
-    #[serde(default)]
-    pub key_numbers: Vec<String>,
-    #[serde(default)]
-    pub open_risks: Vec<String>,
-}

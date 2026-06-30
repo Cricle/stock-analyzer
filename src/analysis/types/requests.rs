@@ -10,59 +10,6 @@ pub struct SingleAnalysisRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AnalysisReuseCheckRequest {
-    pub symbol: Option<String>,
-    pub stock_code: Option<String>,
-    #[serde(default)]
-    pub stock_name: Option<String>,
-    pub parameters: Option<AnalysisParameters>,
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct AnalysisReuseCandidate {
-    pub available: bool,
-    #[serde(default)]
-    pub source_task_id: String,
-    #[serde(default)]
-    pub symbol: String,
-    #[serde(default)]
-    pub stock_name: String,
-    #[serde(default)]
-    pub market_type: String,
-    #[serde(default)]
-    pub analysis_date: String,
-    #[serde(default)]
-    pub cached_at: String,
-    #[serde(default)]
-    pub expires_at: String,
-    #[serde(default)]
-    pub reuse_credits: f64,
-    #[serde(default)]
-    pub summary: String,
-    #[serde(default)]
-    pub recommendation: String,
-    #[serde(default)]
-    pub semantic_candidates: Vec<AnalysisReuseSemanticMatch>,
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct AnalysisReuseSemanticMatch {
-    pub ticker: String,
-    pub trade_date: String,
-    pub rating: String,
-    pub summary: String,
-    #[serde(default)]
-    pub alpha_return: Option<f64>,
-    #[serde(default)]
-    pub relevance_score: f64,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ResumeAnalysisRequest {
-    pub task_id: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AnalysisOutcomeRequest {
     pub ticker: String,
     pub trade_date: String,

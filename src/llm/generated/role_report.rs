@@ -1,11 +1,8 @@
 use serde_json::Value;
 
 use super::super::parse;
-use super::helpers::{meaningful_value, role_report_probabilities};
-use super::types::{
-    GeneratedAnalystDecision, GeneratedRoleReport, GeneratedSubscriptionQaAnswer,
-    GeneratedSubscriptionQaSnapshot, ToolCall,
-};
+use super::helpers::role_report_probabilities;
+use super::types::{GeneratedAnalystDecision, GeneratedRoleReport, ToolCall};
 
 impl GeneratedRoleReport {
     pub(crate) fn from_value(raw: Value) -> Self {
@@ -82,61 +79,4 @@ impl GeneratedAnalystDecision {
             tool_calls,
         }
     }
-}
-
-impl GeneratedSubscriptionQaAnswer {
-    pub(crate) fn from_value(raw: Value) -> Self {
-        let object = raw.as_object();
-        let field = |key: &str| object.and_then(|map| map.get(key)).cloned();
-        Self {
-            summary: parse::text_or_default(field("summary"), ""),
-            conclusion: parse::text_or_default(field("conclusion"), ""),
-            confidence: parse::text_or_default(field("confidence"), ""),
-            evidence_points: parse::string_list_or_default(field("evidence_points"), &[]),
-            key_numbers: normalize_subscription_key_numbers(parse::string_list_or_default(
-                field("key_numbers"),
-                &[],
-            )),
-            risks: parse::string_list_or_default(field("risks"), &[]),
-            actions: parse::string_list_or_default(field("actions"), &[]),
-            references: parse::string_list_or_default(field("references"), &[]),
-            context_snapshot: meaningful_value(field("context_snapshot"))
-                .map(GeneratedSubscriptionQaSnapshot::from_value)
-                .unwrap_or_default(),
-        }
-    }
-}
-
-impl GeneratedSubscriptionQaSnapshot {
-    pub(crate) fn from_value(raw: Value) -> Self {
-        let object = raw.as_object();
-        let field = |key: &str| object.and_then(|map| map.get(key)).cloned();
-        Self {
-            question_summary: parse::text_or_default(field("question_summary"), ""),
-            conclusion: parse::text_or_default(field("conclusion"), ""),
-            evidence_points: parse::string_list_or_default(field("evidence_points"), &[]),
-            key_numbers: normalize_subscription_key_numbers(parse::string_list_or_default(
-                field("key_numbers"),
-                &[],
-            )),
-            open_risks: parse::string_list_or_default(field("open_risks"), &[]),
-        }
-    }
-}
-
-fn normalize_subscription_key_numbers(items: Vec<String>) -> Vec<String> {
-    items
-        .into_iter()
-        .map(|item| {
-            let trimmed = item.trim();
-            if trimmed.is_empty() {
-                return String::new();
-            }
-            if trimmed.contains(':') || trimmed.contains('=') {
-                return trimmed.to_string();
-            }
-            format!("metric: {trimmed}")
-        })
-        .filter(|item| !item.is_empty())
-        .collect()
 }

@@ -153,15 +153,21 @@ fn default_market_candidate_query(market: MarketKind) -> &'static str {
     }
 }
 
+/// Decode response bytes as GBK (Sina Finance uses GBK encoding).
+async fn decode_gbk_response(resp: reqwest::Response) -> anyhow::Result<String> {
+    let bytes = resp.bytes().await?;
+    let (decoded, _encoding, _had_errors) = encoding_rs::GBK.decode(&bytes);
+    Ok(decoded.into_owned())
+}
+
 /// Parse Sina sector rankings from the JS response.
 /// Format: var S_Finance_bankuai_sinaindustry = {"key":"code,name,count,avg_price,change_pct,...",...}
 async fn fetch_sina_sector_rankings(http: &reqwest::Client, limit: usize) -> anyhow::Result<Vec<(String, String, f64)>> {
     let resp = http
         .get("https://vip.stock.finance.sina.com.cn/q/view/newSinaHy.php")
         .send()
-        .await?
-        .text_with_charset("gbk")
         .await?;
+    let resp = decode_gbk_response(resp).await?;
 
     let Some(start) = resp.find('{') else {
         anyhow::bail!("sina sector: no JSON found");
@@ -198,7 +204,8 @@ async fn fetch_sina_sector_stocks(http: &reqwest::Client, sector_code: &str) -> 
         "https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData?page=1&num=8&sort=changepercent&asc=0&node={}&symbol=&_s_r_a=init",
         sector_code
     );
-    let text = http.get(&url).send().await?.text_with_charset("gbk").await?;
+    let resp = http.get(&url).send().await?;
+    let text = decode_gbk_response(resp).await?;
 
     let mut stocks = Vec::new();
     // Parse JSON array: [{"symbol":"sh600519","name":"贵州茅台",...},...]

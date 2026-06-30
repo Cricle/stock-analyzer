@@ -90,12 +90,51 @@ pub(crate) struct GeneratedStockPickItem {
     pub(crate) data_gaps: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum OverrideActionKind {
+    Remove,
+    Raise,
+    Lower,
+}
+
+impl Default for OverrideActionKind {
+    fn default() -> Self {
+        Self::Remove
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub(crate) struct GeneratedOverrideAction {
     pub(crate) symbol: String,
-    pub(crate) action: String,
+    #[serde(default)]
+    pub(crate) action: OverrideActionKind,
     pub(crate) reason_code: String,
     pub(crate) rationale: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum AgreementLevel {
+    Agree,
+    Partial,
+    Disagree,
+}
+
+impl Default for AgreementLevel {
+    fn default() -> Self {
+        Self::Agree
+    }
+}
+
+impl std::fmt::Display for AgreementLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Agree => write!(f, "agree"),
+            Self::Partial => write!(f, "partial"),
+            Self::Disagree => write!(f, "disagree"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -103,7 +142,8 @@ pub(crate) struct GeneratedStockPickResponse {
     pub(crate) summary: String,
     pub(crate) picks: Vec<GeneratedStockPickItem>,
     pub(crate) rejected_symbols: Vec<String>,
-    pub(crate) agreement_with_system_rank: String,
+    #[serde(default)]
+    pub(crate) agreement_with_system_rank: AgreementLevel,
     #[serde(default)]
     pub(crate) override_actions: Vec<GeneratedOverrideAction>,
 }
@@ -156,23 +196,13 @@ impl GeneratedStockPickResponse {
             ),
             picks,
             rejected_symbols: llm::parse::string_list_or_default(field("rejected_symbols"), &[]),
-            agreement_with_system_rank: llm::parse::text_or_default(
-                field("agreement_with_system_rank"),
-                "agree",
-            ),
+            agreement_with_system_rank: field("agreement_with_system_rank")
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default(),
             override_actions: match field("override_actions") {
                 Some(Value::Array(items)) => items
                     .into_iter()
-                    .filter_map(|item| item.as_object().cloned())
-                    .map(|map| GeneratedOverrideAction {
-                        symbol: llm::parse::text_or_default(map.get("symbol").cloned(), "UNKNOWN"),
-                        action: llm::parse::text_or_default(map.get("action").cloned(), ""),
-                        reason_code: llm::parse::text_or_default(
-                            map.get("reason_code").cloned(),
-                            "",
-                        ),
-                        rationale: llm::parse::text_or_default(map.get("rationale").cloned(), ""),
-                    })
+                    .filter_map(|item| serde_json::from_value::<GeneratedOverrideAction>(item).ok())
                     .collect(),
                 _ => Vec::new(),
             },

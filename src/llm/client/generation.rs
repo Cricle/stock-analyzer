@@ -32,6 +32,8 @@ impl LlmClient {
             response_format: Some(ResponseFormat {
                 kind: "json_object".to_string(),
             }),
+            tools: None,
+            tool_choice: None,
         };
 
         const MAX_ATTEMPTS: usize = 6;

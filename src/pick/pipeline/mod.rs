@@ -490,7 +490,7 @@ pub async fn run(
             qdrant_enabled: true,
             redis_enabled: true,
             history_retrieval_enabled: history_retrieval,
-            agreement_with_system_rank: generated.agreement_with_system_rank.clone(),
+            agreement_with_system_rank: generated.agreement_with_system_rank.to_string(),
             override_count: generated.override_actions.len(),
         },
         evidence_coverage_summary: history_store.build_evidence_coverage_summary(
@@ -504,10 +504,7 @@ pub async fn run(
         failure: None,
     };
 
-    if generated
-        .agreement_with_system_rank
-        .trim()
-        .eq_ignore_ascii_case("disagree")
+    if generated.agreement_with_system_rank == crate::pick::types::AgreementLevel::Disagree
     {
         tracing::warn!(
             agreement = %generated.agreement_with_system_rank,

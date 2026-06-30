@@ -70,6 +70,8 @@ impl LlmClient {
             response_format: Some(ResponseFormat {
                 kind: "json_object".to_string(),
             }),
+            tools: None,
+            tool_choice: None,
         };
 
         let response = self

@@ -86,7 +86,7 @@ fn derive_mispricing_claim(
     if rating.is_bearish() {
         return LocalText::new("mispricing_claim_bearish");
     }
-    if raw_llm_recommendation.trim().eq_ignore_ascii_case("Buy") && research_reliability.score >= 70 {
+    if crate::llm::parse::is_bullish_recommendation(raw_llm_recommendation) && research_reliability.score >= 70 {
         return LocalText::new("mispricing_claim_buy_signal");
     }
     LocalText::new("mispricing_claim_neutral")

@@ -110,6 +110,7 @@ pub(crate) fn build_prompt(
          - If you agree, set agreement_with_system_rank to \"agree\"\n\
          - If you would reorder some picks but keep mostly the same set, set it to \"partial\"\n\
          - If you fundamentally disagree, set it to \"disagree\"\n\
+         For override_actions, action must be one of: \"remove\", \"raise\", \"lower\".\n\
          For any difference, provide override_actions explaining WHY the evidence supports your alternative.\n\
          Disagreement is expected and healthy when evidence warrants it.\n\n\
          Required JSON schema:\n\

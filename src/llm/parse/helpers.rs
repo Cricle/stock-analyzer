@@ -152,4 +152,13 @@ pub fn is_default_text(value: &str) -> bool {
     )
 }
 
+/// Check whether LLM recommendation text indicates a bullish/buy signal.
+/// Handles English and Chinese variants.
+pub fn is_bullish_recommendation(raw: &str) -> bool {
+    let lower = raw.trim().to_ascii_lowercase();
+    lower.contains("buy") || lower.contains("买入") || lower.contains("看多")
+        || lower.contains("看涨") || lower.contains("建议买入") || lower.contains("增持")
+        || lower.contains("bullish") || lower.contains("推荐买入")
+}
+
 

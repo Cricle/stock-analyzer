@@ -120,23 +120,21 @@ pub mod report;
 pub use analysis::{
     ActionBreakdown, ActionScenarioPath, AgentReportNode, AgentStateSnapshot, AnalysisArtifacts,
     AnalysisCheckpoint, AnalysisGraph, AnalysisOutcomeRequest, AnalysisParameters, AnalysisResult,
-    AnalysisReuseCandidate, AnalysisReuseCheckRequest, AnalysisReuseSemanticMatch,
     AnalysisScenarioContext, AnalysisScenarioData, AnalysisScenarioIssue, AnalysisScenarioMarket,
     AnalysisTaskSummary, AnalysisUserContext, AnalystRuntimeState, AudienceActionGuide,
     CalibrationBias, CalibrationSummary, CatalystScoreCard, CatalystScoreItem, ConfidenceBreakdown,
     ConfidenceCap, ConfidenceProfile, CoreResearchCall, DebateTurn, DecisionAction,
-    DecisionActionBias, DecisionConfidenceBand, DecisionExecutionState, DecisionMode,
-    DecisionTargetType, DecisionTimeframe, DecisionView, DecisionViewDirection, DiagnosisIssue,
+    DecisionConfidenceBand, DecisionView, DecisionViewDirection, DiagnosisIssue,
     DiagnosisSummary, DirectionBreakdown, ExecutionReadiness, HistoricalMemoryHighlight,
     IcDisciplineView, IcNavigatorView, InvestmentDebateState, LlmTokenUsageByModel,
     LlmTokenUsageSummary, LocalText, MemoryContextSnapshot, MissingEvidenceLadder, NewsInsight,
     PriceContext, ProbabilityDriver, ProbabilityView, ProfitRiskView, Rating, ReferenceFactItem,
     ReportActionGuides, ReportCandle, ReportDiagnosticItem, ReportDiagnostics, ReportEvidenceCard,
-    ReportFlavor, ReportMarketChart, ReportReferenceSnapshot, ReportSection, ReportStageState,
-    ResumeAnalysisRequest, ReviewChecklist, ReviewItem, RiskControl, RiskDebateState,
+    ReportMarketChart, ReportReferenceSnapshot, ReportSection, ReportStageState,
+    ReviewChecklist, ReviewItem, RiskControl, RiskDebateState,
     RuntimeNodeTrace, ScoreDimension, SetupMatchExplanation, SignedScoreDimension,
     SingleAnalysisRequest, StockPickDataQualitySnapshot, StockPickEvidenceCoverageSummary,
-    StockPickFactorBreakdown, StockPickFailureInfo, StockPickFundamentalSnapshot,
+    StockPickFactorBreakdown, StockPickFundamentalSnapshot,
     StockPickHistoryMatchSnapshot, StockPickItem, StockPickMarketSnapshot, StockPickNewsSnapshot,
     StockPickObjectiveAssessment, StockPickObjectiveBreakdown, StockPickObjectiveBucket,
     StockPickObjectiveOverview, StockPickRequest, StockPickResponse, StockPickRiskSnapshot,
@@ -144,7 +142,7 @@ pub use analysis::{
     StockPickTechnicalSnapshot, StructuredPortfolioDecision, StructuredReflection,
     StructuredReport, StructuredResearchPlan, StructuredRiskAssessment, StructuredTraderPlan,
     TechnicalIndicatorCategory, TechnicalIndicatorConclusion, TechnicalIndicatorItem,
-    TechnicalIndicatorView, TechnicalValues, ThesisState, TradeSetupQuality, TrendLine,
+    TechnicalIndicatorView, TechnicalValues, TradeSetupQuality, TrendLine,
     TrendLinePoint, adx_report, atr_report, bollinger_report, derive_action_guides,
     derive_memory_reference_facts, derive_news_diagnostics, derive_news_insights,
     derive_report_diagnostics, derive_setup_match_explanation, derive_setup_tags,
@@ -154,9 +152,9 @@ pub use analysis::{
 };
 
 pub use store::{
-    AnalysisStore, CacheEntry, CacheStore, CheckpointInfo, CheckpointStore, GuidanceRule,
+    AnalysisStore, CacheEntry, CacheStore, CheckpointStore, GuidanceRule,
     GuidanceStore, InMemoryAnalysisStore, InMemoryCacheStore, InMemoryCheckpointStore,
-    InMemoryGuidanceStore, StoredAnalysisSummary, StoredCheckpoint, VectorSearchHit, VectorStore,
+    InMemoryGuidanceStore, StoredCheckpoint, VectorSearchHit, VectorStore,
 };
 
 pub use task::{
@@ -169,8 +167,7 @@ pub use llm_config::LlmProviderConfig;
 pub use types::ToolObservation;
 
 pub use scoring::{
-    ActionAssessment, CalibrationProfile, ConfidenceAssessment, DirectionAssessment,
-    RecommendationCalibration, calibrate_recommendation_with_profile, evaluate_action_score,
+    CalibrationProfile, calibrate_recommendation_with_profile, evaluate_action_score,
     evaluate_confidence_score, evaluate_direction_score, has_execution_boundary,
     history_requires_caution, score_setup_direction_alignment,
 };

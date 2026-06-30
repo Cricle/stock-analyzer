@@ -11,6 +11,23 @@ impl LlmClient {
             format!("{}/v1/messages", base_url)
         };
 
+        // System prompt for Anthropic API — sent as content blocks to enable prompt caching.
+        let system_blocks = serde_json::json!([{
+            "type": "text",
+            "text": concat!(
+                "You are a disciplined quantitative analyst in a multi-agent stock analysis system. ",
+                "You must output valid JSON with no markdown fences, no code blocks, and no commentary outside the JSON object. ",
+                "All numeric fields must be actual numbers, not strings. ",
+                "All price levels must be realistic relative to the instrument's current trading range. ",
+                "When evidence is insufficient, state what is missing explicitly rather than inventing data. ",
+                "Missing-evidence classification: 'blocking_gaps' = data without which the thesis cannot be tested at all (e.g. no price data, no financials). ",
+                "'tolerable_gaps' = data that would strengthen conviction but is not strictly required for action (e.g. insider transactions, earnings guidance, analyst revisions). ",
+                "'manageable_gaps' = data that creates uncertainty but can be addressed with position sizing or stop discipline. ",
+                "For A-shares (A股): insider transaction data and earnings guidance are often unavailable -- classify them as tolerable, not blocking."
+            ),
+            "cache_control": {"type": "ephemeral"}
+        }]);
+
         retry(backoff, || {
             attempt += 1;
             let url = url.clone();
@@ -20,11 +37,12 @@ impl LlmClient {
             let http = self.http.clone();
             let timeout = self.timeout;
             let tracker = self.usage_tracker.clone();
+            let system_blocks = system_blocks.clone();
             async move {
                 let request = serde_json::json!({
                     "model": model,
                     "max_tokens": 16384,
-                    "system": "You must output valid JSON with no markdown fences.",
+                    "system": system_blocks,
                     "messages": [
                         {
                             "role": "user",
@@ -39,6 +57,7 @@ impl LlmClient {
                     http.post(&url)
                         .header("x-api-key", &api_key)
                         .header("anthropic-version", "2023-06-01")
+                        .header("anthropic-beta", "prompt-caching-2024-07-31")
                         .header(CONTENT_TYPE, "application/json")
                         .json(&request)
                         .send(),
@@ -65,6 +84,8 @@ impl LlmClient {
                 let content = payload.content_text();
                 let input_tokens = payload.usage.input_tokens.unwrap_or(0);
                 let output_tokens = payload.usage.output_tokens.unwrap_or(0);
+                let cache_read = payload.usage.cache_read_input_tokens.unwrap_or(0);
+                let cache_creation = payload.usage.cache_creation_input_tokens.unwrap_or(0);
                 {
                     let mut t = tracker.lock().expect("usage tracker mutex poisoned");
                     t.total_requests += 1;
@@ -76,6 +97,12 @@ impl LlmClient {
                     entry.prompt_tokens += input_tokens;
                     entry.completion_tokens += output_tokens;
                     entry.total_tokens += input_tokens + output_tokens;
+                    if cache_read > 0 || cache_creation > 0 {
+                        tracing::debug!(
+                            cache_read, cache_creation, input_tokens, output_tokens,
+                            "anthropic prompt cache hit"
+                        );
+                    }
                 }
 
                 if !content.trim().is_empty() {

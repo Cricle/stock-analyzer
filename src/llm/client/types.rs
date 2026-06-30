@@ -152,6 +152,10 @@ pub struct AnthropicUsage {
     pub input_tokens: Option<i64>,
     #[serde(default)]
     pub output_tokens: Option<i64>,
+    #[serde(default)]
+    pub cache_read_input_tokens: Option<i64>,
+    #[serde(default)]
+    pub cache_creation_input_tokens: Option<i64>,
 }
 
 /// Shared exponential backoff configuration for LLM retries.

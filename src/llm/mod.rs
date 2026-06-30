@@ -162,6 +162,52 @@ impl LlmClient {
         }
     }
 
+    /// Create an LLM client from environment variables.
+    ///
+    /// Supported env vars:
+    /// - `LLM_PROVIDER` — "anthropic" or "deepseek" (default: auto-detect from URL)
+    /// - `LLM_BASE_URL` or `ANTHROPIC_BASE_URL` — API base URL
+    /// - `LLM_API_KEY` or `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` — API key
+    /// - `LLM_MODEL` or `ANTHROPIC_MODEL` — model name
+    /// - `LLM_TIMEOUT_SECS` or `API_TIMEOUT_MS` — timeout (default: 600s)
+    ///
+    /// Returns `None` if required env vars are missing.
+    pub fn from_env() -> Option<Self> {
+        let base_url = std::env::var("LLM_BASE_URL")
+            .or_else(|_| std::env::var("ANTHROPIC_BASE_URL"))
+            .ok()?;
+        let api_key = std::env::var("LLM_API_KEY")
+            .or_else(|_| std::env::var("ANTHROPIC_API_KEY"))
+            .or_else(|_| std::env::var("ANTHROPIC_AUTH_TOKEN"))
+            .ok()?;
+        let model = std::env::var("LLM_MODEL")
+            .or_else(|_| std::env::var("ANTHROPIC_MODEL"))
+            .unwrap_or_else(|_| "claude-sonnet-4-20250514".to_string());
+
+        let timeout_secs = std::env::var("LLM_TIMEOUT_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .or_else(|| {
+                std::env::var("API_TIMEOUT_MS")
+                    .ok()
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .map(|ms| ms / 1000)
+            })
+            .unwrap_or(600);
+
+        let provider = std::env::var("LLM_PROVIDER").ok();
+        let http = reqwest_middleware::ClientBuilder::new(reqwest::Client::new()).build();
+
+        let client = match provider.as_deref() {
+            Some("deepseek") => Self::openai_compatible(http, &base_url, &api_key, &model, timeout_secs),
+            _ if base_url.contains("anthropic") || base_url.contains("claude") => {
+                Self::anthropic(http, &base_url, &api_key, &model, timeout_secs)
+            }
+            _ => Self::openai_compatible(http, &base_url, &api_key, &model, timeout_secs),
+        };
+        Some(client)
+    }
+
     pub async fn usage_summary(&self) -> crate::LlmTokenUsageSummary {
         let tracker = self
             .usage_tracker

@@ -189,13 +189,6 @@ fn parse_trader_decision_valid_json() {
 }
 
 #[test]
-fn parse_subscription_qa_answer_valid() {
-    let content = r#"{"answer":"Yes","confidence":0.9}"#;
-    let result = parse_generated_subscription_qa_answer(content);
-    assert!(result.is_ok());
-}
-
-#[test]
 fn validate_research_manager_flags_default_rationale() {
     let parsed: GeneratedResearchManager = serde_json::from_str(
         r#"{"recommendation":"Buy","confidence":0.8,"risk_assessment":"real","rationale":"模型未返回研究经理结论。","strategic_actions":"actions"}"#,

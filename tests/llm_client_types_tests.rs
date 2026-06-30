@@ -29,6 +29,8 @@ fn estimate_chat_completion_usage_basic() {
         }],
         temperature: 0.7,
         response_format: None,
+        tools: None,
+        tool_choice: None,
     };
     let usage = estimate_chat_completion_usage(&request, "Hi there");
     assert!(usage.prompt_tokens > 0);

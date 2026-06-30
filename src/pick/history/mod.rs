@@ -152,8 +152,8 @@ impl StockPickHistoryStore {
         }
 
         Ok(StockPickStorageWriteSummary {
-            redis_keys_written: cache_keys_written,
-            qdrant_points_written: vector_points_written,
+            cache_keys_written,
+            vector_points_written,
         })
     }
 
@@ -254,7 +254,7 @@ impl StockPickHistoryStore {
     }
 
     async fn upsert_history_payload(&self, payload: StockPickHistoryPayload) -> anyhow::Result<()> {
-        let point_id = qdrant_point_id(&format!(
+        let point_id = vector_point_id(&format!(
             "stock-pick-history:{}:{}:{}",
             payload.symbol, payload.analysis_date, payload.run_id
         ));
@@ -299,7 +299,7 @@ impl StockPickHistoryStore {
         &self,
         payload: &StockPickEvidencePayload,
     ) -> anyhow::Result<()> {
-        let point_id = qdrant_point_id(&format!(
+        let point_id = vector_point_id(&format!(
             "stock-pick-evidence:{}:{}:{}",
             payload.symbol, payload.analysis_date, payload.dedupe_key
         ));
@@ -336,7 +336,7 @@ impl StockPickHistoryStore {
     }
 }
 
-fn qdrant_point_id(entry_id: &str) -> String {
+fn vector_point_id(entry_id: &str) -> String {
     let digest = Sha256::digest(entry_id.as_bytes());
     let mut bytes = [0u8; 16];
     bytes.copy_from_slice(&digest[..16]);

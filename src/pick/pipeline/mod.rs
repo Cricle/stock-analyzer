@@ -487,8 +487,6 @@ pub async fn run(
         selection_engine_version: "stock-pick-v2-dev".to_string(),
         selection_diagnostics: StockPickSelectionDiagnostics {
             search_depth: search_depth.to_string(),
-            qdrant_enabled: true,
-            redis_enabled: true,
             history_retrieval_enabled: history_retrieval,
             agreement_with_system_rank: generated.agreement_with_system_rank.to_string(),
             override_count: generated.override_actions.len(),

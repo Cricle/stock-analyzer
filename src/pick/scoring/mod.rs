@@ -552,9 +552,9 @@ mod snapshots {
         let news_ready = !item.news.is_empty() || !item.evidence_records.is_empty();
         let history_ready =
             !item.history_match_snapshot.enabled || item.history_match_snapshot.sample_count > 0;
-        let qdrant_ready = !item.history_match_snapshot.enabled
+        let vector_ready = !item.history_match_snapshot.enabled
             || item.history_match_snapshot.vector_hit_count > 0;
-        let redis_ready =
+        let cache_ready =
             !item.history_match_snapshot.enabled || item.history_match_snapshot.sample_count > 0;
         let mut gaps = Vec::new();
         if !quote_ready {
@@ -578,8 +578,8 @@ mod snapshots {
             technical_ready,
             news_ready,
             history_ready,
-            qdrant_ready,
-            redis_ready,
+            vector_ready,
+            cache_ready,
         ]
         .into_iter()
         .filter(|value| *value)
@@ -591,8 +591,8 @@ mod snapshots {
             technical_ready,
             news_ready,
             history_ready,
-            qdrant_ready,
-            redis_ready,
+            vector_ready,
+            cache_ready,
             completeness_score,
             gaps,
         }

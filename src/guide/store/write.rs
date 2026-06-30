@@ -19,7 +19,7 @@ impl GuidanceStore {
         embedding: &[f32],
     ) -> anyhow::Result<()> {
         let point_id =
-            Self::qdrant_point_id(&format!("guidance:{}:{}", report.date, report.market));
+            Self::vector_point_id(&format!("guidance:{}:{}", report.date, report.market));
         let summary_text = format!(
             "date {} market {} sentiment {} news_count {} sector_count {} stock_count {} risk_count {}",
             report.date,
@@ -62,7 +62,7 @@ impl GuidanceStore {
         embedding: &[f32],
     ) -> anyhow::Result<()> {
         let dedup_key = Self::news_dedup_key(title, source);
-        let point_id = Self::qdrant_point_id(&format!("news:{date}:{dedup_key}"));
+        let point_id = Self::vector_point_id(&format!("news:{date}:{dedup_key}"));
         let text = format!("{} {} {}", title, summary, source);
 
         let payload = serde_json::json!({
@@ -123,7 +123,7 @@ impl GuidanceStore {
                 sector.representative_stocks.join(" ")
             );
             let embedding = semantic_embed(&text);
-            let point_id = Self::qdrant_point_id(&format!(
+            let point_id = Self::vector_point_id(&format!(
                 "sector:{}:{}:{}",
                 report.date, report.market, sector.sector_name
             ));
@@ -153,7 +153,7 @@ impl GuidanceStore {
         );
         let sentiment_embedding = semantic_embed(&sentiment_text);
         let sentiment_id =
-            Self::qdrant_point_id(&format!("sentiment:{}:{}", report.date, report.market));
+            Self::vector_point_id(&format!("sentiment:{}:{}", report.date, report.market));
         let payload = serde_json::json!({
             "entry_kind": "market_sentiment",
             "date": report.date,

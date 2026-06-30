@@ -59,10 +59,6 @@ pub struct StockPickSelectionDiagnostics {
     #[serde(default)]
     pub search_depth: String,
     #[serde(default)]
-    pub qdrant_enabled: bool,
-    #[serde(default)]
-    pub redis_enabled: bool,
-    #[serde(default)]
     pub history_retrieval_enabled: bool,
     #[serde(default)]
     pub agreement_with_system_rank: String,
@@ -85,9 +81,9 @@ pub struct StockPickEvidenceCoverageSummary {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickStorageWriteSummary {
     #[serde(default)]
-    pub redis_keys_written: usize,
+    pub cache_keys_written: usize,
     #[serde(default)]
-    pub qdrant_points_written: usize,
+    pub vector_points_written: usize,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

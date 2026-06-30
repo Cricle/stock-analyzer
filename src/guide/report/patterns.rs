@@ -1,4 +1,4 @@
-//! Historical pattern queries from Qdrant and memory system.
+//! Historical pattern queries from vector store and memory system.
 
 use super::*;
 use crate::guide::embedding::semantic_embed;
@@ -19,7 +19,7 @@ impl DailyGuidanceGenerator {
         // Search daily guidance summaries
         match self
             .store
-            .search_daily_summaries(&embedding, Some(market.as_str()), QDRANT_HISTORY_LIMIT)
+            .search_daily_summaries(&embedding, Some(market.as_str()), VECTOR_HISTORY_LIMIT)
             .await
         {
             Ok(results) => {
@@ -42,20 +42,20 @@ impl DailyGuidanceGenerator {
                             ),
                             relevant_tickers: Vec::new(),
                             confidence: score,
-                            source: "qdrant:daily_guidance".to_string(),
+                            source: "vector:daily_guidance".to_string(),
                         });
                     }
                 }
             }
             Err(e) => {
-                tracing::warn!("qdrant daily summary search failed: {e}");
+                tracing::warn!("vector daily summary search failed: {e}");
             }
         }
 
         // Search news history
         match self
             .store
-            .search_news(&embedding, Some(market.as_str()), QDRANT_NEWS_LIMIT)
+            .search_news(&embedding, Some(market.as_str()), VECTOR_NEWS_LIMIT)
             .await
         {
             Ok(results) => {
@@ -73,14 +73,14 @@ impl DailyGuidanceGenerator {
                                 ),
                                 relevant_tickers: Vec::new(),
                                 confidence: score,
-                                source: "qdrant:news".to_string(),
+                                source: "vector:news".to_string(),
                             });
                         }
                     }
                 }
             }
             Err(e) => {
-                tracing::warn!("qdrant news search failed: {e}");
+                tracing::warn!("vector news search failed: {e}");
             }
         }
 

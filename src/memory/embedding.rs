@@ -30,8 +30,7 @@ impl TradingMemoryLog {
 
     /// Build a vector store backend from environment variables.
     ///
-    /// TODO: This previously built a QdrantClient directly. With the trait-based
-    /// approach, callers should inject a concrete VectorStore implementation.
+    /// With the trait-based approach, callers should inject a concrete VectorStore implementation.
     /// Returns None when RAG is disabled.
     pub(super) fn build_vector_backend(_rag: &RagConfig) -> Option<VectorMemoryBackend> {
         // In the trait-based architecture, the vector store is injected externally.

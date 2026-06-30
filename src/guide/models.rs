@@ -124,8 +124,8 @@ pub struct UserProfileGuide {
 pub struct GuidanceMetadata {
     pub news_count: usize,
     pub news_sources: Vec<String>,
-    pub qdrant_memory_queries: usize,
-    pub qdrant_memory_hits: usize,
+    pub vector_memory_queries: usize,
+    pub vector_memory_hits: usize,
     pub cache_hit: bool,
     pub generation_time_ms: u64,
     pub data_freshness: String,

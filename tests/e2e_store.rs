@@ -10,6 +10,5 @@ fn e2e_store_trait_implementations_exist() {
     fn _assert_guidance_store<T: sa::GuidanceStore>() {}
 
     // If these compile, the traits are implemented
-    // We can't actually instantiate them without Redis/PostgreSQL,
-    // but the type system verifies the trait bounds
+    // The type system verifies the trait bounds
 }

@@ -66,7 +66,7 @@ impl GuidanceStore {
 
     // --- Helpers ---
 
-    pub fn qdrant_point_id(entry_id: &str) -> String {
+    pub fn vector_point_id(entry_id: &str) -> String {
         let digest = Sha256::digest(entry_id.as_bytes());
         let mut bytes = [0u8; 16];
         bytes.copy_from_slice(&digest[..16]);

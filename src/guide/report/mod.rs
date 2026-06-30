@@ -3,7 +3,7 @@
 //! Aggregates data from multiple sources:
 //! - News via searxng
 //! - Market data via MarketDataClient
-//! - Historical patterns via Qdrant
+//! - Historical patterns via VectorStore
 //!
 //! Produces structured JSON reports (no i18n in backend).
 
@@ -25,8 +25,8 @@ use super::store::GuidanceStore;
 use super::*;
 use crate::guide::embedding::semantic_embed;
 
-const QDRANT_HISTORY_LIMIT: usize = 5;
-const QDRANT_NEWS_LIMIT: usize = 10;
+const VECTOR_HISTORY_LIMIT: usize = 5;
+const VECTOR_NEWS_LIMIT: usize = 10;
 
 /// Generates daily guidance reports by aggregating all available data sources.
 pub struct DailyGuidanceGenerator {
@@ -80,8 +80,8 @@ impl DailyGuidanceGenerator {
         let news_count = news_items.len();
         let pos_count = news_items.iter().filter(|n| n.impact == "positive").count();
         let neg_count = news_items.iter().filter(|n| n.impact == "negative").count();
-        let qdrant_memory_queries = historical_insights.len();
-        let qdrant_memory_hits = historical_insights
+        let vector_memory_queries = historical_insights.len();
+        let vector_memory_hits = historical_insights
             .iter()
             .filter(|i| i.confidence > 0.3)
             .count();
@@ -112,8 +112,8 @@ impl DailyGuidanceGenerator {
             metadata: GuidanceMetadata {
                 news_count,
                 news_sources,
-                qdrant_memory_queries,
-                qdrant_memory_hits,
+                vector_memory_queries,
+                vector_memory_hits,
                 cache_hit: false,
                 generation_time_ms: elapsed_ms,
                 data_freshness: chrono::Utc::now().to_rfc3339(),
@@ -136,12 +136,12 @@ impl DailyGuidanceGenerator {
         );
         let embedding = semantic_embed(&summary_text);
         if let Err(e) = self.store.store_daily_summary(report, &embedding).await {
-            tracing::warn!("failed to store daily summary in qdrant: {e}");
+            tracing::warn!("failed to store daily summary in vector store: {e}");
         }
 
         match self.store.store_sector_embeddings(report).await {
             Ok(count) => tracing::info!(count, "stored sector/sentiment embeddings"),
-            Err(e) => tracing::warn!("failed to store sector embeddings in qdrant: {e}"),
+            Err(e) => tracing::warn!("failed to store sector embeddings in vector store: {e}"),
         }
 
         let news_embeddings: Vec<(String, String, String, Option<String>, Vec<f32>)> = report
@@ -203,12 +203,12 @@ impl DailyGuidanceGenerator {
         // 1. Fetch news from searxng
         let (news_items, news_sources) = self.fetch_guidance_news(&market, &date).await;
 
-        // 1b. Ensure Qdrant guidance collection exists
+        // 1b. Ensure vector guidance collection exists
         if let Err(e) = self.store.ensure_collection().await {
-            tracing::warn!("failed to ensure qdrant guidance collection: {e}");
+            tracing::warn!("failed to ensure vector guidance collection: {e}");
         }
 
-        // 2. Query Qdrant for historical patterns
+        // 2. Query vector store for historical patterns
         let historical_insights = self.query_historical_patterns(&market, &date).await;
 
         // 3. Build market sentiment from news + memory
@@ -292,12 +292,12 @@ impl DailyGuidanceGenerator {
         // 1. Fetch news from searxng
         let (news_items, news_sources) = self.fetch_guidance_news(&market_enum, date).await;
 
-        // 2. Ensure Qdrant collection
+        // 2. Ensure vector collection
         if let Err(e) = self.store.ensure_collection().await {
-            tracing::warn!("failed to ensure qdrant guidance collection: {e}");
+            tracing::warn!("failed to ensure vector guidance collection: {e}");
         }
 
-        // 3. Query Qdrant for historical patterns
+        // 3. Query vector store for historical patterns
         let historical_insights = self.query_historical_patterns(&market_enum, date).await;
 
         // 4. Fetch market indices

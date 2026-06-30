@@ -242,9 +242,9 @@ pub struct StockPickDataQualitySnapshot {
     #[serde(default)]
     pub history_ready: bool,
     #[serde(default)]
-    pub qdrant_ready: bool,
+    pub vector_ready: bool,
     #[serde(default)]
-    pub redis_ready: bool,
+    pub cache_ready: bool,
     #[serde(default)]
     pub completeness_score: i32,
     #[serde(default)]

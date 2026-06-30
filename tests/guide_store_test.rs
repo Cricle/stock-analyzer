@@ -29,15 +29,15 @@ fn market_ttl_hong_kong() {
 }
 
 #[test]
-fn qdrant_point_id_deterministic() {
-    let a = GuidanceStore::qdrant_point_id("test-id");
-    let b = GuidanceStore::qdrant_point_id("test-id");
+fn vector_point_id_deterministic() {
+    let a = GuidanceStore::vector_point_id("test-id");
+    let b = GuidanceStore::vector_point_id("test-id");
     assert_eq!(a, b);
 }
 
 #[test]
-fn qdrant_point_id_uuid_format() {
-    let id = GuidanceStore::qdrant_point_id("entry-123");
+fn vector_point_id_uuid_format() {
+    let id = GuidanceStore::vector_point_id("entry-123");
     let parts: Vec<&str> = id.split('-').collect();
     assert_eq!(parts.len(), 5);
     assert_eq!(parts[0].len(), 8);
@@ -48,9 +48,9 @@ fn qdrant_point_id_uuid_format() {
 }
 
 #[test]
-fn qdrant_point_id_different_inputs() {
-    let a = GuidanceStore::qdrant_point_id("id-a");
-    let b = GuidanceStore::qdrant_point_id("id-b");
+fn vector_point_id_different_inputs() {
+    let a = GuidanceStore::vector_point_id("id-a");
+    let b = GuidanceStore::vector_point_id("id-b");
     assert_ne!(a, b);
 }
 

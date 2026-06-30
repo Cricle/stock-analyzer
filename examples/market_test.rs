@@ -53,6 +53,26 @@ fn load_llm_config() -> Option<(String, String, String, u64)> {
 }
 
 fn setup_llm_client() -> Option<sa::llm::LlmClient> {
+    // Check for DeepSeek config first
+    if let Ok(provider) = std::env::var("LLM_PROVIDER") {
+        if provider == "deepseek" {
+            let base_url = std::env::var("LLM_BASE_URL")
+                .unwrap_or_else(|_| "https://api.deepseek.com/v1".to_string());
+            let api_key = std::env::var("LLM_API_KEY")
+                .expect("LLM_API_KEY required for deepseek");
+            let model = std::env::var("LLM_MODEL")
+                .unwrap_or_else(|_| "deepseek-chat".to_string());
+            let timeout_ms: u64 = std::env::var("API_TIMEOUT_MS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(600000);
+            let http = reqwest_middleware::ClientBuilder::new(reqwest::Client::new()).build();
+            return Some(sa::llm::LlmClient::openai_compatible(
+                http, &base_url, &api_key, &model, timeout_ms / 1000,
+            ));
+        }
+    }
+
     let (base_url, api_key, model, timeout_secs) = load_llm_config()?;
     let http = reqwest_middleware::ClientBuilder::new(reqwest::Client::new()).build();
     let timeout = timeout_secs.max(600);
@@ -208,7 +228,10 @@ fn print_detailed_indicators(result: &sa::AnalysisResult) {
     // ── Core Research Call ──
     println!("  ├─ 研究结论 ──────────────────────────────────────────");
     println!("  │ CoreResearchCall: {}", r.core_research_call.key);
-    println!("  │ 推荐: {}  (原始LLM: {})", r.recommendation.key, r.raw_llm_recommendation);
+    println!("  │ 推荐: {}  (LLM: {} → 校准: {})",
+        r.recommendation.key,
+        r.raw_llm_recommendation,
+        r.portfolio_decision.calibrated_rating);
     println!("  │ 执行边界完整: {}  强制持有: {}  交易设置质量: {}",
         r.execution_readiness.execution_boundary_complete,
         r.execution_readiness.forced_hold,
@@ -260,6 +283,32 @@ fn print_detailed_indicators(result: &sa::AnalysisResult) {
         pd.rating, pd.confirmation_level, pd.invalidation_level);
     println!("  │ 目标参考: {}", pd.target_reference);
 
+    // Show "how to break Hold" when recommendation is Hold
+    if pd.rating == sa::Rating::Hold {
+        println!("  ├─ 如何打破Hold ─────────────────────────────────────");
+        // Show trigger checklist
+        if !pd.trigger_checklist.is_empty() {
+            println!("  │ 升级条件:");
+            for (i, trigger) in pd.trigger_checklist.iter().enumerate() {
+                println!("  │   {}. {}", i + 1, trigger);
+            }
+        }
+        // Show confirmation level
+        if !pd.confirmation_level.is_empty() {
+            println!("  │ 确认位: {}", pd.confirmation_level);
+        }
+        // Show next upgrade condition from decision view
+        let dv = &r.decision_view;
+        if !dv.next_upgrade_condition.key.is_empty() {
+            println!("  │ 下一步升级: {}", dv.next_upgrade_condition.key);
+        }
+        // Show why it's Hold
+        let direction = r.direction_score;
+        let confidence = r.confidence_score;
+        println!("  │ 原因: direction_score={} (需要>=50才能覆盖), confidence={}",
+            direction, confidence);
+    }
+
     // ── Executive Summary ──
     println!("  └─ 摘要 ──────────────────────────────────────────────");
     let summary: String = pd.executive_summary.key.chars().take(200).collect();
@@ -285,34 +334,24 @@ async fn main() -> anyhow::Result<()> {
             "A股",
             "A股",
             vec![
-                ("600519.SH", "贵州茅台"),
-                ("601318.SH", "中国平安"),
-                ("000858.SZ", "五粮液"),
-                ("300750.SZ", "宁德时代"),
-                ("600036.SH", "招商银行"),
-                ("000333.SZ", "美的集团"),
-                ("601012.SH", "隆基绿能"),
-                ("002594.SZ", "比亚迪"),
+                ("600519.SH", "贵州茅台"),    // 知名蓝筹
+                ("002709.SZ", "天赐材料"),    // 不知名
             ],
         ),
         (
             "美股",
             "美股",
             vec![
-                ("AAPL", "Apple"),
-                ("MSFT", "Microsoft"),
-                ("NVDA", "NVIDIA"),
-                ("GOOGL", "Alphabet"),
+                ("AAPL", "Apple"),           // 知名蓝筹
+                ("ENPH", "Enphase Energy"),  // 不知名
             ],
         ),
         (
             "港股",
             "港股",
             vec![
-                ("0700.HK", "腾讯控股"),
-                ("9988.HK", "阿里巴巴"),
-                ("1810.HK", "小米集团"),
-                ("3690.HK", "美团"),
+                ("0700.HK", "腾讯控股"),     // 知名蓝筹
+                ("2015.HK", "理想汽车"),     // 不知名
             ],
         ),
     ];

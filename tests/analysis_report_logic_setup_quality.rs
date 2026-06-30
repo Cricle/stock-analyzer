@@ -267,26 +267,45 @@ fn related_gap_items_returns_top_matches() {
 // --- collect_execution_blocking_gaps ---
 
 #[test]
-fn collect_execution_blocking_gaps_from_research() {
+fn collect_execution_blocking_gaps_ignores_llm_gaps() {
+    // LLM-identified blocking gaps are now ignored; only system diagnostics matter.
     let mut research = StructuredResearchPlan::default();
     research.missing_evidence_ladder.blocking_gaps = vec!["cash flow data".into()];
     let trader = StructuredTraderPlan::default();
     let portfolio = StructuredPortfolioDecision::default();
     let diagnostics = ReportDiagnostics::default();
     let gaps = collect_execution_blocking_gaps(&research, &trader, &portfolio, &diagnostics);
-    assert!(gaps.contains(&"cash flow data".to_string()));
+    assert!(gaps.is_empty());
 }
 
 #[test]
 fn collect_execution_blocking_gaps_deduplicates() {
-    let mut research = StructuredResearchPlan::default();
-    research.missing_evidence_ladder.blocking_gaps =
-        vec!["cash flow data".into(), "cash flow data".into()];
+    let research = StructuredResearchPlan::default();
     let trader = StructuredTraderPlan::default();
     let portfolio = StructuredPortfolioDecision::default();
-    let diagnostics = ReportDiagnostics::default();
+    let mut diagnostics = ReportDiagnostics::default();
+    diagnostics.availability = vec![
+        ReportDiagnosticItem {
+            code: "scenario_minimum_1".into(),
+            message: "missing data".into(),
+            severity: "error".into(),
+            details: vec![],
+            related_blocking_gaps: vec![],
+            related_trigger_checklist: vec![],
+            elevated_to_execution_blocking_gap: false,
+        },
+        ReportDiagnosticItem {
+            code: "scenario_minimum_2".into(),
+            message: "missing data".into(),
+            severity: "error".into(),
+            details: vec![],
+            related_blocking_gaps: vec![],
+            related_trigger_checklist: vec![],
+            elevated_to_execution_blocking_gap: false,
+        },
+    ];
     let gaps = collect_execution_blocking_gaps(&research, &trader, &portfolio, &diagnostics);
-    assert_eq!(gaps.iter().filter(|g| *g == "cash flow data").count(), 1);
+    assert_eq!(gaps.iter().filter(|g| *g == "missing data").count(), 1);
 }
 
 #[test]

@@ -263,7 +263,11 @@ impl LlmClient {
             `action` must be exactly one of Buy, Hold, Sell.\n\
             `reasoning` must be compact and explain execution logic, triggers, invalidation conditions, and the blocking proof points.\n\
             `trader_plan` should be a concise trader hand-off in Markdown, suitable for storage and display.\n\
-            `stop_loss` MUST always be provided when any invalidation level or support zone exists in the evidence -- this is a required field, not optional. `entry_price`, `confirmation_level`, `target_reference`, `target_condition`, `time_horizon`, and `position_sizing` should be provided when the available context supports them; otherwise leave them null or empty.\n\
+            FIELD REQUIREMENTS (strict):\n\
+            - Buy/Sell actions: `entry_price`, `stop_loss`, and `time_horizon` are REQUIRED. Leaving any of these empty is a schema violation.\n\
+            - Hold action: `entry_price` and `stop_loss` may be empty, but `stop_loss` should still be provided if any invalidation level exists in the evidence.\n\
+            - `confirmation_level`, `target_reference`, `target_condition`, `position_sizing`: provide when evidence supports them; null/empty is acceptable.\n\
+            - `entry_price` and `stop_loss` MUST be different numeric values.\n\
             `execution_trigger_checklist` must be a concise array of 2-6 concrete execution triggers when the action is conditional or Hold.\n\
             `blocking_gaps` must be a concise array of concrete missing proof points that still block execution.",
             instrument = Self::instrument_context(params.symbol, params.market_type),

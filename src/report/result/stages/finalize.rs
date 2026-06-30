@@ -248,6 +248,31 @@ impl crate::TaskManager {
                             "reasoning is default placeholder",
                         ));
                     }
+                    // Check required fields for directional actions
+                    let is_directional = matches!(candidate.action.trim(), "Buy" | "Sell");
+                    if is_directional {
+                        let entry_empty = candidate.entry_price.as_ref().map(crate::llm::parse::normalize_value).unwrap_or_default().trim().is_empty();
+                        let stop_empty = candidate.stop_loss.as_ref().map(crate::llm::parse::normalize_value).unwrap_or_default().trim().is_empty();
+                        let horizon_empty = candidate.time_horizon.as_deref().unwrap_or("").trim().is_empty();
+                        if entry_empty {
+                            v.push(DiagnosisIssue::error(
+                                "trader_decision", "entry_price",
+                                "entry_price is required for Buy/Sell but was empty",
+                            ));
+                        }
+                        if stop_empty {
+                            v.push(DiagnosisIssue::error(
+                                "trader_decision", "stop_loss",
+                                "stop_loss is required for Buy/Sell but was empty",
+                            ));
+                        }
+                        if horizon_empty {
+                            v.push(DiagnosisIssue::error(
+                                "trader_decision", "time_horizon",
+                                "time_horizon is required for Buy/Sell but was empty",
+                            ));
+                        }
+                    }
                     v
                 };
                 let has_errors = issues
@@ -409,6 +434,38 @@ impl crate::TaskManager {
                             "rationale",
                             "rationale/investment_thesis is default placeholder",
                         ));
+                    }
+                    // Check required fields for directional ratings
+                    let is_directional = matches!(candidate.rating.trim(), "Buy" | "Overweight" | "Underweight" | "Sell");
+                    if is_directional {
+                        let price_target_empty = candidate.price_target.as_ref().map(crate::llm::parse::normalize_value).unwrap_or_default().trim().is_empty();
+                        let horizon_empty = candidate.time_horizon.as_deref().unwrap_or("").trim().is_empty();
+                        let confirmation_empty = candidate.confirmation_level.as_ref().map(crate::llm::parse::normalize_value).unwrap_or_default().trim().is_empty();
+                        let invalidation_empty = candidate.invalidation_level.as_ref().map(crate::llm::parse::normalize_value).unwrap_or_default().trim().is_empty();
+                        if price_target_empty {
+                            v.push(DiagnosisIssue::error(
+                                "portfolio_decision", "price_target",
+                                "price_target is required for directional rating but was empty",
+                            ));
+                        }
+                        if horizon_empty {
+                            v.push(DiagnosisIssue::error(
+                                "portfolio_decision", "time_horizon",
+                                "time_horizon is required for directional rating but was empty",
+                            ));
+                        }
+                        if confirmation_empty {
+                            v.push(DiagnosisIssue::error(
+                                "portfolio_decision", "confirmation_level",
+                                "confirmation_level is required for directional rating but was empty",
+                            ));
+                        }
+                        if invalidation_empty {
+                            v.push(DiagnosisIssue::error(
+                                "portfolio_decision", "invalidation_level",
+                                "invalidation_level is required for directional rating but was empty",
+                            ));
+                        }
                     }
                     v
                 };

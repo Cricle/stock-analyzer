@@ -122,6 +122,31 @@ pub fn validate_trader_decision(parsed: &super::GeneratedTraderDecision, raw: &s
             "reasoning is default placeholder",
         ));
     }
+    // Check required fields for directional actions
+    let is_directional = matches!(parsed.action.trim(), "Buy" | "Sell");
+    if is_directional {
+        let entry_empty = parsed.entry_price.as_ref().map(crate::llm::parse::normalize_value).unwrap_or_default().trim().is_empty();
+        let stop_empty = parsed.stop_loss.as_ref().map(crate::llm::parse::normalize_value).unwrap_or_default().trim().is_empty();
+        let horizon_empty = parsed.time_horizon.as_deref().unwrap_or("").trim().is_empty();
+        if entry_empty {
+            issues.push(DiagnosisIssue::error(
+                "trader_decision", "entry_price",
+                "entry_price is required for Buy/Sell but was empty or null",
+            ));
+        }
+        if stop_empty {
+            issues.push(DiagnosisIssue::error(
+                "trader_decision", "stop_loss",
+                "stop_loss is required for Buy/Sell but was empty or null",
+            ));
+        }
+        if horizon_empty {
+            issues.push(DiagnosisIssue::error(
+                "trader_decision", "time_horizon",
+                "time_horizon is required for Buy/Sell but was empty or null",
+            ));
+        }
+    }
     if !issues.is_empty() {
         tracing::warn!(
             issues = %issues.iter().map(|i| i.message.as_str()).collect::<Vec<_>>().join(", "),
@@ -160,6 +185,38 @@ pub fn validate_portfolio_decision(parsed: &super::GeneratedPortfolioDecision, r
             "portfolio_decision", "rating",
             "rating defaulted to Hold (field missing)",
         ));
+    }
+    // Check required fields for directional ratings
+    let is_directional = matches!(parsed.rating.trim(), "Buy" | "Overweight" | "Underweight" | "Sell");
+    if is_directional {
+        let price_target_empty = parsed.price_target.as_ref().map(crate::llm::parse::normalize_value).unwrap_or_default().trim().is_empty();
+        let horizon_empty = parsed.time_horizon.as_deref().unwrap_or("").trim().is_empty();
+        let confirmation_empty = parsed.confirmation_level.as_ref().map(crate::llm::parse::normalize_value).unwrap_or_default().trim().is_empty();
+        let invalidation_empty = parsed.invalidation_level.as_ref().map(crate::llm::parse::normalize_value).unwrap_or_default().trim().is_empty();
+        if price_target_empty {
+            issues.push(DiagnosisIssue::error(
+                "portfolio_decision", "price_target",
+                "price_target is required for directional rating but was empty or null",
+            ));
+        }
+        if horizon_empty {
+            issues.push(DiagnosisIssue::error(
+                "portfolio_decision", "time_horizon",
+                "time_horizon is required for directional rating but was empty or null",
+            ));
+        }
+        if confirmation_empty {
+            issues.push(DiagnosisIssue::error(
+                "portfolio_decision", "confirmation_level",
+                "confirmation_level is required for directional rating but was empty or null",
+            ));
+        }
+        if invalidation_empty {
+            issues.push(DiagnosisIssue::error(
+                "portfolio_decision", "invalidation_level",
+                "invalidation_level is required for directional rating but was empty or null",
+            ));
+        }
     }
     if !issues.is_empty() {
         tracing::warn!(

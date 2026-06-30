@@ -104,17 +104,36 @@ fn derive_historical_calibration(
 
 pub fn evaluate_direction_score(result: &AnalysisResult) -> DirectionAssessment {
     let recommendation = result.structured_portfolio_decision().rating.clone();
-    // When the LLM outputs Hold/Unknown, the rating_bias contribution is 0,
-    // which suppresses the direction signal.  Use the analyst probabilities
-    // alone by passing the implied rating from the market analyst instead.
+    // When the LLM outputs Hold/Unknown, consider debate results AND all analyst
+    // probabilities (not just market) to determine direction.
     let direction_rating = if matches!(recommendation, Rating::Hold | Rating::Unknown) {
-        let analyst = select_analyst(result, &["market"]);
-        let net = analyst
-            .map(|a| a.up_probability - a.down_probability)
-            .unwrap_or(0.0);
-        if net >= 0.15 {
+        // Count bull/bear debate turns
+        let bull_turns = result.graph.investment_debate.turns.iter()
+            .filter(|t| t.stance == "bull").count();
+        let bear_turns = result.graph.investment_debate.turns.iter()
+            .filter(|t| t.stance == "bear").count();
+        let debate_bias = bull_turns as i32 - bear_turns as i32;
+
+        // Weighted analyst probabilities
+        let market_net = select_analyst(result, &["market"])
+            .map(|a| a.up_probability - a.down_probability).unwrap_or(0.0);
+        let fund_net = select_analyst(result, &["fundamentals", "fundamental"])
+            .map(|a| a.up_probability - a.down_probability).unwrap_or(0.0);
+        let news_net = select_analyst(result, &["news"])
+            .map(|a| a.up_probability - a.down_probability).unwrap_or(0.0);
+        let sent_net = select_analyst(result, &["sentiment"])
+            .map(|a| a.up_probability - a.down_probability).unwrap_or(0.0);
+
+        // Weighted average: market 40%, fundamentals 30%, news 15%, sentiment 15%
+        let weighted_net = market_net * 0.4 + fund_net * 0.3
+            + news_net * 0.15 + sent_net * 0.15;
+
+        // Debate can shift the threshold slightly
+        let threshold = 0.15 - (debate_bias as f64 * 0.02).clamp(-0.05, 0.05);
+
+        if weighted_net >= threshold {
             Rating::Buy
-        } else if net <= -0.15 {
+        } else if weighted_net <= -threshold {
             Rating::Sell
         } else {
             Rating::Hold
@@ -228,6 +247,7 @@ pub fn calibrate_recommendation_with_profile(
 ) -> RecommendationCalibration {
     let raw_rating = Rating::parse(raw_llm_recommendation);
     let raw_score = rating_to_score(&raw_rating);
+    let pm_says_hold = matches!(raw_rating, Rating::Hold);
     let evidence_score = direction_score_to_evidence_score(direction_score);
     let history_requires_caution = history_requires_caution(profile);
     let direction_floor_abs = if history_requires_caution {
@@ -263,7 +283,12 @@ pub fn calibrate_recommendation_with_profile(
         action_score.min(profile.min_action_score + 15)
     };
 
-    let final_score = if confidence_score < profile.min_confidence_score - 15
+    // Respect PM's Hold decision when direction is not extreme.
+    // Only override Hold when direction is very strong (>= 50).
+    let final_score = if pm_says_hold && direction_score.abs() < 50 {
+        // PM said Hold and direction is not extreme — respect the decision
+        0
+    } else if confidence_score < profile.min_confidence_score - 15
         || effective_action_score < profile.min_action_score - 10
     {
         // Very low confidence or action — Hold regardless of direction
@@ -281,7 +306,9 @@ pub fn calibrate_recommendation_with_profile(
         && effective_action_score >= (profile.min_action_score + 10)
         && direction_score.abs() >= direction_floor_abs
     {
-        if execution_boundary_complete {
+        if pm_says_hold {
+            0 // Respect PM's Hold for moderate direction
+        } else if execution_boundary_complete {
             evidence_score.signum()
         } else {
             evidence_score.signum()
@@ -290,8 +317,11 @@ pub fn calibrate_recommendation_with_profile(
         && effective_action_score >= profile.min_action_score - 10
         && direction_score.abs() >= strong_direction_abs
     {
-        // Moderate confidence but strong direction — allow directional signal
-        evidence_score.signum()
+        if pm_says_hold {
+            0 // Respect PM's Hold even for strong direction if confidence is low
+        } else {
+            evidence_score.signum()
+        }
     } else {
         0
     };

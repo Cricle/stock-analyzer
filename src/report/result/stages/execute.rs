@@ -23,6 +23,12 @@ impl crate::TaskManager {
         .await?;
         let mut bull_history = result.graph.investment_debate.bull_history.clone();
         let bear_history = result.graph.investment_debate.bear_history.clone();
+        let scoring_context = format!(
+            "Quantitative Assessment: direction_score={}, confidence={}, action_score={}",
+            result.report.direction_score,
+            result.report.confidence_score,
+            result.report.action_score
+        );
         let bull_turn = quick_llm
             .generate_debate_turn(crate::llm::DebateTurnParams {
                 symbol: &result.symbol,
@@ -38,6 +44,7 @@ impl crate::TaskManager {
                     ("Sentiment", &result.agent_state.sentiment_report),
                     ("Past Context", &params.past_context),
                     ("Bear History", &bear_history),
+                    ("Quantitative Scoring", &scoring_context),
                 ],
                 retry_hint: None,
             })
@@ -95,6 +102,12 @@ impl crate::TaskManager {
         .await?;
         let bull_history = result.graph.investment_debate.bull_history.clone();
         let mut bear_history = result.graph.investment_debate.bear_history.clone();
+        let scoring_context = format!(
+            "Quantitative Assessment: direction_score={}, confidence={}, action_score={}",
+            result.report.direction_score,
+            result.report.confidence_score,
+            result.report.action_score
+        );
         let bear_turn = quick_llm
             .generate_debate_turn(crate::llm::DebateTurnParams {
                 symbol: &result.symbol,
@@ -110,6 +123,7 @@ impl crate::TaskManager {
                     ("Sentiment", &result.agent_state.sentiment_report),
                     ("Past Context", &params.past_context),
                     ("Bull History", &bull_history),
+                    ("Quantitative Scoring", &scoring_context),
                 ],
                 retry_hint: None,
             })

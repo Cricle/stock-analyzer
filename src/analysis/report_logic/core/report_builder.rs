@@ -139,6 +139,9 @@ impl StructuredReport {
                     .push(gap.clone());
             }
         }
+        if !execution_blocking_gaps.is_empty() {
+            eprintln!("[blocking_gaps] {:?}", execution_blocking_gaps);
+        }
         let execution_boundary_complete =
             structural_execution_boundary && execution_blocking_gaps.is_empty();
         let missing_execution_fields =

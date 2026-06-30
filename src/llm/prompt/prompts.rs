@@ -58,7 +58,7 @@ impl LlmClient {
              - Genuinely balanced evidence on both sides => Hold\n\
              ANTI-BIAS RULE: Evaluate each stock independently based on its own technical and fundamental characteristics. Do not apply a blanket bearish or bullish stance across multiple stocks. A stock below its MA50 is not automatically bearish -- evaluate the context (support levels, volume, sector strength, catalysts). Conversely, do NOT recommend Sell/Underweight simply because a stock is below its MA50. Evaluate the full picture: support levels, volume patterns, sector strength, and upcoming catalysts.\n\
              DIFFERENTIATION RULE: Each stock has unique characteristics. Your recommendation, entry price, stop loss, position sizing, and time horizon MUST reflect the specific stock being analyzed. Do not generate generic or identical outputs for different stocks.\n\
-             EXECUTION BOUNDARY: You MUST provide ALL of the following fields when recommending Buy, Overweight, Underweight, or Sell: entry_price, stop_loss, confirmation_level, invalidation_level. These fields are required for execution readiness.\n\
+             EXECUTION BOUNDARY (strict): When recommending Buy, Overweight, Underweight, or Sell, you MUST provide: entry_price, stop_loss, confirmation_level, invalidation_level. These are required for execution readiness -- leaving any empty for a directional recommendation is a schema violation.\n\
              Surface the key thesis, what matters most, and what would falsify the plan.\n\n\
              Market desk:\n{market_report}\n\n\
              Fundamentals desk:\n{fundamentals_report}\n\n\
@@ -152,7 +152,7 @@ impl LlmClient {
              - Genuinely balanced evidence on both sides => Hold\n\
              ANTI-BIAS RULE: Evaluate each stock independently based on its own technical and fundamental characteristics. Do not apply a blanket bearish or bullish stance across multiple stocks. A stock below its MA50 is not automatically bearish -- evaluate the context (support levels, volume, sector strength, catalysts). Conversely, do NOT recommend Sell/Underweight simply because a stock is below its MA50. Evaluate the full picture: support levels, volume patterns, sector strength, and upcoming catalysts.\n\
              DIFFERENTIATION RULE: Each stock has unique characteristics. Your recommendation, entry price, stop loss, position sizing, and time horizon MUST reflect the specific stock being analyzed. Do not generate generic or identical outputs for different stocks.\n\
-             EXECUTION BOUNDARY: You MUST provide ALL of the following fields when recommending Buy, Overweight, Underweight, or Sell: entry_price, stop_loss, confirmation_level, invalidation_level. These fields are required for execution readiness.\n\
+             EXECUTION BOUNDARY (strict): When recommending Buy, Overweight, Underweight, or Sell, you MUST provide: entry_price, stop_loss, confirmation_level, invalidation_level. These are required for execution readiness -- leaving any empty for a directional recommendation is a schema violation.\n\
              Do NOT use Hold as a safe default when one side has clearly stronger evidence.\n\n\
              Research plan:\n{investment_plan}\n\n\
              Trader proposal:\n{trader_plan}\n\n\
@@ -168,14 +168,15 @@ impl LlmClient {
              `risk_assessment` should be a JSON object with keys `overall_risk_framing`, `invalidation_conditions`, `key_risks`, `offsetting_supports`, `tolerable_context_gaps`, `serious_but_manageable_gaps`, and `decision_blocking_gaps`.\n\
              The final decision should read like an actual investment committee output: explicit, evidence-dense, and directly usable by a trader or PM.\n\
              When evidence supports it, cite specific price levels, indicator readings, valuation anchors, catalysts, missing proof points, and the concrete trigger checklist required for a future upgrade from Hold to action.\n\
-             `confirmation_level` should be the exact price level or condition that upgrades a conditional thesis into an actionable one; if not needed, use an empty string.\n\
-             `invalidation_level` should be the clearest numeric or textual risk boundary that breaks the thesis; if unavailable, use an empty string.\n\
-             `target_reference` should be the user-facing upside/downside anchor and may be a point, range, or scenario expression.\n\
-             `target_condition` should explain when the target reference becomes valid, especially when the target depends on confirmation rather than immediate execution.\n\
-             `price_target` must be a single numeric target price whenever the evidence supports any directional view other than Hold; do not leave it null for Buy, Overweight, Underweight, or Sell unless evidence is genuinely insufficient.\n\
-             If the real output is conditional rather than immediately executable, you may keep `price_target` empty while still filling `target_reference` and `target_condition`.\n\
-             `time_horizon` must be a concise horizon label such as `2-6 weeks`, `1-3 months`, or `3-6 months`, not a long paragraph.\n\
-             If your call is Underweight or Sell, the price target should normally be below the current market price anchor implied by the analyst evidence.\n\
+             FIELD REQUIREMENTS (strict):\n\
+             - Buy/Overweight/Underweight/Sell: `price_target` (single numeric), `confirmation_level`, `invalidation_level`, and `time_horizon` are REQUIRED. Leaving these empty for a directional recommendation is a schema violation.\n\
+             - Hold: `price_target` may be empty. `confirmation_level`, `invalidation_level`, and `time_horizon` should still be provided when evidence supports them.\n\
+             - `confirmation_level`: the exact price or condition that upgrades a conditional thesis into actionable.\n\
+             - `invalidation_level`: the clearest numeric risk boundary that breaks the thesis.\n\
+             - `target_reference`: user-facing upside/downside anchor (point, range, or scenario expression).\n\
+             - `target_condition`: when the target reference becomes valid.\n\
+             - `time_horizon`: concise label like `2-6 weeks`, `1-3 months`, `3-6 months` -- not a paragraph.\n\
+             - If your call is Underweight or Sell, `price_target` must be below the current price.\n\
              `trigger_checklist` must be a concise array of 2-6 concrete conditions that would justify upgrading a cautious/Hold stance into action or confirm the active stance.\n\
              `missing_evidence_ladder` must mirror the three missing-evidence buckets as arrays for machine use.\n\
              `reflection` must be a JSON object with exactly `strongest_part`, `weakest_uncertainty_or_missing_evidence`, and `next_lesson_for_next_run`. Keep each field one concise sentence. This replaces a separate reviewer call, so make it specific and evidence-driven.\n\

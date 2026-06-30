@@ -3,12 +3,25 @@ impl LlmClient {
         &self,
         prompt: &str,
     ) -> anyhow::Result<String> {
+        // DeepSeek prompt cache requires the first ~64 tokens to match across requests.
+        // A shared system message ensures all analyst/manager/trader calls hit the cache.
+        let system_message = concat!(
+            "You are a disciplined quantitative analyst in a multi-agent stock analysis system. ",
+            "You must output valid JSON with no markdown fences, no code blocks, and no commentary outside the JSON object. ",
+            "All numeric fields must be actual numbers, not strings. ",
+            "All price levels must be realistic relative to the instrument's current trading range. ",
+            "When evidence is insufficient, state what is missing explicitly rather than inventing data. ",
+            "Missing-evidence classification: 'blocking_gaps' = data without which the thesis cannot be tested at all (e.g. no price data, no financials). ",
+            "'tolerable_gaps' = data that would strengthen conviction but is not strictly required for action (e.g. insider transactions, earnings guidance, analyst revisions). ",
+            "'manageable_gaps' = data that creates uncertainty but can be addressed with position sizing or stop discipline. ",
+            "For A-shares (A股): insider transaction data and earnings guidance are often unavailable -- classify them as tolerable, not blocking."
+        );
         let request = ChatCompletionRequest {
             model: self.model.clone(),
             messages: vec![
                 ChatMessage {
                     role: "system".to_string(),
-                    content: "You must output valid JSON with no markdown fences.".to_string(),
+                    content: system_message.to_string(),
                 },
                 ChatMessage {
                     role: "user".to_string(),

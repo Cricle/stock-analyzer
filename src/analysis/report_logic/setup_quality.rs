@@ -96,32 +96,15 @@ fn derive_trade_setup_quality(
 }
 
 pub fn collect_execution_blocking_gaps(
-    research_plan: &StructuredResearchPlan,
-    trader_plan: &StructuredTraderPlan,
-    portfolio_decision: &StructuredPortfolioDecision,
+    _research_plan: &StructuredResearchPlan,
+    _trader_plan: &StructuredTraderPlan,
+    _portfolio_decision: &StructuredPortfolioDecision,
     diagnostics: &ReportDiagnostics,
 ) -> Vec<String> {
+    // Only use system-level diagnostics for blocking gaps.
+    // LLM-identified blocking_gaps are unreliable (LLM tends to over-classify),
+    // so we ignore research_plan/trader_plan/portfolio_decision blocking_gaps.
     let mut gaps = Vec::new();
-    for gap in research_plan
-        .missing_evidence_ladder
-        .blocking_gaps
-        .iter()
-        .chain(trader_plan.blocking_gaps.iter())
-        .chain(
-            portfolio_decision
-                .missing_evidence_ladder
-                .blocking_gaps
-                .iter(),
-        )
-    {
-        let trimmed = gap.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        if !gaps.iter().any(|existing: &String| existing == trimmed) {
-            gaps.push(trimmed.to_string());
-        }
-    }
     for item in diagnostics.availability.iter().filter(|item| {
         item.severity.eq_ignore_ascii_case("error") || item.code.starts_with("scenario_minimum_")
     }) {

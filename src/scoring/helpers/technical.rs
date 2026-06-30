@@ -90,8 +90,20 @@ pub fn has_execution_boundary(
 ) -> bool {
     let has_target = !portfolio_decision.price_target.trim().is_empty();
     let has_confirmation = !portfolio_decision.confirmation_level.trim().is_empty();
-    !trader_plan.entry_price.trim().is_empty()
-        && !trader_plan.stop_loss.trim().is_empty()
+    // When trader says Hold, entry_price/stop_loss are empty by design.
+    // Fall back to PM's confirmation_level (entry reference) and invalidation_level (stop reference).
+    let effective_entry = if trader_plan.entry_price.trim().is_empty() {
+        &portfolio_decision.confirmation_level
+    } else {
+        &trader_plan.entry_price
+    };
+    let effective_stop = if trader_plan.stop_loss.trim().is_empty() {
+        &portfolio_decision.invalidation_level
+    } else {
+        &trader_plan.stop_loss
+    };
+    !effective_entry.trim().is_empty()
+        && !effective_stop.trim().is_empty()
         && (has_target || has_confirmation)
         && !portfolio_decision.time_horizon.trim().is_empty()
 }

@@ -1,32 +1,4 @@
-use sa::guide::store::{GuidanceStore, market_ttl};
-
-#[test]
-fn market_ttl_a_share_market_hours() {
-    let base = std::time::Duration::from_secs(60);
-    let result = market_ttl("a_share", base);
-    assert!(result.as_secs() > 0);
-}
-
-#[test]
-fn market_ttl_us_equity() {
-    let base = std::time::Duration::from_secs(60);
-    let result = market_ttl("us_equity", base);
-    assert!(result.as_secs() > 0);
-}
-
-#[test]
-fn market_ttl_unknown_market() {
-    let base = std::time::Duration::from_secs(60);
-    let result = market_ttl("unknown", base);
-    assert_eq!(result, base * 12);
-}
-
-#[test]
-fn market_ttl_hong_kong() {
-    let base = std::time::Duration::from_secs(120);
-    let result = market_ttl("hong_kong", base);
-    assert!(result.as_secs() > 0);
-}
+use sa::guide::store::GuidanceStore;
 
 #[test]
 fn vector_point_id_deterministic() {

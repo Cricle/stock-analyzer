@@ -21,95 +21,212 @@ fn rotate_by_time<T>(items: &mut [T]) {
 fn fallback_a_share_stocks() -> Vec<(&'static str, &'static str)> {
     vec![
         // 大盘蓝筹
-        ("600519", "贵州茅台"), ("601318", "中国平安"), ("600036", "招商银行"),
-        ("000858", "五粮液"), ("601166", "兴业银行"), ("600276", "恒瑞医药"),
-        ("000333", "美的集团"), ("600030", "中信证券"), ("601398", "工商银行"),
-        ("000001", "平安银行"), ("600900", "长江电力"), ("601088", "中国神华"),
+        ("600519", "贵州茅台"),
+        ("601318", "中国平安"),
+        ("600036", "招商银行"),
+        ("000858", "五粮液"),
+        ("601166", "兴业银行"),
+        ("600276", "恒瑞医药"),
+        ("000333", "美的集团"),
+        ("600030", "中信证券"),
+        ("601398", "工商银行"),
+        ("000001", "平安银行"),
+        ("600900", "长江电力"),
+        ("601088", "中国神华"),
         // 新能源 / 电池
-        ("300750", "宁德时代"), ("002594", "比亚迪"), ("601012", "隆基绿能"),
-        ("300274", "阳光电源"), ("002709", "天赐材料"), ("300014", "亿纬锂能"),
+        ("300750", "宁德时代"),
+        ("002594", "比亚迪"),
+        ("601012", "隆基绿能"),
+        ("300274", "阳光电源"),
+        ("002709", "天赐材料"),
+        ("300014", "亿纬锂能"),
         // 半导体 / 芯片
-        ("688981", "中芯国际"), ("002371", "北方华创"), ("603501", "韦尔股份"),
-        ("688008", "澜起科技"), ("300661", "圣邦股份"), ("688012", "中微公司"),
+        ("688981", "中芯国际"),
+        ("002371", "北方华创"),
+        ("603501", "韦尔股份"),
+        ("688008", "澜起科技"),
+        ("300661", "圣邦股份"),
+        ("688012", "中微公司"),
         // 消费 / 医药
-        ("600887", "伊利股份"), ("000651", "格力电器"), ("601888", "中国中免"),
-        ("002714", "牧原股份"), ("300015", "爱尔眼科"), ("000568", "泸州老窖"),
-        ("603259", "药明康德"), ("002304", "洋河股份"), ("600132", "重庆啤酒"),
+        ("600887", "伊利股份"),
+        ("000651", "格力电器"),
+        ("601888", "中国中免"),
+        ("002714", "牧原股份"),
+        ("300015", "爱尔眼科"),
+        ("000568", "泸州老窖"),
+        ("603259", "药明康德"),
+        ("002304", "洋河股份"),
+        ("600132", "重庆啤酒"),
         // 科创 / 中小盘
-        ("002415", "海康威视"), ("300059", "东方财富"), ("688111", "金山办公"),
-        ("002230", "科大讯飞"), ("300760", "迈瑞医疗"), ("688169", "石头科技"),
-        ("300124", "汇川技术"), ("002049", "紫光国微"), ("688036", "传音控股"),
+        ("002415", "海康威视"),
+        ("300059", "东方财富"),
+        ("688111", "金山办公"),
+        ("002230", "科大讯飞"),
+        ("300760", "迈瑞医疗"),
+        ("688169", "石头科技"),
+        ("300124", "汇川技术"),
+        ("002049", "紫光国微"),
+        ("688036", "传音控股"),
         // 周期 / 工业
-        ("601899", "紫金矿业"), ("002460", "赣锋锂业"), ("600585", "海螺水泥"),
-        ("601668", "中国建筑"), ("600031", "三一重工"), ("000776", "广发证券"),
+        ("601899", "紫金矿业"),
+        ("002460", "赣锋锂业"),
+        ("600585", "海螺水泥"),
+        ("601668", "中国建筑"),
+        ("600031", "三一重工"),
+        ("000776", "广发证券"),
         // 军工 / 新兴
-        ("600760", "中航沈飞"), ("688599", "天合光能"), ("300450", "先导智能"),
-        ("601127", "赛力斯"), ("300782", "卓胜微"), ("688256", "寒武纪"),
+        ("600760", "中航沈飞"),
+        ("688599", "天合光能"),
+        ("300450", "先导智能"),
+        ("601127", "赛力斯"),
+        ("300782", "卓胜微"),
+        ("688256", "寒武纪"),
     ]
 }
 
 fn fallback_hk_stocks() -> Vec<(&'static str, &'static str)> {
     vec![
         // 科技互联网
-        ("0700", "腾讯控股"), ("09988", "阿里巴巴-SW"), ("03690", "美团-W"),
-        ("01810", "小米集团-W"), ("09618", "京东集团-SW"), ("09888", "百度集团-SW"),
-        ("09999", "网易-S"), ("01024", "快手-W"), ("09626", "哔哩哔哩-SW"),
-        ("02015", "理想汽车-W"), ("09866", "蔚来-SW"), ("09868", "小鹏汽车-W"),
+        ("0700", "腾讯控股"),
+        ("09988", "阿里巴巴-SW"),
+        ("03690", "美团-W"),
+        ("01810", "小米集团-W"),
+        ("09618", "京东集团-SW"),
+        ("09888", "百度集团-SW"),
+        ("09999", "网易-S"),
+        ("01024", "快手-W"),
+        ("09626", "哔哩哔哩-SW"),
+        ("02015", "理想汽车-W"),
+        ("09866", "蔚来-SW"),
+        ("09868", "小鹏汽车-W"),
         // 金融
-        ("00005", "汇丰控股"), ("01299", "友邦保险"), ("00388", "香港交易所"),
-        ("02318", "中国平安"), ("03988", "中国银行"), ("01398", "工商银行"),
-        ("00939", "建设银行"), ("02628", "中国人寿"), ("00011", "恒生银行"),
-        ("02388", "中银香港"), ("01658", "邮储银行"), ("06837", "海通证券"),
+        ("00005", "汇丰控股"),
+        ("01299", "友邦保险"),
+        ("00388", "香港交易所"),
+        ("02318", "中国平安"),
+        ("03988", "中国银行"),
+        ("01398", "工商银行"),
+        ("00939", "建设银行"),
+        ("02628", "中国人寿"),
+        ("00011", "恒生银行"),
+        ("02388", "中银香港"),
+        ("01658", "邮储银行"),
+        ("06837", "海通证券"),
         // 消费
-        ("02020", "安踏体育"), ("01211", "比亚迪股份"), ("06862", "海底捞"),
-        ("09961", "携程集团-S"), ("02331", "李宁"), ("01928", "金沙中国"),
-        ("00027", "银河娱乐"), ("06969", "思摩尔国际"), ("01458", "周黑鸭"),
+        ("02020", "安踏体育"),
+        ("01211", "比亚迪股份"),
+        ("06862", "海底捞"),
+        ("09961", "携程集团-S"),
+        ("02331", "李宁"),
+        ("01928", "金沙中国"),
+        ("00027", "银河娱乐"),
+        ("06969", "思摩尔国际"),
+        ("01458", "周黑鸭"),
         // 医药生物
-        ("02269", "药明生物"), ("01177", "中国生物制药"), ("02196", "复星医药"),
-        ("06160", "百济神州"), ("01801", "信达生物"), ("09995", "荣昌生物"),
+        ("02269", "药明生物"),
+        ("01177", "中国生物制药"),
+        ("02196", "复星医药"),
+        ("06160", "百济神州"),
+        ("01801", "信达生物"),
+        ("09995", "荣昌生物"),
         // 能源 / 工业
-        ("00883", "中国海洋石油"), ("00941", "中国移动"), ("03968", "招商银行"),
-        ("00267", "中信股份"), ("01109", "华润置地"), ("02007", "碧桂园"),
-        ("00175", "吉利汽车"), ("03888", "金山软件"), ("00285", "比亚迪电子"),
+        ("00883", "中国海洋石油"),
+        ("00941", "中国移动"),
+        ("03968", "招商银行"),
+        ("00267", "中信股份"),
+        ("01109", "华润置地"),
+        ("02007", "碧桂园"),
+        ("00175", "吉利汽车"),
+        ("03888", "金山软件"),
+        ("00285", "比亚迪电子"),
         // 中小盘 / 新兴
-        ("06060", "众安在线"), ("09698", "万国数据-SW"), ("06618", "京东健康"),
-        ("02518", "汽车之家-S"), ("09901", "新东方在线"), ("01833", "平安好医生"),
-        ("00772", "阅文集团"), ("09969", "诺辉健康-B"), ("02126", "药师帮"),
+        ("06060", "众安在线"),
+        ("09698", "万国数据-SW"),
+        ("06618", "京东健康"),
+        ("02518", "汽车之家-S"),
+        ("09901", "新东方在线"),
+        ("01833", "平安好医生"),
+        ("00772", "阅文集团"),
+        ("09969", "诺辉健康-B"),
+        ("02126", "药师帮"),
     ]
 }
 
 fn fallback_us_stocks() -> Vec<(&'static str, &'static str)> {
     vec![
         // 大盘科技
-        ("AAPL", "Apple Inc."), ("MSFT", "Microsoft Corp."), ("GOOGL", "Alphabet Inc."),
-        ("AMZN", "Amazon.com Inc."), ("NVDA", "NVIDIA Corp."), ("META", "Meta Platforms Inc."),
-        ("TSLA", "Tesla Inc."), ("AMD", "Advanced Micro Devices"), ("AVGO", "Broadcom Inc."),
-        ("INTC", "Intel Corp."), ("QCOM", "Qualcomm Inc."), ("MU", "Micron Technology"),
+        ("AAPL", "Apple Inc."),
+        ("MSFT", "Microsoft Corp."),
+        ("GOOGL", "Alphabet Inc."),
+        ("AMZN", "Amazon.com Inc."),
+        ("NVDA", "NVIDIA Corp."),
+        ("META", "Meta Platforms Inc."),
+        ("TSLA", "Tesla Inc."),
+        ("AMD", "Advanced Micro Devices"),
+        ("AVGO", "Broadcom Inc."),
+        ("INTC", "Intel Corp."),
+        ("QCOM", "Qualcomm Inc."),
+        ("MU", "Micron Technology"),
         // 金融
-        ("BRK-B", "Berkshire Hathaway"), ("JPM", "JPMorgan Chase & Co."), ("V", "Visa Inc."),
-        ("MA", "Mastercard Inc."), ("BAC", "Bank of America Corp."), ("GS", "Goldman Sachs"),
-        ("MS", "Morgan Stanley"), ("AXP", "American Express"), ("C", "Citigroup Inc."),
+        ("BRK-B", "Berkshire Hathaway"),
+        ("JPM", "JPMorgan Chase & Co."),
+        ("V", "Visa Inc."),
+        ("MA", "Mastercard Inc."),
+        ("BAC", "Bank of America Corp."),
+        ("GS", "Goldman Sachs"),
+        ("MS", "Morgan Stanley"),
+        ("AXP", "American Express"),
+        ("C", "Citigroup Inc."),
         // 医药健康
-        ("JNJ", "Johnson & Johnson"), ("UNH", "UnitedHealth Group"), ("PFE", "Pfizer Inc."),
-        ("ABBV", "AbbVie Inc."), ("MRK", "Merck & Co."), ("LLY", "Eli Lilly"),
-        ("TMO", "Thermo Fisher Scientific"), ("ABT", "Abbott Laboratories"),
+        ("JNJ", "Johnson & Johnson"),
+        ("UNH", "UnitedHealth Group"),
+        ("PFE", "Pfizer Inc."),
+        ("ABBV", "AbbVie Inc."),
+        ("MRK", "Merck & Co."),
+        ("LLY", "Eli Lilly"),
+        ("TMO", "Thermo Fisher Scientific"),
+        ("ABT", "Abbott Laboratories"),
         // 消费
-        ("WMT", "Walmart Inc."), ("PG", "Procter & Gamble Co."), ("HD", "Home Depot Inc."),
-        ("DIS", "Walt Disney Co."), ("NFLX", "Netflix Inc."), ("COST", "Costco Wholesale"),
-        ("NKE", "Nike Inc."), ("SBUX", "Starbucks Corp."), ("MCD", "McDonald's Corp."),
+        ("WMT", "Walmart Inc."),
+        ("PG", "Procter & Gamble Co."),
+        ("HD", "Home Depot Inc."),
+        ("DIS", "Walt Disney Co."),
+        ("NFLX", "Netflix Inc."),
+        ("COST", "Costco Wholesale"),
+        ("NKE", "Nike Inc."),
+        ("SBUX", "Starbucks Corp."),
+        ("MCD", "McDonald's Corp."),
         // 工业 / 能源
-        ("CAT", "Caterpillar Inc."), ("BA", "Boeing Co."), ("XOM", "Exxon Mobil"),
-        ("CVX", "Chevron Corp."), ("GE", "GE Aerospace"), ("HON", "Honeywell International"),
-        ("UPS", "United Parcel Service"), ("RTX", "RTX Corp."),
+        ("CAT", "Caterpillar Inc."),
+        ("BA", "Boeing Co."),
+        ("XOM", "Exxon Mobil"),
+        ("CVX", "Chevron Corp."),
+        ("GE", "GE Aerospace"),
+        ("HON", "Honeywell International"),
+        ("UPS", "United Parcel Service"),
+        ("RTX", "RTX Corp."),
         // 中盘成长
-        ("CRM", "Salesforce Inc."), ("NOW", "ServiceNow Inc."), ("PLTR", "Palantir Technologies"),
-        ("SNOW", "Snowflake Inc."), ("COIN", "Coinbase Global"), ("SQ", "Block Inc."),
-        ("UBER", "Uber Technologies"), ("ABNB", "Airbnb Inc."), ("DKNG", "DraftKings"),
-        ("RIVN", "Rivian Automotive"), ("SMCI", "Super Micro Computer"), ("ARM", "Arm Holdings"),
+        ("CRM", "Salesforce Inc."),
+        ("NOW", "ServiceNow Inc."),
+        ("PLTR", "Palantir Technologies"),
+        ("SNOW", "Snowflake Inc."),
+        ("COIN", "Coinbase Global"),
+        ("SQ", "Block Inc."),
+        ("UBER", "Uber Technologies"),
+        ("ABNB", "Airbnb Inc."),
+        ("DKNG", "DraftKings"),
+        ("RIVN", "Rivian Automotive"),
+        ("SMCI", "Super Micro Computer"),
+        ("ARM", "Arm Holdings"),
         // 中概 / 新兴
-        ("PDD", "PDD Holdings"), ("BABA", "Alibaba Group"), ("JD", "JD.com Inc."),
-        ("NIO", "NIO Inc."), ("LI", "Li Auto Inc."), ("XPEV", "XPeng Inc."),
-        ("BIDU", "Baidu Inc."), ("NTES", "NetEase Inc."),
+        ("PDD", "PDD Holdings"),
+        ("BABA", "Alibaba Group"),
+        ("JD", "JD.com Inc."),
+        ("NIO", "NIO Inc."),
+        ("LI", "Li Auto Inc."),
+        ("XPEV", "XPeng Inc."),
+        ("BIDU", "Baidu Inc."),
+        ("NTES", "NetEase Inc."),
     ]
 }
 
@@ -162,7 +279,10 @@ async fn decode_gbk_response(resp: reqwest::Response) -> anyhow::Result<String> 
 
 /// Parse Sina sector rankings from the JS response.
 /// Format: var S_Finance_bankuai_sinaindustry = {"key":"code,name,count,avg_price,change_pct,...",...}
-async fn fetch_sina_sector_rankings(http: &reqwest::Client, limit: usize) -> anyhow::Result<Vec<(String, String, f64)>> {
+async fn fetch_sina_sector_rankings(
+    http: &reqwest::Client,
+    limit: usize,
+) -> anyhow::Result<Vec<(String, String, f64)>> {
     let resp = http
         .get("https://vip.stock.finance.sina.com.cn/q/view/newSinaHy.php")
         .send()
@@ -199,7 +319,10 @@ async fn fetch_sina_sector_rankings(http: &reqwest::Client, limit: usize) -> any
 }
 
 /// Fetch top stocks from a Sina sector.
-async fn fetch_sina_sector_stocks(http: &reqwest::Client, sector_code: &str) -> anyhow::Result<Vec<(String, String)>> {
+async fn fetch_sina_sector_stocks(
+    http: &reqwest::Client,
+    sector_code: &str,
+) -> anyhow::Result<Vec<(String, String)>> {
     let url = format!(
         "https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData?page=1&num=8&sort=changepercent&asc=0&node={}&symbol=&_s_r_a=init",
         sector_code
@@ -211,8 +334,16 @@ async fn fetch_sina_sector_stocks(http: &reqwest::Client, sector_code: &str) -> 
     // Parse JSON array: [{"symbol":"sh600519","name":"贵州茅台",...},...]
     if let Ok(arr) = serde_json::from_str::<Vec<serde_json::Value>>(&text) {
         for item in arr {
-            let symbol = item.get("code").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let name = item.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let symbol = item
+                .get("code")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let name = item
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             if !symbol.is_empty() {
                 stocks.push((symbol, name));
             }
@@ -259,7 +390,16 @@ pub(super) async fn resolve_candidates(
         }
         MarketKind::HongKong => {
             let mut all_items = Vec::new();
-            for query in ["腾讯", "阿里", "美团", "小米", "比亚迪", "汇丰", "友邦", "港交所"] {
+            for query in [
+                "腾讯",
+                "阿里",
+                "美团",
+                "小米",
+                "比亚迪",
+                "汇丰",
+                "友邦",
+                "港交所",
+            ] {
                 let items = market_data
                     .search_stocks(
                         query,
@@ -370,7 +510,11 @@ async fn resolve_a_share_candidates(
             .await
             .unwrap_or_default();
 
-        tracing::info!(sector_type, sectors_count = sectors.len(), "fetched sector rankings from eastmoney");
+        tracing::info!(
+            sector_type,
+            sectors_count = sectors.len(),
+            "fetched sector rankings from eastmoney"
+        );
 
         // Sort by change_pct (Sina doesn't provide main_net_inflow)
         let mut by_change = sectors.clone();
@@ -495,8 +639,7 @@ async fn resolve_a_share_candidates(
 
     let mut search_candidates = Vec::new();
     for query in [
-        "600", "000", "300", "688",
-        "贵州", "中国", "科技", "银行", "能源", "医药",
+        "600", "000", "300", "688", "贵州", "中国", "科技", "银行", "能源", "医药",
     ] {
         let items = market_data
             .search_stocks(
@@ -538,7 +681,10 @@ async fn resolve_a_share_candidates(
     }
 
     let all_candidates = dedup_candidates(all_candidates, candidate_limit.saturating_mul(4));
-    tracing::info!(all_candidates_count = all_candidates.len(), "deduped all candidates");
+    tracing::info!(
+        all_candidates_count = all_candidates.len(),
+        "deduped all candidates"
+    );
     let shortlist = shortlist_a_share_candidates_for_flow(all_candidates, candidate_limit);
     tracing::info!(shortlist_count = shortlist.len(), "shortlisted candidates");
     let result = pre_rank_a_share_candidates(market_data, shortlist, candidate_limit)

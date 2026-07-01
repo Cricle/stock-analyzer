@@ -199,7 +199,9 @@ impl LlmClient {
         let http = reqwest_middleware::ClientBuilder::new(reqwest::Client::new()).build();
 
         let client = match provider.as_deref() {
-            Some("deepseek") => Self::openai_compatible(http, &base_url, &api_key, &model, timeout_secs),
+            Some("deepseek") => {
+                Self::openai_compatible(http, &base_url, &api_key, &model, timeout_secs)
+            }
             _ if base_url.contains("anthropic") || base_url.contains("claude") => {
                 Self::anthropic(http, &base_url, &api_key, &model, timeout_secs)
             }

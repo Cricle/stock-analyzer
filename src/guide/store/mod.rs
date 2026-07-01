@@ -85,6 +85,5 @@ impl GuidanceStore {
     }
 }
 
-
 // No-op implementations for from_env() fallback
 use crate::noop_stores::{NoopCacheStore, NoopVectorStore};

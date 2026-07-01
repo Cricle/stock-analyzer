@@ -1,6 +1,6 @@
-use sa::llm::LlmClient;
 use sa::MarketDataClient;
 use sa::StockPickRequest;
+use sa::llm::LlmClient;
 
 #[tokio::test]
 #[ignore]
@@ -56,9 +56,13 @@ async fn run_pick(market: &str, market_label: &str) {
             println!("  摘要: {}", response.summary);
             println!("  选出 {} 只:", response.picks.len());
             for (i, pick) in response.picks.iter().enumerate() {
-                println!("  {}. {} | 置信度: {} | 论点: {}",
-                    i + 1, pick.symbol, pick.confidence,
-                    pick.thesis.chars().take(80).collect::<String>());
+                println!(
+                    "  {}. {} | 置信度: {} | 论点: {}",
+                    i + 1,
+                    pick.symbol,
+                    pick.confidence,
+                    pick.thesis.chars().take(80).collect::<String>()
+                );
                 if !pick.catalysts.is_empty() {
                     println!("     催化剂: {}", pick.catalysts.join(", "));
                 }

@@ -27,11 +27,7 @@ impl ValidationResult {
 }
 
 /// Check if recommendation contradicts technical indicators.
-pub fn check_consistency(
-    recommendation: &str,
-    rsi: f64,
-    macd_signal: &str,
-) -> ValidationResult {
+pub fn check_consistency(recommendation: &str, rsi: f64, macd_signal: &str) -> ValidationResult {
     let mut result = ValidationResult::default();
     let rec_lower = recommendation.to_lowercase();
     let is_sell = rec_lower.contains("sell") || rec_lower.contains("underweight");
@@ -120,4 +116,3 @@ pub fn check_price_position(
 
     result
 }
-

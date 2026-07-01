@@ -24,4 +24,3 @@ pub fn generate_prewarm_tasks(market_tickers: &[(&str, Vec<String>)]) -> Vec<Pre
         })
         .collect()
 }
-

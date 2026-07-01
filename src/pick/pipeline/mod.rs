@@ -502,8 +502,7 @@ pub async fn run(
         failure: None,
     };
 
-    if generated.agreement_with_system_rank == crate::pick::types::AgreementLevel::Disagree
-    {
+    if generated.agreement_with_system_rank == crate::pick::types::AgreementLevel::Disagree {
         tracing::warn!(
             agreement = %generated.agreement_with_system_rank,
             override_count = generated.override_actions.len(),

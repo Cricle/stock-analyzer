@@ -33,9 +33,14 @@ impl DailyGuidanceGenerator {
 
         // Domains to exclude (irrelevant content)
         let excluded_domains = [
-            "zdic.net", "baidu.com/hanyu", "fanyi.baidu.com",
-            "dict.baidu.com", "xueshu.baidu.com", "wenku.baidu.com",
-            "baike.baidu.com", "zhidao.baidu.com",
+            "zdic.net",
+            "baidu.com/hanyu",
+            "fanyi.baidu.com",
+            "dict.baidu.com",
+            "xueshu.baidu.com",
+            "wenku.baidu.com",
+            "baike.baidu.com",
+            "zhidao.baidu.com",
         ];
 
         for item in items {
@@ -48,17 +53,30 @@ impl DailyGuidanceGenerator {
             // Skip items with no finance/stock-related content
             let title_summary = format!("{} {}", item.title, item.summary).to_ascii_lowercase();
             let has_finance_keyword = [
-                "股", "市", "涨", "跌", "资金", "主力", "板块", "涨停", "跌停",
-                "stock", "market", "rally", "earnings", "trade", "invest",
-                "指数", "行情", "基金", "银行", "保险", "券商",
-            ].iter().any(|kw| title_summary.contains(kw));
+                "股", "市", "涨", "跌", "资金", "主力", "板块", "涨停", "跌停", "stock", "market",
+                "rally", "earnings", "trade", "invest", "指数", "行情", "基金", "银行", "保险",
+                "券商",
+            ]
+            .iter()
+            .any(|kw| title_summary.contains(kw));
             if !has_finance_keyword && !item.title.is_empty() {
                 // Allow items from known finance sources
                 let is_finance_source = [
-                    "东方财富", "新浪财经", "腾讯财经", "华尔街", "CNBC",
-                    "Reuters", "Bloomberg", "MarketWatch", "Yahoo Finance",
-                    "证券时报", "上海证券报", "中国证券报",
-                ].iter().any(|s| item.source.contains(s));
+                    "东方财富",
+                    "新浪财经",
+                    "腾讯财经",
+                    "华尔街",
+                    "CNBC",
+                    "Reuters",
+                    "Bloomberg",
+                    "MarketWatch",
+                    "Yahoo Finance",
+                    "证券时报",
+                    "上海证券报",
+                    "中国证券报",
+                ]
+                .iter()
+                .any(|s| item.source.contains(s));
                 if !is_finance_source {
                     continue;
                 }
@@ -246,10 +264,30 @@ impl DailyGuidanceGenerator {
             // Filter: must contain finance keywords
             let title_lower = title.to_ascii_lowercase();
             let has_keyword = [
-                "股", "涨", "跌", "市场", "板块", "资金", "主力", "指数",
-                "行情", "基金", "银行", "保险", "券商", "涨停", "跌停",
-                "ETF", "芯片", "科技", "医疗", "军工", "新能源",
-            ].iter().any(|kw| title_lower.contains(kw));
+                "股",
+                "涨",
+                "跌",
+                "市场",
+                "板块",
+                "资金",
+                "主力",
+                "指数",
+                "行情",
+                "基金",
+                "银行",
+                "保险",
+                "券商",
+                "涨停",
+                "跌停",
+                "ETF",
+                "芯片",
+                "科技",
+                "医疗",
+                "军工",
+                "新能源",
+            ]
+            .iter()
+            .any(|kw| title_lower.contains(kw));
             if !has_keyword {
                 continue;
             }
@@ -272,7 +310,11 @@ impl DailyGuidanceGenerator {
             }
         }
 
-        tracing::info!(market = market.as_str(), count = items.len(), "fetched Sina Finance news");
+        tracing::info!(
+            market = market.as_str(),
+            count = items.len(),
+            "fetched Sina Finance news"
+        );
         items
     }
 }

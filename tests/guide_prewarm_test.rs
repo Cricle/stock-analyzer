@@ -24,9 +24,8 @@ fn generate_prewarm_tasks_markets() {
 
 #[test]
 fn generate_prewarm_tasks_preserves_tickers() {
-    let tasks = generate_prewarm_tasks(&[
-        ("a_share", vec!["000001".to_string(), "600036".to_string()]),
-    ]);
+    let tasks =
+        generate_prewarm_tasks(&[("a_share", vec!["000001".to_string(), "600036".to_string()])]);
     assert_eq!(tasks.len(), 1);
     assert_eq!(tasks[0].tickers.len(), 2);
     assert!(tasks[0].tickers.contains(&"000001".to_string()));
@@ -34,9 +33,7 @@ fn generate_prewarm_tasks_preserves_tickers() {
 
 #[test]
 fn generate_prewarm_tasks_date_is_today() {
-    let tasks = generate_prewarm_tasks(&[
-        ("a_share", vec!["000001".to_string()]),
-    ]);
+    let tasks = generate_prewarm_tasks(&[("a_share", vec!["000001".to_string()])]);
     let today = chrono::Utc::now().date_naive().to_string();
     for task in &tasks {
         assert_eq!(task.date, today);

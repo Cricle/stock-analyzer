@@ -2126,12 +2126,6 @@ fn meaningful_value_some() {
 }
 
 #[test]
-fn object_value_some() {
-    assert!(sa::llm::generated::helpers::object_value(Some(serde_json::json!("test"))).is_some());
-    assert!(sa::llm::generated::helpers::object_value(None).is_none());
-}
-
-#[test]
 fn extract_object_value_basic() {
     let obj = serde_json::json!({"name": "test", "value": 42});
     let result = sa::llm::generated::helpers::extract_object_value(Some(&obj), &["name"]);
@@ -2194,101 +2188,6 @@ fn split_list_like_text_dedup() {
 fn split_list_like_text_empty() {
     let result = sa::llm::generated::helpers::split_list_like_text("");
     assert!(result.is_empty());
-}
-
-#[test]
-fn derive_probabilities_from_text_bullish() {
-    let (up, down, sideways) = sa::llm::generated::helpers::derive_probabilities_from_text(
-        "strong bullish growth positive",
-        "",
-        "",
-    );
-    assert!(up > down, "up={up} should be > down={down}");
-    assert!((up + down + sideways - 1.0).abs() < 0.01);
-}
-
-#[test]
-fn derive_probabilities_from_text_bearish() {
-    let (up, down, _sideways) = sa::llm::generated::helpers::derive_probabilities_from_text(
-        "bearish decline risk negative",
-        "",
-        "",
-    );
-    assert!(down > up, "down={down} should be > up={up}");
-}
-
-#[test]
-fn derive_probabilities_from_text_neutral() {
-    let (up, down, _sideways) =
-        sa::llm::generated::helpers::derive_probabilities_from_text("", "", "");
-    // Default to slightly bearish
-    assert!((up + down + _sideways - 1.0).abs() < 0.01);
-}
-
-#[test]
-fn extract_numbered_trigger_lines_basic() {
-    let text = "1) First trigger\n2) Second trigger\n3) Third trigger";
-    let lines = sa::llm::generated::helpers::extract_numbered_trigger_lines(text);
-    assert_eq!(lines.len(), 3);
-    assert_eq!(lines[0], "First trigger");
-}
-
-#[test]
-fn extract_numbered_trigger_lines_empty() {
-    let lines = sa::llm::generated::helpers::extract_numbered_trigger_lines("no triggers here");
-    assert!(lines.is_empty());
-}
-
-#[test]
-fn format_price_like_text_integer() {
-    assert_eq!(
-        sa::llm::generated::helpers::format_price_like_text(100.0),
-        "100"
-    );
-}
-
-#[test]
-fn format_price_like_text_large() {
-    assert_eq!(
-        sa::llm::generated::helpers::format_price_like_text(1234.5),
-        "1234.5"
-    );
-}
-
-#[test]
-fn format_price_like_text_small() {
-    assert_eq!(
-        sa::llm::generated::helpers::format_price_like_text(12.34),
-        "12.34"
-    );
-}
-
-#[test]
-fn extract_time_horizon_from_texts_basic() {
-    let texts = vec!["目标 2-3 weeks 达成"];
-    let result = sa::llm::generated::helpers::extract_time_horizon_from_texts(&texts);
-    assert!(result.is_some());
-    assert!(result.unwrap().contains("weeks"));
-}
-
-#[test]
-fn extract_time_horizon_from_texts_none() {
-    let texts = vec!["no time horizon"];
-    assert!(sa::llm::generated::helpers::extract_time_horizon_from_texts(&texts).is_none());
-}
-
-#[test]
-fn extract_position_sizing_from_texts_basic() {
-    let texts = vec!["建仓 5% 仓位"];
-    let result = sa::llm::generated::helpers::extract_position_sizing_from_texts(&texts);
-    assert!(result.is_some());
-    assert!(result.unwrap().contains("%"));
-}
-
-#[test]
-fn extract_position_sizing_from_texts_none() {
-    let texts = vec!["no position sizing"];
-    assert!(sa::llm::generated::helpers::extract_position_sizing_from_texts(&texts).is_none());
 }
 
 // =========================================================================

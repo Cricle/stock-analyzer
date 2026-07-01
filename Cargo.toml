@@ -16,7 +16,7 @@ score = []
 
 [dependencies]
 # External data
-akshare = { version = "0.1.11", features = ["market-client"] }
+akshare = { git = "https://github.com/Cricle/akshare-rs.git", features = ["market-client"] }
 
 # Core
 adk-graph = { version = "0.8.0" }

@@ -1,5 +1,5 @@
 use sa::scoring::{
-    CalibrationProfile, calibrate_recommendation, calibrate_recommendation_with_profile,
+    CalibrationProfile, calibrate_recommendation_with_profile,
     evaluate_confidence_score, evaluate_direction_score,
 };
 use sa::{
@@ -26,28 +26,32 @@ fn empty_result() -> AnalysisResult {
 
 #[test]
 fn weak_evidence_buy_is_forced_back_to_hold() {
-    let calibrated = calibrate_recommendation("Buy", 18, 52, 41, false);
+    let profile = CalibrationProfile::default();
+    let calibrated = calibrate_recommendation_with_profile("Buy", 18, 52, 41, false, &profile, 0, None);
     assert_eq!(calibrated.final_rating, "Hold");
     assert_eq!(calibrated.final_action, "Hold");
 }
 
 #[test]
 fn strong_positive_evidence_can_promote_hold() {
-    let calibrated = calibrate_recommendation("Hold", 72, 84, 81, true);
+    let profile = CalibrationProfile::default();
+    let calibrated = calibrate_recommendation_with_profile("Hold", 72, 84, 81, true, &profile, 0, None);
     assert_eq!(calibrated.final_rating, "Buy");
     assert_eq!(calibrated.final_action, "Buy");
 }
 
 #[test]
 fn strong_negative_evidence_can_demote_hold() {
-    let calibrated = calibrate_recommendation("Hold", -66, 82, 79, true);
+    let profile = CalibrationProfile::default();
+    let calibrated = calibrate_recommendation_with_profile("Hold", -66, 82, 79, true, &profile, 0, None);
     assert_eq!(calibrated.final_rating, "Sell");
     assert_eq!(calibrated.final_action, "Sell");
 }
 
 #[test]
 fn missing_execution_boundary_allows_mild_upgrade_with_strong_scores() {
-    let calibrated = calibrate_recommendation("Buy", 78, 84, 88, false);
+    let profile = CalibrationProfile::default();
+    let calibrated = calibrate_recommendation_with_profile("Buy", 78, 84, 88, false, &profile, 0, None);
     assert_eq!(calibrated.final_rating, "Overweight");
     assert_eq!(calibrated.final_action, "Buy");
 }

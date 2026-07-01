@@ -215,25 +215,6 @@ pub fn evaluate_action_score(
     }
 }
 
-pub fn calibrate_recommendation(
-    raw_llm_recommendation: &str,
-    direction_score: i32,
-    confidence_score: i32,
-    action_score: i32,
-    execution_boundary_complete: bool,
-) -> RecommendationCalibration {
-    calibrate_recommendation_with_profile(
-        raw_llm_recommendation,
-        direction_score,
-        confidence_score,
-        action_score,
-        execution_boundary_complete,
-        &CalibrationProfile::default(),
-        0,
-        None,
-    )
-}
-
 #[allow(clippy::too_many_arguments)]
 pub fn calibrate_recommendation_with_profile(
     raw_llm_recommendation: &str,

@@ -1,4 +1,3 @@
-use super::cache::DataCacheLayer;
 use super::validator::DataValidator;
 use std::future::Future;
 use std::time::Duration;
@@ -58,23 +57,13 @@ impl DataPipelineConfig {
 /// Parallel data fetcher with retry and caching.
 pub struct ParallelExecutor {
     config: DataPipelineConfig,
-    #[allow(dead_code)]
-    cache: DataCacheLayer,
     validator: DataValidator,
 }
 
 impl ParallelExecutor {
     /// Create a new ParallelExecutor.
-    pub fn new(
-        config: DataPipelineConfig,
-        cache: DataCacheLayer,
-        validator: DataValidator,
-    ) -> Self {
-        Self {
-            config,
-            cache,
-            validator,
-        }
+    pub fn new(config: DataPipelineConfig, validator: DataValidator) -> Self {
+        Self { config, validator }
     }
 
     /// Get a reference to the config.

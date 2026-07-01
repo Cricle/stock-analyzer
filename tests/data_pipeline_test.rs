@@ -130,19 +130,17 @@ fn test_overall_score_clamping() {
 #[tokio::test]
 async fn test_parallel_executor_creation() {
     let config = DataPipelineConfig::default();
-    let cache = DataCacheLayer::new(100, Duration::from_secs(300));
     let validator = DataValidator;
 
-    let executor = ParallelExecutor::new(config, cache, validator);
+    let executor = ParallelExecutor::new(config, validator);
     assert_eq!(executor.config().max_retries, 2);
 }
 
 #[tokio::test]
 async fn test_fetch_with_retry_success() {
     let config = DataPipelineConfig::default();
-    let cache = DataCacheLayer::new(100, Duration::from_secs(300));
     let validator = DataValidator;
-    let executor = ParallelExecutor::new(config, cache, validator);
+    let executor = ParallelExecutor::new(config, validator);
 
     let result = executor.fetch_with_retry("test", || async { Ok(42) }).await;
     assert_eq!(result, Some(42));
@@ -155,9 +153,8 @@ async fn test_fetch_with_retry_failure() {
         retry_base_delay_ms: 10,
         ..Default::default()
     };
-    let cache = DataCacheLayer::new(100, Duration::from_secs(300));
     let validator = DataValidator;
-    let executor = ParallelExecutor::new(config, cache, validator);
+    let executor = ParallelExecutor::new(config, validator);
 
     let result: Option<i32> = executor
         .fetch_with_retry("test", || async { Err(anyhow::anyhow!("test error")) })

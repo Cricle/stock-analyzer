@@ -33,7 +33,6 @@ pub struct DailyGuidanceGenerator {
     store: GuidanceStore,
     market_data: crate::data::MarketDataClient,
     memory: std::sync::Arc<dyn crate::guide::GuidanceMemory>,
-    http: reqwest::Client,
 }
 
 impl Clone for DailyGuidanceGenerator {
@@ -42,7 +41,6 @@ impl Clone for DailyGuidanceGenerator {
             store: self.store.clone(),
             market_data: self.market_data.clone(),
             memory: self.memory.clone(),
-            http: self.http.clone(),
         }
     }
 }
@@ -51,13 +49,11 @@ impl DailyGuidanceGenerator {
     pub fn new(
         market_data: crate::data::MarketDataClient,
         memory: std::sync::Arc<dyn crate::guide::GuidanceMemory>,
-        http: reqwest::Client,
     ) -> Self {
         Self {
             store: GuidanceStore::from_env(),
             market_data,
             memory,
-            http,
         }
     }
 

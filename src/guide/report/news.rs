@@ -23,9 +23,19 @@ impl DailyGuidanceGenerator {
             )
             .await;
 
-        // Supplement with Sina Finance news if available
-        let sina_items = self.fetch_sina_finance_news(market).await;
-        let items: Vec<crate::types::NewsItem> = items.into_iter().chain(sina_items).collect();
+        // Supplement with global news from akshare-rs
+        let market_symbol = match market {
+            GuidanceMarket::AShare => "000001",
+            GuidanceMarket::HongKong => "HSI",
+            GuidanceMarket::UsEquity => "SPX",
+            GuidanceMarket::All => "000001",
+        };
+        let global_items = self
+            .market_data
+            .fetch_global_news(market_symbol, _date, 7, 15)
+            .await
+            .unwrap_or_default();
+        let items: Vec<crate::types::NewsItem> = items.into_iter().chain(global_items).collect();
 
         let mut guidance_items = Vec::new();
         let mut sources = Vec::new();
@@ -230,91 +240,5 @@ pub fn classify_impact(title: &str, summary: &str) -> String {
         "negative".to_string()
     } else {
         "neutral".to_string()
-    }
-}
-
-impl DailyGuidanceGenerator {
-    /// Fetch news from Sina Finance as supplementary source.
-    pub(super) async fn fetch_sina_finance_news(
-        &self,
-        market: &GuidanceMarket,
-    ) -> Vec<crate::types::NewsItem> {
-        let url = match market {
-            GuidanceMarket::AShare => "https://finance.sina.com.cn/stock/",
-            GuidanceMarket::HongKong => "https://finance.sina.com.cn/stock/hkstock/",
-            GuidanceMarket::UsEquity => "https://finance.sina.com.cn/stock/usstock/",
-            GuidanceMarket::All => "https://finance.sina.com.cn/",
-        };
-
-        let Ok(resp) = self.http.get(url).send().await else {
-            return Vec::new();
-        };
-        let Ok(html) = resp.text().await else {
-            return Vec::new();
-        };
-
-        let mut items = Vec::new();
-        // Extract news titles from Sina Finance HTML
-        // Pattern: <a href="..." target="_blank">Title</a>
-        let re = regex::Regex::new(r#"<a[^>]*href="([^"]*)"[^>]*>([^<]{10,100})</a>"#).unwrap();
-        for cap in re.captures_iter(&html) {
-            let url = cap[1].to_string();
-            let title = cap[2].trim().to_string();
-
-            // Filter: must contain finance keywords
-            let title_lower = title.to_ascii_lowercase();
-            let has_keyword = [
-                "股",
-                "涨",
-                "跌",
-                "市场",
-                "板块",
-                "资金",
-                "主力",
-                "指数",
-                "行情",
-                "基金",
-                "银行",
-                "保险",
-                "券商",
-                "涨停",
-                "跌停",
-                "ETF",
-                "芯片",
-                "科技",
-                "医疗",
-                "军工",
-                "新能源",
-            ]
-            .iter()
-            .any(|kw| title_lower.contains(kw));
-            if !has_keyword {
-                continue;
-            }
-
-            // Skip navigation/menu items
-            if title.len() < 15 || title.contains(">>") || title.contains("更多") {
-                continue;
-            }
-
-            items.push(crate::types::NewsItem {
-                title: title.clone(),
-                summary: String::new(),
-                source: "新浪财经".to_string(),
-                published_at: chrono::Utc::now().to_rfc3339(),
-                url: Some(url),
-            });
-
-            if items.len() >= 10 {
-                break;
-            }
-        }
-
-        tracing::info!(
-            market = market.as_str(),
-            count = items.len(),
-            "fetched Sina Finance news"
-        );
-        items
     }
 }

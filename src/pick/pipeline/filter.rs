@@ -270,88 +270,6 @@ fn default_market_candidate_query(market: MarketKind) -> &'static str {
     }
 }
 
-/// Decode response bytes as GBK (Sina Finance uses GBK encoding).
-async fn decode_gbk_response(resp: reqwest::Response) -> anyhow::Result<String> {
-    let bytes = resp.bytes().await?;
-    let (decoded, _encoding, _had_errors) = encoding_rs::GBK.decode(&bytes);
-    Ok(decoded.into_owned())
-}
-
-/// Parse Sina sector rankings from the JS response.
-/// Format: var S_Finance_bankuai_sinaindustry = {"key":"code,name,count,avg_price,change_pct,...",...}
-async fn fetch_sina_sector_rankings(
-    http: &reqwest::Client,
-    limit: usize,
-) -> anyhow::Result<Vec<(String, String, f64)>> {
-    let resp = http
-        .get("https://vip.stock.finance.sina.com.cn/q/view/newSinaHy.php")
-        .send()
-        .await?;
-    let resp = decode_gbk_response(resp).await?;
-
-    let Some(start) = resp.find('{') else {
-        anyhow::bail!("sina sector: no JSON found");
-    };
-    let Some(end) = resp.rfind('}') else {
-        anyhow::bail!("sina sector: no closing brace");
-    };
-    let json_str = &resp[start..=end];
-    let obj: serde_json::Value = serde_json::from_str(json_str)
-        .map_err(|e| anyhow::anyhow!("sina sector JSON parse error: {e}"))?;
-
-    let mut sectors: Vec<(String, String, f64)> = Vec::new();
-    if let Some(map) = obj.as_object() {
-        for (_key, val) in map {
-            if let Some(s) = val.as_str() {
-                let parts: Vec<&str> = s.split(',').collect();
-                if parts.len() >= 5 {
-                    let code = parts[0].to_string();
-                    let name = parts[1].to_string();
-                    let change_pct: f64 = parts[4].parse().unwrap_or(0.0);
-                    sectors.push((code, name, change_pct));
-                }
-            }
-        }
-    }
-    sectors.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
-    sectors.truncate(limit);
-    Ok(sectors)
-}
-
-/// Fetch top stocks from a Sina sector.
-async fn fetch_sina_sector_stocks(
-    http: &reqwest::Client,
-    sector_code: &str,
-) -> anyhow::Result<Vec<(String, String)>> {
-    let url = format!(
-        "https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData?page=1&num=8&sort=changepercent&asc=0&node={}&symbol=&_s_r_a=init",
-        sector_code
-    );
-    let resp = http.get(&url).send().await?;
-    let text = decode_gbk_response(resp).await?;
-
-    let mut stocks = Vec::new();
-    // Parse JSON array: [{"symbol":"sh600519","name":"贵州茅台",...},...]
-    if let Ok(arr) = serde_json::from_str::<Vec<serde_json::Value>>(&text) {
-        for item in arr {
-            let symbol = item
-                .get("code")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let name = item
-                .get("name")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            if !symbol.is_empty() {
-                stocks.push((symbol, name));
-            }
-        }
-    }
-    Ok(stocks)
-}
-
 // ---------------------------------------------------------------------------
 // Candidate resolution
 // ---------------------------------------------------------------------------
@@ -537,25 +455,6 @@ async fn resolve_a_share_candidates(
         ranked_sectors.extend(by_inflow.into_iter().take(4));
     }
 
-    // Fallback to Sina sector rankings if eastmoney returns nothing
-    if ranked_sectors.is_empty() {
-        tracing::warn!("eastmoney sector rankings empty, trying Sina fallback");
-        let http = reqwest::Client::new();
-        if let Ok(sina_sectors) = fetch_sina_sector_rankings(&http, sector_limit).await {
-            tracing::info!(count = sina_sectors.len(), "fetched Sina sector rankings");
-            for (code, name, change_pct) in sina_sectors {
-                ranked_sectors.push(crate::types::SectorSnapshot {
-                    sector_code: code,
-                    sector_name: name,
-                    latest_index: 0.0,
-                    change_pct,
-                    main_net_inflow: 0.0,
-                    main_net_inflow_ratio_pct: 0.0,
-                });
-            }
-        }
-    }
-
     let mut sector_seen = HashSet::new();
     let mut sector_candidates = Vec::new();
     for sector in &ranked_sectors {
@@ -619,21 +518,6 @@ async fn resolve_a_share_candidates(
                         + constituent.main_net_inflow.unwrap_or_default() / 2_0000_0000.0,
                 }
             }));
-        } else {
-            // Fallback: try Sina sector stocks
-            let http = reqwest::Client::new();
-            if let Ok(stocks) = fetch_sina_sector_stocks(&http, &sector.sector_code).await {
-                tracing::info!(sector = %sector.sector_code, count = stocks.len(), "fetched Sina sector stocks");
-                for (symbol, name) in stocks.into_iter().take(3) {
-                    sector_candidates.push(CandidateContext {
-                        symbol,
-                        name,
-                        market: market_display_label(MarketKind::AShare).to_string(),
-                        exchange: market_exchange_code(MarketKind::AShare).to_string(),
-                        source_score: sector.change_pct.max(0.0),
-                    });
-                }
-            }
         }
     }
 

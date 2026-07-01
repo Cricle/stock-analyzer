@@ -12,7 +12,6 @@ include!("helpers.rs");
 // Merged from score/ module
 pub mod config;
 pub mod dimensions;
-pub mod history;
 pub mod score_types;
 /// Backward-compatibility alias: `scoring::types` → `scoring::score_types`.
 pub use score_types as types;

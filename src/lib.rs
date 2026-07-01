@@ -35,17 +35,6 @@
 //! - `score` — Stock scoring system
 //! - `local-rag-embeddings` — Local vector embeddings via `fastembed`
 //!
-//! # Quick Start
-//!
-//! ```rust
-//! use sa::data::MarketDataProvider;
-//! use sa::data::mock::MockMarketProvider;
-//!
-//! // MockMarketProvider implements MarketDataProvider for testing.
-//! let provider = MockMarketProvider::default();
-//! // Use provider in analysis functions that accept `&impl MarketDataProvider`.
-//! ```
-//!
 //! # Key Types
 //!
 //! ```rust

@@ -367,6 +367,33 @@ impl StructuredReport {
         if portfolio_decision.invalidation_level.trim().is_empty() {
             portfolio_decision.invalidation_level = trader_plan.stop_loss.trim().to_string();
         }
+        // Cross-field guard: entry_price must be > invalidation_level for long setups.
+        // The LLM may set invalidation_level (e.g. BOLL lower band) independently of
+        // trader_plan.entry_price, creating an inversion where entry < invalidation.
+        // When this happens, lower invalidation_level to stop_loss (which is always < entry
+        // after the swap guard above) or to entry * 0.95 as a conservative fallback.
+        if let (Some(entry), Some(inval)) = (
+            extract_first_price(&trader_plan.entry_price),
+            extract_first_price(&portfolio_decision.invalidation_level),
+        ) {
+            if entry > 0.0 && inval > 0.0 && entry < inval {
+                let new_inval = if let Some(stop) = extract_first_price(&trader_plan.stop_loss)
+                    .filter(|&s| s > 0.0 && s < entry)
+                {
+                    format_price_reference(stop)
+                } else {
+                    format_price_reference((entry * 95.0).round() / 100.0)
+                };
+                tracing::warn!(
+                    stock = %result.symbol,
+                    entry = entry,
+                    original_invalidation = inval,
+                    new_invalidation = %new_inval,
+                    "entry < invalidation_level detected, lowered invalidation"
+                );
+                portfolio_decision.invalidation_level = new_inval;
+            }
+        }
         if portfolio_decision.target_reference.trim().is_empty() {
             portfolio_decision.target_reference = visible_target_reference(&portfolio_decision)
                 .unwrap_or_default();
@@ -820,4 +847,27 @@ fn sanitize_scenario_paths_for_no_attack(action_guides: &mut ReportActionGuides)
             path.sizing_blocked = true;
         }
     }
+}
+
+/// Compute ATR(14) from market chart candles.
+/// Returns None if fewer than 15 candles are available.
+fn compute_atr_14(chart: &ReportMarketChart) -> Option<f64> {
+    let candles = &chart.candles;
+    if candles.len() < 15 {
+        return None;
+    }
+    let atr = candles
+        .windows(2)
+        .take(14)
+        .map(|w| {
+            let high = w[1].high;
+            let low = w[1].low;
+            let prev_close = w[0].close;
+            (high - low)
+                .max((high - prev_close).abs())
+                .max((low - prev_close).abs())
+        })
+        .sum::<f64>()
+        / 14.0;
+    if atr > 0.0 { Some(atr) } else { None }
 }

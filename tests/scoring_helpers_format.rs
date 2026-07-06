@@ -4,7 +4,7 @@ use sa::scoring::{
 };
 use sa::{
     AgentReportNode, AgentStateSnapshot, AnalysisArtifacts, AnalysisGraph, AnalysisResult,
-    AnalystRuntimeState, ToolObservation,
+    AnalystRuntimeState, TechnicalIndicatorView, ToolObservation,
 };
 
 fn empty_result() -> AnalysisResult {
@@ -80,7 +80,7 @@ fn direction_score_uses_structured_probabilities() {
         },
     ];
     result.agent_state.final_trade_decision = "**Recommendation**: Hold".to_string();
-    let assessment = evaluate_direction_score(&result);
+    let assessment = evaluate_direction_score(&result, &TechnicalIndicatorView::default());
     assert!(assessment.final_score > 0);
 }
 
@@ -234,7 +234,7 @@ fn semantic_analyst_matching_handles_noncanonical_keys() {
             ..Default::default()
         },
     ];
-    let direction = evaluate_direction_score(&result);
+    let direction = evaluate_direction_score(&result, &TechnicalIndicatorView::default());
     assert!(direction.breakdown.news.score > 0);
     assert!(direction.breakdown.sentiment.score > 0);
     assert!(direction.breakdown.fundamentals.score > 0);

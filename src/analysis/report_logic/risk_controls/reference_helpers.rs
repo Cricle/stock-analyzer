@@ -70,6 +70,15 @@ fn collect_price_anchors(
     ] {
         anchors.extend(extract_price_like_numbers(text));
     }
+    // Also pull technical-level anchors from market chart indicators
+    for item in &result.artifacts.market_chart.indicators {
+        match item.key.as_str() {
+            "vwap" | "vwma_20" | "boll_upper" | "boll_lower" | "boll_mid" => {
+                anchors.extend(extract_price_like_numbers(&item.value));
+            }
+            _ => {}
+        }
+    }
     anchors.sort_by(|left, right| left.partial_cmp(right).unwrap_or(std::cmp::Ordering::Equal));
     anchors.dedup_by(|left, right| (*left - *right).abs() < 0.01);
     anchors
@@ -153,6 +162,11 @@ fn rebuild_directional_target(
         }),
     ].into_iter().flatten().next() {
         return format_price_reference(value);
+    }
+    // Moderate target fallback: when no bullish anchor exists above price,
+    // use the nearest anchor below as a conservative target (e.g. support bounce)
+    if let Some(below) = nearest_anchor_below(current_price, anchors) {
+        return format_price_reference(below);
     }
     String::new()
 }

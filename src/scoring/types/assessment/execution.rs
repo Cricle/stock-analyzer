@@ -102,7 +102,7 @@ fn derive_historical_calibration(
     }
 }
 
-pub fn evaluate_direction_score(result: &AnalysisResult) -> DirectionAssessment {
+pub fn evaluate_direction_score(result: &AnalysisResult, tech_indicators: &TechnicalIndicatorView) -> DirectionAssessment {
     let recommendation = result.structured_portfolio_decision().rating.clone();
     // When the LLM outputs Hold/Unknown, consider debate results AND all analyst
     // probabilities (not just market) to determine direction.
@@ -141,7 +141,7 @@ pub fn evaluate_direction_score(result: &AnalysisResult) -> DirectionAssessment 
     } else {
         recommendation.clone()
     };
-    let market = score_market_direction(select_analyst(result, &["market"]), &direction_rating);
+    let market = score_market_direction(select_analyst(result, &["market"]), &direction_rating, tech_indicators);
     let fundamentals = score_analyst_direction(
         select_analyst(result, &["fundamentals", "fundamental"]),
         "direction_score_fundamentals",

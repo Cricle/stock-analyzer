@@ -29,6 +29,7 @@ fn derive_probability_view(
     price_context: &PriceContext,
     memory_context: &MemoryContextSnapshot,
     technical_indicators: &TechnicalIndicatorView,
+    primary_target: Option<&str>,
 ) -> ProbabilityView {
     let confidence = (confidence_score as f64 / 100.0).clamp(0.0, 1.0);
     let directional_bias = (direction_score as f64 / 100.0).clamp(-1.0, 1.0);
@@ -51,7 +52,9 @@ fn derive_probability_view(
     let risk_probability = (downside + (100.0 - confidence_score as f64) * 0.2).clamp(5.0, 90.0);
     let current = price_context.current_price;
     let is_bearish = matches!(decision.view, DecisionViewDirection::Bearish);
-    let upside_target = parse_first_numeric(decision.target_reference.as_str())
+    let upside_target = primary_target
+        .and_then(parse_first_numeric)
+        .or_else(|| parse_first_numeric(decision.target_reference.as_str()))
         .or(price_context.high_price)
         .filter(|value| value.is_finite() && *value > 0.0);
     let downside_target = parse_first_numeric(&decision.invalidation_price)

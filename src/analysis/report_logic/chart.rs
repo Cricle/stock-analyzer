@@ -1,3 +1,14 @@
+fn is_price_field_empty(field: &str) -> bool {
+    let trimmed = field.trim();
+    trimmed.is_empty()
+        || trimmed == "待分析"
+        || trimmed == "待确认"
+        || trimmed == "N/A"
+        || trimmed == "n/a"
+        || trimmed == "-"
+        || trimmed == "--"
+}
+
 fn normalize_execution_references(
     result: &AnalysisResult,
     trader_plan: &StructuredTraderPlan,
@@ -12,10 +23,24 @@ fn normalize_execution_references(
     });
 
     if !target_is_valid {
-        portfolio_decision.price_target.clear();
+        // Aggressive target replacement: try to find a valid replacement from
+        // anchors before clearing, to avoid losing target information entirely.
+        let replacement = rebuild_directional_target(current_price, &price_anchors, trader_plan, portfolio_decision);
+        if !replacement.is_empty() {
+            let replacement_valid = parse_first_numeric(&replacement).is_some_and(|target| {
+                target_passes_sanity_checks(target, current_price, &rating, &price_anchors)
+            });
+            if replacement_valid {
+                portfolio_decision.price_target = replacement;
+            } else {
+                portfolio_decision.price_target.clear();
+            }
+        } else {
+            portfolio_decision.price_target.clear();
+        }
     }
 
-    if portfolio_decision.confirmation_level.trim().is_empty() {
+    if is_price_field_empty(&portfolio_decision.confirmation_level) {
         portfolio_decision.confirmation_level = if !trader_plan.confirmation_level.trim().is_empty()
         {
             trader_plan.confirmation_level.trim().to_string()

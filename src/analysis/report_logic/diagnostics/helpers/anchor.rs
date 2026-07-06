@@ -11,6 +11,18 @@ fn nearest_anchor_above(current_price: Option<f64>, anchors: &[f64]) -> Option<f
         })
 }
 
+fn nearest_anchor_below(current_price: Option<f64>, anchors: &[f64]) -> Option<f64> {
+    let current = current_price?;
+    anchors
+        .iter()
+        .copied()
+        .filter(|anchor| *anchor < current * 0.99)
+        .max_by(|left, right| {
+            left.partial_cmp(right)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+}
+
 fn format_price_reference(value: f64) -> String {
     if value >= 100.0 {
         format!("{value:.2}")

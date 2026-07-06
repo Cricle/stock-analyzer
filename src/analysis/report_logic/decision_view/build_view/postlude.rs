@@ -33,6 +33,7 @@ fn build_decision_view(
     forced_hold: bool,
     core_research_call: &CoreResearchCall,
     current_price: Option<f64>,
+    first_target: Option<String>,
 ) -> DecisionView {
     let rating = fallback_rating(portfolio_decision);
     let confirmation_reference = visible_confirmation_reference(portfolio_decision);
@@ -209,6 +210,28 @@ fn build_decision_view(
     let distance_to_confirmation_pct = price_distance_pct(current_price, confirmation_price);
     let distance_to_invalidation_pct = downside_distance_pct(current_price, invalidation_price);
 
+    // Entry derivation: track where entry_reference came from for transparency
+    let raw_entry = trader_plan.entry_price.trim().to_string();
+    let entry_price_val = parse_first_numeric(&raw_entry);
+    // Guard: if entry == invalidation, it's a data error — clear entry to avoid
+    // showing contradictory "enter at stop-loss" guidance.
+    let entry_reference = if entry_price_val.is_some()
+        && entry_price_val == invalidation_price
+        && entry_price_val != confirmation_price
+    {
+        String::new()
+    } else {
+        raw_entry.clone()
+    };
+    let entry_derivation = if !entry_reference.is_empty() {
+        if entry_price_val == confirmation_price {
+            LocalText::new("entry_derived_from_confirmation")
+        } else {
+            LocalText::new("entry_from_trader_plan")
+        }
+    } else {
+        LocalText::new("entry_not_specified")
+    };
     DecisionView {
         view,
         execution_state,
@@ -216,26 +239,15 @@ fn build_decision_view(
         action_bias,
         confidence_band,
         timeframe,
-        entry_reference: {
-            // If entry_reference is the same price as confirmation_level, clear it.
-            // Having both set to the same number confuses execution: the LLM
-            // effectively says "enter here" and "confirm here" at the same price,
-            // but confirmation requires time-validated "hold above" that a single
-            // price point cannot express.
-            let raw_entry = trader_plan.entry_price.trim().to_string();
-            let entry_price = parse_first_numeric(&raw_entry);
-            if entry_price.is_some() && entry_price == confirmation_price {
-                String::new()
-            } else {
-                raw_entry
-            }
-        },
+        entry_reference,
+        entry_derivation,
         confirmation_level: confirmation_reference.unwrap_or_default(),
         invalidation_level: visible_invalidation_reference(portfolio_decision, Some(trader_plan))
             .unwrap_or_default(),
         target_type,
         target_reference: LocalText::new("target_reference_value")
             .with_str("value", portfolio_decision.target_reference.trim()),
+        first_target: first_target.unwrap_or_default(),
         target_condition: LocalText::new("target_condition_value")
             .with_str("value", portfolio_decision.target_condition.trim()),
         thesis_state: infer_thesis_state(rating),
@@ -423,7 +435,7 @@ fn derive_core_research_call(
     if direction_score >= 25 && research_reliability.score >= 70 {
         return CoreResearchCall::BuyOnConfirmation;
     }
-    if direction_score <= -25 && research_reliability.score >= 70 {
+    if direction_score <= -35 && research_reliability.score >= 70 {
         if matches!(consensus, AnalystConsensus::StrongBearish | AnalystConsensus::ModerateBearish) {
             return CoreResearchCall::SellOnBreak;
         }

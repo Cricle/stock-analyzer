@@ -713,7 +713,7 @@ impl StructuredReport {
 
         let catalyst_score_card = derive_catalyst_score_card(&news_insights, &portfolio_decision, &decision_view);
         let review_checklist = derive_review_checklist(&decision_view, &trader_plan, &portfolio_decision, &price_context, &technical_indicators, &risk_controls);
-        Self {
+        let mut report = Self {
             report_flavor: ReportFlavor::Execution,
             title: format!("{} / {}", result.symbol, result.stock_name).into(),
             summary: portfolio_decision.executive_summary.clone(),
@@ -832,8 +832,56 @@ impl StructuredReport {
             review_checklist,
             stage_state: result.report_stage(),
             sections,
-        }
+        };
+        validate_and_enhance_report(&mut report, &result.artifacts.market_chart, current_price);
+        report
     }
+}
+
+/// Top-level validation and enhancement function.
+/// Called at the end of StructuredReport::from_result() after all existing post-processing.
+fn validate_and_enhance_report(
+    report: &mut StructuredReport,
+    market_chart: &ReportMarketChart,
+    current_price: Option<f64>,
+) {
+    // P0: Execution Validation
+    derive_execution_levels(
+        &mut report.trader_plan,
+        &mut report.portfolio_decision,
+        &mut report.decision_view,
+        market_chart,
+        current_price,
+    );
+    enforce_price_consistency(
+        &mut report.trader_plan,
+        &mut report.portfolio_decision,
+        &mut report.decision_view,
+    );
+    ensure_entry_transparency(&mut report.decision_view, &report.trader_plan);
+
+    // P1: Signal Intelligence
+    resolve_signal_conflicts(&report.technical_indicators, &mut report.ic_discipline);
+    reconcile_direction_with_text(&mut report.direction_score, &report.portfolio_decision);
+    detect_catalyst_vacuum(
+        &report.news_insights,
+        &mut report.portfolio_decision,
+        &mut report.confidence_breakdown,
+        &mut report.diagnostics,
+    );
+
+    // P2: Quality Hardening
+    anchor_reward_risk_to_first_target(
+        &mut report.profit_risk,
+        &report.decision_view,
+        &report.price_context,
+    );
+    deduplicate_report_content(report);
+    apply_reliability_hard_caps(
+        &mut report.research_reliability,
+        &report.diagnostics,
+        market_chart,
+    );
 }
 
 /// When IC discipline is "no_attack" (poor reward-risk or overheated RSI),

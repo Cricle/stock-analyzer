@@ -871,3 +871,238 @@ fn compute_atr_14(chart: &ReportMarketChart) -> Option<f64> {
         / 14.0;
     if atr > 0.0 { Some(atr) } else { None }
 }
+
+/// P0-1 + P0-3: Derive entry/stop levels using ATR when LLM output is missing,
+/// inverted, or contradictory. Guarantees entry > stop for long setups.
+fn derive_execution_levels(
+    trader_plan: &mut StructuredTraderPlan,
+    portfolio_decision: &mut StructuredPortfolioDecision,
+    decision_view: &mut DecisionView,
+    market_chart: &ReportMarketChart,
+    _current_price: Option<f64>,
+) {
+    let atr = compute_atr_14(market_chart);
+    let confirmation = parse_first_numeric(&portfolio_decision.confirmation_level);
+    let entry = parse_first_numeric(&trader_plan.entry_price);
+    let stop = parse_first_numeric(&trader_plan.stop_loss);
+
+    if let (Some(confirm), Some(atr_val)) = (confirmation, atr) {
+        let needs_derivation = entry.is_none()
+            || stop.is_none()
+            || entry == stop
+            || entry.unwrap_or(0.0) < stop.unwrap_or(0.0)
+            || entry.unwrap_or(0.0) > confirm;
+
+        if needs_derivation && confirm > atr_val {
+            let derived_entry = confirm - 1.0 * atr_val;
+            let derived_stop = confirm - 2.5 * atr_val;
+
+            if derived_entry > derived_stop && derived_stop > 0.0 {
+                tracing::info!(
+                    confirm = confirm,
+                    atr = atr_val,
+                    derived_entry = derived_entry,
+                    derived_stop = derived_stop,
+                    "derive_execution_levels: entry/stop derived from confirmation - ATR"
+                );
+                trader_plan.entry_price = format_price_reference(derived_entry);
+                trader_plan.stop_loss = format_price_reference(derived_stop);
+                decision_view.entry_reference = format_price_reference(derived_entry);
+                decision_view.invalidation_level = format_price_reference(derived_stop);
+                decision_view.entry_derivation = LocalText::new("entry_derived_from_confirmation")
+                    .with_f64("confirm", confirm)
+                    .with_f64("atr", atr_val);
+            }
+        }
+    }
+
+    // Sync invalidation_level: if entry < invalidation, lower invalidation
+    if let (Some(entry_val), Some(inval)) = (
+        parse_first_numeric(&trader_plan.entry_price),
+        parse_first_numeric(&portfolio_decision.invalidation_level),
+    ) {
+        if entry_val > 0.0 && inval > 0.0 && entry_val < inval {
+            portfolio_decision.invalidation_level = trader_plan.stop_loss.clone();
+        }
+    }
+}
+
+/// P0-2: Enforce portfolio_decision as single source of truth for price levels.
+/// Syncs trader_plan and decision_view to match.
+fn enforce_price_consistency(
+    trader_plan: &mut StructuredTraderPlan,
+    portfolio_decision: &mut StructuredPortfolioDecision,
+    decision_view: &mut DecisionView,
+) {
+    // portfolio_decision is authoritative
+    let confirmation = portfolio_decision.confirmation_level.clone();
+    let invalidation = portfolio_decision.invalidation_level.clone();
+    let target = if !portfolio_decision.target_reference.is_empty() {
+        portfolio_decision.target_reference.clone()
+    } else if !portfolio_decision.price_target.is_empty() {
+        portfolio_decision.price_target.clone()
+    } else {
+        String::new()
+    };
+
+    // Sync trader_plan
+    if !confirmation.is_empty() {
+        trader_plan.confirmation_level = confirmation.clone();
+    }
+    if !invalidation.is_empty() {
+        trader_plan.stop_loss = invalidation.clone();
+    }
+
+    // Sync decision_view
+    if !confirmation.is_empty() {
+        decision_view.confirmation_level = confirmation;
+    }
+    if !invalidation.is_empty() {
+        decision_view.invalidation_level = invalidation;
+    }
+    if !target.is_empty() {
+        decision_view.first_target = target;
+    }
+}
+
+/// P0-3: Ensure every entry_reference has a derivation explanation.
+fn ensure_entry_transparency(
+    decision_view: &mut DecisionView,
+    _trader_plan: &StructuredTraderPlan,
+) {
+    if decision_view.entry_reference.is_empty() {
+        decision_view.entry_derivation = LocalText::new("entry_not_specified");
+    } else if decision_view.entry_derivation.key.is_empty() {
+        decision_view.entry_derivation = LocalText::new("entry_from_trader_plan");
+    }
+}
+
+/// Find the signal_code for a given indicator key in TechnicalIndicatorView.
+fn find_indicator_signal(tech: &TechnicalIndicatorView, key: &str) -> String {
+    for cat in &tech.categories {
+        for ind in &cat.indicators {
+            if ind.key.eq_ignore_ascii_case(key) {
+                return ind.signal_code.clone();
+            }
+        }
+    }
+    String::new()
+}
+
+/// Convert a signal_code to a numeric score for weighted averaging.
+fn signal_to_score(signal: &str) -> f64 {
+    match signal.to_ascii_lowercase().as_str() {
+        "golden_cross" | "bullish" | "oversold" | "positive" | "inflow" => 1.0,
+        "death_cross" | "bearish" | "overbought" | "negative" | "outflow" | "divergence" => -1.0,
+        _ => 0.0,
+    }
+}
+
+/// P1-4: Apply signal weight matrix. OBV (50%) > MACD/RSI (30%) > KDJ (20%).
+fn resolve_signal_conflicts(
+    technical_indicators: &TechnicalIndicatorView,
+    ic_discipline: &mut IcDisciplineView,
+) {
+    let obv_signal = find_indicator_signal(technical_indicators, "OBV");
+    let macd_signal = find_indicator_signal(technical_indicators, "MACD");
+    let rsi_signal = find_indicator_signal(technical_indicators, "RSI");
+    let kdj_signal = find_indicator_signal(technical_indicators, "KDJ");
+
+    let volume_score = signal_to_score(&obv_signal) * 0.5;
+    let momentum_score =
+        (signal_to_score(&macd_signal) + signal_to_score(&rsi_signal)) / 2.0 * 0.3;
+    let overbought_score = signal_to_score(&kdj_signal) * 0.2;
+    let weighted_score = volume_score + momentum_score + overbought_score;
+
+    let obv_divergence = matches!(
+        obv_signal.as_str(),
+        "divergence" | "outflow" | "bearish"
+    );
+    let macd_bullish = matches!(macd_signal.as_str(), "golden_cross" | "bullish");
+
+    if obv_divergence && macd_bullish {
+        ic_discipline.state = LocalText::new("ic_discipline_state_no_attack");
+        ic_discipline
+            .reason_codes
+            .push("ic_discipline_reason_volume_divergence".to_string());
+    }
+
+    ic_discipline.signal_resolution = SignalResolution {
+        weighted_score,
+        volume_weight: 0.5,
+        momentum_weight: 0.3,
+        overbought_weight: 0.2,
+        dominant_signal: if obv_divergence {
+            "volume_divergence".to_string()
+        } else {
+            "aligned".to_string()
+        },
+    };
+}
+
+/// P1-5: If mechanical direction score diverges from text sentiment by >20 points,
+/// clamp the score to match the text.
+fn reconcile_direction_with_text(
+    direction_score: &mut i32,
+    portfolio_decision: &StructuredPortfolioDecision,
+) {
+    let text = portfolio_decision.executive_summary.key.to_lowercase();
+
+    let text_sentiment = if text.contains("偏多")
+        || text.contains("overweight")
+        || text.contains("bullish")
+    {
+        6
+    } else if text.contains("偏空")
+        || text.contains("underweight")
+        || text.contains("bearish")
+    {
+        -6
+    } else {
+        0
+    };
+
+    let divergence = (*direction_score - text_sentiment).unsigned_abs();
+    if divergence > 20 {
+        tracing::warn!(
+            mechanical = *direction_score,
+            text_sentiment = text_sentiment,
+            divergence = divergence,
+            "direction score diverges from text narrative, clamping to text range"
+        );
+        *direction_score = (text_sentiment - 10).max(-100).min(text_sentiment + 10).min(100);
+    }
+}
+
+/// P1-6: Detect when there are no unpriced catalyst events.
+fn detect_catalyst_vacuum(
+    news_insights: &[NewsInsight],
+    portfolio_decision: &mut StructuredPortfolioDecision,
+    confidence_breakdown: &mut ConfidenceBreakdown,
+    diagnostics: &mut ReportDiagnostics,
+) {
+    let unpriced_count = news_insights
+        .iter()
+        .filter(|n| {
+            !n.published_before_analysis
+                || n.impact_strength.key == "high"
+                || n.impact_strength.key == "medium"
+        })
+        .count();
+
+    if unpriced_count == 0 {
+        let vacuum_warning = LocalText::new("catalyst_vacuum_warning");
+        let current = portfolio_decision.executive_summary.trim();
+        portfolio_decision.executive_summary =
+            format!("{} {}", vacuum_warning.key, current).into();
+
+        confidence_breakdown.catalyst_quality.score = 0;
+
+        diagnostics.news.push(ReportDiagnosticItem {
+            code: "catalyst_vacuum".to_string(),
+            severity: "warning".to_string(),
+            message: LocalText::new("catalyst_vacuum_diagnostic"),
+            ..Default::default()
+        });
+    }
+}

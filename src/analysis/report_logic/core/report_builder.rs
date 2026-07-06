@@ -1106,3 +1106,153 @@ fn detect_catalyst_vacuum(
         });
     }
 }
+
+// ---------------------------------------------------------------------------
+// P2 Quality Hardening Functions
+// ---------------------------------------------------------------------------
+
+/// Normalize text for dedup comparison.
+fn normalize_for_dedup(text: &str) -> String {
+    text.to_ascii_lowercase()
+        .chars()
+        .filter(|c| c.is_alphanumeric() || c.is_whitespace())
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Jaccard similarity between two texts (word-level).
+fn text_similarity(a: &str, b: &str) -> f64 {
+    if a.is_empty() || b.is_empty() {
+        return 0.0;
+    }
+    let a_words: std::collections::HashSet<&str> = a.split_whitespace().collect();
+    let b_words: std::collections::HashSet<&str> = b.split_whitespace().collect();
+    let intersection = a_words.intersection(&b_words).count();
+    let union = a_words.union(&b_words).count();
+    if union == 0 {
+        0.0
+    } else {
+        intersection as f64 / union as f64
+    }
+}
+
+/// Truncate text to max_len at a sentence boundary.
+fn truncate_to_sentence_boundary(text: &str, max_len: usize) -> String {
+    if text.len() <= max_len {
+        return text.to_string();
+    }
+    let truncated = &text[..max_len];
+    if let Some(pos) = truncated.rfind(|c: char| c == '。' || c == '.' || c == '!' || c == '?') {
+        truncated[..=pos].to_string()
+    } else if let Some(pos) = truncated.rfind(|c: char| c == '，' || c == ',') {
+        truncated[..pos].to_string()
+    } else {
+        truncated.to_string()
+    }
+}
+
+/// P2-7: Recompute reward/risk ratio using first_target instead of probability targets.
+fn anchor_reward_risk_to_first_target(
+    profit_risk: &mut ProfitRiskView,
+    decision_view: &DecisionView,
+    price_context: &PriceContext,
+) {
+    let current = price_context
+        .current_price
+        .or_else(|| parse_first_numeric(&decision_view.current_price))
+        .unwrap_or(0.0);
+    if current <= 0.0 {
+        return;
+    }
+
+    let target = parse_first_numeric(&decision_view.first_target)
+        .or_else(|| parse_first_numeric(decision_view.target_reference.as_str()))
+        .unwrap_or(0.0);
+    if target <= current {
+        return;
+    }
+
+    let invalidation = parse_first_numeric(&decision_view.invalidation_price)
+        .or(price_context.low_price)
+        .unwrap_or(0.0);
+    if invalidation <= 0.0 || invalidation >= current {
+        return;
+    }
+
+    let reward = target - current;
+    let risk = current - invalidation;
+
+    profit_risk.upside_pct = Some((reward / current) * 100.0);
+    profit_risk.downside_pct = Some((risk / current) * 100.0);
+    profit_risk.reward_risk_ratio = Some(reward / risk);
+}
+
+/// P2-8: Deduplicate repeated content across report sections.
+fn deduplicate_report_content(report: &mut StructuredReport) {
+    // 1. Cap executive_summary at 200 chars
+    let summary = report.portfolio_decision.executive_summary.trim().to_string();
+    if summary.len() > 200 {
+        report.portfolio_decision.executive_summary =
+            truncate_to_sentence_boundary(&summary, 200).into();
+    }
+
+    // 2. Dedup rationale against executive_summary
+    let summary_norm = normalize_for_dedup(&report.portfolio_decision.executive_summary.key);
+    let rationale_norm = normalize_for_dedup(&report.portfolio_decision.rationale.key);
+    if text_similarity(&summary_norm, &rationale_norm) > 0.8 {
+        report.portfolio_decision.rationale = LocalText::new("rationale_references_summary");
+    }
+
+    // 3. Dedup risk_assessment against rationale
+    let risk_norm = normalize_for_dedup(&report.portfolio_decision.risk_assessment.key);
+    let updated_rationale_norm = normalize_for_dedup(&report.portfolio_decision.rationale.key);
+    if text_similarity(&updated_rationale_norm, &risk_norm) > 0.8 {
+        report.portfolio_decision.risk_assessment = LocalText::new("risk_references_rationale");
+    }
+}
+
+/// P2-9: Apply hard caps to research_reliability score.
+fn apply_reliability_hard_caps(
+    reliability: &mut ResearchReliability,
+    diagnostics: &ReportDiagnostics,
+    market_chart: &ReportMarketChart,
+) {
+    // Cap 1: No K-line data -> max 60
+    if market_chart.candles.is_empty() {
+        reliability.score = reliability.score.min(60);
+        reliability
+            .constraints
+            .push(LocalText::new("reliability_cap_no_kline"));
+    }
+
+    // Cap 2: Sparse news -> deduct 15
+    let has_sparse_news = diagnostics
+        .news
+        .iter()
+        .any(|d| d.code == "news_sparse_coverage");
+    if has_sparse_news {
+        reliability.score = (reliability.score - 15).max(0);
+        reliability
+            .constraints
+            .push(LocalText::new("reliability_cap_thin_news"));
+    }
+
+    // Cap 3: Any availability error -> max 70
+    if diagnostics
+        .availability
+        .iter()
+        .any(|d| d.severity.eq_ignore_ascii_case("error"))
+    {
+        reliability.score = reliability.score.min(70);
+    }
+
+    // Update label based on capped score
+    reliability.label = LocalText::new(match reliability.score {
+        80.. => "reliability_label_high",
+        65.. => "reliability_label_good",
+        50.. => "reliability_label_conditional",
+        _ => "reliability_label_weak",
+    });
+}

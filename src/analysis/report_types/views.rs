@@ -102,6 +102,20 @@ pub struct IcNavigatorView {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct SignalResolution {
+    #[serde(default)]
+    pub weighted_score: f64,
+    #[serde(default)]
+    pub volume_weight: f64,
+    #[serde(default)]
+    pub momentum_weight: f64,
+    #[serde(default)]
+    pub overbought_weight: f64,
+    #[serde(default)]
+    pub dominant_signal: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct IcDisciplineView {
     #[serde(default, deserialize_with = "deserialize_local_text_or_string")]
     pub state: LocalText,
@@ -135,6 +149,8 @@ pub struct IcDisciplineView {
     pub downside_pct: Option<f64>,
     #[serde(default)]
     pub technical_signal_codes: Vec<String>,
+    #[serde(default)]
+    pub signal_resolution: SignalResolution,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

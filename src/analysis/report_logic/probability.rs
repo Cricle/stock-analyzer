@@ -367,5 +367,6 @@ fn derive_ic_discipline(
         upside_pct: probability.upside_pct,
         downside_pct: probability.downside_pct,
         technical_signal_codes,
+        signal_resolution: Default::default(),
     }
 }

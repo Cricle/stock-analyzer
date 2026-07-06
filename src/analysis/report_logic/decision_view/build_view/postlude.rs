@@ -213,18 +213,49 @@ fn build_decision_view(
     // Entry derivation: track where entry_reference came from for transparency
     let raw_entry = trader_plan.entry_price.trim().to_string();
     let entry_price_val = parse_first_numeric(&raw_entry);
-    // Guard: if entry == invalidation, it's a data error — clear entry to avoid
-    // showing contradictory "enter at stop-loss" guidance.
-    let entry_reference = if entry_price_val.is_some()
+    // Guard: if entry == invalidation, it's a data error — derive a reasonable
+    // entry instead of showing contradictory "enter at stop-loss" guidance.
+    // Guard: if entry == confirmation (within 0.5%), derive entry slightly below
+    // confirmation to create an observation window before breakout.
+    let (entry_reference, entry_derived) = if entry_price_val.is_some()
         && entry_price_val == invalidation_price
         && entry_price_val != confirmation_price
     {
-        String::new()
+        match (current_price, confirmation_price) {
+            (Some(current), Some(confirm)) if confirm > current => {
+                let midpoint = current + (confirm - current) * 0.5;
+                (format_price_reference(midpoint), true)
+            }
+            (Some(current), Some(confirm)) if confirm <= current && confirm > 0.0 => {
+                (format_price_reference(confirm * 0.98), true)
+            }
+            _ => (String::new(), false),
+        }
+    } else if let (Some(entry), Some(confirm)) = (entry_price_val, confirmation_price) {
+        // Entry == confirmation: derive entry below for observation window.
+        // Enforce at least 1% gap from confirmation to avoid degenerate cases
+        // where current_price ≈ confirmation produces a near-identical pullback.
+        if confirm > 0.0 && (entry - confirm).abs() / confirm < 0.005 {
+            let derived = if let Some(current) = current_price.filter(|&c| c > 0.0) && confirm > current {
+                let pullback = current + (confirm - current) * 0.8;
+                // If pullback is too close to confirmation (< 1% gap), use 3% discount
+                if (confirm - pullback) / confirm < 0.01 {
+                    confirm * 0.97
+                } else {
+                    pullback
+                }
+            } else {
+                confirm * 0.97
+            };
+            (format_price_reference(derived), true)
+        } else {
+            (raw_entry.clone(), false)
+        }
     } else {
-        raw_entry.clone()
+        (raw_entry.clone(), false)
     };
     let entry_derivation = if !entry_reference.is_empty() {
-        if entry_price_val == confirmation_price {
+        if entry_derived {
             LocalText::new("entry_derived_from_confirmation")
         } else {
             LocalText::new("entry_from_trader_plan")

@@ -151,4 +151,25 @@ impl TradingMemoryLog {
         // Always fall back to hash embedding to guarantee a non-empty vector
         Self::hash_embed_text(text, self.embedding.dimension)
     }
+
+    /// Search for personalized memory entries by embedding similarity.
+    pub async fn search_personalized(
+        &self,
+        embedding: &[f32],
+        _username: &str,
+        limit: usize,
+    ) -> anyhow::Result<Vec<super::MemoryEntry>> {
+        if let Some(store) = &self.vector_store {
+            let hits = store
+                .search("memory", embedding, limit)
+                .await
+                .unwrap_or_default();
+            let entries: Vec<super::MemoryEntry> = hits
+                .into_iter()
+                .filter_map(|hit| serde_json::from_value(hit.payload).ok())
+                .collect();
+            return Ok(entries);
+        }
+        Ok(vec![])
+    }
 }

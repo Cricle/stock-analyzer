@@ -460,6 +460,114 @@ impl TaskManager {
         }
         context_parts.join("\n\n")
     }
+
+    /// Mark a task as failed with an error message.
+    pub async fn mark_task_failed(&self, task_id: &str, error: String) -> anyhow::Result<()> {
+        if let Some(mut task) = self.analysis_store.get_task(task_id).await? {
+            task.status = crate::TaskStatus::Failed;
+            task.error_message = Some(error);
+            task.updated_at = Utc::now();
+            self.analysis_store.update_task(&task).await?;
+        }
+        Ok(())
+    }
+
+    /// Cancel a running task.
+    pub async fn cancel_task(&self, task_id: &str) -> anyhow::Result<bool> {
+        let mut guard = self.running_tasks.write().await;
+        if let Some(handle) = guard.remove(task_id) {
+            handle.abort();
+            if let Some(mut task) = self.analysis_store.get_task(task_id).await? {
+                task.status = crate::TaskStatus::Cancelled;
+                task.updated_at = Utc::now();
+                self.analysis_store.update_task(&task).await?;
+            }
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Create a task for a user and run it (non-blocking, returns task_id).
+    pub async fn create_task_for_user(
+        &self,
+        owner_username: &str,
+        request: crate::SingleAnalysisRequest,
+    ) -> anyhow::Result<String> {
+        self.create_task_and_run_blocking(owner_username, request, None)
+            .await
+    }
+
+    /// Resume a paused/failed task.
+    pub async fn resume_task(&self, task_id: &str) -> anyhow::Result<bool> {
+        if let Some(mut task) = self.analysis_store.get_task(task_id).await? {
+            if task.status == crate::TaskStatus::Failed || task.status == crate::TaskStatus::Cancelled {
+                task.status = crate::TaskStatus::Running;
+                task.updated_at = Utc::now();
+                self.analysis_store.update_task(&task).await?;
+                let params = self.task_run_params_from_request(&task, &task.request).await;
+                let this = self.clone();
+                let tid = task_id.to_string();
+                tokio::spawn(async move {
+                    if let Err(e) = this.execute_existing_task(tid.clone(), params).await {
+                        tracing::error!("resume task {} failed: {:?}", tid, e);
+                    }
+                });
+                return Ok(true);
+            }
+            Ok(false)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Clear checkpoints for a task.
+    pub async fn clear_task_checkpoint(&self, task_id: &str) -> anyhow::Result<bool> {
+        self.checkpoint_store.clear(task_id, "", "").await?;
+        Ok(true)
+    }
+
+    /// Get task result as report JSON.
+    pub async fn task_result_report_json(&self, task_id: &str) -> anyhow::Result<Option<serde_json::Value>> {
+        if let Some(result) = self.analysis_store.load_result(task_id).await? {
+            Ok(Some(serde_json::to_value(&result.report)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Get task result as chart JSON.
+    pub async fn task_result_chart_json(&self, task_id: &str) -> anyhow::Result<Option<serde_json::Value>> {
+        if let Some(result) = self.analysis_store.load_result(task_id).await? {
+            Ok(Some(serde_json::json!({
+                "chart": result.report.market_chart,
+            })))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Get task result as artifacts JSON.
+    pub async fn task_result_artifacts_json(&self, task_id: &str) -> anyhow::Result<Option<serde_json::Value>> {
+        if let Some(result) = self.analysis_store.load_result(task_id).await? {
+            Ok(Some(serde_json::json!({
+                "artifacts": result.artifacts,
+            })))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Get task result as IC report JSON.
+    pub async fn task_result_ic_report_json(&self, task_id: &str) -> anyhow::Result<Option<serde_json::Value>> {
+        if let Some(result) = self.analysis_store.load_result(task_id).await? {
+            Ok(Some(serde_json::json!({
+                "ic_report": result.report.ic_navigator,
+            })))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 pub fn seconds_until_local_midnight() -> i64 {

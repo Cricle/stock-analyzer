@@ -55,7 +55,7 @@ pub struct ReportReferenceSnapshot {
 pub struct ReferenceFactItem {
     #[serde(default)]
     pub key: String,
-    #[serde(default, skip_serializing)]
+    #[serde(default)]
     pub label: String,
     #[serde(default)]
     pub value: String,

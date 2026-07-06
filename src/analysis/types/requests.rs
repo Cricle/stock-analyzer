@@ -18,6 +18,21 @@ pub struct AnalysisOutcomeRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AnalysisReuseCheckRequest {
+    #[serde(default)]
+    pub symbol: Option<String>,
+    #[serde(default)]
+    pub stock_code: Option<String>,
+    #[serde(default)]
+    pub parameters: Option<AnalysisParameters>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ResumeAnalysisRequest {
+    pub task_id: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[derive(Default)]
 pub struct AnalysisParameters {
     pub market_type: Option<String>,

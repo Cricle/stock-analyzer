@@ -284,7 +284,7 @@ fn fix_entry_stop_empty_stop_noop() {
 }
 
 #[test]
-fn fix_entry_stop_updates_invalidation_level_when_matching() {
+fn fix_entry_stop_does_not_update_invalidation_level() {
     let mut result = make_result();
     result.report.trader_plan.entry_price = "50.00".to_string();
     result.report.trader_plan.stop_loss = "50.00".to_string();
@@ -292,13 +292,14 @@ fn fix_entry_stop_updates_invalidation_level_when_matching() {
 
     let issues = fix_entry_stop(&mut result);
     assert!(!issues.is_empty());
-    let new_inv: f64 = result
+    // Invalidation level should NOT be updated here - it's derived from portfolio_decision
+    let inv: f64 = result
         .report
         .decision_view
         .invalidation_level
         .parse()
         .unwrap();
-    assert!((new_inv - 49.00).abs() < 0.01);
+    assert!((inv - 50.00).abs() < 0.01);
 }
 
 // ---- fix_risk_reward ----

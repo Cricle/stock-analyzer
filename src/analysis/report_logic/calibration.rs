@@ -53,6 +53,15 @@ pub fn fallback_sizing_reference(existing: &str, rating: &Rating, blocker_presen
     }
 }
 
+fn parse_first_numeric_local(value: &str) -> Option<f64> {
+    for token in value.split(|c: char| c.is_whitespace() || c == ',' || c == '，') {
+        if let Ok(v) = token.trim().parse::<f64>() {
+            return Some(v);
+        }
+    }
+    None
+}
+
 pub fn derive_action_guides(
     _result: &AnalysisResult,
     research_plan: &StructuredResearchPlan,
@@ -76,11 +85,42 @@ pub fn derive_action_guides(
     let sizing_ref = fallback_sizing_reference(&trader_plan.position_sizing, rating, blocker_present);
     let review_points = collect_key_review_points(research_plan, trader_plan, portfolio_decision);
 
-    let entry_ref = trader_plan.entry_price.trim().to_string();
+    let raw_entry_ref = trader_plan.entry_price.trim().to_string();
     let invalidation_ref = visible_invalidation_reference(portfolio_decision, Some(trader_plan))
         .unwrap_or_default();
-    let target_ref = visible_target_reference(portfolio_decision).unwrap_or_default();
     let confirmation_ref = visible_confirmation_reference(portfolio_decision).unwrap_or_default();
+    // Guard: if entry == invalidation, it's a data error — derive a reasonable
+    // entry instead of showing contradictory "enter at stop-loss" guidance.
+    // Guard: if entry == confirmation (within 0.5%), derive entry slightly below
+    // confirmation to create an observation window before breakout.
+    let entry_price_val = parse_first_numeric_local(&raw_entry_ref);
+    let invalidation_price_val = parse_first_numeric_local(&invalidation_ref);
+    let confirmation_price_val = parse_first_numeric_local(&confirmation_ref);
+    let entry_ref = if entry_price_val.is_some()
+        && entry_price_val == invalidation_price_val
+        && entry_price_val != confirmation_price_val
+    {
+        // Derive entry as midpoint between invalidation and confirmation
+        match (invalidation_price_val, confirmation_price_val) {
+            (Some(inv), Some(conf)) if conf > inv => {
+                format!("{:.2}", inv + (conf - inv) * 0.5)
+            }
+            (Some(_inv), Some(conf)) => {
+                format!("{:.2}", conf * 0.98)
+            }
+            _ => String::new(),
+        }
+    } else if let (Some(entry), Some(confirm)) = (entry_price_val, confirmation_price_val) {
+        // Entry == confirmation: derive entry slightly below for observation window
+        if confirm > 0.0 && (entry - confirm).abs() / confirm < 0.005 {
+            format!("{:.2}", confirm * 0.97)
+        } else {
+            raw_entry_ref
+        }
+    } else {
+        raw_entry_ref
+    };
+    let target_ref = visible_target_reference(portfolio_decision).unwrap_or_default();
     let time_horizon = portfolio_decision.time_horizon.trim().to_string();
 
     let holder_actions = build_holder_actions(trader_plan, portfolio_decision, blocker_present);

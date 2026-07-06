@@ -7,6 +7,8 @@ fn derive_news_reference_facts(result: &AnalysisResult) -> Vec<ReferenceFactItem
         result.artifacts.scenario_context.market,
         crate::AnalysisScenarioMarket::AShare
     );
+
+    // Try tool_history first
     for state in &result.artifacts.analyst_runtime_states {
         if !matches!(state.key.as_str(), "news" | "sentiment") {
             continue;
@@ -74,6 +76,45 @@ fn derive_news_reference_facts(result: &AnalysisResult) -> Vec<ReferenceFactItem
             }
         }
     }
+
+    // Fallback to scenario_data.company_news when tool_history produced nothing
+    if facts.is_empty() {
+        for item in &result.artifacts.scenario_data.company_news {
+            let date = item.published_at.trim();
+            let timing_prefix = if !date.is_empty() && !analysis_date.is_empty() && *date <= *analysis_date {
+                "[已公布] "
+            } else if !date.is_empty() && !analysis_date.is_empty() {
+                "[待公布] "
+            } else {
+                ""
+            };
+            let title = if !item.title.trim().is_empty() {
+                item.title.trim()
+            } else {
+                item.summary.trim()
+            };
+            if title.is_empty() {
+                continue;
+            }
+            let dedup_key = format!("{}|{}", date, title).to_ascii_lowercase();
+            if !seen.insert(dedup_key) {
+                continue;
+            }
+            facts.push(ReferenceFactItem {
+                key: "news_item".to_string(),
+                label: date.to_string(),
+                value: format!("{timing_prefix}{title}"),
+                emphasis: item.source.clone(),
+                summary: item.summary.clone(),
+                url: item.url.clone().unwrap_or_default(),
+                ..Default::default()
+            });
+            if facts.len() >= 6 {
+                break;
+            }
+        }
+    }
+
     facts.truncate(6);
     facts
 }

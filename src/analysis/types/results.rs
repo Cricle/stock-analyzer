@@ -95,6 +95,46 @@ pub struct StockPickFailureInfo {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct AnalysisReuseCandidate {
+    #[serde(default)]
+    pub available: bool,
+    #[serde(default)]
+    pub source_task_id: String,
+    #[serde(default)]
+    pub symbol: String,
+    #[serde(default)]
+    pub stock_name: String,
+    #[serde(default)]
+    pub market_type: String,
+    #[serde(default)]
+    pub analysis_date: String,
+    #[serde(default)]
+    pub cached_at: String,
+    #[serde(default)]
+    pub expires_at: String,
+    #[serde(default)]
+    pub reuse_credits: i32,
+    #[serde(default)]
+    pub summary: String,
+    #[serde(default)]
+    pub recommendation: String,
+    #[serde(default)]
+    pub semantic_matches: Vec<AnalysisReuseSemanticMatch>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct AnalysisReuseSemanticMatch {
+    #[serde(default)]
+    pub task_id: String,
+    #[serde(default)]
+    pub symbol: String,
+    #[serde(default)]
+    pub similarity: f64,
+    #[serde(default)]
+    pub summary: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickResponse {
     pub market: String,
     pub strategy: String,

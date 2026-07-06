@@ -85,6 +85,10 @@ pub mod types {
     pub use akshare::types::*;
 }
 
+// ── Storage (stub for PgStore) ──
+
+pub mod storage;
+
 // ── Models ──
 
 pub mod analysis;
@@ -109,20 +113,23 @@ pub mod report;
 pub use analysis::{
     ActionBreakdown, ActionScenarioPath, AgentReportNode, AgentStateSnapshot, AnalysisArtifacts,
     AnalysisCheckpoint, AnalysisGraph, AnalysisOutcomeRequest, AnalysisParameters, AnalysisResult,
+    AnalysisReuseCandidate, AnalysisReuseCheckRequest, AnalysisReuseSemanticMatch,
     AnalysisScenarioContext, AnalysisScenarioData, AnalysisScenarioIssue, AnalysisScenarioMarket,
     AnalysisTaskSummary, AnalysisUserContext, AnalystRuntimeState, AudienceActionGuide,
     CalibrationBias, CalibrationSummary, CatalystScoreCard, CatalystScoreItem, ConfidenceBreakdown,
     ConfidenceCap, ConfidenceProfile, CoreResearchCall, DebateTurn, DecisionAction,
-    DecisionConfidenceBand, DecisionView, DecisionViewDirection, DiagnosisIssue, DiagnosisSummary,
-    DirectionBreakdown, ExecutionReadiness, HistoricalMemoryHighlight, IcDisciplineView,
-    IcNavigatorView, InvestmentDebateState, LlmTokenUsageByModel, LlmTokenUsageSummary, LocalText,
-    MemoryContextSnapshot, MissingEvidenceLadder, NewsInsight, PriceContext, ProbabilityDriver,
-    ProbabilityView, ProfitRiskView, Rating, ReferenceFactItem, ReportActionGuides, ReportCandle,
-    ReportDiagnosticItem, ReportDiagnostics, ReportEvidenceCard, ReportMarketChart,
-    ReportReferenceSnapshot, ReportSection, ReportStageState, ReviewChecklist, ReviewItem,
-    RiskControl, RiskDebateState, RuntimeNodeTrace, ScoreDimension, SetupMatchExplanation,
-    SignedScoreDimension, SingleAnalysisRequest, StockPickDataQualitySnapshot,
-    StockPickEvidenceCoverageSummary, StockPickFactorBreakdown, StockPickFundamentalSnapshot,
+    DecisionActionBias, DecisionConfidenceBand, DecisionExecutionState, DecisionMode,
+    DecisionTargetType, DecisionTimeframe, DecisionView, DecisionViewDirection, DiagnosisIssue,
+    DiagnosisSummary, DirectionBreakdown, ExecutionReadiness, HistoricalMemoryHighlight,
+    IcDisciplineView, IcNavigatorView, InvestmentDebateState, LlmTokenUsageByModel,
+    LlmTokenUsageSummary, LocalText, MemoryContextSnapshot, MissingEvidenceLadder, NewsInsight,
+    PriceContext, ProbabilityDriver, ProbabilityView, ProfitRiskView, Rating, ReferenceFactItem,
+    ReportActionGuides, ReportCandle, ReportDiagnosticItem, ReportDiagnostics, ReportEvidenceCard,
+    ReportFlavor, ReportMarketChart, ReportReferenceSnapshot, ReportSection, ReportStageState,
+    ResumeAnalysisRequest, ReviewChecklist, ReviewItem, RiskControl, RiskDebateState,
+    RuntimeNodeTrace, ScoreDimension, SetupMatchExplanation, SignedScoreDimension,
+    SingleAnalysisRequest, StockPickDataQualitySnapshot, StockPickEvidenceCoverageSummary,
+    StockPickFactorBreakdown, StockPickFailureInfo, StockPickFundamentalSnapshot,
     StockPickHistoryMatchSnapshot, StockPickItem, StockPickMarketSnapshot, StockPickNewsSnapshot,
     StockPickObjectiveAssessment, StockPickObjectiveBreakdown, StockPickObjectiveBucket,
     StockPickObjectiveOverview, StockPickRequest, StockPickResponse, StockPickRiskSnapshot,
@@ -130,19 +137,19 @@ pub use analysis::{
     StockPickTechnicalSnapshot, StructuredPortfolioDecision, StructuredReflection,
     StructuredReport, StructuredResearchPlan, StructuredRiskAssessment, StructuredTraderPlan,
     TechnicalIndicatorCategory, TechnicalIndicatorConclusion, TechnicalIndicatorItem,
-    TechnicalIndicatorView, TechnicalValues, TradeSetupQuality, TrendLine, TrendLinePoint,
-    adx_report, atr_report, bollinger_report, derive_action_guides, derive_memory_reference_facts,
-    derive_news_diagnostics, derive_news_insights, derive_report_diagnostics,
-    derive_setup_match_explanation, derive_setup_tags, derive_technical_conclusions,
-    detect_disclosure_sequence_complexity, ema_report, is_publishable_summary_reference,
-    is_semantically_similar, kdj_report, macd_report, obv_report, render_action_guides_markdown,
-    render_calibration_discipline_markdown, rsi_report, sma_report,
+    TechnicalIndicatorView, TechnicalValues, ThesisState, TradeSetupQuality, TrendLine,
+    TrendLinePoint, adx_report, atr_report, bollinger_report, derive_action_guides,
+    derive_memory_reference_facts, derive_news_diagnostics, derive_news_insights,
+    derive_report_diagnostics, derive_setup_match_explanation, derive_setup_tags,
+    derive_technical_conclusions, detect_disclosure_sequence_complexity, ema_report,
+    is_publishable_summary_reference, is_semantically_similar, kdj_report, macd_report, obv_report,
+    render_action_guides_markdown, render_calibration_discipline_markdown, rsi_report, sma_report,
 };
 
 pub use store::{
-    AnalysisStore, CacheEntry, CacheStore, CheckpointStore, GuidanceRule, GuidanceStore,
-    InMemoryAnalysisStore, InMemoryCacheStore, InMemoryCheckpointStore, InMemoryGuidanceStore,
-    StoredCheckpoint, VectorSearchHit, VectorStore,
+    AnalysisStore, CacheEntry, CacheStore, CheckpointInfo, CheckpointStore, GuidanceRule,
+    GuidanceStore, InMemoryAnalysisStore, InMemoryCacheStore, InMemoryCheckpointStore,
+    InMemoryGuidanceStore, StoredAnalysisSummary, StoredCheckpoint, VectorSearchHit, VectorStore,
 };
 
 pub use task::{
@@ -155,7 +162,8 @@ pub use llm_config::LlmProviderConfig;
 pub use types::ToolObservation;
 
 pub use scoring::{
-    CalibrationProfile, calibrate_recommendation_with_profile, evaluate_action_score,
+    ActionAssessment, CalibrationProfile, ConfidenceAssessment, DirectionAssessment,
+    RecommendationCalibration, calibrate_recommendation_with_profile, evaluate_action_score,
     evaluate_confidence_score, evaluate_direction_score, has_execution_boundary,
     history_requires_caution, score_setup_direction_alignment,
 };
@@ -171,3 +179,34 @@ pub use types::{
     FundamentalsSnapshot, MarketDataClient, MarketKind, NewsItem, QuoteSnapshot,
     normalized_news_date,
 };
+
+// ── Backward-compatibility: `engine` module ──
+//
+// TAR references `stock_analyzer::engine::*` which maps to the top-level modules.
+
+pub mod engine {
+    pub use crate::task_manager::{self, TaskManager, TaskRunParams, TASK_STEPS};
+    pub use crate::telemetry::{self, SharedTelemetry, TelemetryState};
+    pub use crate::llm;
+    pub use crate::memory;
+    pub use crate::checkpoint;
+    pub use crate::pick as stock_pick;
+    pub use crate::guide as guidance;
+    pub use crate::env_config as config;
+    pub use crate::data;
+
+    /// Stub for qlib_import (not present in this version).
+    pub mod qlib_import {
+        pub async fn run_init_from_env(_data_dir: &str) -> anyhow::Result<serde_json::Value> {
+            anyhow::bail!("qlib_import is not available in this version of stock-analyzer")
+        }
+    }
+}
+
+// ── Backward-compatibility: `models` module ──
+//
+// TAR references `stock_analyzer::models::*` which maps to the crate root re-exports.
+
+pub mod models {
+    pub use crate::*;
+}

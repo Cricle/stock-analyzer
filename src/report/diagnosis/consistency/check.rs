@@ -210,12 +210,10 @@ pub fn fix_entry_stop(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
     let new_stop = round_price(entry * 0.98);
     result.report.trader_plan.stop_loss = format!("{:.2}", new_stop);
 
-    // Also update the decision view invalidation level if it matched.
-    if result.report.decision_view.invalidation_level.trim() == entry_str
-        || parse_price(result.report.decision_view.invalidation_level.trim()) == Some(entry)
-    {
-        result.report.decision_view.invalidation_level = format!("{:.2}", new_stop);
-    }
+    // Do NOT modify decision_view.invalidation_level here.
+    // The DecisionView derives its invalidation from portfolio_decision.invalidation_level,
+    // which is the authoritative source. Modifying it here creates dual invalidation values
+    // (decision_view.invalidation_level vs decision_view.invalidation_price) that confuse users.
 
     tracing::warn!(
         check = "fix_entry_stop",

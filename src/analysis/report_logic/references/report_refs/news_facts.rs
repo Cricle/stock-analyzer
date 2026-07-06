@@ -251,29 +251,69 @@ fn derive_market_reference_facts_from_report(result: &AnalysisResult) -> Vec<Ref
 }
 
 fn derive_fundamentals_reference_facts(result: &AnalysisResult) -> Vec<ReferenceFactItem> {
-    let Some(state) = result.analyst_runtime_state("fundamentals") else {
-        return Vec::new();
-    };
+    // Try tool_history first (when analyst called tools)
     let mut merged = serde_json::Map::new();
-    for observation in &state.tool_history {
-        if matches!(
-            observation.tool_name.as_str(),
-            "get_fundamentals" | "get_income_statement" | "get_balance_sheet" | "get_cashflow"
-        ) && observation.success
-            && let Ok(value) = serde_json::from_str::<serde_json::Value>(&observation.output)
-            && let Some(object) = value.as_object()
-        {
-            for (key, value) in object {
-                merged.insert(key.clone(), value.clone());
+    let mut fiscal_period: Option<String> = None;
+    if let Some(state) = result.analyst_runtime_state("fundamentals") {
+        for observation in &state.tool_history {
+            if matches!(
+                observation.tool_name.as_str(),
+                "get_fundamentals" | "get_income_statement" | "get_balance_sheet" | "get_cashflow"
+            ) && observation.success
+                && let Ok(value) = serde_json::from_str::<serde_json::Value>(&observation.output)
+                && let Some(object) = value.as_object()
+            {
+                for (key, value) in object {
+                    merged.insert(key.clone(), value.clone());
+                }
             }
         }
+        fiscal_period = merged
+            .get("fiscal_year_end")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
     }
-    let pick = |key: &str| merged.get(key).and_then(json_number);
-    let fiscal_period = merged
-        .get("fiscal_year_end")
-        .and_then(|v| v.as_str())
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string());
+
+    // Fallback to scenario_data.fundamentals when tool_history is empty
+    let use_scenario_fallback = merged.is_empty();
+    let scenario_fund = if use_scenario_fallback {
+        result.artifacts.scenario_data.fundamentals.as_ref()
+    } else {
+        None
+    };
+
+    let pick = |key: &str| -> Option<f64> {
+        if let Some(v) = merged.get(key).and_then(json_number) {
+            return Some(v);
+        }
+        // Map scenario_data field names (with _usd suffix) to report field names
+        if let Some(fund) = scenario_fund {
+            return match key {
+                "revenues" => fund.revenues_usd,
+                "net_income" => fund.net_income_usd,
+                "operating_cash_flow" => fund.operating_cash_flow_usd,
+                "free_cash_flow" => fund.free_cash_flow_usd,
+                "capital_expenditure" => fund.capital_expenditure_usd,
+                "assets" => fund.assets_usd,
+                "liabilities" => fund.liabilities_usd,
+                "stockholders_equity" => fund.stockholders_equity_usd,
+                "cash_and_equivalents" => fund.cash_and_equivalents_usd,
+                "market_cap" => fund.market_cap,
+                _ => None,
+            };
+        }
+        None
+    };
+
+    // Get fiscal period from scenario fallback
+    if use_scenario_fallback && fiscal_period.is_none() {
+        fiscal_period = scenario_fund
+            .and_then(|f| f.fiscal_year_end.as_deref())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+    }
+
     let mut facts = Vec::new();
     for (label, key, emphasis) in [
         ("营收", "revenues", "primary"),

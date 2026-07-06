@@ -14,7 +14,7 @@ impl StructuredReport {
         {
             let cp = latest_market_close(result);
             if let Some(cur) = cp.filter(|c| *c > 0.0) {
-                let max_gap = 0.5; // 50% threshold
+                let max_gap = 0.3; // 30% threshold — reject hallucinated prices more aggressively
                 for (label, value) in [
                     ("entry_price", &trader_plan.entry_price),
                     ("stop_loss", &trader_plan.stop_loss),
@@ -27,7 +27,7 @@ impl StructuredReport {
                                 field = label,
                                 hallucinated_price = price,
                                 current_price = cur,
-                                "LLM hallucinated price rejected (>50% gap from market)"
+                                "LLM hallucinated price rejected (>30% gap from market)"
                             );
                         }
                 }
@@ -62,18 +62,44 @@ impl StructuredReport {
                             &mut trader_plan.stop_loss,
                         );
                     }
+                // Also validate price_target from portfolio_decision
+                if let Some(tp) = extract_first_price(&portfolio_decision.price_target)
+                    && (tp / cur - 1.0).abs() > max_gap {
+                        tracing::warn!(
+                            stock = %result.symbol,
+                            hallucinated_price = tp,
+                            current_price = cur,
+                            "LLM hallucinated price_target rejected (>30% gap from market)"
+                        );
+                        portfolio_decision.price_target.clear();
+                    }
             }
         }
         normalize_execution_references(result, &trader_plan, &mut portfolio_decision);
         // Phase 3.3b: recover entry_price from confirmation_level when entry is missing.
-        // Confirmation level often doubles as a "wait for this price" entry reference.
+        // Derive entry below confirmation to create an observation window.
+        // If confirmation > current: use 80% of the gap, but enforce at least 1% gap.
+        // If confirmation <= current: use 97% of confirmation.
         if trader_plan.entry_price.trim().is_empty()
             && !portfolio_decision.confirmation_level.trim().is_empty()
         {
             if let Some(conf_price) = extract_first_price(&portfolio_decision.confirmation_level) {
+                let current = latest_market_close(result).unwrap_or(conf_price);
+                let entry_price = if conf_price > current && current > 0.0 {
+                    let pullback = current + (conf_price - current) * 0.8;
+                    if (conf_price - pullback) / conf_price < 0.01 {
+                        conf_price * 0.97
+                    } else {
+                        pullback
+                    }
+                } else {
+                    conf_price * 0.97
+                };
+                trader_plan.entry_price = format_price_reference(entry_price);
                 portfolio_decision.rationale = format!(
-                    "{} entry_price_recovered_from_confirmation={}",
+                    "{} entry_price_derived_from_confirmation={:.2} (original={:.2})",
                     portfolio_decision.rationale.as_str().trim(),
+                    entry_price,
                     conf_price
                 ).into();
             }
@@ -105,6 +131,52 @@ impl StructuredReport {
                         );
                         portfolio_decision.invalidation_level.clear();
                     }
+            }
+        }
+        // Post-processing: derive missing fields from available data
+        {
+            let cp = latest_market_close(result);
+            let price_anchors = collect_price_anchors(result, &trader_plan, &portfolio_decision);
+            // 1. When target == confirmation, derive a proper target above confirmation.
+            //    Target should be higher than confirmation for bullish setups.
+            if let (Some(target), Some(confirm)) = (
+                parse_first_numeric(&portfolio_decision.price_target),
+                parse_first_numeric(&portfolio_decision.confirmation_level),
+            ) {
+                if (target - confirm).abs() / confirm.max(1.0) < 0.05 {
+                    // Target ≈ confirmation: derive a proper target
+                    tracing::info!(
+                        stock = %result.symbol,
+                        target = target,
+                        confirmation = confirm,
+                        "target ≈ confirmation detected, deriving proper target"
+                    );
+                    if let Some(above) = nearest_anchor_above(
+                        Some(confirm), &price_anchors,
+                    ) {
+                        portfolio_decision.price_target = format_price_reference(above);
+                    } else if let Some(cur) = cp {
+                        // Default: 5% above confirmation
+                        let derived = confirm * 1.05;
+                        if derived > cur {
+                            portfolio_decision.price_target = format_price_reference(derived);
+                        }
+                    }
+                }
+            }
+            // 2. When invalidation is missing, derive from stop_loss or set default
+            if portfolio_decision.invalidation_level.trim().is_empty() {
+                if !trader_plan.stop_loss.trim().is_empty() {
+                    portfolio_decision.invalidation_level = trader_plan.stop_loss.trim().to_string();
+                } else if let Some(cur) = cp {
+                    // Default: 8% below current price as invalidation
+                    let derived = cur * 0.92;
+                    portfolio_decision.invalidation_level = format_price_reference(derived);
+                }
+            }
+            // 3. When time_horizon is missing, set a reasonable default
+            if portfolio_decision.time_horizon.trim().is_empty() {
+                portfolio_decision.time_horizon = "2-6周".to_string();
             }
         }
         let reflection = StructuredReflection::from_text(&result.graph.reflection.reflection);
@@ -210,9 +282,17 @@ impl StructuredReport {
                 || memory_direction_misaligned)
             && !current_confirmation_is_strong;
         let effective_confidence_score = if memory_threshold_tightened {
-            confidence_assessment
+            let capped = confidence_assessment
                 .final_score
-                .min(calibration_profile.min_confidence_score + 10)
+                .min(calibration_profile.min_confidence_score + 15);
+            tracing::info!(
+                stock = %result.symbol,
+                raw_confidence = confidence_assessment.final_score,
+                capped_confidence = capped,
+                min_confidence_score = calibration_profile.min_confidence_score,
+                "memory threshold tightened, confidence capped"
+            );
+            capped
         } else if positive_setup_support {
             (confidence_assessment.final_score + 6).min(100)
         } else {

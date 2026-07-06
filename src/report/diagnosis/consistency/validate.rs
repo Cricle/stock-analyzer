@@ -16,6 +16,7 @@ impl ConsistencyValidator {
         let mut issues = Vec::new();
         issues.extend(super::check::fix_probabilities(result));
         issues.extend(super::check::fix_entry_stop(result));
+        issues.extend(super::check::fix_entry_invalidation(result));
         issues.extend(super::check::fix_risk_reward(result));
         issues.extend(Self::fix_position_sizing(result));
         issues.extend(Self::fix_recommendation_consistency(result));

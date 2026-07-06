@@ -107,7 +107,6 @@ fn derive_news_reference_facts(result: &AnalysisResult) -> Vec<ReferenceFactItem
                 emphasis: item.source.clone(),
                 summary: item.summary.clone(),
                 url: item.url.clone().unwrap_or_default(),
-                ..Default::default()
             });
             if facts.len() >= 6 {
                 break;

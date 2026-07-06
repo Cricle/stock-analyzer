@@ -49,9 +49,28 @@ fn build_decision_view(
         });
     let invalidation_price_raw =
         visible_invalidation_reference(portfolio_decision, Some(trader_plan));
-    let invalidation_price = invalidation_price_raw
+    let mut invalidation_price = invalidation_price_raw
         .as_deref()
         .and_then(parse_first_numeric);
+    // Guard: if entry < invalidation, the risk control logic is inverted.
+    // Lower invalidation to stop_loss or entry * 0.95.
+    if let (Some(entry), Some(inval)) = (
+        parse_first_numeric(trader_plan.entry_price.trim()).filter(|&e| e > 0.0),
+        invalidation_price.filter(|&i| i > 0.0),
+    ) {
+        if entry < inval {
+            let corrected = parse_first_numeric(trader_plan.stop_loss.trim())
+                .filter(|&s| s > 0.0 && s < entry)
+                .unwrap_or(entry * 0.95);
+            tracing::warn!(
+                entry = entry,
+                original_invalidation = inval,
+                corrected_invalidation = corrected,
+                "build_decision_view: entry < invalidation, lowering invalidation"
+            );
+            invalidation_price = Some(corrected);
+        }
+    }
     let has_confirmation_gate = !confirmation_reference.clone().unwrap_or_default().is_empty();
     let primary_path = preferred_scenario_path(action_guides)
         .map(|path| path.name.key.clone())

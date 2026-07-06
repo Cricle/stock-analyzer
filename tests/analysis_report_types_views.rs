@@ -103,6 +103,7 @@ fn ic_discipline_view_serde_roundtrip() {
         upside_pct: Some(6.7),
         downside_pct: Some(-3.3),
         technical_signal_codes: vec!["bullish".into()],
+        signal_resolution: Default::default(),
     };
     let json = serde_json::to_string(&v).unwrap();
     let restored: IcDisciplineView = serde_json::from_str(&json).unwrap();

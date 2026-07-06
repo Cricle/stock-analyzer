@@ -234,6 +234,63 @@ pub fn fix_entry_stop(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
 }
 
 // ======================================================================
+// Check 2b: Entry < invalidation guard
+// ======================================================================
+
+/// If entry_price < invalidation_level, the risk control logic is inverted
+/// (buying below the stop). Lower invalidation to stop_loss or entry * 0.95.
+pub fn fix_entry_invalidation(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
+    let entry_str = result.report.decision_view.entry_reference.trim().to_string();
+    let inval_str = result.report.decision_view.invalidation_level.trim().to_string();
+
+    if entry_str.is_empty() || inval_str.is_empty() {
+        return Vec::new();
+    }
+
+    let entry = parse_price(&entry_str);
+    let inval = parse_price(&inval_str);
+
+    let (Some(entry), Some(inval)) = (entry, inval) else {
+        return Vec::new();
+    };
+
+    if entry <= 0.0 || inval <= 0.0 || entry >= inval {
+        return Vec::new();
+    }
+
+    // entry < invalidation — derive a corrected invalidation
+    let stop = parse_price(result.report.trader_plan.stop_loss.trim());
+    let new_inval = if let Some(s) = stop.filter(|&s| s > 0.0 && s < entry) {
+        round_price(s)
+    } else {
+        round_price(entry * 0.95)
+    };
+
+    let original = format!("entry={:.2}, invalidation={:.2}", entry, inval);
+    let fixed = format!("{:.2}", new_inval);
+
+    result.report.decision_view.invalidation_level = fixed.clone();
+    result.report.portfolio_decision.invalidation_level = fixed.clone();
+
+    tracing::warn!(
+        check = "fix_entry_invalidation",
+        entry = entry,
+        original_invalidation = inval,
+        new_invalidation = new_inval,
+        "entry < invalidation_level, lowered invalidation"
+    );
+
+    vec![make_issue(
+        IssueSeverity::Warning,
+        "fix_entry_invalidation",
+        "decision_view.invalidation_level",
+        &original,
+        &fixed,
+        "Entry price below invalidation level; lowered invalidation to stop-loss or entry * 0.95",
+    )]
+}
+
+// ======================================================================
 // Check 3: Risk:Reward ratio
 // ======================================================================
 

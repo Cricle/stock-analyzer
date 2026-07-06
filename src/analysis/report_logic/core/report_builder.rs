@@ -1191,10 +1191,29 @@ fn truncate_to_sentence_boundary(text: &str, max_len: usize) -> String {
     if text.len() <= max_len {
         return text.to_string();
     }
-    let truncated = &text[..max_len];
-    if let Some(pos) = truncated.rfind(|c: char| c == '。' || c == '.' || c == '!' || c == '?') {
-        truncated[..=pos].to_string()
-    } else if let Some(pos) = truncated.rfind(|c: char| c == '，' || c == ',') {
+    // Find a valid UTF-8 char boundary at or before max_len.
+    let boundary = text.char_indices()
+        .map(|(i, _)| i)
+        .take_while(|&i| i <= max_len)
+        .last()
+        .unwrap_or(0);
+    let truncated = &text[..boundary];
+    // Prefer the last sentence-ending punctuation over the last comma.
+    // Use char_indices (not rfind) to get correct multi-byte end positions.
+    let sentence_enders = ['。', '.', '!', '?'];
+    let clause_separators = ['，', ','];
+    let mut last_ender: Option<usize> = None;
+    let mut last_separator: Option<usize> = None;
+    for (i, ch) in truncated.char_indices() {
+        if sentence_enders.contains(&ch) {
+            last_ender = Some(i + ch.len_utf8());
+        } else if clause_separators.contains(&ch) {
+            last_separator = Some(i);
+        }
+    }
+    if let Some(pos) = last_ender {
+        truncated[..pos].to_string()
+    } else if let Some(pos) = last_separator {
         truncated[..pos].to_string()
     } else {
         truncated.to_string()
@@ -1239,11 +1258,12 @@ fn anchor_reward_risk_to_first_target(
 
 /// P2-8: Deduplicate repeated content across report sections.
 fn deduplicate_report_content(report: &mut StructuredReport) {
-    // 1. Cap executive_summary at 200 chars
+    // 1. Cap executive_summary at 500 bytes to leave room for
+    //    code-appended scenario gap narratives (Chinese text ~3 bytes/char).
     let summary = report.portfolio_decision.executive_summary.trim().to_string();
-    if summary.len() > 200 {
+    if summary.len() > 500 {
         report.portfolio_decision.executive_summary =
-            truncate_to_sentence_boundary(&summary, 200).into();
+            truncate_to_sentence_boundary(&summary, 500).into();
     }
 
     // 2. Dedup rationale against executive_summary

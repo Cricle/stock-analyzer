@@ -1,10 +1,81 @@
 
+pub(super) fn technical_bias(indicators: &TechnicalIndicatorView) -> i32 {
+    let mut bias: i32 = 0;
+    for cat in &indicators.categories {
+        for item in &cat.indicators {
+            match item.key.as_str() {
+                "macd" => match item.signal_code.as_str() {
+                    "bullish_cross" => bias += 4,
+                    "bearish_cross" => bias -= 4,
+                    "above_zero" => bias += 1,
+                    "below_zero" => bias -= 1,
+                    _ => {}
+                },
+                "rsi" => match item.signal_code.as_str() {
+                    "oversold" => bias += 3,
+                    "overbought" => bias -= 3,
+                    "neutral" => {
+                        if let Some(v) = item.value {
+                            if v < 40.0 { bias += 1; } else if v > 60.0 { bias -= 1; }
+                        }
+                    }
+                    _ => {}
+                },
+                "kdj_k" => match item.signal_code.as_str() {
+                    "bullish_cross" => bias += 3,
+                    "bearish_cross" => bias -= 3,
+                    "oversold" => bias += 1,
+                    "overbought" => bias -= 1,
+                    _ => {}
+                },
+                "cci" => match item.signal_code.as_str() {
+                    "oversold" => bias += 2,
+                    "overbought" => bias -= 2,
+                    "neutral" => {
+                        if let Some(v) = item.value {
+                            if v < -100.0 { bias += 1; } else if v > 100.0 { bias -= 1; }
+                        }
+                    }
+                    _ => {}
+                },
+                "boll_mid" => match item.signal_code.as_str() {
+                    "above_reference" => bias += 1,
+                    "below_reference" => bias -= 1,
+                    _ => {}
+                },
+                "obv" => match item.signal_code.as_str() {
+                    "volume_accumulation" => bias += 1,
+                    "volume_distribution" => bias -= 1,
+                    _ => {}
+                },
+                "wr" => match item.signal_code.as_str() {
+                    "oversold" => bias += 1,
+                    "overbought" => bias -= 1,
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+    }
+    bias.clamp(-20, 20)
+}
+
 fn score_market_direction(
     analyst: Option<&AgentReportNode>,
     final_rating: &Rating,
+    tech_indicators: &TechnicalIndicatorView,
 ) -> SignedScoreDimension {
     let analyst_score = score_analyst_net(analyst, 20);
-    let score = analyst_score + rating_bias(final_rating, 5);
+    let tech = technical_bias(tech_indicators);
+    let dampened_analyst = if tech.signum() == -analyst_score.signum()
+        && tech.abs() >= 6
+        && analyst_score.abs() >= 12
+    {
+        analyst_score * 6 / 10
+    } else {
+        analyst_score
+    };
+    let score = dampened_analyst + rating_bias(final_rating, 5) + tech;
     SignedScoreDimension {
         score: score.clamp(-25, 25),
         min_score: -25,
@@ -78,9 +149,9 @@ fn score_action_alignment(
     let action = trader_plan.action.trim();
     let action_rating = Rating::parse(action);
     let action_bias = if action.is_empty() { 0 } else { semantic_direction(&action_rating) };
-    let direction_bias = if direction_score >= 20 {
+    let direction_bias = if direction_score >= 25 {
         1
-    } else if direction_score <= -20 {
+    } else if direction_score <= -25 {
         -1
     } else {
         0

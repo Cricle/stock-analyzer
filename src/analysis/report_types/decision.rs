@@ -115,6 +115,13 @@ impl LocalText {
         &self.key
     }
 
+    pub fn value_str(&self) -> &str {
+        self.params
+            .get("value")
+            .and_then(|v| v.as_str())
+            .unwrap_or(self.key.as_str())
+    }
+
     pub fn is_empty(&self) -> bool {
         self.key.is_empty()
     }
@@ -381,6 +388,8 @@ pub struct DecisionView {
     #[serde(default)]
     pub entry_reference: String,
     #[serde(default)]
+    pub entry_derivation: LocalText,
+    #[serde(default)]
     pub confirmation_level: String,
     #[serde(default)]
     pub invalidation_level: String,
@@ -388,6 +397,8 @@ pub struct DecisionView {
     pub target_type: DecisionTargetType,
     #[serde(default)]
     pub target_reference: LocalText,
+    #[serde(default)]
+    pub first_target: String,
     #[serde(default)]
     pub target_condition: LocalText,
     #[serde(default)]

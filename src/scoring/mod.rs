@@ -2,7 +2,7 @@ use crate::{
     ActionBreakdown, AgentReportNode, AnalysisResult, ConfidenceBreakdown, ConfidenceCap,
     ConfidenceProfile, DirectionBreakdown, LocalText, Rating, ReportDiagnosticItem, ScoreDimension,
     SignedScoreDimension, StructuredPortfolioDecision, StructuredResearchPlan,
-    StructuredTraderPlan,
+    StructuredTraderPlan, TechnicalIndicatorView,
 };
 
 include!("types.rs");

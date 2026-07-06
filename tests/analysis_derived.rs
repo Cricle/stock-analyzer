@@ -89,7 +89,7 @@ fn derived_risk_assessment_from_research_plan() {
 #[test]
 fn derived_risk_assessment_default() {
     let result = make_result();
-    assert_eq!(result.derived_risk_assessment(), "待分析");
+    assert_eq!(result.derived_risk_assessment(), "");
 }
 
 // --- derived_confidence ---

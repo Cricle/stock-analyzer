@@ -149,9 +149,9 @@ pub fn rating_bias(rating: &Rating, magnitude: i32) -> i32 {
 pub fn map_direction_score_to_rating(score: i32) -> Rating {
     match score {
         60..=100 => Rating::Buy,
-        20..=59 => Rating::Overweight,
-        -19..=19 => Rating::Hold,
-        -59..=-20 => Rating::Underweight,
+        25..=59 => Rating::Overweight,
+        -24..=24 => Rating::Hold,
+        -59..=-25 => Rating::Underweight,
         _ => Rating::Sell,
     }
 }
@@ -159,9 +159,9 @@ pub fn map_direction_score_to_rating(score: i32) -> Rating {
 pub fn direction_score_to_evidence_score(score: i32) -> i32 {
     match score {
         60..=100 => 2,
-        20..=59 => 1,
-        -19..=19 => 0,
-        -59..=-20 => -1,
+        25..=59 => 1,
+        -24..=24 => 0,
+        -59..=-25 => -1,
         _ => -2,
     }
 }

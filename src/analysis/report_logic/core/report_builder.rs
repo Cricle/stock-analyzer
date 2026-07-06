@@ -65,6 +65,19 @@ impl StructuredReport {
             }
         }
         normalize_execution_references(result, &trader_plan, &mut portfolio_decision);
+        // Phase 3.3b: recover entry_price from confirmation_level when entry is missing.
+        // Confirmation level often doubles as a "wait for this price" entry reference.
+        if trader_plan.entry_price.trim().is_empty()
+            && !portfolio_decision.confirmation_level.trim().is_empty()
+        {
+            if let Some(conf_price) = extract_first_price(&portfolio_decision.confirmation_level) {
+                portfolio_decision.rationale = format!(
+                    "{} entry_price_recovered_from_confirmation={}",
+                    portfolio_decision.rationale.as_str().trim(),
+                    conf_price
+                ).into();
+            }
+        }
         // Also sanitize portfolio_decision price fields that came directly from
         // the LLM (not backfilled from trader_plan).  confirmation_level and
         // invalidation_level can contain hallucinated numbers.
@@ -102,7 +115,9 @@ impl StructuredReport {
             false, // consistency_flag set after technical_indicators are derived
             "",
         );
-        let direction_assessment = crate::scoring::evaluate_direction_score(result);
+        let mut market_chart = result.artifacts.market_chart.clone();
+        let technical_indicators = derive_technical_indicators(&market_chart);
+        let direction_assessment = crate::scoring::evaluate_direction_score(result, &technical_indicators);
         let action_assessment = crate::scoring::evaluate_action_score(
             result,
             &trader_plan,
@@ -229,7 +244,6 @@ impl StructuredReport {
             &confidence_assessment.breakdown,
             &result.artifacts.memory_context,
         );
-        let mut market_chart = result.artifacts.market_chart.clone();
         // Compute a rough reward/risk hint from execution levels for calibration.
         let reward_risk_hint = compute_reward_risk_hint(&trader_plan, &portfolio_decision);
         let calibration = crate::scoring::calibrate_recommendation_with_profile(
@@ -319,6 +333,13 @@ impl StructuredReport {
                 CoreResearchCall::Neutral | CoreResearchCall::BuyOnConfirmation | CoreResearchCall::SellOnBreak
             );
         let current_price = latest_market_close(result);
+        let first_target = if !portfolio_decision.target_reference.trim().is_empty() {
+            Some(portfolio_decision.target_reference.trim().to_string())
+        } else if !portfolio_decision.price_target.trim().is_empty() {
+            Some(portfolio_decision.price_target.trim().to_string())
+        } else {
+            None
+        };
         let decision_view = build_decision_view(
             &trader_plan,
             &portfolio_decision,
@@ -328,10 +349,10 @@ impl StructuredReport {
             forced_hold,
             &core_research_call,
             current_price,
+            first_target,
         );
         enrich_market_chart(&mut market_chart, &references, &decision_view);
         let price_context = derive_price_context(&market_chart, current_price);
-        let technical_indicators = derive_technical_indicators(&market_chart);
 
         // Run validation checks on LLM output
         let validation_result = {
@@ -386,6 +407,7 @@ impl StructuredReport {
             &price_context,
             &result.artifacts.memory_context,
             &technical_indicators,
+            Some(portfolio_decision.price_target.as_str()),
         );
         let profit_risk = derive_profit_risk(&decision_view, &price_context, &probability_view);
         let ic_navigator = derive_ic_navigator(&decision_view, &probability_view);

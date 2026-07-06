@@ -74,14 +74,16 @@ impl AnalysisResult {
 
     pub fn derived_risk_assessment(&self) -> String {
         let portfolio_decision = self.structured_portfolio_decision();
-        if !portfolio_decision.risk_assessment.trim().is_empty() {
+        let pd_ra = portfolio_decision.risk_assessment.trim();
+        if !pd_ra.is_empty() && pd_ra != "待分析" && pd_ra != "模型未返回风险评估。" {
             portfolio_decision.risk_assessment.to_string()
         } else {
             let research_plan = self.structured_research_plan();
-            if !research_plan.risk_assessment.trim().is_empty() {
+            let rp_ra = research_plan.risk_assessment.trim();
+            if !rp_ra.is_empty() && rp_ra != "待分析" && rp_ra != "模型未返回风险评估。" {
                 research_plan.risk_assessment.to_string()
             } else {
-                "待分析".to_string()
+                String::new()
             }
         }
     }

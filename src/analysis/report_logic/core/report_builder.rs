@@ -960,6 +960,7 @@ fn derive_execution_levels(
                 decision_view.entry_reference = format_price_reference(derived_entry);
                 decision_view.invalidation_level = format_price_reference(derived_stop);
                 decision_view.entry_derivation = LocalText::new("entry_derived_from_confirmation")
+                    .with_f64("entry", derived_entry)
                     .with_f64("confirm", confirm)
                     .with_f64("atr", atr_val);
             }

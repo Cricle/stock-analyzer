@@ -923,7 +923,8 @@ fn compute_atr_14(chart: &ReportMarketChart) -> Option<f64> {
 }
 
 /// P0-1 + P0-3: Derive entry/stop levels using ATR when LLM output is missing,
-/// inverted, or contradictory. Guarantees entry > stop for long setups.
+/// inverted, or contradictory. Direction-aware: long requires entry > stop,
+/// short requires entry < stop.
 fn derive_execution_levels(
     trader_plan: &mut StructuredTraderPlan,
     portfolio_decision: &mut StructuredPortfolioDecision,
@@ -935,56 +936,100 @@ fn derive_execution_levels(
     let confirmation = parse_first_numeric(&portfolio_decision.confirmation_level);
     let entry = parse_first_numeric(&trader_plan.entry_price);
     let stop = parse_first_numeric(&trader_plan.stop_loss);
+    let is_bearish = decision_view.view == DecisionViewDirection::Bearish;
 
     if let (Some(confirm), Some(atr_val)) = (confirmation, atr) {
-        let needs_derivation = entry.is_none()
-            || stop.is_none()
-            || entry == stop
-            || entry.unwrap_or(0.0) < stop.unwrap_or(0.0)
-            || entry.unwrap_or(0.0) > confirm;
+        if is_bearish {
+            // SHORT LOGIC: entry < confirmation (sell after breakdown),
+            // stop > entry (loss if price rises back).
+            let needs_derivation = entry.is_none()
+                || stop.is_none()
+                || entry == stop
+                || entry.unwrap_or(0.0) > stop.unwrap_or(0.0)  // wrong: entry should be < stop
+                || entry.unwrap_or(0.0) > confirm;               // entry should be <= confirm
 
-        if needs_derivation && confirm > atr_val {
-            // Use max(confirm, current_price) as anchor so stop isn't
-            // artificially tight when confirmation ≈ current price.
-            let anchor = confirm.max(_current_price.unwrap_or(confirm));
-            let derived_entry = anchor - 1.0 * atr_val;
-            let derived_stop = anchor - 2.5 * atr_val;
+            if needs_derivation {
+                let derived_entry = confirm - 0.5 * atr_val;  // just below confirmation
+                let derived_stop = confirm + 1.5 * atr_val;   // above confirmation
 
-            // Enforce minimum 1.5% stop distance from entry
-            let min_stop_pct = derived_entry * 0.015;
-            let derived_stop = if derived_entry - derived_stop < min_stop_pct {
-                derived_entry - min_stop_pct
-            } else {
-                derived_stop
-            };
+                // Enforce minimum 1.5% stop distance
+                let min_stop_pct = derived_entry * 0.015;
+                let derived_stop = if derived_stop - derived_entry < min_stop_pct {
+                    derived_entry + min_stop_pct
+                } else {
+                    derived_stop
+                };
 
-            if derived_entry > derived_stop && derived_stop > 0.0 {
-                tracing::info!(
-                    confirm = confirm,
-                    atr = atr_val,
-                    derived_entry = derived_entry,
-                    derived_stop = derived_stop,
-                    "derive_execution_levels: entry/stop derived from confirmation - ATR"
-                );
-                trader_plan.entry_price = format_price_reference(derived_entry);
-                trader_plan.stop_loss = format_price_reference(derived_stop);
-                decision_view.entry_reference = format_price_reference(derived_entry);
-                decision_view.invalidation_level = format_price_reference(derived_stop);
-                decision_view.entry_derivation = LocalText::new("entry_derived_from_confirmation")
-                    .with_f64("entry", derived_entry)
-                    .with_f64("confirm", confirm)
-                    .with_f64("atr", atr_val);
+                if derived_stop > derived_entry && derived_entry > 0.0 {
+                    tracing::info!(
+                        confirm = confirm,
+                        atr = atr_val,
+                        derived_entry = derived_entry,
+                        derived_stop = derived_stop,
+                        "derive_execution_levels: SHORT entry/stop derived"
+                    );
+                    trader_plan.entry_price = format_price_reference(derived_entry);
+                    trader_plan.stop_loss = format_price_reference(derived_stop);
+                    decision_view.entry_reference = format_price_reference(derived_entry);
+                    decision_view.invalidation_level = format_price_reference(derived_stop);
+                    decision_view.entry_derivation = LocalText::new("entry_derived_from_confirmation")
+                        .with_f64("entry", derived_entry)
+                        .with_f64("confirm", confirm)
+                        .with_f64("atr", atr_val);
+                }
+            }
+        } else {
+            // LONG LOGIC: entry < confirmation (buy on dip/retest),
+            // stop < entry (loss if price drops further).
+            let needs_derivation = entry.is_none()
+                || stop.is_none()
+                || entry == stop
+                || entry.unwrap_or(0.0) < stop.unwrap_or(0.0)   // wrong: entry should be > stop
+                || entry.unwrap_or(0.0) > confirm;                // entry should be <= confirm
+
+            if needs_derivation && confirm > atr_val {
+                let anchor = confirm.max(_current_price.unwrap_or(confirm));
+                let derived_entry = anchor - 1.0 * atr_val;
+                let derived_stop = anchor - 2.5 * atr_val;
+
+                // Enforce minimum 1.5% stop distance from entry
+                let min_stop_pct = derived_entry * 0.015;
+                let derived_stop = if derived_entry - derived_stop < min_stop_pct {
+                    derived_entry - min_stop_pct
+                } else {
+                    derived_stop
+                };
+
+                if derived_entry > derived_stop && derived_stop > 0.0 {
+                    tracing::info!(
+                        confirm = confirm,
+                        atr = atr_val,
+                        derived_entry = derived_entry,
+                        derived_stop = derived_stop,
+                        "derive_execution_levels: LONG entry/stop derived"
+                    );
+                    trader_plan.entry_price = format_price_reference(derived_entry);
+                    trader_plan.stop_loss = format_price_reference(derived_stop);
+                    decision_view.entry_reference = format_price_reference(derived_entry);
+                    decision_view.invalidation_level = format_price_reference(derived_stop);
+                    decision_view.entry_derivation = LocalText::new("entry_derived_from_confirmation")
+                        .with_f64("entry", derived_entry)
+                        .with_f64("confirm", confirm)
+                        .with_f64("atr", atr_val);
+                }
             }
         }
     }
 
-    // Sync invalidation_level: if entry < invalidation, lower invalidation
-    if let (Some(entry_val), Some(inval)) = (
-        parse_first_numeric(&trader_plan.entry_price),
-        parse_first_numeric(&portfolio_decision.invalidation_level),
-    ) {
-        if entry_val > 0.0 && inval > 0.0 && entry_val < inval {
-            portfolio_decision.invalidation_level = trader_plan.stop_loss.clone();
+    // Sync invalidation_level for long: if entry < invalidation, lower invalidation
+    if !is_bearish {
+        if let (Some(entry_val), Some(inval)) = (
+            parse_first_numeric(&trader_plan.entry_price),
+            parse_first_numeric(&portfolio_decision.invalidation_level),
+        ) {
+            if entry_val > 0.0 && inval > 0.0 && entry_val < inval {
+                portfolio_decision.invalidation_level = trader_plan.stop_loss.clone();
+            }
         }
     }
 }
@@ -992,9 +1037,10 @@ fn derive_execution_levels(
 /// P0-2: Enforce single source of truth for price levels.
 ///
 /// Confirmation and target: portfolio_decision is authoritative.
-/// Stop/invalidation: trader_plan.stop_loss is authoritative (computed by
-/// derive_execution_levels); portfolio_decision.invalidation_level may
-/// hold a different concept (e.g. bullish reversal level for shorts).
+/// Stop/invalidation: direction-dependent.
+///   - Long: trader_plan.stop_loss is authoritative (below entry).
+///   - Short: portfolio_decision.invalidation_level is authoritative (above entry),
+///     since trader_plan.stop_loss may hold a long-style stop from SHA.
 fn enforce_price_consistency(
     trader_plan: &mut StructuredTraderPlan,
     portfolio_decision: &mut StructuredPortfolioDecision,
@@ -1011,18 +1057,32 @@ fn enforce_price_consistency(
         String::new()
     };
 
-    // Stop/invalidation: trader_plan.stop_loss is authoritative
-    // (derived by derive_execution_levels with ATR). Fall back to
-    // portfolio_decision if trader_plan has no stop.
-    let stop_loss = if !trader_plan.stop_loss.is_empty() {
-        trader_plan.stop_loss.clone()
+    // Stop/invalidation: direction-dependent source of truth.
+    let is_bearish = decision_view.view == DecisionViewDirection::Bearish;
+    let stop_loss = if is_bearish {
+        // Short: use SPA's invalidation_level (above entry, correct for shorts)
+        // unless it's empty, then fall back to trader_plan.
+        if !portfolio_decision.invalidation_level.is_empty() {
+            portfolio_decision.invalidation_level.clone()
+        } else {
+            trader_plan.stop_loss.clone()
+        }
     } else {
-        portfolio_decision.invalidation_level.clone()
+        // Long: use trader_plan.stop_loss (below entry, derived by ATR)
+        if !trader_plan.stop_loss.is_empty() {
+            trader_plan.stop_loss.clone()
+        } else {
+            portfolio_decision.invalidation_level.clone()
+        }
     };
 
-    // Sync trader_plan (confirmation only — stop is already authoritative)
+    // Sync trader_plan
     if !confirmation.is_empty() {
         trader_plan.confirmation_level = confirmation.clone();
+    }
+    // For bearish: sync stop_loss from SPA's invalidation_level
+    if is_bearish && !stop_loss.is_empty() {
+        trader_plan.stop_loss = stop_loss.clone();
     }
 
     // Sync decision_view

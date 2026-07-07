@@ -93,7 +93,11 @@ pub fn score_catalyst_quality(
     let date_hits = count_numeric_dates(news_report);
     let horizon_dates = count_numeric_dates(&portfolio_decision.time_horizon);
 
-    let mut score = if news_report.trim().is_empty() { 0 } else { 5 };
+    let mut score = if news_report.trim().is_empty() {
+        CATALYST_VACUUM_FLOOR
+    } else {
+        5
+    };
     score += evidence_points.min(8) as i32;
     score += next_steps.min(5) as i32;
     score += (date_hits + horizon_dates).min(5);

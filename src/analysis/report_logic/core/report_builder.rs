@@ -1253,7 +1253,7 @@ fn detect_catalyst_vacuum(
         portfolio_decision.executive_summary =
             format!("{} {}", vacuum_warning.key, current).into();
 
-        confidence_breakdown.catalyst_quality.score = 0;
+        confidence_breakdown.catalyst_quality.score = crate::scoring::CATALYST_VACUUM_FLOOR;
 
         diagnostics.news.push(ReportDiagnosticItem {
             code: "catalyst_vacuum".to_string(),

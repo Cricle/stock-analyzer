@@ -5,6 +5,7 @@ pub const CATALYST_QUALITY_MAX: i32 = 25;
 pub const HISTORICAL_TRANSFERABILITY_MAX: i32 = 15;
 pub const CROSS_AGENT_CONSISTENCY_MAX: i32 = 25;
 pub const RISK_CLARITY_MAX: i32 = 15;
+pub const CATALYST_VACUUM_FLOOR: i32 = 3;
 
 pub struct ConfidenceAssessment {
     pub final_score: i32,

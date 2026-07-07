@@ -1,6 +1,6 @@
 impl LlmClient {
     pub(crate) async fn generate_with_anthropic(&self, prompt: &str) -> anyhow::Result<String> {
-        const MAX_ATTEMPTS: usize = 6;
+        const MAX_ATTEMPTS: usize = 10;
         let mut attempt = 0usize;
         let backoff = llm_retry_backoff();
 

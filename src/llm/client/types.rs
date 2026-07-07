@@ -194,14 +194,14 @@ pub struct AnthropicUsage {
 }
 
 /// Shared exponential backoff configuration for LLM retries.
-/// Initial: 750ms, multiplier: 2x, jitter: 15%, max interval: 8s, max elapsed: 120s.
+/// Initial: 2s, multiplier: 2x, jitter: 15%, max interval: 30s, max elapsed: 600s.
 pub fn llm_retry_backoff() -> backoff::ExponentialBackoff {
     backoff::ExponentialBackoffBuilder::new()
-        .with_initial_interval(std::time::Duration::from_millis(750))
+        .with_initial_interval(std::time::Duration::from_secs(2))
         .with_multiplier(2.0)
         .with_randomization_factor(0.15)
-        .with_max_interval(std::time::Duration::from_secs(8))
-        .with_max_elapsed_time(Some(std::time::Duration::from_secs(120)))
+        .with_max_interval(std::time::Duration::from_secs(30))
+        .with_max_elapsed_time(Some(std::time::Duration::from_secs(600)))
         .build()
 }
 

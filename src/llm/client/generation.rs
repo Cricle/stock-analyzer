@@ -36,7 +36,7 @@ impl LlmClient {
             tool_choice: None,
         };
 
-        const MAX_ATTEMPTS: usize = 6;
+        const MAX_ATTEMPTS: usize = 10;
         let mut attempt = 0usize;
         let backoff = llm_retry_backoff();
 

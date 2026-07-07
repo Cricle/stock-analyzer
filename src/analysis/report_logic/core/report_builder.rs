@@ -978,17 +978,20 @@ fn derive_execution_levels(
     }
 }
 
-/// P0-2: Enforce portfolio_decision as single source of truth for price levels.
-/// Syncs trader_plan and decision_view to match.
+/// P0-2: Enforce single source of truth for price levels.
+///
+/// Confirmation and target: portfolio_decision is authoritative.
+/// Stop/invalidation: trader_plan.stop_loss is authoritative (computed by
+/// derive_execution_levels); portfolio_decision.invalidation_level may
+/// hold a different concept (e.g. bullish reversal level for shorts).
 fn enforce_price_consistency(
     trader_plan: &mut StructuredTraderPlan,
     portfolio_decision: &mut StructuredPortfolioDecision,
     decision_view: &mut DecisionView,
     action_guides: &mut ReportActionGuides,
 ) {
-    // portfolio_decision is the single source of truth
+    // portfolio_decision is authoritative for confirmation and target
     let confirmation = portfolio_decision.confirmation_level.clone();
-    let invalidation = portfolio_decision.invalidation_level.clone();
     let target = if !portfolio_decision.target_reference.is_empty() {
         portfolio_decision.target_reference.clone()
     } else if !portfolio_decision.price_target.is_empty() {
@@ -997,20 +1000,26 @@ fn enforce_price_consistency(
         String::new()
     };
 
-    // Sync trader_plan
+    // Stop/invalidation: trader_plan.stop_loss is authoritative
+    // (derived by derive_execution_levels with ATR). Fall back to
+    // portfolio_decision if trader_plan has no stop.
+    let stop_loss = if !trader_plan.stop_loss.is_empty() {
+        trader_plan.stop_loss.clone()
+    } else {
+        portfolio_decision.invalidation_level.clone()
+    };
+
+    // Sync trader_plan (confirmation only — stop is already authoritative)
     if !confirmation.is_empty() {
         trader_plan.confirmation_level = confirmation.clone();
-    }
-    if !invalidation.is_empty() {
-        trader_plan.stop_loss = invalidation.clone();
     }
 
     // Sync decision_view
     if !confirmation.is_empty() {
         decision_view.confirmation_level = confirmation.clone();
     }
-    if !invalidation.is_empty() {
-        decision_view.invalidation_level = invalidation.clone();
+    if !stop_loss.is_empty() {
+        decision_view.invalidation_level = stop_loss.clone();
     }
     if !target.is_empty() {
         decision_view.first_target = target.clone();
@@ -1026,8 +1035,8 @@ fn enforce_price_consistency(
         if !entry_ref.is_empty() {
             guide.entry_reference = entry_ref.clone();
         }
-        if !invalidation.is_empty() {
-            guide.invalidation_reference = invalidation.clone();
+        if !stop_loss.is_empty() {
+            guide.invalidation_reference = stop_loss.clone();
         }
         if !target.is_empty() {
             guide.target_reference = target.clone();

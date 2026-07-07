@@ -169,12 +169,36 @@ pub fn evaluate_confidence_score(
             reason: LocalText::new("missing_follow_up_plan_reason"),
         });
     }
-    if !portfolio_decision
-        .missing_evidence_ladder
-        .blocking_gaps
-        .is_empty()
-        || !research_plan.missing_evidence_ladder.blocking_gaps.is_empty()
-    {
+    // For US equity, filter out SEC-related blocking gaps since we treat
+    // missing fundamentals/news as soft gaps, not blocking gaps.
+    let is_us_equity = result.market_type.eq_ignore_ascii_case("us_equity")
+        || result.market_type.eq_ignore_ascii_case("us")
+        || result.market_type.eq_ignore_ascii_case("美股");
+    let has_non_sec_blocking_gaps = if is_us_equity {
+        portfolio_decision
+            .missing_evidence_ladder
+            .blocking_gaps
+            .iter()
+            .chain(research_plan.missing_evidence_ladder.blocking_gaps.iter())
+            .any(|gap| {
+                let lower = gap.to_lowercase();
+                !(lower.contains("sec")
+                    || lower.contains("403")
+                    || lower.contains("fundamental")
+                    || lower.contains("financial data")
+                    || lower.contains("news")
+                    || lower.contains("catalyst")
+                    || lower.contains("analyst")
+                    || lower.contains("earnings"))
+            })
+    } else {
+        !portfolio_decision
+            .missing_evidence_ladder
+            .blocking_gaps
+            .is_empty()
+            || !research_plan.missing_evidence_ladder.blocking_gaps.is_empty()
+    };
+    if has_non_sec_blocking_gaps {
         caps.push(ConfidenceCap {
             key: "decision_blocking_gaps_present".to_string(),
             label: LocalText::new("cap_label_decision_blocking_gaps_present"),

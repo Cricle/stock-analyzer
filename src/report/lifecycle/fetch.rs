@@ -85,7 +85,24 @@ impl TaskManager {
                 "quote fetch diagnosis"
             );
         }
-        let fundamentals = _fundamentals;
+        let mut fundamentals = _fundamentals;
+
+        // Fallback for US equity when primary fundamentals are missing
+        if fundamentals.is_none()
+            && crate::env_config::fundamentals_fallback_enabled()
+            && crate::AnalysisScenarioMarket::from_market_type(&task.market_type)
+                == crate::AnalysisScenarioMarket::UsEquity
+        {
+            tracing::info!(
+                symbol = %task.symbol,
+                "primary fundamentals missing for US equity, trying fallback sources"
+            );
+            let fallback_client = crate::data::FallbackFundamentalsClient::new(
+                crate::env_config::fallback_finnhub_api_keys(),
+            );
+            fundamentals = fallback_client.fetch(&task.symbol).await;
+        }
+
         let news_items = _news_items.unwrap_or_default();
         let (candles_data, candles_diagnosis) = match _candles_result {
             Some(result) => result,

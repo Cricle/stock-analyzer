@@ -32,3 +32,23 @@ pub fn risk_discuss_rounds() -> usize {
         .and_then(|s| s.parse().ok())
         .unwrap_or(2)
 }
+
+/// Whether SEC fundamentals fallback is enabled (default: true).
+pub fn fundamentals_fallback_enabled() -> bool {
+    std::env::var("FUNDAMENTALS_FALLBACK_ENABLED")
+        .map(|v| env_flag_value(&v))
+        .unwrap_or(true)
+}
+
+/// Finnhub API keys for fallback fundamentals fetching (comma-separated pool).
+pub fn fallback_finnhub_api_keys() -> Vec<String> {
+    std::env::var("FALLBACK_FINNHUB_API_KEYS")
+        .ok()
+        .map(|s| {
+            s.split(',')
+                .map(|k| k.trim().to_string())
+                .filter(|k| !k.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}

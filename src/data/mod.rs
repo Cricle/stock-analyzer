@@ -4,6 +4,7 @@
 //! the types and client the engine needs.
 
 pub mod cache;
+pub mod fallback;
 pub mod pipeline;
 pub mod validator;
 
@@ -29,6 +30,9 @@ pub use akshare::provider::market_client::DataFetchDiagnosis;
 
 // Re-export news filter utilities
 pub use akshare::provider::market_client::normalized_news_date;
+
+// Re-export fallback client
+pub use fallback::FallbackFundamentalsClient;
 
 /// Stub for Redis-backed cache store (not available in this version).
 /// Accepts any type to avoid requiring the redis crate as a dependency.

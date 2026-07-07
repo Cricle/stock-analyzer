@@ -106,7 +106,7 @@ pub fn collect_execution_blocking_gaps(
     // so we ignore research_plan/trader_plan/portfolio_decision blocking_gaps.
     let mut gaps = Vec::new();
     for item in diagnostics.availability.iter().filter(|item| {
-        item.severity.eq_ignore_ascii_case("error") || item.code.starts_with("scenario_minimum_")
+        item.severity.eq_ignore_ascii_case("error")
     }) {
         let trimmed = item.message.trim();
         if trimmed.is_empty() {
@@ -225,8 +225,7 @@ fn enrich_diagnostic_linkage(
     for item in &mut diagnostics.availability {
         item.related_blocking_gaps = related_gap_items(item, &blocking_pool);
         item.related_trigger_checklist = related_gap_items(item, &trigger_pool);
-        item.elevated_to_execution_blocking_gap = item.severity.eq_ignore_ascii_case("error")
-            || item.code.starts_with("scenario_minimum_");
+        item.elevated_to_execution_blocking_gap = item.severity.eq_ignore_ascii_case("error");
     }
     // Elevate critically sparse news coverage to execution blocking gap.
     // When news comes from ≤1 source AND <5 items, the analysis lacks the

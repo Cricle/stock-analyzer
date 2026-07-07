@@ -136,10 +136,28 @@ fn derive_scenario_minimum_diagnostics(result: &AnalysisResult) -> Vec<ReportDia
         }
         crate::AnalysisScenarioMarket::UsEquity => {
             if !has_fundamentals {
-                missing.push("fundamentals");
+                diagnostics.push(ReportDiagnosticItem {
+                    code: "scenario_minimum_us_fundamentals_soft_gap".to_string(),
+                    severity: "warning".to_string(),
+                    message: "US equity analysis missing fundamentals snapshot, analysis is more price and technical driven.".into(),
+                    details: vec![
+                        "market=us_equity".to_string(),
+                        "missing=fundamentals".to_string(),
+                    ],
+                    ..Default::default()
+                });
             }
             if !has_company_news {
-                missing.push("company_news");
+                diagnostics.push(ReportDiagnosticItem {
+                    code: "scenario_minimum_us_news_soft_gap".to_string(),
+                    severity: "warning".to_string(),
+                    message: "US equity analysis missing company news, catalyst assessment may be incomplete.".into(),
+                    details: vec![
+                        "market=us_equity".to_string(),
+                        "missing=company_news".to_string(),
+                    ],
+                    ..Default::default()
+                });
             }
         }
         crate::AnalysisScenarioMarket::Unknown => {

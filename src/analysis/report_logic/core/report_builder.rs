@@ -440,6 +440,7 @@ impl StructuredReport {
                 CoreResearchCall::Neutral | CoreResearchCall::BuyOnConfirmation | CoreResearchCall::SellOnBreak
             );
         let current_price = latest_market_close(result);
+        let atr_14 = compute_atr_14(&market_chart);
         let first_target = if !portfolio_decision.target_reference.trim().is_empty() {
             Some(portfolio_decision.target_reference.trim().to_string())
         } else if !portfolio_decision.price_target.trim().is_empty() {
@@ -457,6 +458,7 @@ impl StructuredReport {
             &core_research_call,
             current_price,
             first_target,
+            atr_14,
         );
         enrich_market_chart(&mut market_chart, &references, &decision_view);
         let price_context = derive_price_context(&market_chart, current_price);

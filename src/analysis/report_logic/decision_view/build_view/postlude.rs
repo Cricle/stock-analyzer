@@ -34,6 +34,7 @@ fn build_decision_view(
     core_research_call: &CoreResearchCall,
     current_price: Option<f64>,
     first_target: Option<String>,
+    atr_14: Option<f64>,
 ) -> DecisionView {
     let rating = fallback_rating(portfolio_decision);
     let confirmation_reference = visible_confirmation_reference(portfolio_decision);
@@ -69,6 +70,33 @@ fn build_decision_view(
                 "build_decision_view: entry < invalidation, lowering invalidation"
             );
             invalidation_price = Some(corrected);
+        }
+    }
+    // Invalidation minimum distance from current price.
+    // If invalidation is closer than 1×ATR(14) to current price, auto-adjust
+    // to 1.5×ATR away in the risk direction.
+    if let (Some(current), Some(atr)) = (current_price, atr_14) {
+        if current > 0.0 && atr > 0.0 {
+            if let Some(inval) = invalidation_price.filter(|&i| i > 0.0) {
+                let distance = (current - inval).abs();
+                if distance < atr {
+                    let adjusted = if inval < current {
+                        // Bullish: invalidation below current → push further down
+                        current - 1.5 * atr
+                    } else {
+                        // Bearish: invalidation above current → push further up
+                        current + 1.5 * atr
+                    };
+                    tracing::info!(
+                        original = inval,
+                        adjusted = adjusted,
+                        current = current,
+                        atr = atr,
+                        "invalidation too close to current price, auto-adjusted"
+                    );
+                    invalidation_price = Some(adjusted);
+                }
+            }
         }
     }
     let has_confirmation_gate = !confirmation_reference.clone().unwrap_or_default().is_empty();

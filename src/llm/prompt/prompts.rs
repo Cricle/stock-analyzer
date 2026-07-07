@@ -174,6 +174,7 @@ impl LlmClient {
              - Hold: `price_target` may be empty. `confirmation_level`, `invalidation_level`, and `time_horizon` should still be provided when evidence supports them.\n\
              - `confirmation_level`: the exact price or condition that upgrades a conditional thesis into actionable.\n\
              - `invalidation_level`: the clearest numeric risk boundary that breaks the thesis.\n\
+             - `invalidation_level` DISTANCE RULE: Must be at least 1×ATR(14) from current_price in the risk direction. For bullish: invalidation below current_price minus ATR. For bearish: invalidation above current_price plus ATR. Too-close levels cause premature stop-outs.\n\
              - `target_reference`: user-facing upside/downside anchor (point, range, or scenario expression).\n\
              - `target_condition`: when the target reference becomes valid.\n\
              - `time_horizon`: concise label like `2-6 weeks`, `1-3 months`, `3-6 months` -- not a paragraph.\n\

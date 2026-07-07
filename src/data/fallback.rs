@@ -27,14 +27,19 @@ impl FallbackFundamentalsClient {
         }
     }
 
-    /// Try Yahoo Finance, then Finnhub. Returns None if both fail.
+    /// Try Yahoo Finance, then Finnhub financials-reported, then Finnhub metrics.
+    /// Returns None if all fail.
     pub async fn fetch(&self, symbol: &str) -> Option<FundamentalsSnapshot> {
         if let Some(result) = self.fetch_yahoo(symbol).await {
             tracing::info!(symbol, "fallback: Yahoo Finance succeeded");
             return Some(result);
         }
+        if let Some(result) = self.fetch_finnhub_financials(symbol).await {
+            tracing::info!(symbol, "fallback: Finnhub financials-reported succeeded");
+            return Some(result);
+        }
         if let Some(result) = self.fetch_finnhub(symbol).await {
-            tracing::info!(symbol, "fallback: Finnhub succeeded");
+            tracing::info!(symbol, "fallback: Finnhub metrics succeeded");
             return Some(result);
         }
         tracing::warn!(symbol, "fallback: all sources failed");
@@ -86,6 +91,106 @@ impl FallbackFundamentalsClient {
             total_debt_usd: None,
             diluted_shares_outstanding: None,
         })
+    }
+
+    /// Fetch from Finnhub /stock/financials-reported API, rotating through API keys.
+    /// Returns SEC-reported financial data with absolute values.
+    async fn fetch_finnhub_financials(&self, symbol: &str) -> Option<FundamentalsSnapshot> {
+        if self.finnhub_api_keys.is_empty() {
+            return None;
+        }
+        for api_key in &self.finnhub_api_keys {
+            let url = format!(
+                "https://finnhub.io/api/v1/stock/financials-reported?symbol={}&token={}",
+                symbol, api_key
+            );
+            let resp = match self.http.get(&url).send().await {
+                Ok(r) => r,
+                Err(e) => {
+                    tracing::debug!(symbol, error = %e, "Finnhub financials-reported request error");
+                    continue;
+                }
+            };
+            let status = resp.status();
+            if status.as_u16() == 429 || status.as_u16() == 401 {
+                tracing::debug!(symbol, status = %status, key_prefix = &api_key[..8], "Finnhub financials-reported rate limited or unauthorized, trying next key");
+                continue;
+            }
+            if !status.is_success() {
+                tracing::debug!(symbol, status = %status, "Finnhub financials-reported request failed");
+                return None;
+            }
+            let body: FinnhubFinancialsReportedResponse = resp.json().await.ok()?;
+            let report = body.data.first()?.report.as_ref()?;
+
+            // Extract balance sheet fields
+            let assets_usd = find_report_value(&report.bs, "us-gaap_Assets");
+            let liabilities_usd = find_report_value(&report.bs, "us-gaap_Liabilities");
+            let stockholders_equity_usd = find_report_value(&report.bs, "us-gaap_StockholdersEquity");
+            let cash_and_equivalents_usd = find_report_value(&report.bs, "us-gaap_CashAndCashEquivalentsAtCarryingValue");
+            let long_term_debt_usd = find_report_value(&report.bs, "us-gaap_LongTermDebtNoncurrent");
+            let current_debt_usd = find_report_value(&report.bs, "us-gaap_LongTermDebtCurrent");
+            let total_debt_usd = match (long_term_debt_usd, current_debt_usd) {
+                (Some(lt), Some(ct)) => Some(lt + ct),
+                (Some(lt), None) => Some(lt),
+                (None, Some(ct)) => Some(ct),
+                _ => None,
+            };
+
+            // Extract cash flow fields
+            let operating_cash_flow_usd = find_report_value(&report.cf, "us-gaap_NetCashProvidedByUsedInOperatingActivities");
+            let capital_expenditure_usd = find_report_value(&report.cf, "us-gaap_PaymentsToAcquirePropertyPlantAndEquipment");
+            let free_cash_flow_usd = match (operating_cash_flow_usd, capital_expenditure_usd) {
+                (Some(ocf), Some(capex)) => Some(ocf - capex),
+                _ => None,
+            };
+
+            // Extract income statement fields
+            let revenues_usd = find_report_value(&report.ic, "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax");
+            let gross_profit_usd = find_report_value(&report.ic, "us-gaap_GrossProfit");
+            let operating_income_usd = find_report_value(&report.ic, "us-gaap_OperatingIncomeLoss");
+            let net_income_usd = find_report_value(&report.ic, "us-gaap_NetIncomeLoss");
+
+            tracing::info!(
+                symbol,
+                assets = ?assets_usd,
+                liabilities = ?liabilities_usd,
+                equity = ?stockholders_equity_usd,
+                cash = ?cash_and_equivalents_usd,
+                ocf = ?operating_cash_flow_usd,
+                capex = ?capital_expenditure_usd,
+                revenue = ?revenues_usd,
+                "Finnhub financials-reported extracted"
+            );
+
+            return Some(FundamentalsSnapshot {
+                symbol: symbol.to_string(),
+                company_name: body.cik.clone().unwrap_or_default(),
+                cik: body.cik.clone().unwrap_or_default(),
+                industry: None,
+                currency: "USD".to_string(),
+                fiscal_year_end: None,
+                shares_outstanding: None,
+                market_cap: None,
+                net_income_usd,
+                revenues_usd,
+                assets_usd,
+                liabilities_usd,
+                stockholders_equity_usd,
+                cash_and_equivalents_usd,
+                gross_profit_usd,
+                operating_income_usd,
+                operating_expenses_usd: None,
+                operating_cash_flow_usd,
+                capital_expenditure_usd,
+                free_cash_flow_usd,
+                long_term_debt_usd,
+                current_debt_usd,
+                total_debt_usd,
+                diluted_shares_outstanding: None,
+            });
+        }
+        None
     }
 
     /// Fetch from Finnhub stock/metric API, rotating through API keys.
@@ -279,4 +384,37 @@ struct FinnhubMetric {
     pb: Option<f64>,
     #[serde(rename = "totalDebt/totalEquityQuarterly")]
     total_debt_total_equity_quarterly: Option<f64>,
+}
+
+// ---------------------------------------------------------------------------
+// Finnhub financials-reported response types
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+struct FinnhubFinancialsReportedResponse {
+    cik: Option<String>,
+    data: Vec<FinnhubFinancialsReportedData>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FinnhubFinancialsReportedData {
+    report: Option<FinnhubFinancialsReport>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FinnhubFinancialsReport {
+    bs: Option<Vec<FinnhubReportEntry>>,
+    cf: Option<Vec<FinnhubReportEntry>>,
+    ic: Option<Vec<FinnhubReportEntry>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FinnhubReportEntry {
+    concept: String,
+    value: Option<f64>,
+}
+
+/// Find a value in a report section by concept name.
+fn find_report_value(entries: &Option<Vec<FinnhubReportEntry>>, concept: &str) -> Option<f64> {
+    entries.as_ref()?.iter().find(|e| e.concept == concept)?.value
 }

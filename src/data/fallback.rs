@@ -27,23 +27,38 @@ impl FallbackFundamentalsClient {
         }
     }
 
-    /// Try Yahoo Finance, then Finnhub financials-reported, then Finnhub metrics.
+    /// Try Yahoo Finance, then merge Finnhub financials-reported + metrics.
     /// Returns None if all fail.
     pub async fn fetch(&self, symbol: &str) -> Option<FundamentalsSnapshot> {
         if let Some(result) = self.fetch_yahoo(symbol).await {
             tracing::info!(symbol, "fallback: Yahoo Finance succeeded");
             return Some(result);
         }
-        if let Some(result) = self.fetch_finnhub_financials(symbol).await {
-            tracing::info!(symbol, "fallback: Finnhub financials-reported succeeded");
-            return Some(result);
+        // Try both Finnhub endpoints and merge results
+        let financials = self.fetch_finnhub_financials(symbol).await;
+        let metrics = self.fetch_finnhub(symbol).await;
+        match (financials, metrics) {
+            (Some(mut fin), Some(met)) => {
+                // Merge: financials has absolute values, metrics has market_cap/shares
+                if fin.market_cap.is_none() { fin.market_cap = met.market_cap; }
+                if fin.shares_outstanding.is_none() { fin.shares_outstanding = met.shares_outstanding; }
+                if fin.diluted_shares_outstanding.is_none() { fin.diluted_shares_outstanding = met.diluted_shares_outstanding; }
+                tracing::info!(symbol, "fallback: Finnhub merged financials + metrics");
+                Some(fin)
+            }
+            (Some(fin), None) => {
+                tracing::info!(symbol, "fallback: Finnhub financials-reported succeeded");
+                Some(fin)
+            }
+            (None, Some(met)) => {
+                tracing::info!(symbol, "fallback: Finnhub metrics succeeded");
+                Some(met)
+            }
+            (None, None) => {
+                tracing::warn!(symbol, "fallback: all sources failed");
+                None
+            }
         }
-        if let Some(result) = self.fetch_finnhub(symbol).await {
-            tracing::info!(symbol, "fallback: Finnhub metrics succeeded");
-            return Some(result);
-        }
-        tracing::warn!(symbol, "fallback: all sources failed");
-        None
     }
 
     /// Fetch from Yahoo Finance quoteSummary API.

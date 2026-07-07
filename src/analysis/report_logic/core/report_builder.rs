@@ -857,6 +857,7 @@ fn validate_and_enhance_report(
         &mut report.trader_plan,
         &mut report.portfolio_decision,
         &mut report.decision_view,
+        &mut report.action_guides,
     );
     ensure_entry_transparency(&mut report.decision_view, &report.trader_plan);
 
@@ -881,6 +882,7 @@ fn validate_and_enhance_report(
         &mut report.research_reliability,
         &report.diagnostics,
         market_chart,
+        &report.confidence_breakdown,
     );
 }
 
@@ -981,8 +983,9 @@ fn enforce_price_consistency(
     trader_plan: &mut StructuredTraderPlan,
     portfolio_decision: &mut StructuredPortfolioDecision,
     decision_view: &mut DecisionView,
+    action_guides: &mut ReportActionGuides,
 ) {
-    // portfolio_decision is authoritative
+    // portfolio_decision is the single source of truth
     let confirmation = portfolio_decision.confirmation_level.clone();
     let invalidation = portfolio_decision.invalidation_level.clone();
     let target = if !portfolio_decision.target_reference.is_empty() {
@@ -1003,13 +1006,34 @@ fn enforce_price_consistency(
 
     // Sync decision_view
     if !confirmation.is_empty() {
-        decision_view.confirmation_level = confirmation;
+        decision_view.confirmation_level = confirmation.clone();
     }
     if !invalidation.is_empty() {
-        decision_view.invalidation_level = invalidation;
+        decision_view.invalidation_level = invalidation.clone();
     }
     if !target.is_empty() {
-        decision_view.first_target = target;
+        decision_view.first_target = target.clone();
+    }
+
+    // Sync action_guides (buyers/holders/watchers) — the "execution plan"
+    let entry_ref = decision_view.entry_reference.clone();
+    for guide in [
+        &mut action_guides.buyers,
+        &mut action_guides.holders,
+        &mut action_guides.watchers,
+    ] {
+        if !entry_ref.is_empty() {
+            guide.entry_reference = entry_ref.clone();
+        }
+        if !invalidation.is_empty() {
+            guide.invalidation_reference = invalidation.clone();
+        }
+        if !target.is_empty() {
+            guide.target_reference = target.clone();
+        }
+        if !confirmation.is_empty() {
+            guide.confirmation_reference = confirmation.clone();
+        }
     }
 }
 
@@ -1099,15 +1123,17 @@ fn reconcile_direction_with_text(
     let text_sentiment = if text.contains("偏多")
         || text.contains("overweight")
         || text.contains("bullish")
+        || text.contains("看多")
     {
         6
     } else if text.contains("偏空")
         || text.contains("underweight")
         || text.contains("bearish")
+        || text.contains("看空")
     {
         -6
     } else {
-        0
+        0 // neutral/hold/持有
     };
 
     let divergence = (*direction_score - text_sentiment).unsigned_abs();
@@ -1286,6 +1312,7 @@ fn apply_reliability_hard_caps(
     reliability: &mut ResearchReliability,
     diagnostics: &ReportDiagnostics,
     market_chart: &ReportMarketChart,
+    confidence_breakdown: &ConfidenceBreakdown,
 ) {
     // Cap 1: No K-line data -> max 60
     if market_chart.candles.is_empty() {
@@ -1314,6 +1341,15 @@ fn apply_reliability_hard_caps(
         .any(|d| d.severity.eq_ignore_ascii_case("error"))
     {
         reliability.score = reliability.score.min(70);
+    }
+
+    // Cap 4: Data quality < 20% of max -> cap at 60
+    let dq = &confidence_breakdown.data_quality;
+    if dq.max_score > 0 && dq.score > 0 && (dq.score as f64 / dq.max_score as f64) < 0.2 {
+        reliability.score = reliability.score.min(60);
+        reliability
+            .constraints
+            .push(LocalText::new("reliability_cap_low_data_quality").with_i32("score", dq.score).with_i32("max", dq.max_score));
     }
 
     // Update label based on capped score

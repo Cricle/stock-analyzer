@@ -901,14 +901,16 @@ fn sanitize_scenario_paths_for_no_attack(action_guides: &mut ReportActionGuides)
 
 /// Compute ATR(14) from market chart candles.
 /// Returns None if fewer than 15 candles are available.
+/// Uses the MOST RECENT 14 candles (chart is sorted oldest-first).
 fn compute_atr_14(chart: &ReportMarketChart) -> Option<f64> {
     let candles = &chart.candles;
     if candles.len() < 15 {
         return None;
     }
-    let atr = candles
+    // Take the last 15 candles (need 15 for 14 windows), not the first.
+    let start = candles.len() - 15;
+    let atr = candles[start..]
         .windows(2)
-        .take(14)
         .map(|w| {
             let high = w[1].high;
             let low = w[1].low;

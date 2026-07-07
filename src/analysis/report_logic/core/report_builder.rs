@@ -944,8 +944,19 @@ fn derive_execution_levels(
             || entry.unwrap_or(0.0) > confirm;
 
         if needs_derivation && confirm > atr_val {
-            let derived_entry = confirm - 1.0 * atr_val;
-            let derived_stop = confirm - 2.5 * atr_val;
+            // Use max(confirm, current_price) as anchor so stop isn't
+            // artificially tight when confirmation ≈ current price.
+            let anchor = confirm.max(_current_price.unwrap_or(confirm));
+            let derived_entry = anchor - 1.0 * atr_val;
+            let derived_stop = anchor - 2.5 * atr_val;
+
+            // Enforce minimum 1.5% stop distance from entry
+            let min_stop_pct = derived_entry * 0.015;
+            let derived_stop = if derived_entry - derived_stop < min_stop_pct {
+                derived_entry - min_stop_pct
+            } else {
+                derived_stop
+            };
 
             if derived_entry > derived_stop && derived_stop > 0.0 {
                 tracing::info!(

@@ -89,6 +89,7 @@ impl FallbackFundamentalsClient {
     }
 
     /// Fetch from Finnhub stock/metric API, rotating through API keys.
+    /// Extracts as many FundamentalsSnapshot fields as possible from metrics.
     async fn fetch_finnhub(&self, symbol: &str) -> Option<FundamentalsSnapshot> {
         if self.finnhub_api_keys.is_empty() {
             return None;
@@ -118,6 +119,50 @@ impl FallbackFundamentalsClient {
             let body: FinnhubMetricResponse = resp.json().await.ok()?;
             let m = &body.metric;
 
+            // Derive fields from Finnhub metrics:
+            // market_cap is in millions
+            let market_cap = m.market_cap; // already in millions
+            // Derive shares_outstanding from market_cap / price (not available here)
+            // Use peTTM and market_cap to derive net_income: net_income = market_cap / peTTM
+            let net_income_usd = match (market_cap, m.pe_ttm) {
+                (Some(mc), Some(pe)) if pe > 0.0 => Some(mc / pe),
+                _ => None,
+            };
+            // Derive revenues from market_cap / psTTM
+            let revenues_usd = match (market_cap, m.ps_ttm) {
+                (Some(mc), Some(ps)) if ps > 0.0 => Some(mc / ps),
+                _ => None,
+            };
+            // Derive gross_profit from revenues * gross_margin
+            let gross_profit_usd = match (revenues_usd, m.gross_margin_ttm) {
+                (Some(rev), Some(margin)) => Some(rev * margin / 100.0),
+                _ => None,
+            };
+            // Derive operating_income from revenues * operating_margin
+            let operating_income_usd = match (revenues_usd, m.operating_margin_ttm) {
+                (Some(rev), Some(margin)) => Some(rev * margin / 100.0),
+                _ => None,
+            };
+            // Derive stockholders_equity from book_value_per_share * shares
+            // We don't have shares, but we can use pb ratio: equity = market_cap / pb
+            let stockholders_equity_usd = match (market_cap, m.pb) {
+                (Some(mc), Some(pb)) if pb > 0.0 => Some(mc / pb),
+                _ => None,
+            };
+            // Derive total_debt from debt/equity ratio * equity
+            let total_debt_usd = match (stockholders_equity_usd, m.total_debt_total_equity_quarterly) {
+                (Some(eq), Some(ratio)) => Some(eq * ratio),
+                _ => None,
+            };
+
+            tracing::info!(
+                symbol,
+                market_cap = ?market_cap,
+                net_income = ?net_income_usd,
+                revenues = ?revenues_usd,
+                "Finnhub metrics derived"
+            );
+
             return Some(FundamentalsSnapshot {
                 symbol: symbol.to_string(),
                 company_name: String::new(),
@@ -126,22 +171,22 @@ impl FallbackFundamentalsClient {
                 currency: "USD".to_string(),
                 fiscal_year_end: None,
                 shares_outstanding: None,
-                market_cap: m.market_cap,
-                net_income_usd: None,
-                revenues_usd: None,
+                market_cap,
+                net_income_usd,
+                revenues_usd,
                 assets_usd: None,
                 liabilities_usd: None,
-                stockholders_equity_usd: None,
+                stockholders_equity_usd,
                 cash_and_equivalents_usd: None,
-                gross_profit_usd: None,
-                operating_income_usd: None,
+                gross_profit_usd,
+                operating_income_usd,
                 operating_expenses_usd: None,
                 operating_cash_flow_usd: None,
                 capital_expenditure_usd: None,
                 free_cash_flow_usd: None,
                 long_term_debt_usd: None,
                 current_debt_usd: None,
-                total_debt_usd: None,
+                total_debt_usd,
                 diluted_shares_outstanding: None,
             });
         }
@@ -222,4 +267,16 @@ struct FinnhubMetricResponse {
 struct FinnhubMetric {
     #[serde(rename = "marketCapitalization")]
     market_cap: Option<f64>,
+    #[serde(rename = "peTTM")]
+    pe_ttm: Option<f64>,
+    #[serde(rename = "psTTM")]
+    ps_ttm: Option<f64>,
+    #[serde(rename = "grossMarginTTM")]
+    gross_margin_ttm: Option<f64>,
+    #[serde(rename = "operatingMarginTTM")]
+    operating_margin_ttm: Option<f64>,
+    #[serde(rename = "pb")]
+    pb: Option<f64>,
+    #[serde(rename = "totalDebt/totalEquityQuarterly")]
+    total_debt_total_equity_quarterly: Option<f64>,
 }

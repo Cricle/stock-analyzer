@@ -27,38 +27,53 @@ impl FallbackFundamentalsClient {
         }
     }
 
-    /// Try Yahoo Finance, then merge Finnhub financials-reported + metrics.
+    /// Try Yahoo Finance, then merge Finnhub financials-reported + metrics + profile.
     /// Returns None if all fail.
     pub async fn fetch(&self, symbol: &str) -> Option<FundamentalsSnapshot> {
         if let Some(result) = self.fetch_yahoo(symbol).await {
             tracing::info!(symbol, "fallback: Yahoo Finance succeeded");
             return Some(result);
         }
-        // Try both Finnhub endpoints and merge results
-        let financials = self.fetch_finnhub_financials(symbol).await;
-        let metrics = self.fetch_finnhub(symbol).await;
-        match (financials, metrics) {
+        // Try all Finnhub endpoints concurrently and merge results
+        let (financials, metrics, profile) = tokio::join!(
+            self.fetch_finnhub_financials(symbol),
+            self.fetch_finnhub(symbol),
+            self.fetch_finnhub_profile(symbol),
+        );
+        let mut result = match (financials, metrics) {
             (Some(mut fin), Some(met)) => {
-                // Merge: financials has absolute values, metrics has market_cap/shares
+                // Merge: financials has absolute values, metrics has market_cap
                 if fin.market_cap.is_none() { fin.market_cap = met.market_cap; }
-                if fin.shares_outstanding.is_none() { fin.shares_outstanding = met.shares_outstanding; }
-                if fin.diluted_shares_outstanding.is_none() { fin.diluted_shares_outstanding = met.diluted_shares_outstanding; }
                 tracing::info!(symbol, "fallback: Finnhub merged financials + metrics");
-                Some(fin)
+                fin
             }
             (Some(fin), None) => {
                 tracing::info!(symbol, "fallback: Finnhub financials-reported succeeded");
-                Some(fin)
+                fin
             }
             (None, Some(met)) => {
                 tracing::info!(symbol, "fallback: Finnhub metrics succeeded");
-                Some(met)
+                met
             }
             (None, None) => {
-                tracing::warn!(symbol, "fallback: all sources failed");
-                None
+                tracing::warn!(symbol, "fallback: all Finnhub sources failed");
+                return None;
             }
+        };
+        // Merge profile data (company_name, industry, shares_outstanding)
+        if let Some(prof) = profile {
+            if result.company_name.is_empty() || result.company_name == result.cik {
+                result.company_name = prof.name;
+            }
+            if result.industry.is_none() {
+                result.industry = Some(prof.industry);
+            }
+            if result.shares_outstanding.is_none() {
+                result.shares_outstanding = prof.shares_outstanding;
+            }
+            tracing::info!(symbol, "fallback: merged Finnhub profile data");
         }
+        Some(result)
     }
 
     /// Fetch from Yahoo Finance quoteSummary API.
@@ -432,4 +447,63 @@ struct FinnhubReportEntry {
 /// Find a value in a report section by concept name.
 fn find_report_value(entries: &Option<Vec<FinnhubReportEntry>>, concept: &str) -> Option<f64> {
     entries.as_ref()?.iter().find(|e| e.concept == concept)?.value
+}
+
+// ---------------------------------------------------------------------------
+// Finnhub profile response types
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+struct FinnhubProfile {
+    name: Option<String>,
+    #[serde(rename = "finnhubIndustry")]
+    industry: Option<String>,
+    #[serde(rename = "shareOutstanding")]
+    share_outstanding: Option<f64>,
+}
+
+/// Lightweight struct for profile merge data.
+struct ProfileData {
+    name: String,
+    industry: String,
+    shares_outstanding: Option<i64>,
+}
+
+impl FallbackFundamentalsClient {
+    /// Fetch company profile from Finnhub /stock/profile2 API.
+    /// Returns company_name, industry, and shares_outstanding.
+    async fn fetch_finnhub_profile(&self, symbol: &str) -> Option<ProfileData> {
+        if self.finnhub_api_keys.is_empty() {
+            return None;
+        }
+        for api_key in &self.finnhub_api_keys {
+            let url = format!(
+                "https://finnhub.io/api/v1/stock/profile2?symbol={}&token={}",
+                symbol, api_key
+            );
+            let resp = match self.http.get(&url).send().await {
+                Ok(r) => r,
+                Err(e) => {
+                    tracing::debug!(symbol, error = %e, "Finnhub profile2 request error");
+                    continue;
+                }
+            };
+            let status = resp.status();
+            if status.as_u16() == 429 || status.as_u16() == 401 {
+                tracing::debug!(symbol, status = %status, key_prefix = &api_key[..8], "Finnhub profile2 rate limited or unauthorized, trying next key");
+                continue;
+            }
+            if !status.is_success() {
+                tracing::debug!(symbol, status = %status, "Finnhub profile2 request failed");
+                return None;
+            }
+            let profile: FinnhubProfile = resp.json().await.ok()?;
+            return Some(ProfileData {
+                name: profile.name.unwrap_or_default(),
+                industry: profile.industry.unwrap_or_default(),
+                shares_outstanding: profile.share_outstanding.map(|v| (v * 1_000_000.0).round() as i64),
+            });
+        }
+        None
+    }
 }

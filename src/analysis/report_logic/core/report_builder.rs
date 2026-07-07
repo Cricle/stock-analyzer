@@ -1353,13 +1353,29 @@ fn apply_reliability_hard_caps(
         reliability.score = reliability.score.min(70);
     }
 
-    // Cap 4: Data quality < 20% of max -> cap at 60
-    let dq = &confidence_breakdown.data_quality;
-    if dq.max_score > 0 && dq.score > 0 && (dq.score as f64 / dq.max_score as f64) < 0.2 {
+    // Cap 4: Fundamentals sparse or missing -> cap at 60
+    // Check actual diagnostic codes instead of relying on LLM-generated scores.
+    let fundamentals_bad = diagnostics.fundamentals.iter().any(|d| {
+        d.code == "fundamentals_sparse"
+            || d.code == "fundamentals_period_mixed"
+            || d.code == "fundamentals_missing"
+            || d.severity.eq_ignore_ascii_case("error")
+    });
+    if fundamentals_bad {
         reliability.score = reliability.score.min(60);
         reliability
             .constraints
-            .push(LocalText::new("reliability_cap_low_data_quality").with_i32("score", dq.score).with_i32("max", dq.max_score));
+            .push(LocalText::new("reliability_cap_low_data_quality")
+                .with_i32("score", confidence_breakdown.data_quality.score)
+                .with_i32("max", confidence_breakdown.data_quality.max_score));
+    }
+
+    // Cap 5: No news at all -> additional 10-point deduction
+    if diagnostics.news.is_empty() {
+        reliability.score = (reliability.score - 10).max(0);
+        reliability
+            .constraints
+            .push(LocalText::new("reliability_cap_thin_news"));
     }
 
     // Update label based on capped score

@@ -189,7 +189,7 @@ impl StructuredReport {
         );
         let mut market_chart = result.artifacts.market_chart.clone();
         let technical_indicators = derive_technical_indicators(&market_chart);
-        let mut direction_assessment = crate::scoring::evaluate_direction_score(result, &technical_indicators);
+        let direction_assessment = crate::scoring::evaluate_direction_score(result, &technical_indicators);
         let action_assessment = crate::scoring::evaluate_action_score(
             result,
             &trader_plan,
@@ -424,9 +424,6 @@ impl StructuredReport {
                 &calibration.rationale.key,
             ).into();
         }
-        // Reconcile direction score with text sentiment BEFORE computing core_research_call,
-        // so the action matches the reported direction_score.
-        reconcile_direction_with_text(&mut direction_assessment.final_score, &portfolio_decision);
         let consensus = analyst_consensus(&result.graph.analysts);
         let core_research_call = derive_core_research_call(
             &research_plan,

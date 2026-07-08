@@ -52,14 +52,26 @@ fn derive_probability_view(
     let risk_probability = (downside + (100.0 - confidence_score as f64) * 0.2).clamp(5.0, 90.0);
     let current = price_context.current_price;
     let is_bearish = matches!(decision.view, DecisionViewDirection::Bearish);
-    let upside_target = primary_target
-        .and_then(parse_first_numeric)
-        .or_else(|| parse_first_numeric(decision.target_reference.value_str()))
-        .or(price_context.high_price)
-        .filter(|value| value.is_finite() && *value > 0.0);
-    let downside_target = parse_first_numeric(&decision.invalidation_price)
-        .or(price_context.low_price)
-        .filter(|value| value.is_finite() && *value > 0.0);
+    let (upside_target, downside_target) = if is_bearish {
+        // Bearish: upside = price falling (profit), downside = price rising (loss)
+        let up = parse_first_numeric(&decision.invalidation_price)
+            .or(price_context.low_price)
+            .filter(|value| value.is_finite() && *value > 0.0);
+        let down = parse_first_numeric(&decision.confirmation_price)
+            .or(price_context.high_price)
+            .filter(|value| value.is_finite() && *value > 0.0);
+        (up, down)
+    } else {
+        let up = primary_target
+            .and_then(parse_first_numeric)
+            .or_else(|| parse_first_numeric(decision.target_reference.value_str()))
+            .or(price_context.high_price)
+            .filter(|value| value.is_finite() && *value > 0.0);
+        let down = parse_first_numeric(&decision.invalidation_price)
+            .or(price_context.low_price)
+            .filter(|value| value.is_finite() && *value > 0.0);
+        (up, down)
+    };
     let upside_pct = current.zip(upside_target).and_then(|(current, target)| {
         if is_bearish {
             // Bearish: profit is stock going DOWN (target < current)
@@ -231,6 +243,21 @@ fn derive_profit_risk(
             _ => None,
         }
     };
+    // For bearish views: target = upside_target (profit from falling), stop = downside_target (loss if rises)
+    // For bullish/neutral: target = upside_target (profit from rising), stop = downside_target (loss if falls)
+    let (calc_target, calc_stop) = if is_bearish {
+        (
+            probability.upside_target.or(price_context.low_price),
+            probability.downside_target.or(price_context.high_price),
+        )
+    } else {
+        (
+            parse_first_numeric(decision.target_reference.value_str())
+                .or(price_context.high_price),
+            parse_first_numeric(&decision.invalidation_price)
+                .or(price_context.low_price),
+        )
+    };
     ProfitRiskView {
         upside_pct,
         downside_pct,
@@ -240,8 +267,8 @@ fn derive_profit_risk(
         risk_budget: decision.sizing_guidance.clone(),
         actionability: LocalText::new(decision_action_code(&decision.action)),
         calc_entry: parse_first_numeric(&decision.current_price).or(price_context.current_price),
-        calc_target: parse_first_numeric(decision.target_reference.value_str()),
-        calc_stop: parse_first_numeric(&decision.invalidation_price).or(price_context.low_price),
+        calc_target,
+        calc_stop,
     }
 }
 

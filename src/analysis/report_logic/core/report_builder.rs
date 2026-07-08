@@ -516,7 +516,13 @@ impl StructuredReport {
             &price_context,
             &result.artifacts.memory_context,
             &technical_indicators,
-            Some(portfolio_decision.price_target.as_str()),
+            if !trader_plan.target_reference.trim().is_empty() {
+                Some(trader_plan.target_reference.as_str())
+            } else if !portfolio_decision.price_target.trim().is_empty() {
+                Some(portfolio_decision.price_target.as_str())
+            } else {
+                None
+            },
         );
         let profit_risk = derive_profit_risk(&decision_view, &price_context, &probability_view);
         let ic_navigator = derive_ic_navigator(&decision_view, &probability_view);

@@ -509,6 +509,8 @@ impl StructuredReport {
             effective_confidence_score = (effective_confidence_score + validation_result.confidence_adjustment).max(30);
         }
 
+        let entry_price = parse_first_numeric(&trader_plan.entry_price)
+            .filter(|v| v.is_finite() && *v > 0.0);
         let probability_view = derive_probability_view(
             &decision_view,
             direction_assessment.final_score,
@@ -523,6 +525,7 @@ impl StructuredReport {
             } else {
                 None
             },
+            entry_price,
         );
         let profit_risk = derive_profit_risk(
             &decision_view,
@@ -535,6 +538,7 @@ impl StructuredReport {
             } else {
                 None
             },
+            entry_price,
         );
         let ic_navigator = derive_ic_navigator(&decision_view, &probability_view);
         let ic_discipline = derive_ic_discipline(
@@ -890,6 +894,8 @@ fn validate_and_enhance_report(
     );
 
     // P2: Quality Hardening
+    let anchor_entry = parse_first_numeric(&report.trader_plan.entry_price)
+        .filter(|v| v.is_finite() && *v > 0.0);
     anchor_reward_risk_to_first_target(
         &mut report.profit_risk,
         &report.decision_view,
@@ -901,6 +907,7 @@ fn validate_and_enhance_report(
         } else {
             None
         },
+        anchor_entry,
     );
     deduplicate_report_content(report);
     apply_reliability_hard_caps(
@@ -1363,9 +1370,11 @@ fn anchor_reward_risk_to_first_target(
     decision_view: &DecisionView,
     price_context: &PriceContext,
     primary_target: Option<&str>,
+    entry_price: Option<f64>,
 ) {
-    let current = price_context
-        .current_price
+    let current = entry_price
+        .filter(|v| v.is_finite() && *v > 0.0)
+        .or(price_context.current_price)
         .or_else(|| parse_first_numeric(&decision_view.current_price))
         .unwrap_or(0.0);
     if current <= 0.0 {

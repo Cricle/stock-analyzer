@@ -30,6 +30,7 @@ fn derive_probability_view(
     memory_context: &MemoryContextSnapshot,
     technical_indicators: &TechnicalIndicatorView,
     primary_target: Option<&str>,
+    entry_price: Option<f64>,
 ) -> ProbabilityView {
     let confidence = (confidence_score as f64 / 100.0).clamp(0.0, 1.0);
     let directional_bias = (direction_score as f64 / 100.0).clamp(-1.0, 1.0);
@@ -50,7 +51,10 @@ fn derive_probability_view(
     let (upside, downside, sideways) =
         round_to_100(upside * scale, downside * scale, sideways * scale);
     let risk_probability = (downside + (100.0 - confidence_score as f64) * 0.2).clamp(5.0, 90.0);
-    let current = price_context.current_price;
+    // Use entry_price for % calculations when available (more accurate R/R)
+    let current = entry_price
+        .filter(|v| v.is_finite() && *v > 0.0)
+        .or(price_context.current_price);
     let is_bearish = matches!(decision.view, DecisionViewDirection::Bearish);
     let (upside_target, downside_target) = if is_bearish {
         // Bearish: upside = price falling (profit), downside = price rising (loss)
@@ -162,6 +166,7 @@ fn derive_profit_risk(
     price_context: &PriceContext,
     probability: &ProbabilityView,
     primary_target: Option<&str>,
+    entry_price: Option<f64>,
 ) -> ProfitRiskView {
     let is_bearish = matches!(decision.view, DecisionViewDirection::Bearish);
     tracing::debug!(
@@ -275,7 +280,10 @@ fn derive_profit_risk(
         max_loss_reference: parse_first_numeric(&decision.invalidation_price).or(price_context.low_price),
         risk_budget: decision.sizing_guidance.clone(),
         actionability: LocalText::new(decision_action_code(&decision.action)),
-        calc_entry: parse_first_numeric(&decision.current_price).or(price_context.current_price),
+        calc_entry: entry_price
+            .filter(|v| v.is_finite() && *v > 0.0)
+            .or_else(|| parse_first_numeric(&decision.current_price))
+            .or(price_context.current_price),
         calc_target,
         calc_stop,
     }

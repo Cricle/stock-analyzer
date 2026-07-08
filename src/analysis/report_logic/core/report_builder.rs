@@ -524,7 +524,18 @@ impl StructuredReport {
                 None
             },
         );
-        let profit_risk = derive_profit_risk(&decision_view, &price_context, &probability_view);
+        let profit_risk = derive_profit_risk(
+            &decision_view,
+            &price_context,
+            &probability_view,
+            if !trader_plan.target_reference.trim().is_empty() {
+                Some(trader_plan.target_reference.as_str())
+            } else if !portfolio_decision.price_target.trim().is_empty() {
+                Some(portfolio_decision.price_target.as_str())
+            } else {
+                None
+            },
+        );
         let ic_navigator = derive_ic_navigator(&decision_view, &probability_view);
         let ic_discipline = derive_ic_discipline(
             &decision_view,
@@ -883,6 +894,13 @@ fn validate_and_enhance_report(
         &mut report.profit_risk,
         &report.decision_view,
         &report.price_context,
+        if !report.trader_plan.target_reference.trim().is_empty() {
+            Some(report.trader_plan.target_reference.as_str())
+        } else if !report.portfolio_decision.price_target.trim().is_empty() {
+            Some(report.portfolio_decision.price_target.as_str())
+        } else {
+            None
+        },
     );
     deduplicate_report_content(report);
     apply_reliability_hard_caps(
@@ -1344,6 +1362,7 @@ fn anchor_reward_risk_to_first_target(
     profit_risk: &mut ProfitRiskView,
     decision_view: &DecisionView,
     price_context: &PriceContext,
+    primary_target: Option<&str>,
 ) {
     let current = price_context
         .current_price
@@ -1353,26 +1372,45 @@ fn anchor_reward_risk_to_first_target(
         return;
     }
 
-    let target = parse_first_numeric(&decision_view.first_target)
-        .or_else(|| parse_first_numeric(decision_view.target_reference.value_str()))
-        .unwrap_or(0.0);
-    if target <= current {
-        return;
+    let is_bearish = matches!(decision_view.view, DecisionViewDirection::Bearish);
+
+    if is_bearish {
+        // Bearish: target = profit direction (below entry), stop = loss direction (above entry)
+        let target = parse_first_numeric(&decision_view.invalidation_price)
+            .or(price_context.low_price)
+            .unwrap_or(0.0);
+        let stop = parse_first_numeric(&decision_view.confirmation_price)
+            .or(price_context.high_price)
+            .unwrap_or(0.0);
+        if target <= 0.0 || target >= current || stop <= current {
+            return;
+        }
+        let reward = current - target;
+        let risk = stop - current;
+        profit_risk.upside_pct = Some((reward / current) * 100.0);
+        profit_risk.downside_pct = Some((risk / current) * 100.0);
+        profit_risk.reward_risk_ratio = Some(reward / risk);
+    } else {
+        let target = primary_target
+            .and_then(parse_first_numeric)
+            .or_else(|| parse_first_numeric(&decision_view.first_target))
+            .or_else(|| parse_first_numeric(decision_view.target_reference.value_str()))
+            .unwrap_or(0.0);
+        if target <= current {
+            return;
+        }
+        let invalidation = parse_first_numeric(&decision_view.invalidation_price)
+            .or(price_context.low_price)
+            .unwrap_or(0.0);
+        if invalidation <= 0.0 || invalidation >= current {
+            return;
+        }
+        let reward = target - current;
+        let risk = current - invalidation;
+        profit_risk.upside_pct = Some((reward / current) * 100.0);
+        profit_risk.downside_pct = Some((risk / current) * 100.0);
+        profit_risk.reward_risk_ratio = Some(reward / risk);
     }
-
-    let invalidation = parse_first_numeric(&decision_view.invalidation_price)
-        .or(price_context.low_price)
-        .unwrap_or(0.0);
-    if invalidation <= 0.0 || invalidation >= current {
-        return;
-    }
-
-    let reward = target - current;
-    let risk = current - invalidation;
-
-    profit_risk.upside_pct = Some((reward / current) * 100.0);
-    profit_risk.downside_pct = Some((risk / current) * 100.0);
-    profit_risk.reward_risk_ratio = Some(reward / risk);
 }
 
 /// P2-8: Deduplicate repeated content across report sections.

@@ -161,8 +161,15 @@ fn derive_profit_risk(
     decision: &DecisionView,
     price_context: &PriceContext,
     probability: &ProbabilityView,
+    primary_target: Option<&str>,
 ) -> ProfitRiskView {
     let is_bearish = matches!(decision.view, DecisionViewDirection::Bearish);
+    tracing::debug!(
+        "derive_profit_risk: probability.upside_pct={:?}, downside_pct={:?}, target_ref={}",
+        probability.upside_pct,
+        probability.downside_pct,
+        decision.target_reference.value_str()
+    );
     let reward_risk_ratio = probability
         .upside_pct
         .zip(probability.downside_pct)
@@ -170,7 +177,9 @@ fn derive_profit_risk(
         .or_else(|| {
             let current = parse_first_numeric(&decision.current_price)
                 .or(price_context.current_price)?;
-            let target = parse_first_numeric(decision.target_reference.value_str())?;
+            let target = primary_target
+                .and_then(parse_first_numeric)
+                .or_else(|| parse_first_numeric(decision.target_reference.value_str()))?;
             let stop = parse_first_numeric(&decision.invalidation_price)
                 .or(price_context.low_price)?;
             if is_bearish {
@@ -192,7 +201,9 @@ fn derive_profit_risk(
     let upside_pct = probability.upside_pct.or_else(|| {
         let current = parse_first_numeric(&decision.current_price)
             .or(price_context.current_price)?;
-        let target = parse_first_numeric(decision.target_reference.value_str())?;
+        let target = primary_target
+            .and_then(parse_first_numeric)
+            .or_else(|| parse_first_numeric(decision.target_reference.value_str()))?;
         if is_bearish {
             // Bearish: profit is stock going DOWN
             if current > 0.0 && target < current {

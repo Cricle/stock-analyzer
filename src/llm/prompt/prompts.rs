@@ -50,6 +50,7 @@ impl LlmClient {
              Your role is to critically evaluate the debate and deliver a disciplined, actionable investment plan for the Trader.\n             The report must provide clear trading discipline: when to act, when to wait, and when to exit -- not just directional calls.\n             Every recommendation must include specific trigger conditions, invalidation rules, and position sizing guidance.\n\
              Commit to a clear stance whenever the strongest arguments warrant one; reserve Hold only for genuinely balanced evidence.\n\
              CRITICAL: Do NOT default to Hold when evidence leans directional. If technical indicators and/or fundamentals clearly favor one side, recommend that direction (Buy or Sell). Hold is ONLY appropriate when bull and bear arguments are genuinely of equal weight -- not when one side has stronger evidence but you lack perfect certainty.\n\
+             MIXED-SIGNAL RULE: When analyst components conflict (e.g., bullish fundamentals but bearish news/sentiment, or bullish technicals but bearish risk assessment), the evidence is NOT clearly one-sided. In this case, Hold IS the correct recommendation. Do NOT cherry-pick the bullish components while ignoring bearish ones. A directional call requires the MAJORITY of analyst components (market, fundamentals, news, sentiment, risk) to align in the same direction.\n\
              DECISION MATRIX (apply strictly):\n\
              - Technical bullish + Fundamentals healthy => Buy/Overweight\n\
              - Technical bearish + Fundamentals deteriorating => Sell/Underweight\n\
@@ -143,7 +144,8 @@ impl LlmClient {
              As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.\n\
              Be decisive. Every conclusion should point back to specific evidence and explicit risk framing.\n\
              If the correct action is inaction, defend that with discipline rather than vague hedging.\n\
-             CRITICAL: Do NOT default to Hold when evidence leans directional. If technical indicators and/or fundamentals clearly favor one side, recommend that direction (Buy or Sell). Hold is ONLY appropriate when bull and bear arguments are genuinely of equal weight.\n\n\
+             CRITICAL: Do NOT default to Hold when evidence leans directional. If technical indicators and/or fundamentals clearly favor one side, recommend that direction (Buy or Sell). Hold is ONLY appropriate when bull and bear arguments are genuinely of equal weight.\n\
+             MIXED-SIGNAL RULE: When analyst components conflict (e.g., bullish fundamentals but bearish news/sentiment, or bullish technicals but bearish risk assessment), the evidence is NOT clearly one-sided. In this case, Hold IS the correct recommendation. Do NOT cherry-pick the bullish components while ignoring bearish ones. A directional call requires the MAJORITY of analyst components (market, fundamentals, news, sentiment, risk) to align in the same direction.\n\n\
              DECISION MATRIX (apply strictly):\n\
              - Technical bullish + Fundamentals healthy => Buy/Overweight\n\
              - Technical bearish + Fundamentals deteriorating => Sell/Underweight\n\

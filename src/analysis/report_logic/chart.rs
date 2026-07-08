@@ -154,7 +154,7 @@ fn enrich_market_chart(
     add_overlay(
         &mut overlays,
         "target_price",
-        parse_first_numeric(decision.target_reference.as_str()),
+        parse_first_numeric(decision.target_reference.value_str()),
         "info",
     );
     add_overlay(
@@ -256,13 +256,45 @@ pub fn derive_price_context(chart: &ReportMarketChart, current_price: Option<f64
     } else {
         &[][..]
     };
+    let current = current_price.or_else(|| chart.candles.last().map(|item| item.close));
+
+    // Data quality filter: reject outlier prices that deviate too far from current price.
+    // This catches upstream data errors (e.g., MSFT showing 555 when actual high is ~468).
+    // Threshold: high must be within 2x current, low must be within 0.3x current.
+    let max_high_ratio = 2.0;
+    let min_low_ratio = 0.3;
+
     let high = window
         .iter()
+        .filter(|c| {
+            current.map_or(true, |cur| {
+                cur <= 0.0 || (c.high / cur) <= max_high_ratio
+            })
+        })
         .max_by(|left, right| left.high.partial_cmp(&right.high).unwrap_or(std::cmp::Ordering::Equal));
     let low = window
         .iter()
+        .filter(|c| {
+            current.map_or(true, |cur| {
+                cur <= 0.0 || (c.low / cur) >= min_low_ratio
+            })
+        })
         .min_by(|left, right| left.low.partial_cmp(&right.low).unwrap_or(std::cmp::Ordering::Equal));
-    let current = current_price.or_else(|| chart.candles.last().map(|item| item.close));
+
+    // Log outlier detection for data quality monitoring
+    if let Some(cur) = current.filter(|c| *c > 0.0) {
+        let outlier_highs = window.iter().filter(|c| (c.high / cur) > max_high_ratio).count();
+        let outlier_lows = window.iter().filter(|c| (c.low / cur) < min_low_ratio).count();
+        if outlier_highs > 0 || outlier_lows > 0 {
+            tracing::warn!(
+                current_price = cur,
+                outlier_high_count = outlier_highs,
+                outlier_low_count = outlier_lows,
+                total_candles = window.len(),
+                "price_context: filtered outlier candles"
+            );
+        }
+    }
     let high_price = high.map(|item| item.high);
     let low_price = low.map(|item| item.low);
     let distance_to_high_pct = current.zip(high_price).and_then(|(current, high)| {

@@ -54,7 +54,7 @@ fn derive_probability_view(
     let is_bearish = matches!(decision.view, DecisionViewDirection::Bearish);
     let upside_target = primary_target
         .and_then(parse_first_numeric)
-        .or_else(|| parse_first_numeric(decision.target_reference.as_str()))
+        .or_else(|| parse_first_numeric(decision.target_reference.value_str()))
         .or(price_context.high_price)
         .filter(|value| value.is_finite() && *value > 0.0);
     let downside_target = parse_first_numeric(&decision.invalidation_price)
@@ -158,7 +158,7 @@ fn derive_profit_risk(
         .or_else(|| {
             let current = parse_first_numeric(&decision.current_price)
                 .or(price_context.current_price)?;
-            let target = parse_first_numeric(decision.target_reference.as_str())?;
+            let target = parse_first_numeric(decision.target_reference.value_str())?;
             let stop = parse_first_numeric(&decision.invalidation_price)
                 .or(price_context.low_price)?;
             if is_bearish {
@@ -180,7 +180,7 @@ fn derive_profit_risk(
     let upside_pct = probability.upside_pct.or_else(|| {
         let current = parse_first_numeric(&decision.current_price)
             .or(price_context.current_price)?;
-        let target = parse_first_numeric(decision.target_reference.as_str())?;
+        let target = parse_first_numeric(decision.target_reference.value_str())?;
         if is_bearish {
             // Bearish: profit is stock going DOWN
             if current > 0.0 && target < current {
@@ -239,6 +239,9 @@ fn derive_profit_risk(
         max_loss_reference: parse_first_numeric(&decision.invalidation_price).or(price_context.low_price),
         risk_budget: decision.sizing_guidance.clone(),
         actionability: LocalText::new(decision_action_code(&decision.action)),
+        calc_entry: parse_first_numeric(&decision.current_price).or(price_context.current_price),
+        calc_target: parse_first_numeric(decision.target_reference.value_str()),
+        calc_stop: parse_first_numeric(&decision.invalidation_price).or(price_context.low_price),
     }
 }
 

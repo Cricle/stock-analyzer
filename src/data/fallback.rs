@@ -19,6 +19,7 @@ impl FallbackFundamentalsClient {
     pub fn new(finnhub_api_keys: Vec<String>) -> Self {
         let http = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(15))
+            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
             .build()
             .expect("Failed to build reqwest client");
         Self {
@@ -42,9 +43,20 @@ impl FallbackFundamentalsClient {
         );
         let mut result = match (financials, metrics) {
             (Some(mut fin), Some(met)) => {
-                // Merge: financials has absolute values, metrics has market_cap
-                if fin.market_cap.is_none() { fin.market_cap = met.market_cap; }
-                tracing::info!(symbol, "fallback: Finnhub merged financials + metrics");
+                // Merge strategy to avoid period mixing:
+                // - Balance sheet fields (assets, liabilities, equity, cash, debt): use financials-reported (quarterly snapshot)
+                // - Income/cash flow fields (revenues, net_income, gross_profit, etc.): prefer metrics (TTM/current)
+                // - market_cap: always use metrics (current)
+                fin.market_cap = met.market_cap;
+                // Prefer metrics-derived income statement fields (TTM) over quarterly financials
+                // This prevents period mixing when calculating P/E ratios
+                if met.net_income_usd.is_some() { fin.net_income_usd = met.net_income_usd; }
+                if met.revenues_usd.is_some() { fin.revenues_usd = met.revenues_usd; }
+                if met.gross_profit_usd.is_some() { fin.gross_profit_usd = met.gross_profit_usd; }
+                if met.operating_income_usd.is_some() { fin.operating_income_usd = met.operating_income_usd; }
+                if met.stockholders_equity_usd.is_some() { fin.stockholders_equity_usd = met.stockholders_equity_usd; }
+                if met.total_debt_usd.is_some() { fin.total_debt_usd = met.total_debt_usd; }
+                tracing::info!(symbol, "fallback: Finnhub merged financials + metrics (TTM preferred)");
                 fin
             }
             (Some(fin), None) => {

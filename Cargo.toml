@@ -16,7 +16,7 @@ score = []
 
 [dependencies]
 # External data
-akshare = { version = "0.1.12", features = ["market-client"] }
+akshare = { path = "/root/github/akshare-rs/crates/akshare", features = ["market-client"] }
 
 # Core
 adk-graph = { version = "0.8.0" }

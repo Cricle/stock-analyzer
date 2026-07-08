@@ -189,7 +189,7 @@ impl StructuredReport {
         );
         let mut market_chart = result.artifacts.market_chart.clone();
         let technical_indicators = derive_technical_indicators(&market_chart);
-        let direction_assessment = crate::scoring::evaluate_direction_score(result, &technical_indicators);
+        let mut direction_assessment = crate::scoring::evaluate_direction_score(result, &technical_indicators);
         let action_assessment = crate::scoring::evaluate_action_score(
             result,
             &trader_plan,
@@ -424,6 +424,9 @@ impl StructuredReport {
                 &calibration.rationale.key,
             ).into();
         }
+        // Reconcile direction score with text sentiment BEFORE computing core_research_call,
+        // so the action matches the reported direction_score.
+        reconcile_direction_with_text(&mut direction_assessment.final_score, &portfolio_decision);
         let consensus = analyst_consensus(&result.graph.analysts);
         let core_research_call = derive_core_research_call(
             &research_plan,
@@ -865,7 +868,6 @@ fn validate_and_enhance_report(
 
     // P1: Signal Intelligence
     resolve_signal_conflicts(&report.technical_indicators, &mut report.ic_discipline);
-    reconcile_direction_with_text(&mut report.direction_score, &report.portfolio_decision);
     detect_catalyst_vacuum(
         &report.news_insights,
         &mut report.portfolio_decision,
@@ -885,6 +887,7 @@ fn validate_and_enhance_report(
         &report.diagnostics,
         market_chart,
         &report.confidence_breakdown,
+        &report.confidence_caps,
     );
 }
 
@@ -949,8 +952,7 @@ fn derive_execution_levels(
             let needs_derivation = entry.is_none()
                 || stop.is_none()
                 || entry == stop
-                || entry.unwrap_or(0.0) > stop.unwrap_or(0.0)  // wrong: entry should be < stop
-                || entry.unwrap_or(0.0) > confirm;               // entry should be <= confirm
+                || entry.unwrap_or(0.0) > stop.unwrap_or(0.0);  // wrong: entry should be < stop
 
             if needs_derivation {
                 let derived_entry = confirm - 0.5 * atr_val;  // just below confirmation
@@ -988,8 +990,7 @@ fn derive_execution_levels(
             let needs_derivation = entry.is_none()
                 || stop.is_none()
                 || entry == stop
-                || entry.unwrap_or(0.0) < stop.unwrap_or(0.0)   // wrong: entry should be > stop
-                || entry.unwrap_or(0.0) > confirm;                // entry should be <= confirm
+                || entry.unwrap_or(0.0) < stop.unwrap_or(0.0);   // wrong: entry should be > stop
 
             if needs_derivation && confirm > atr_val {
                 let anchor = confirm.max(_current_price.unwrap_or(confirm));
@@ -1198,7 +1199,8 @@ fn resolve_signal_conflicts(
 }
 
 /// P1-5: If mechanical direction score diverges from text sentiment by >20 points,
-/// clamp the score to match the text.
+/// clamp the score to match the text. Only applies when text expresses a clear
+/// directional view; neutral text does not override the mechanical score.
 fn reconcile_direction_with_text(
     direction_score: &mut i32,
     portfolio_decision: &StructuredPortfolioDecision,
@@ -1218,7 +1220,10 @@ fn reconcile_direction_with_text(
     {
         -6
     } else {
-        0 // neutral/hold/持有
+        // Text is neutral/ambiguous — do NOT clamp the mechanical score.
+        // The mechanical score is based on analyst probabilities and technical
+        // indicators, which are more reliable than keyword matching on summary text.
+        return;
     };
 
     let divergence = (*direction_score - text_sentiment).unsigned_abs();
@@ -1346,7 +1351,7 @@ fn anchor_reward_risk_to_first_target(
     }
 
     let target = parse_first_numeric(&decision_view.first_target)
-        .or_else(|| parse_first_numeric(decision_view.target_reference.as_str()))
+        .or_else(|| parse_first_numeric(decision_view.target_reference.value_str()))
         .unwrap_or(0.0);
     if target <= current {
         return;
@@ -1398,6 +1403,7 @@ fn apply_reliability_hard_caps(
     diagnostics: &ReportDiagnostics,
     market_chart: &ReportMarketChart,
     confidence_breakdown: &ConfidenceBreakdown,
+    confidence_caps: &[ConfidenceCap],
 ) {
     // Cap 1: No K-line data -> max 60
     if market_chart.candles.is_empty() {
@@ -1451,6 +1457,15 @@ fn apply_reliability_hard_caps(
         reliability
             .constraints
             .push(LocalText::new("reliability_cap_thin_news"));
+    }
+
+    // Cap 6: missing_core_data confidence cap -> align reliability score
+    // If confidence is capped due to missing core data, reliability should reflect this.
+    if let Some(cap) = confidence_caps.iter().find(|c| c.key == "missing_core_data") {
+        reliability.score = reliability.score.min(cap.cap);
+        reliability
+            .constraints
+            .push(LocalText::new("reliability_cap_missing_core_data"));
     }
 
     // Update label based on capped score

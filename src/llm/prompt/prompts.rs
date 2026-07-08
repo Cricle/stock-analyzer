@@ -179,6 +179,7 @@ impl LlmClient {
              - `target_condition`: when the target reference becomes valid.\n\
              - `time_horizon`: concise label like `2-6 weeks`, `1-3 months`, `3-6 months` -- not a paragraph.\n\
              - If your call is Underweight or Sell, `price_target` must be below the current price.\n\
+             CONFIRMATION SIMPLICITY RULE: `confirmation_level` must be ONE primary price level with at most ONE supporting condition. Format: \"PRICE (INDICATOR) — brief condition\". Example: \"406.13 (SMA50) — price closes above SMA50 with volume > 1.2x 20-day average\". Do NOT chain multiple indicator conditions (MACD, KDJ, RSI, etc.) into the confirmation_level — those belong in `trigger_checklist` as separate items.\n\
              `trigger_checklist` must be a concise array of 2-6 concrete conditions that would justify upgrading a cautious/Hold stance into action or confirm the active stance.\n\
              `missing_evidence_ladder` must mirror the three missing-evidence buckets as arrays for machine use.\n\
              `reflection` must be a JSON object with exactly `strongest_part`, `weakest_uncertainty_or_missing_evidence`, and `next_lesson_for_next_run`. Keep each field one concise sentence. This replaces a separate reviewer call, so make it specific and evidence-driven.\n\

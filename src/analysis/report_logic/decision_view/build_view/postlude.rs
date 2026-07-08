@@ -99,6 +99,55 @@ fn build_decision_view(
             }
         }
     }
+    // Guard: if invalidation == confirmation, it's a logic error.
+    // The confirmation level is where you wait for breakout; the invalidation
+    // is where you stop-loss. They cannot be the same price.
+    if let (Some(confirm), Some(inval)) = (confirmation_price, invalidation_price) {
+        if confirm > 0.0 && inval > 0.0 && (confirm - inval).abs() / confirm < 0.005 {
+            // Derive a proper invalidation: use stop_loss from trader_plan if available,
+            // otherwise use entry * 0.95 or current_price * 0.95
+            let corrected = parse_first_numeric(trader_plan.stop_loss.trim())
+                .filter(|&s| s > 0.0 && s != confirm)
+                .or_else(|| parse_first_numeric(trader_plan.entry_price.trim())
+                    .filter(|&e| e > 0.0 && e != confirm)
+                    .map(|e| e * 0.95))
+                .or_else(|| current_price
+                    .filter(|&c| c > 0.0 && c != confirm)
+                    .map(|c| c * 0.95));
+            if let Some(corrected) = corrected.filter(|&c| c > 0.0) {
+                tracing::warn!(
+                    confirmation = confirm,
+                    original_invalidation = inval,
+                    corrected_invalidation = corrected,
+                    "build_decision_view: invalidation == confirmation, deriving proper stop-loss"
+                );
+                invalidation_price = Some(corrected);
+            }
+        }
+    }
+    // Invalidation maximum distance from current price.
+    // Cap at 7% from current price to prevent overly wide stop-losses.
+    const MAX_INVALIDATION_PCT: f64 = 0.07;
+    if let (Some(current), Some(inval)) = (current_price, invalidation_price) {
+        if current > 0.0 && inval > 0.0 {
+            let distance_pct = (current - inval).abs() / current;
+            if distance_pct > MAX_INVALIDATION_PCT {
+                let capped = if inval < current {
+                    current * (1.0 - MAX_INVALIDATION_PCT)
+                } else {
+                    current * (1.0 + MAX_INVALIDATION_PCT)
+                };
+                tracing::info!(
+                    original = inval,
+                    capped = capped,
+                    distance_pct = distance_pct,
+                    max_pct = MAX_INVALIDATION_PCT,
+                    "invalidation too far from current price, capped at 7%"
+                );
+                invalidation_price = Some(capped);
+            }
+        }
+    }
     let has_confirmation_gate = !confirmation_reference.clone().unwrap_or_default().is_empty();
     let primary_path = preferred_scenario_path(action_guides)
         .map(|path| path.name.key.clone())
@@ -260,6 +309,13 @@ fn build_decision_view(
     // Entry derivation: track where entry_reference came from for transparency
     let raw_entry = trader_plan.entry_price.trim().to_string();
     let entry_price_val = parse_first_numeric(&raw_entry);
+    tracing::info!(
+        raw_entry = %raw_entry,
+        entry_price_val = ?entry_price_val,
+        confirmation_price = ?confirmation_price,
+        invalidation_price = ?invalidation_price,
+        "build_decision_view: entry guard check"
+    );
     // Guard: if entry == invalidation, it's a data error — derive a reasonable
     // entry instead of showing contradictory "enter at stop-loss" guidance.
     // Guard: if entry == confirmation (within 0.5%), derive entry slightly below
@@ -279,10 +335,22 @@ fn build_decision_view(
             _ => (String::new(), false),
         }
     } else if let (Some(entry), Some(confirm)) = (entry_price_val, confirmation_price) {
+        // Guard: entry < confirmation is an impossible trade setup.
+        // "Buy at 393 after price breaks above 406" makes no sense.
+        // Adjust entry to be at or slightly above confirmation (breakout entry).
+        if entry > 0.0 && confirm > 0.0 && entry < confirm {
+            tracing::warn!(
+                entry = entry,
+                confirmation = confirm,
+                "build_decision_view: entry < confirmation, adjusting entry to breakout level"
+            );
+            // Entry should be at confirmation + small buffer (0.5%)
+            (format_price_reference(confirm * 1.005), true)
+        }
         // Entry == confirmation: derive entry below for observation window.
         // Enforce at least 1% gap from confirmation to avoid degenerate cases
         // where current_price ≈ confirmation produces a near-identical pullback.
-        if confirm > 0.0 && (entry - confirm).abs() / confirm < 0.005 {
+        else if confirm > 0.0 && (entry - confirm).abs() / confirm < 0.005 {
             let derived = if let Some(current) = current_price.filter(|&c| c > 0.0) && confirm > current {
                 let pullback = current + (confirm - current) * 0.8;
                 // If pullback is too close to confirmation (< 1% gap), use 3% discount
@@ -320,8 +388,13 @@ fn build_decision_view(
         entry_reference,
         entry_derivation,
         confirmation_level: confirmation_reference.unwrap_or_default(),
-        invalidation_level: visible_invalidation_reference(portfolio_decision, Some(trader_plan))
-            .unwrap_or_default(),
+        // Use the corrected invalidation_price (which has gone through all guards)
+        // instead of the raw LLM value from visible_invalidation_reference.
+        // This prevents the bug where invalidation_level = confirmation_level.
+        invalidation_level: invalidation_price
+            .map(format_price_reference)
+            .unwrap_or_else(|| visible_invalidation_reference(portfolio_decision, Some(trader_plan))
+                .unwrap_or_default()),
         target_type,
         target_reference: LocalText::new("target_reference_value")
             .with_str("value", portfolio_decision.target_reference.trim()),

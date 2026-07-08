@@ -77,6 +77,13 @@ pub struct ProfitRiskView {
     pub risk_budget: LocalText,
     #[serde(default, deserialize_with = "deserialize_local_text_or_string")]
     pub actionability: LocalText,
+    // Transparency fields: show calculation basis
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub calc_entry: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub calc_target: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub calc_stop: Option<f64>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

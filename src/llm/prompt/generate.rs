@@ -268,6 +268,7 @@ impl LlmClient {
             - Hold action: `entry_price` and `stop_loss` may be empty, but `stop_loss` should still be provided if any invalidation level exists in the evidence.\n\
             - `confirmation_level`, `target_reference`, `target_condition`, `position_sizing`: provide when evidence supports them; null/empty is acceptable.\n\
             - `entry_price` and `stop_loss` MUST be different numeric values.\n\
+            CONFIRMATION SIMPLICITY RULE: `confirmation_level` must be ONE primary price level with at most ONE supporting condition. Format: \"PRICE (INDICATOR) — brief condition\". Do NOT chain multiple indicator conditions (MACD, KDJ, RSI, etc.) into confirmation_level — those belong in `execution_trigger_checklist` as separate items.\n\
             `execution_trigger_checklist` must be a concise array of 2-6 concrete execution triggers when the action is conditional or Hold.\n\
             `blocking_gaps` must be a concise array of concrete missing proof points that still block execution.",
             instrument = Self::instrument_context(params.symbol, params.market_type),

@@ -219,13 +219,14 @@ fn build_decision_view(
                 DecisionAction::WaitRetest
             }
         }
-        CoreResearchCall::LeanSell | CoreResearchCall::SellOnBreak => {
+        CoreResearchCall::LeanSell => {
             if execution_ready_now {
                 DecisionAction::Exit
             } else {
                 DecisionAction::Reduce
             }
         }
+        CoreResearchCall::SellOnBreak => DecisionAction::Hold,
         _ => DecisionAction::Hold,
     };
     let action_bias = match core_research_call {

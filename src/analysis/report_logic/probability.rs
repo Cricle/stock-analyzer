@@ -252,10 +252,8 @@ fn derive_profit_risk(
         )
     } else {
         (
-            parse_first_numeric(decision.target_reference.value_str())
-                .or(price_context.high_price),
-            parse_first_numeric(&decision.invalidation_price)
-                .or(price_context.low_price),
+            probability.upside_target.or(price_context.high_price),
+            probability.downside_target.or(price_context.low_price),
         )
     };
     ProfitRiskView {

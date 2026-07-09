@@ -1887,6 +1887,8 @@ pub(crate) fn convert_to_new_format(report: &StructuredReport) -> NewStructuredR
 /// Convert probability view to new format with traditional conventions.
 fn convert_probability_view(report: &StructuredReport, _is_active_trade: bool) -> NewProbabilityAnalysis {
     let pv = &report.probability_view;
+    let pr = &report.profit_risk;
+    let current_price = report.price_context.current_price;
 
     let is_bearish = matches!(report.decision_view.view, DecisionViewDirection::Bearish);
 
@@ -1898,8 +1900,34 @@ fn convert_probability_view(report: &StructuredReport, _is_active_trade: bool) -
         (pv.upside_target, pv.downside_target)
     };
 
+    // Compute targets from price and percentages if missing
+    let upside_target = upside_target.or_else(|| {
+        current_price.and_then(|price| {
+            pv.upside_pct.map(|pct| price * (1.0 + pct / 100.0))
+        })
+    });
+    let downside_target = downside_target.or_else(|| {
+        current_price.and_then(|price| {
+            pv.downside_pct.map(|pct| price * (1.0 - pct / 100.0))
+        })
+    });
+
+    // For bearish stocks, upside_pct is profit direction (price falling).
+    // In traditional convention, upside_pct = profit potential (always positive).
+    // downside_pct = loss potential. If missing, compute from max_loss_reference.
     let upside_pct = pv.upside_pct;
-    let downside_pct = pv.downside_pct;
+    let downside_pct = pv.downside_pct.or_else(|| {
+        // Try to compute from max_loss_reference (stop loss price)
+        current_price.and_then(|price| {
+            pr.max_loss_reference.and_then(|stop| {
+                if stop > price {
+                    Some((stop - price) / price * 100.0)
+                } else {
+                    None
+                }
+            })
+        })
+    });
 
     let reward_risk_ratio = upside_pct.zip(downside_pct).and_then(|(up, down)| {
         if down > 0.0 { Some(up / down) } else { None }

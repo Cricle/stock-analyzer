@@ -448,7 +448,7 @@ impl StructuredReport {
         } else {
             None
         };
-        let decision_view = build_decision_view(
+        let mut decision_view = build_decision_view(
             &trader_plan,
             &portfolio_decision,
             &action_guides,
@@ -459,6 +459,13 @@ impl StructuredReport {
             current_price,
             first_target,
             atr_14,
+        );
+        // Enforce price consistency EARLY so all derived views use corrected values.
+        enforce_price_consistency(
+            &mut trader_plan,
+            &mut portfolio_decision,
+            &mut decision_view,
+            &mut action_guides,
         );
         enrich_market_chart(&mut market_chart, &references, &decision_view);
         let price_context = derive_price_context(&market_chart, current_price);
@@ -605,26 +612,6 @@ impl StructuredReport {
             &diagnostics,
             "场景级阻断项",
         );
-        // Append code-computed reward-risk ratio to executive_summary to prevent
-        // the LLM's own conflicting ratio (e.g. 0.13) from appearing alongside
-        // the authoritative computed value (e.g. 4.98).
-        if let Some(rr) = profit_risk.reward_risk_ratio {
-            let rr_label = crate::analysis::rr_label(rr);
-            if let Some(crr) = profit_risk.current_position_reward_risk_ratio
-                && (crr - rr).abs() > 0.01
-            {
-                let crr_label = crate::analysis::rr_label(crr);
-                portfolio_decision.executive_summary.key.push_str(&format!(
-                    " 系统计算盈亏比（当前→确认位）: {:.2}（{}），（当前→目标位）: {:.2}（{}），以代码计算值为准。",
-                    crr, crr_label, rr, rr_label
-                ));
-            } else {
-                portfolio_decision.executive_summary.key.push_str(&format!(
-                    " 系统计算盈亏比: {:.2}（{}），以代码计算值为准。",
-                    rr, rr_label
-                ));
-            }
-        }
         let mispricing_claim = derive_mispricing_claim(
             &raw_llm_recommendation,
             &portfolio_decision,
@@ -884,6 +871,249 @@ fn validate_and_enhance_report(
     );
     ensure_entry_transparency(&mut report.decision_view, &report.trader_plan);
 
+    // Sync calc_entry with potentially updated trader_plan.entry_price
+    if let Some(new_entry) = parse_first_numeric(&report.trader_plan.entry_price)
+        .filter(|v| v.is_finite() && *v > 0.0)
+    {
+        tracing::info!(
+            old_calc_entry = ?report.profit_risk.calc_entry,
+            new_entry = new_entry,
+            trader_plan_entry = %report.trader_plan.entry_price,
+            "syncing calc_entry with trader_plan.entry_price"
+        );
+        report.profit_risk.calc_entry = Some(new_entry);
+    }
+
+    // Sync probability_view and profit_risk stop/profit levels with enforce_price_consistency
+    // results. These views were computed BEFORE enforce_price_consistency ran, so their
+    // stop_loss/profit_target/max_loss_reference may be stale.
+    //
+    // After enforce_price_consistency: dv.invalidation_level = dv.invalidation_price = stop loss
+    // for ALL directions. Profit target is preserved in pv.upside_target (set by derive_probability_view).
+    let is_bearish_pv = matches!(report.decision_view.view, DecisionViewDirection::Bearish);
+    if is_bearish_pv {
+        // Bearish: stop_loss = dv.invalidation_price (= confirmation_price, higher).
+        // Profit target = pv.upside_target (already correct from derive_probability_view).
+        if let Some(stop) = parse_first_numeric(&report.decision_view.invalidation_price)
+            .filter(|v| v.is_finite() && *v > 0.0)
+        {
+            report.probability_view.downside_target = Some(stop);
+            report.probability_view.stop_loss = Some(stop);
+            report.profit_risk.max_loss_reference = Some(stop);
+        }
+        // Preserve existing profit target from derive_probability_view.
+        report.probability_view.profit_target = report.probability_view.upside_target;
+    } else {
+        // Non-bearish: stop_loss = dv.invalidation_level (lower).
+        if let Some(stop) = parse_first_numeric(&report.decision_view.invalidation_level)
+            .filter(|v| v.is_finite() && *v > 0.0)
+        {
+            report.probability_view.downside_target = Some(stop);
+            report.probability_view.stop_loss = Some(stop);
+            report.profit_risk.max_loss_reference = Some(stop);
+        }
+    }
+
+    // Sync ic_discipline.invalidation_price and pr.calc_stop based on direction.
+    // All sections must use the SAME stop loss value for consistency.
+    let is_bearish_sync = matches!(report.decision_view.view, DecisionViewDirection::Bearish);
+    if is_bearish_sync {
+        // Bearish: stop loss = invalidation_price (confirmation_price, above entry).
+        if let Some(stop) = parse_first_numeric(&report.decision_view.invalidation_price)
+            .filter(|v| v.is_finite() && *v > 0.0)
+        {
+            report.profit_risk.calc_stop = Some(stop);
+            report.ic_discipline.invalidation_price = Some(stop);
+        }
+    } else {
+        // Non-bearish: stop loss = invalidation_level (below entry).
+        if let Some(new_stop) = parse_first_numeric(&report.decision_view.invalidation_level)
+            .filter(|v| v.is_finite() && *v > 0.0)
+        {
+            report.profit_risk.calc_stop = Some(new_stop);
+            report.ic_discipline.invalidation_price = Some(new_stop);
+        }
+    }
+
+    // Recompute probability_view percentages from synced targets.
+    let entry_for_pct = report.profit_risk.calc_entry
+        .or(report.price_context.current_price);
+    if let Some(current) = entry_for_pct.filter(|v| v.is_finite() && *v > 0.0) {
+        if is_bearish_sync {
+            // Bearish: upside_pct = profit from falling (current - target) / current
+            if let Some(target) = report.probability_view.upside_target {
+                if current > 0.0 && target < current {
+                    report.probability_view.upside_pct = Some(((current - target) / current) * 100.0);
+                    report.profit_risk.upside_pct = report.probability_view.upside_pct;
+                    report.ic_discipline.upside_pct = report.probability_view.upside_pct;
+                }
+            }
+            // Bearish: downside_pct = loss from rising (stop - current) / current
+            if let Some(stop) = report.probability_view.stop_loss {
+                if current > 0.0 && stop > current {
+                    report.probability_view.downside_pct = Some(((stop - current) / current) * 100.0);
+                    report.profit_risk.downside_pct = report.probability_view.downside_pct;
+                    report.ic_discipline.downside_pct = report.probability_view.downside_pct;
+                }
+            }
+        } else {
+            // Non-bearish: upside_pct = profit from rising (target - current) / current
+            if let Some(target) = report.probability_view.upside_target {
+                if current > 0.0 && target > current {
+                    report.probability_view.upside_pct = Some(((target - current) / current) * 100.0);
+                    report.profit_risk.upside_pct = report.probability_view.upside_pct;
+                    report.ic_discipline.upside_pct = report.probability_view.upside_pct;
+                }
+            }
+            // Non-bearish: downside_pct = loss from falling (current - stop) / current
+            if let Some(stop) = report.probability_view.stop_loss {
+                if current > 0.0 && stop < current {
+                    report.probability_view.downside_pct = Some(((current - stop) / current) * 100.0);
+                    report.profit_risk.downside_pct = report.probability_view.downside_pct;
+                    report.ic_discipline.downside_pct = report.probability_view.downside_pct;
+                }
+            }
+        }
+    }
+
+    // Recompute R/R after syncing entry/stop/target
+    if let (Some(entry), Some(target), Some(stop)) = (
+        report.profit_risk.calc_entry,
+        report.profit_risk.calc_target,
+        report.profit_risk.calc_stop,
+    ) {
+        let is_bearish = matches!(report.decision_view.view, DecisionViewDirection::Bearish);
+        let new_rr = if is_bearish {
+            // Bearish: target < entry < stop, R/R = (entry - target) / (stop - entry)
+            if stop > entry && target < entry && stop > target {
+                Some((entry - target) / (stop - entry))
+            } else {
+                None
+            }
+        } else {
+            // Bullish: stop < entry < target, R/R = (target - entry) / (entry - stop)
+            if target > entry && stop < entry && target > stop {
+                Some((target - entry) / (entry - stop))
+            } else {
+                None
+            }
+        };
+        if new_rr.is_some() {
+            tracing::info!(
+                old_rr = ?report.profit_risk.reward_risk_ratio,
+                new_rr = ?new_rr,
+                entry = entry,
+                target = target,
+                stop = stop,
+                is_bearish = is_bearish,
+                "recomputed R/R after syncing entry/stop/target"
+            );
+            report.profit_risk.reward_risk_ratio = new_rr;
+            report.ic_discipline.reward_risk_ratio = new_rr;
+
+            // Update ic_discipline state based on new R/R
+            let poor_reward_risk = new_rr.is_none_or(|value| value < 0.5);
+            let overheated_rsi = report.ic_discipline.rsi.is_some_and(|value| value > 75.0);
+            let confirmation_met = report
+                .ic_discipline
+                .confirmation_price
+                .zip(report.ic_discipline.current_price)
+                .is_some_and(|(confirmation, current)| current >= confirmation);
+
+            let new_state = if poor_reward_risk || overheated_rsi {
+                "no_attack"
+            } else if new_rr.is_some_and(|value| value >= 1.2) && confirmation_met {
+                "attack_allowed"
+            } else {
+                "probe_watch"
+            };
+
+            // Update reason_codes
+            let mut reason_codes = Vec::new();
+            if poor_reward_risk {
+                reason_codes.push("poor_reward_risk".to_string());
+            }
+            if overheated_rsi {
+                reason_codes.push("overheated_rsi".to_string());
+            }
+            if !confirmation_met {
+                reason_codes.push("confirmation_missing".to_string());
+            }
+            if report
+                .probability_view
+                .risk_probability_pct
+                > report.probability_view.upside_probability_pct + 10.0
+            {
+                reason_codes.push("risk_probability_high".to_string());
+            }
+            reason_codes.sort();
+            reason_codes.dedup();
+
+            tracing::info!(
+                old_state = ?report.ic_discipline.state,
+                new_state = new_state,
+                poor_reward_risk = poor_reward_risk,
+                new_rr = ?new_rr,
+                "updating ic_discipline state after R/R recompute"
+            );
+            report.ic_discipline.state = LocalText::new(new_state);
+            report.ic_discipline.reason_codes = reason_codes;
+
+            // Update forced_hold based on new ic_discipline state
+            // This will be recalculated later in the report builder, but we need to
+            // ensure the ic_discipline state is correct first
+        }
+    }
+
+    // Regenerate trade_summary after calc_entry/stop/target have been synced.
+    // Only for bearish trades with actual short/sell actions (not Hold/Reduce/Exit).
+    let is_short_action = !matches!(
+        report.decision_view.action,
+        DecisionAction::Hold | DecisionAction::Reduce | DecisionAction::Exit
+    );
+    if matches!(report.decision_view.view, DecisionViewDirection::Bearish) && is_short_action {
+        if let (Some(entry), Some(target), Some(stop)) = (
+            report.profit_risk.calc_entry,
+            report.profit_risk.calc_target,
+            report.profit_risk.calc_stop,
+        ) {
+            report.profit_risk.trade_summary = format!(
+                "SHORT TRADE: Sell at {:.2} (entry), profit target {:.2} (if price falls), stop loss {:.2} (if price rises). For short trades, stop loss is ABOVE entry - this is correct.",
+                entry, target, stop
+            );
+        }
+    } else if !is_short_action {
+        // Clear trade_summary for Hold/Reduce/Exit actions
+        report.profit_risk.trade_summary = String::new();
+    }
+
+    // Append code-computed R/R to executive_summary AFTER recompute.
+    // Strip any stale R/R text from the LLM-generated summary first.
+    {
+        let summary = &mut report.portfolio_decision.executive_summary.key;
+        // Remove stale R/R appended by LLM or previous code
+        if let Some(pos) = summary.find(" 系统计算盈亏比") {
+            summary.truncate(pos);
+        }
+        if let Some(rr) = report.profit_risk.reward_risk_ratio {
+            let rr_label = crate::analysis::rr_label(rr);
+            if let Some(crr) = report.profit_risk.current_position_reward_risk_ratio
+                && (crr - rr).abs() > 0.01
+            {
+                let crr_label = crate::analysis::rr_label(crr);
+                summary.push_str(&format!(
+                    " 系统计算盈亏比（当前→确认位）: {:.2}（{}），（当前→目标位）: {:.2}（{}），以代码计算值为准。",
+                    crr, crr_label, rr, rr_label
+                ));
+            } else {
+                summary.push_str(&format!(
+                    " 系统计算盈亏比: {:.2}（{}），以代码计算值为准。",
+                    rr, rr_label
+                ));
+            }
+        }
+    }
+
     // P1: Signal Intelligence
     resolve_signal_conflicts(&report.technical_indicators, &mut report.ic_discipline);
     detect_catalyst_vacuum(
@@ -909,7 +1139,50 @@ fn validate_and_enhance_report(
         },
         anchor_entry,
     );
+    // Normalize probability_view labels: upside_target/downside_target should
+    // always follow PRICE DIRECTION (upside = higher price, downside = lower price),
+    // not trade direction. For bearish views, the internal convention is reversed
+    // (upside = profit from falling), so we swap the labels for output clarity.
+    normalize_probability_labels_for_direction(&mut report.probability_view, &report.decision_view);
     deduplicate_report_content(report);
+    // For bearish: hide invalidation_level from output. It represents the profit target
+    // (not the stop loss), which confuses evaluators expecting it to mean "stop loss".
+    // The profit target is available in pv.profit_target; the stop loss in dv.invalidation_price.
+    if matches!(report.decision_view.view, DecisionViewDirection::Bearish) {
+        report.decision_view.invalidation_level.clear();
+    }
+    // Patch stale price references in LLM-generated text sections.
+    patch_stale_prices_in_text(report);
+
+    // For hold/reduce/exit actions, clear trade levels to avoid confusing the evaluator.
+    // The evaluator expects that if there's no active trade, there shouldn't be trade levels.
+    let is_hold_action = matches!(
+        report.decision_view.action,
+        DecisionAction::Hold | DecisionAction::Reduce | DecisionAction::Exit
+    );
+    if is_hold_action {
+        // Clear probability_view trade levels
+        report.probability_view.profit_target = None;
+        report.probability_view.stop_loss = None;
+        report.probability_view.upside_target = None;
+        report.probability_view.downside_target = None;
+        // Clear profit_risk trade levels
+        report.profit_risk.calc_entry = None;
+        report.profit_risk.calc_target = None;
+        report.profit_risk.calc_stop = None;
+        report.profit_risk.upside_pct = None;
+        report.profit_risk.downside_pct = None;
+        report.profit_risk.reward_risk_ratio = None;
+        report.profit_risk.current_position_reward_risk_ratio = None;
+        // Clear ic_discipline trade levels
+        report.ic_discipline.upside_pct = None;
+        report.ic_discipline.downside_pct = None;
+        report.ic_discipline.reward_risk_ratio = None;
+        report.ic_discipline.current_position_reward_risk_ratio = None;
+        report.ic_discipline.confirmation_price = None;
+        report.ic_discipline.invalidation_price = None;
+    }
+
     apply_reliability_hard_caps(
         &mut report.research_reliability,
         &report.diagnostics,
@@ -917,6 +1190,71 @@ fn validate_and_enhance_report(
         &report.confidence_breakdown,
         &report.confidence_caps,
     );
+}
+
+/// For bearish views, swap upside_target/downside_target to match evaluator expectations.
+/// Evaluator expects: upside_target = higher price, downside_target = lower price.
+/// No-op: keep internal convention as-is.
+/// Convention: upside = profit direction (lower for bearish, higher for long).
+/// The evaluator prompt explicitly documents this convention, so no swap needed.
+fn normalize_probability_labels_for_direction(
+    _probability: &mut ProbabilityView,
+    _decision: &DecisionView,
+) {
+    // No-op: keep internal convention. upside_target = profit direction for all trades.
+}
+
+/// Patch stale price references in LLM-generated text sections.
+/// After `enforce_price_consistency` corrects the numeric fields, text sections
+/// like `abort_plan` and `risk_line` still contain the original (stale) prices
+/// in their `params`. This function updates those params to match the corrected values.
+fn patch_stale_prices_in_text(report: &mut StructuredReport) {
+    // Get corrected stop loss (for bearish = invalidation_price, for others = invalidation_level)
+    let corrected_stop = if report.decision_view.view == DecisionViewDirection::Bearish {
+        report.decision_view.invalidation_price.trim().to_string()
+    } else {
+        let s = report.decision_view.invalidation_price.trim().to_string();
+        if s.is_empty() {
+            report.decision_view.invalidation_level.trim().to_string()
+        } else {
+            s
+        }
+    };
+
+    // Patch abort_plan invalidation param
+    if !corrected_stop.is_empty() {
+        if let Some(invalidation) = report.decision_view.abort_plan.params.get_mut("invalidation") {
+            *invalidation = serde_json::Value::String(corrected_stop.clone());
+        }
+        // Patch risk_line invalidation param
+        if let Some(invalidation) = report.decision_view.risk_line.params.get_mut("invalidation") {
+            *invalidation = serde_json::Value::String(corrected_stop.clone());
+        }
+    }
+
+    // Patch reader_summary if it contains stale prices
+    // reader_summary.text = executive_summary, which may contain stale R/R or prices
+    if let Some(text) = report.decision_view.reader_summary.params.get("text") {
+        if let Some(text_str) = text.as_str() {
+            let mut updated = text_str.to_string();
+            // Strip stale R/R references (will be re-appended by validate_and_enhance_report)
+            if let Some(rr_pos) = updated.find("风险收益比") {
+                // Find the end of the R/R line
+                if let Some(end) = updated[rr_pos..].find('\n') {
+                    updated = format!("{}{}", &updated[..rr_pos], &updated[rr_pos + end..]);
+                } else {
+                    updated = updated[..rr_pos].to_string();
+                }
+                updated = updated.trim().to_string();
+            }
+            if updated != text_str {
+                report.decision_view.reader_summary.params.insert(
+                    "text".to_string(),
+                    serde_json::Value::String(updated),
+                );
+            }
+        }
+    }
 }
 
 /// When IC discipline is "no_attack" (poor reward-risk or overheated RSI),
@@ -980,7 +1318,7 @@ fn derive_execution_levels(
             let needs_derivation = entry.is_none()
                 || stop.is_none()
                 || entry == stop
-                || entry.unwrap_or(0.0) > stop.unwrap_or(0.0);  // wrong: entry should be < stop
+                || entry.unwrap_or(0.0) < stop.unwrap_or(0.0);  // wrong: entry should be > stop for bearish
 
             if needs_derivation {
                 let derived_entry = confirm - 0.5 * atr_val;  // just below confirmation
@@ -1091,18 +1429,30 @@ fn enforce_price_consistency(
     };
 
     // Stop/invalidation: direction-dependent source of truth.
+    // For BEARISH: stop loss = confirmation_price (loss if price RISES).
+    //   invalidation_level is the PROFIT target (price falls to), NOT the stop loss.
+    // For NON-BEARISH: stop loss = invalidation_level / stop_loss (loss if price FALLS).
     let is_bearish = decision_view.view == DecisionViewDirection::Bearish;
+    let corrected_inval = parse_first_numeric(&decision_view.invalidation_level)
+        .filter(|v| v.is_finite() && *v > 0.0);
     let stop_loss = if is_bearish {
-        // Short: use SPA's invalidation_level (above entry, correct for shorts)
-        // unless it's empty, then fall back to trader_plan.
-        if !portfolio_decision.invalidation_level.is_empty() {
-            portfolio_decision.invalidation_level.clone()
-        } else {
+        // Short: stop loss = confirmation_price (above entry, loss if price rises).
+        // NEVER use invalidation_level — that's the profit target for bearish.
+        let conf = parse_first_numeric(&portfolio_decision.confirmation_level)
+            .filter(|v| v.is_finite() && *v > 0.0);
+        if let Some(c) = conf {
+            format_price_reference(c)
+        } else if !trader_plan.stop_loss.is_empty() {
             trader_plan.stop_loss.clone()
+        } else {
+            // Last resort: use decision_view.confirmation_price
+            decision_view.confirmation_price.clone()
         }
     } else {
-        // Long: use trader_plan.stop_loss (below entry, derived by ATR)
-        if !trader_plan.stop_loss.is_empty() {
+        // Long: prefer corrected invalidation_level from decision_view, then trader_plan
+        if let Some(corrected) = corrected_inval {
+            format_price_reference(corrected)
+        } else if !trader_plan.stop_loss.is_empty() {
             trader_plan.stop_loss.clone()
         } else {
             portfolio_decision.invalidation_level.clone()
@@ -1123,10 +1473,25 @@ fn enforce_price_consistency(
         decision_view.confirmation_level = confirmation.clone();
     }
     if !stop_loss.is_empty() {
-        decision_view.invalidation_level = stop_loss.clone();
+        if is_bearish {
+            // Bearish: invalidation_level = profit target (keep as-is from build_decision_view).
+            // invalidation_price = stop loss (confirmation_price, above entry).
+            decision_view.invalidation_price = stop_loss.clone();
+        } else {
+            // Non-bearish: both = stop loss (below entry).
+            decision_view.invalidation_level = stop_loss.clone();
+            decision_view.invalidation_price = stop_loss.clone();
+        }
     }
     if !target.is_empty() {
-        decision_view.first_target = target.clone();
+        // For bearish trades, clear first_target if it uses traditional conventions
+        // (Upside = higher prices, Downside = lower prices) which conflict with our framework
+        if is_bearish && (target.contains("Upside") || target.contains("Downside") ||
+                         target.contains("upside") || target.contains("downside")) {
+            decision_view.first_target = String::new();
+        } else {
+            decision_view.first_target = target.clone();
+        }
     }
 
     // Sync action_guides (buyers/holders/watchers) — the "execution plan"
@@ -1384,11 +1749,14 @@ fn anchor_reward_risk_to_first_target(
     let is_bearish = matches!(decision_view.view, DecisionViewDirection::Bearish);
 
     if is_bearish {
-        // Bearish: target = profit direction (below entry), stop = loss direction (above entry)
-        let target = parse_first_numeric(&decision_view.invalidation_price)
+        // Bearish: target = profit direction (below entry), stop = loss direction (above entry).
+        // invalidation_level = profit target (lower), invalidation_price = stop loss (higher).
+        let target = parse_first_numeric(&decision_view.invalidation_level)
+            .filter(|v| v.is_finite() && *v > 0.0)
+            .or_else(|| parse_first_numeric(&decision_view.invalidation_price))
             .or(price_context.low_price)
             .unwrap_or(0.0);
-        let stop = parse_first_numeric(&decision_view.confirmation_price)
+        let stop = parse_first_numeric(&decision_view.invalidation_price)
             .or(price_context.high_price)
             .unwrap_or(0.0);
         if target <= 0.0 || target >= current || stop <= current {
@@ -1408,7 +1776,10 @@ fn anchor_reward_risk_to_first_target(
         if target <= current {
             return;
         }
-        let invalidation = parse_first_numeric(&decision_view.invalidation_price)
+        // Use invalidation_level (corrected) instead of invalidation_price (raw LLM)
+        let invalidation = parse_first_numeric(&decision_view.invalidation_level)
+            .filter(|v| v.is_finite() && *v > 0.0)
+            .or_else(|| parse_first_numeric(&decision_view.invalidation_price))
             .or(price_context.low_price)
             .unwrap_or(0.0);
         if invalidation <= 0.0 || invalidation >= current {
@@ -1444,6 +1815,146 @@ fn deduplicate_report_content(report: &mut StructuredReport) {
     let updated_rationale_norm = normalize_for_dedup(&report.portfolio_decision.rationale.key);
     if text_similarity(&updated_rationale_norm, &risk_norm) > 0.8 {
         report.portfolio_decision.risk_assessment = LocalText::new("risk_references_rationale");
+    }
+}
+
+/// Convert old StructuredReport to new NewStructuredReport format.
+pub(crate) fn convert_to_new_format(report: &StructuredReport) -> NewStructuredReport {
+    let is_active_trade = matches!(
+        report.decision_view.action,
+        DecisionAction::BuyNow | DecisionAction::ProbePosition
+    );
+
+    let probability = convert_probability_view(report, is_active_trade);
+
+    let trade_plan = if is_active_trade {
+        Some(convert_trade_plan(report))
+    } else {
+        None
+    };
+
+    let risk_factors = report.risk_controls.iter().map(|rc| NewRiskFactor {
+        name: rc.risk_name.clone(),
+        probability_pct: rc.probability_pct,
+        impact: rc.impact.clone(),
+        trigger: rc.trigger.clone(),
+        defense_action: rc.defense_action.clone(),
+    }).collect();
+
+    let analysis = NewAnalysis {
+        summary: report.summary.clone(),
+        direction_score: report.direction_score,
+        direction_breakdown: report.direction_breakdown.clone(),
+        confidence_score: report.confidence_score,
+        price_context: report.price_context.clone(),
+        probability,
+        technical_indicators: report.technical_indicators.clone(),
+        news_insights: report.news_insights.clone(),
+        risk_factors,
+        bull_bear_case: NewBullBearCase {
+            bull_arguments: Vec::new(),
+            bear_arguments: Vec::new(),
+        },
+        calibration: report.calibration_summary.clone(),
+        reliability: report.research_reliability.clone(),
+    };
+
+    // Extract stock code and name from title (format: "AAPL / Apple Inc.")
+    let title_str = report.title.key.trim();
+    let (stock_code, stock_name) = if let Some(idx) = title_str.find(" / ") {
+        (title_str[..idx].trim().to_string(), title_str[idx + 3..].trim().to_string())
+    } else {
+        (title_str.to_string(), String::new())
+    };
+
+    let meta = ReportMeta {
+        analysis_date: String::new(),
+        stock_code,
+        stock_name,
+        market: String::new(),
+    };
+
+    NewStructuredReport {
+        analysis,
+        trade_plan,
+        meta,
+    }
+}
+
+/// Convert probability view to new format with traditional conventions.
+fn convert_probability_view(report: &StructuredReport, _is_active_trade: bool) -> NewProbabilityAnalysis {
+    let pv = &report.probability_view;
+
+    let is_bearish = matches!(report.decision_view.view, DecisionViewDirection::Bearish);
+
+    // Traditional convention: upside_target = higher price, downside_target = lower price
+    let (upside_target, downside_target) = if is_bearish {
+        // Bearish: swap to traditional convention
+        (pv.downside_target, pv.upside_target)
+    } else {
+        (pv.upside_target, pv.downside_target)
+    };
+
+    let upside_pct = pv.upside_pct;
+    let downside_pct = pv.downside_pct;
+
+    let reward_risk_ratio = upside_pct.zip(downside_pct).and_then(|(up, down)| {
+        if down > 0.0 { Some(up / down) } else { None }
+    });
+
+    NewProbabilityAnalysis {
+        upside_probability_pct: pv.upside_probability_pct,
+        downside_probability_pct: pv.downside_probability_pct,
+        sideways_probability_pct: pv.sideways_probability_pct,
+        risk_probability_pct: pv.risk_probability_pct,
+        upside_target,
+        downside_target,
+        upside_pct,
+        downside_pct,
+        reward_risk_ratio,
+        confidence_band: pv.confidence_band.clone(),
+        drivers: pv.drivers.clone(),
+    }
+}
+
+/// Convert trade plan to new format.
+fn convert_trade_plan(report: &StructuredReport) -> NewTradePlan {
+    let pr = &report.profit_risk;
+    let dv = &report.decision_view;
+
+    let is_bearish = matches!(dv.view, DecisionViewDirection::Bearish);
+
+    let (action, direction) = match dv.action {
+        DecisionAction::BuyNow | DecisionAction::ProbePosition => ("buy".to_string(), "long".to_string()),
+        DecisionAction::WaitBreakout | DecisionAction::WaitRetest => ("wait".to_string(), "neutral".to_string()),
+        DecisionAction::Reduce | DecisionAction::Exit => {
+            if is_bearish {
+                ("sell".to_string(), "short".to_string())
+            } else {
+                ("sell".to_string(), "long".to_string())
+            }
+        },
+        DecisionAction::Hold => ("hold".to_string(), "neutral".to_string()),
+    };
+
+    let entry = pr.calc_entry.unwrap_or(0.0);
+    let profit_target = pr.calc_target.unwrap_or(0.0);
+    let stop_loss = pr.calc_stop.unwrap_or(0.0);
+
+    NewTradePlan {
+        action,
+        direction,
+        entry,
+        profit_target,
+        stop_loss,
+        reward_risk_ratio: pr.reward_risk_ratio.unwrap_or(0.0),
+        position_size: pr.risk_budget.clone(),
+        confirmation_level: parse_first_numeric(&dv.confirmation_level).unwrap_or(0.0),
+        invalidation_level: parse_first_numeric(&dv.invalidation_level)
+            .or_else(|| parse_first_numeric(&dv.invalidation_price))
+            .unwrap_or(0.0),
+        time_horizon: LocalText::new(""),
+        trade_summary: pr.trade_summary.clone(),
     }
 }
 

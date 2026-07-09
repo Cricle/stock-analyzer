@@ -842,8 +842,11 @@ impl StructuredReport {
             review_checklist,
             stage_state: result.report_stage(),
             sections,
+            new_format: None,
         };
         validate_and_enhance_report(&mut report, &result.artifacts.market_chart, current_price);
+        // Convert to new format (separates Analysis from TradePlan)
+        report.new_format = Some(convert_to_new_format(&report));
         report
     }
 }

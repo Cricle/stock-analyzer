@@ -57,6 +57,7 @@ impl StructuredReport {
             review_checklist: report.review_checklist.clone(),
             stage_state: report.stage_state.clone(),
             sections,
+            new_format: None,
         }
     }
 }

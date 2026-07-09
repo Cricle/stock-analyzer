@@ -1900,18 +1900,6 @@ fn convert_probability_view(report: &StructuredReport, _is_active_trade: bool) -
         (pv.upside_target, pv.downside_target)
     };
 
-    // Compute targets from price and percentages if missing
-    let upside_target = upside_target.or_else(|| {
-        current_price.and_then(|price| {
-            pv.upside_pct.map(|pct| price * (1.0 + pct / 100.0))
-        })
-    });
-    let downside_target = downside_target.or_else(|| {
-        current_price.and_then(|price| {
-            pv.downside_pct.map(|pct| price * (1.0 - pct / 100.0))
-        })
-    });
-
     // For bearish stocks, upside_pct is profit direction (price falling).
     // In traditional convention, upside_pct = profit potential (always positive).
     // downside_pct = loss potential. If missing, compute from max_loss_reference.
@@ -1926,6 +1914,18 @@ fn convert_probability_view(report: &StructuredReport, _is_active_trade: bool) -
                     None
                 }
             })
+        })
+    });
+
+    // Compute targets from price and percentages if missing
+    let upside_target = upside_target.or_else(|| {
+        current_price.and_then(|price| {
+            upside_pct.map(|pct| price * (1.0 + pct / 100.0))
+        })
+    });
+    let downside_target = downside_target.or_else(|| {
+        current_price.and_then(|price| {
+            downside_pct.map(|pct| price * (1.0 - pct / 100.0))
         })
     });
 

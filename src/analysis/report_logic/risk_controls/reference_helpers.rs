@@ -236,12 +236,39 @@ fn fallback_rating(portfolio_decision: &StructuredPortfolioDecision) -> Rating {
 }
 
 fn preferred_scenario_path(guides: &ReportActionGuides) -> Option<&ActionScenarioPath> {
-    guides
-        .buyers
-        .scenario_paths
-        .iter()
-        .chain(guides.holders.scenario_paths.iter())
-        .chain(guides.watchers.scenario_paths.iter())
+    // For bearish views, prefer the failed_breakdown path
+    preferred_scenario_path_with_direction(guides, None)
+}
+
+fn preferred_scenario_path_with_direction<'a>(
+    guides: &'a ReportActionGuides,
+    direction: Option<&CoreResearchCall>,
+) -> Option<&'a ActionScenarioPath> {
+    let all_paths = || {
+        guides
+            .buyers
+            .scenario_paths
+            .iter()
+            .chain(guides.holders.scenario_paths.iter())
+            .chain(guides.watchers.scenario_paths.iter())
+    };
+
+    // For bearish views (LeanSell/SellOnBreak), prefer failed_breakdown path
+    if let Some(call) = direction {
+        if matches!(
+            call,
+            CoreResearchCall::LeanSell | CoreResearchCall::SellOnBreak
+        ) {
+            return all_paths()
+                .find(|item| item.key.as_str() == "failed_breakdown")
+                .or_else(|| {
+                    all_paths().find(|item| !item.key.trim().is_empty())
+                });
+        }
+    }
+
+    // For bullish/neutral views, prefer breakout_continuation or retest_confirmation
+    all_paths()
         .find(|item| {
             matches!(
                 item.key.as_str(),
@@ -249,13 +276,7 @@ fn preferred_scenario_path(guides: &ReportActionGuides) -> Option<&ActionScenari
             )
         })
         .or_else(|| {
-            guides
-                .buyers
-                .scenario_paths
-                .iter()
-                .chain(guides.holders.scenario_paths.iter())
-                .chain(guides.watchers.scenario_paths.iter())
-                .find(|item| !item.key.trim().is_empty())
+            all_paths().find(|item| !item.key.trim().is_empty())
         })
 }
 

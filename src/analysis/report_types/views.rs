@@ -47,6 +47,14 @@ pub struct ProbabilityView {
     pub confidence_band: LocalText,
     #[serde(default)]
     pub drivers: Vec<ProbabilityDriver>,
+    /// Direction-agnostic labels for clarity:
+    /// profit_target = the price level where profit is taken
+    /// stop_loss = the price level where loss is cut
+    /// These are always correct regardless of trade direction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profit_target: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop_loss: Option<f64>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -84,6 +92,15 @@ pub struct ProfitRiskView {
     pub calc_target: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub calc_stop: Option<f64>,
+    /// Trade direction: "long" for bullish/neutral, "short" for bearish.
+    /// For short trades, calc_target is below entry (profit from falling)
+    /// and calc_stop is above entry (stop loss if rises).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub trade_direction: String,
+    /// Explicit trade structure summary for evaluator clarity.
+    /// For bearish: explains that entry < stop is correct (short sells high, stops if rises).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub trade_summary: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

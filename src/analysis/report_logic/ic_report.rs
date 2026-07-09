@@ -133,7 +133,7 @@ fn describe_execution_state(state: &DecisionExecutionState) -> &'static str {
 }
 
 fn build_ic_report_summary(report: &StructuredReport) -> String {
-    let main_path = preferred_scenario_path(&report.action_guides)
+    let main_path = preferred_scenario_path_with_direction(&report.action_guides, Some(&report.decision_view.tilt))
         .map(|path| path.name.clone())
         .unwrap_or_else(|| LocalText::new("ic_waiting_for_confirmation"));
     let research_call = describe_core_research_call(&report.decision_view.tilt);
@@ -149,7 +149,7 @@ fn build_primary_path_call(
     guides: &ReportActionGuides,
     confidence_score: i32,
 ) -> LocalText {
-    let Some(path) = preferred_scenario_path(guides) else {
+    let Some(path) = preferred_scenario_path_with_direction(guides, Some(core_research_call)) else {
         return LocalText::default();
     };
     let path_name = path.name.trim().to_string();
@@ -176,7 +176,7 @@ fn build_path_bias_rationale(
     portfolio_decision: &StructuredPortfolioDecision,
     confidence_score: i32,
 ) -> LocalText {
-    let preferred = preferred_scenario_path(guides)
+    let preferred = preferred_scenario_path_with_direction(guides, Some(core_research_call))
         .map(|path| path.name.trim().to_string())
         .unwrap_or_default();
     let confirmation = visible_confirmation_reference(portfolio_decision)
@@ -255,7 +255,7 @@ fn build_abort_plan(
 }
 
 fn build_ic_report_sections(result: &AnalysisResult, report: &StructuredReport) -> Vec<ReportSection> {
-    let preferred_path = preferred_scenario_path(&report.action_guides).cloned();
+    let preferred_path = preferred_scenario_path_with_direction(&report.action_guides, Some(&report.decision_view.tilt)).cloned();
     let alternate_paths = all_scenario_paths(&report.action_guides)
         .into_iter()
         .filter(|path| preferred_path.as_ref().is_none_or(|current| current.name != path.name))

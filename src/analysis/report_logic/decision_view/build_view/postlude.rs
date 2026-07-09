@@ -149,14 +149,14 @@ fn build_decision_view(
         }
     }
     let has_confirmation_gate = !confirmation_reference.clone().unwrap_or_default().is_empty();
-    let primary_path = preferred_scenario_path(action_guides)
+    let primary_path = preferred_scenario_path_with_direction(action_guides, Some(core_research_call))
         .map(|path| path.name.key.clone())
         .unwrap_or_default();
-    let primary_path_key = preferred_scenario_path(action_guides)
+    let primary_path_key = preferred_scenario_path_with_direction(action_guides, Some(core_research_call))
         .map(|path| path.key.clone())
         .filter(|key| !key.trim().is_empty())
         .unwrap_or_else(|| "base_case".to_string());
-    let next_upgrade_condition = preferred_scenario_path(action_guides)
+    let next_upgrade_condition = preferred_scenario_path_with_direction(action_guides, Some(core_research_call))
         .map(|path| {
             let trigger = normalize_trigger_phrase(&path.trigger.key);
             LocalText::new("next_upgrade_from_path").with_str("trigger", trigger)

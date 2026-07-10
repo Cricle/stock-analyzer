@@ -226,3 +226,35 @@ pub fn penalty_score(item: &EnrichedCandidate) -> f64 {
     }
     penalty
 }
+
+/// Adjust factor breakdown based on market guidance sentiment.
+pub fn adjust_for_guidance_sentiment(
+    factor: &mut FactorBreakdown,
+    guidance_sentiment: i32,
+    risk_alert_count: usize,
+) {
+    if guidance_sentiment > 30 {
+        // Bullish market: boost momentum slightly
+        factor.momentum = (factor.momentum * 1.1).clamp(0.0, 100.0);
+    } else if guidance_sentiment < -30 {
+        // Bearish market: penalize risk more
+        factor.risk = (factor.risk * 0.9).clamp(0.0, 100.0);
+    }
+
+    if risk_alert_count > 2 {
+        // High alert environment: additional risk penalty
+        factor.risk = (factor.risk * 0.85).clamp(0.0, 100.0);
+    }
+
+    // Recalculate total
+    factor.total = (0.22 * factor.momentum
+        + 0.16 * factor.quality
+        + 0.12 * factor.value
+        + 0.12 * factor.profitability
+        + 0.10 * factor.risk
+        + 0.10 * factor.event
+        + 0.10 * factor.evidence
+        + 0.08 * factor.history
+        + factor.penalty)
+        .clamp(0.0, 100.0);
+}

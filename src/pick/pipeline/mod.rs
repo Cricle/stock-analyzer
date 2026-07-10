@@ -78,18 +78,59 @@ pub async fn run(
                 .and_then(|v| v.get("label"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("neutral");
-            format!(
-                "Market sentiment: {}. Recent picks: {}",
-                sentiment,
-                summary
-                    .get("picks")
-                    .and_then(|v| v.as_array())
-                    .map(|arr| arr
-                        .iter()
+            let sentiment_score = summary
+                .get("market_sentiment")
+                .and_then(|v| v.get("score"))
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0);
+
+            let sector_highlights = summary
+                .get("sector_highlights")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|s| {
+                            let name = s.get("sector_name")?.as_str()?;
+                            let direction = s.get("direction")?.as_str()?;
+                            Some(format!("{}: {}", name, direction))
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
+                .unwrap_or_default();
+
+            let risk_alerts = summary
+                .get("risk_alerts")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|a| {
+                            let severity = a.get("severity")?.as_str()?;
+                            let category = a.get("category")?.as_str()?;
+                            Some(format!("{}: {}", severity, category))
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
+                .unwrap_or_default();
+
+            let recent_picks = summary
+                .get("picks")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
                         .filter_map(|p| p.get("symbol").and_then(|v| v.as_str()))
                         .collect::<Vec<_>>()
-                        .join(", "))
-                    .unwrap_or_default()
+                        .join(", ")
+                })
+                .unwrap_or_default();
+
+            format!(
+                "Market sentiment: {} (score: {})\n\
+                 Sector highlights: {}\n\
+                 Risk alerts: {}\n\
+                 Recent picks: {}",
+                sentiment, sentiment_score, sector_highlights, risk_alerts, recent_picks
             )
         }
         _ => String::new(),

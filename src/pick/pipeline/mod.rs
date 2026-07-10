@@ -350,11 +350,7 @@ pub async fn run(
 
     // Validate and enhance picks with actionable defaults
     let quality_gate = PickQualityGate::default();
-    let validated_picks = validate_and_enhance_picks(
-        generated.picks,
-        &preselected,
-        &quality_gate,
-    );
+    let validated_picks = validate_and_enhance_picks(generated.picks, &preselected, &quality_gate);
 
     let generated = crate::pick::types::GeneratedStockPickResponse {
         picks: validated_picks,

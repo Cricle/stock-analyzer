@@ -17,14 +17,6 @@ pub struct ChatMessage {
     pub content: String,
 }
 
-/// A parsed tool call from an LLM response.
-#[derive(Debug, Clone)]
-pub struct ToolCall {
-    pub id: String,
-    pub name: String,
-    pub arguments: Value,
-}
-
 #[derive(Debug, Serialize)]
 pub struct ResponseFormat {
     #[serde(rename = "type")]
@@ -143,29 +135,6 @@ impl ChatMessageResponse {
         }
 
         String::new()
-    }
-
-    /// Extract structured tool calls from the response.
-    pub fn extract_tool_calls(&self) -> Vec<ToolCall> {
-        let mut calls = Vec::new();
-        if let Some(tool_calls) = &self.tool_calls {
-            for tc in tool_calls {
-                let id = tc.get("id").and_then(Value::as_str).unwrap_or("").to_string();
-                if let Some(function) = tc.get("function") {
-                    let name = function.get("name").and_then(Value::as_str).unwrap_or("").to_string();
-                    let arguments = function.get("arguments").cloned().unwrap_or(Value::Null);
-                    // arguments may be a JSON string — parse it
-                    let arguments = match &arguments {
-                        Value::String(s) => serde_json::from_str(s).unwrap_or(Value::Null),
-                        other => other.clone(),
-                    };
-                    if !name.is_empty() {
-                        calls.push(ToolCall { id, name, arguments });
-                    }
-                }
-            }
-        }
-        calls
     }
 }
 

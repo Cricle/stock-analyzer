@@ -194,10 +194,22 @@ impl GeneratedStockPickResponse {
                         map.get("data_gaps").cloned(),
                         &[],
                     ),
-                    entry_price: map.get("entry_price").and_then(|v| v.as_str()).map(String::from),
-                    stop_loss: map.get("stop_loss").and_then(|v| v.as_str()).map(String::from),
-                    target_price: map.get("target_price").and_then(|v| v.as_str()).map(String::from),
-                    holding_period: map.get("holding_period").and_then(|v| v.as_str()).map(String::from),
+                    entry_price: map
+                        .get("entry_price")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
+                    stop_loss: map
+                        .get("stop_loss")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
+                    target_price: map
+                        .get("target_price")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
+                    holding_period: map
+                        .get("holding_period")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
                     exit_triggers: llm::parse::string_list_or_default(
                         map.get("exit_triggers").cloned(),
                         &[],

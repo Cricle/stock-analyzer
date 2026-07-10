@@ -122,7 +122,4 @@ pub struct StructuredReport {
     pub stage_state: ReportStageState,
     #[serde(default, skip_serializing)]
     pub sections: Vec<ReportSection>,
-    /// New format output: separates Analysis from TradePlan
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub new_format: Option<NewStructuredReport>,
 }

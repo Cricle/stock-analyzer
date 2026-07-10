@@ -19,13 +19,6 @@ pub struct ValidationResult {
     pub action_adjustment: i32,
 }
 
-impl ValidationResult {
-    /// Returns true if any validator flagged an issue.
-    pub fn has_issues(&self) -> bool {
-        self.consistency_flag || self.uniformity_flag || !self.missing_boundary_fields.is_empty()
-    }
-}
-
 /// Check if recommendation contradicts technical indicators.
 pub fn check_consistency(recommendation: &str, rsi: f64, macd_signal: &str) -> ValidationResult {
     let mut result = ValidationResult::default();

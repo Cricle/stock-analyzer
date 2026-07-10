@@ -212,7 +212,7 @@ impl DailyGuidanceGenerator {
 
         // 4. Generate stock guidances for specific tickers if requested
         let mut stock_guidances = if let Some(tickers) = &request.tickers {
-            self.generate_stock_guidances(tickers, &market, &news_items)
+            self.generate_stock_guidances(tickers, &market, &news_items, &market_sentiment)
                 .await
         } else {
             Vec::new()
@@ -328,92 +328,5 @@ impl DailyGuidanceGenerator {
         );
 
         Ok(())
-    }
-
-    /// Stage 2: Generate report from pre-prepared data (may call LLM).
-    pub async fn generate_from_prepared(
-        &self,
-        market: &str,
-        date: &str,
-        tickers: Option<Vec<String>>,
-    ) -> anyhow::Result<DailyGuidanceReport> {
-        let started = Instant::now();
-        let market_enum = GuidanceMarket::from_str(market);
-
-        let prepared = self
-            .store
-            .get_prepared(date, market)
-            .await
-            .ok_or_else(|| anyhow::anyhow!("no prepared data found for {}:{}", market, date))?;
-
-        // Deserialize pre-fetched data
-        let news_items: Vec<GuidanceNewsItem> =
-            serde_json::from_str(&prepared.news_json).unwrap_or_default();
-        let historical_insights: Vec<HistoricalInsight> =
-            serde_json::from_str(&prepared.historical_insights_json).unwrap_or_default();
-        let market_indices: Vec<MarketIndex> =
-            serde_json::from_str(&prepared.market_indices_json).unwrap_or_default();
-        let recent_stock_picks: Option<RecentStockPickSummary> = prepared
-            .recent_stock_picks_json
-            .as_deref()
-            .and_then(|s| serde_json::from_str(s).ok());
-
-        // LLM-dependent steps
-        let market_sentiment = self
-            .assess_market_sentiment(&news_items, &market_enum)
-            .await;
-
-        let mut stock_guidances = if let Some(ref tickers) = tickers {
-            self.generate_stock_guidances(tickers, &market_enum, &news_items)
-                .await
-        } else {
-            Vec::new()
-        };
-        self.enrich_stock_guidances(&mut stock_guidances).await;
-
-        let sector_highlights = self.extract_sector_highlights(&news_items);
-        let risk_alerts = self.generate_risk_alerts(
-            &news_items,
-            &market_sentiment,
-            &market_enum,
-            &market_indices,
-        );
-        let user_guides = self.generate_user_guides(
-            &market_sentiment,
-            &stock_guidances,
-            &risk_alerts,
-            &market_indices,
-            &sector_highlights,
-        );
-
-        let elapsed = started.elapsed().as_millis() as u64;
-
-        let report = Self::build_report(
-            date,
-            market,
-            elapsed,
-            market_sentiment,
-            news_items,
-            prepared.news_sources,
-            sector_highlights,
-            stock_guidances,
-            risk_alerts,
-            user_guides,
-            recent_stock_picks,
-            market_indices,
-            historical_insights,
-        );
-
-        self.persist_report(&report, date, market).await;
-
-        tracing::info!(
-            market = %market,
-            date = %date,
-            elapsed_ms = elapsed,
-            news_count = report.key_news.len(),
-            "guidance report generated from prepared data"
-        );
-
-        Ok(report)
     }
 }

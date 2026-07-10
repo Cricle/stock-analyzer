@@ -9,5 +9,4 @@ include!("report_types/confidence.rs");
 include!("report_types/action_guides.rs");
 include!("report_types/reflection.rs");
 include!("report_types/risk_assessment.rs");
-include!("report_types/new_views.rs");
 

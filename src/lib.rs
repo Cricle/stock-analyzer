@@ -85,10 +85,6 @@ pub mod types {
     pub use akshare::types::*;
 }
 
-// ── Storage (stub for PgStore) ──
-
-pub mod storage;
-
 // ── Models ──
 
 pub mod analysis;

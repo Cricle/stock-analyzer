@@ -1,6 +1,6 @@
+use sa::StockPickTechnicalSnapshot;
 use sa::pick::validation::{PickQualityGate, apply_defaults, validate_pick};
 use sa::pick::{EnrichedCandidate, FactorBreakdown};
-use sa::StockPickTechnicalSnapshot;
 
 fn make_candidate(price: Option<f64>, atr: Option<f64>) -> EnrichedCandidate {
     let mut technical = StockPickTechnicalSnapshot::default();

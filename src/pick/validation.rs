@@ -1,7 +1,7 @@
 //! Stock pick validation and quality gates.
 
-use crate::pick::types::GeneratedStockPickItem;
 use crate::pick::EnrichedCandidate;
+use crate::pick::types::GeneratedStockPickItem;
 
 /// Configuration for pick quality gates.
 #[derive(Debug, Clone)]
@@ -52,9 +52,18 @@ pub fn validate_pick(
 ) -> PickValidation {
     let mut issues = Vec::new();
 
-    let has_entry_price = pick.entry_price.as_ref().is_some_and(|s| !s.trim().is_empty());
-    let has_stop_loss = pick.stop_loss.as_ref().is_some_and(|s| !s.trim().is_empty());
-    let has_target = pick.target_price.as_ref().is_some_and(|s| !s.trim().is_empty());
+    let has_entry_price = pick
+        .entry_price
+        .as_ref()
+        .is_some_and(|s| !s.trim().is_empty());
+    let has_stop_loss = pick
+        .stop_loss
+        .as_ref()
+        .is_some_and(|s| !s.trim().is_empty());
+    let has_target = pick
+        .target_price
+        .as_ref()
+        .is_some_and(|s| !s.trim().is_empty());
     let has_catalyst = !pick.catalysts.is_empty();
     let has_exit_strategy = !pick.exit_triggers.is_empty();
 
@@ -83,11 +92,7 @@ pub fn validate_pick(
         (Some(entry), Some(stop), Some(target)) if entry > 0.0 => {
             let risk = (entry - stop).abs();
             let reward = (target - entry).abs();
-            if risk > 0.0 {
-                reward / risk
-            } else {
-                0.0
-            }
+            if risk > 0.0 { reward / risk } else { 0.0 }
         }
         _ => 0.0,
     };
@@ -258,7 +263,11 @@ mod tests {
         );
         let config = PickQualityGate::default();
         let validation = validate_pick(&pick, Some(100.0), &config);
-        assert!(validation.is_valid, "Expected valid, got: {:?}", validation.issues);
+        assert!(
+            validation.is_valid,
+            "Expected valid, got: {:?}",
+            validation.issues
+        );
         assert!((validation.risk_reward_ratio - 3.0).abs() < 0.01);
     }
 
@@ -285,7 +294,12 @@ mod tests {
         let config = PickQualityGate::default();
         let validation = validate_pick(&pick, Some(100.0), &config);
         assert!(!validation.is_valid);
-        assert!(validation.issues.iter().any(|i| i.contains("stop_loss must be below")));
+        assert!(
+            validation
+                .issues
+                .iter()
+                .any(|i| i.contains("stop_loss must be below"))
+        );
     }
 
     #[test]

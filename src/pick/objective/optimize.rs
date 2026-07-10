@@ -1,5 +1,6 @@
 use crate::{StockPickItem, StockPickObjectiveBucket, StockPickObjectiveOverview};
 
+use crate::guide::I18nText;
 use crate::pick::EnrichedCandidate;
 
 use super::constraints::{build_valuation_vs_industry_block, stock_pick_objective_grade};
@@ -114,10 +115,10 @@ pub(crate) fn build_prompt(
          For any difference, provide override_actions explaining WHY the evidence supports your alternative.\n\
          Disagreement is expected and healthy when evidence warrants it.\n\n\
          ## CRITICAL: Actionable Recommendations\n\
-         For EACH pick, you MUST provide actionable trading guidance:\n\
-         - entry_price: Specific price or price range for entry (e.g., \"150.00\" or \"150-155\")\n\
-         - stop_loss: Specific stop-loss price (e.g., \"145.00\")\n\
-         - target_price: Realistic price target with justification (e.g., \"175.00 based on resistance\")\n\
+         For EACH pick, you MUST provide actionable trading guidance with TECHNICAL DERIVATION:\n\
+         - entry_price: Specific price or price range for entry (e.g., \"150.00\" or \"150-155\"). MUST cite technical basis: support level, EMA, VWAP, or consolidation zone.\n\
+         - stop_loss: Specific stop-loss price (e.g., \"145.00\"). MUST explain why this level (below support, ATR-based, or % risk).\n\
+         - target_price: Realistic price target with justification (e.g., \"175.00 based on resistance\"). MUST cite resistance level or measured move.\n\
          - holding_period: Expected holding period (e.g., \"2-4 weeks\", \"1-3 months\")\n\
          - exit_triggers: Specific conditions that would trigger exit (e.g., [\"break below 145\", \"earnings miss\"])\n\n\
          Required JSON schema:\n\
@@ -134,8 +135,11 @@ pub(crate) fn build_prompt(
                \"decision_reason_codes\": [\"score_leader\", \"technical_support\", \"fundamental_support\", \"evidence_support\", \"history_support\", \"risk_capped\"],\n\
                \"data_gaps\": [\"missing_history\", \"missing_fundamentals\"],\n\
                \"entry_price\": \"specific price or range\",\n\
+               \"entry_rationale\": \"technical basis for entry (support, EMA, VWAP, etc.)\",\n\
                \"stop_loss\": \"specific stop price\",\n\
+               \"stop_rationale\": \"basis for stop level\",\n\
                \"target_price\": \"specific target price\",\n\
+               \"target_rationale\": \"basis for target (resistance, measured move, etc.)\",\n\
                \"holding_period\": \"expected duration\",\n\
                \"exit_triggers\": [\"condition1\", \"condition2\"]\n\
              }}}}\n\
@@ -154,50 +158,157 @@ pub(crate) fn build_prompt(
     )
 }
 
-pub(crate) fn default_thesis(item: &EnrichedCandidate) -> String {
-    format!(
-        "pick.default_thesis|name={}|total={:.1}|momentum={:.1}|quality={:.1}|value={:.1}|profitability={:.1}|risk={:.1}|event={:.1}",
-        item.name,
-        item.factor.total,
-        item.factor.momentum,
-        item.factor.quality,
-        item.factor.value,
-        item.factor.profitability,
-        item.factor.risk,
-        item.factor.event
-    )
+pub(crate) fn default_thesis(item: &EnrichedCandidate) -> I18nText {
+    let mut thesis = I18nText::new("pick.default_thesis")
+        .with_param("name", item.name.clone())
+        .with_param("total", item.factor.total)
+        .with_param("momentum", item.factor.momentum)
+        .with_param("quality", item.factor.quality)
+        .with_param("value", item.factor.value)
+        .with_param("profitability", item.factor.profitability)
+        .with_param("risk", item.factor.risk)
+        .with_param("event", item.factor.event);
+
+    // Add industry context if available
+    if let Some(ref fundamentals) = item.fundamentals {
+        if let Some(ref industry) = fundamentals.industry {
+            thesis = thesis.with_param("industry", industry.clone());
+        }
+    }
+
+    // Add technical signals
+    if let Some(rsi) = item.technical_snapshot.rsi {
+        thesis = thesis.with_param("rsi", rsi);
+    }
+    if let Some(macd_hist) = item.technical_snapshot.macd_hist {
+        thesis = thesis.with_param("macd_hist", macd_hist);
+    }
+
+    // Add price context
+    if let Some(price) = item.price {
+        thesis = thesis.with_param("current_price", price);
+    }
+    if let Some(change_pct) = item.change_pct {
+        thesis = thesis.with_param("change_pct", change_pct);
+    }
+
+    // Add news context
+    if !item.news.is_empty() {
+        let news_count = item.news.len();
+        thesis = thesis.with_param("news_count", news_count as i64);
+        if let Some(latest) = item.news.first() {
+            thesis = thesis.with_param("latest_news_title", latest.title.clone());
+        }
+    }
+
+    thesis
 }
 
-pub(crate) fn default_catalysts(item: &EnrichedCandidate) -> Vec<String> {
+pub(crate) fn default_catalysts(item: &EnrichedCandidate) -> Vec<I18nText> {
     let mut catalysts = Vec::new();
+
+    // Technical catalysts
     if item.factor.momentum >= 70.0 {
-        catalysts.push("pick.catalyst.strong_momentum".to_string());
+        catalysts.push(I18nText::new("pick.catalyst.strong_momentum"));
     }
+    if let Some(rsi) = item.technical_snapshot.rsi {
+        if rsi < 30.0 {
+            catalysts.push(I18nText::new("pick.catalyst.oversold_rsi"));
+        } else if rsi > 50.0 && rsi < 70.0 {
+            catalysts.push(I18nText::new("pick.catalyst.bullish_rsi"));
+        }
+    }
+    if let Some(macd_hist) = item.technical_snapshot.macd_hist {
+        if macd_hist > 0.0 {
+            catalysts.push(I18nText::new("pick.catalyst.bullish_macd"));
+        }
+    }
+
+    // Fundamental catalysts
     if item.factor.event >= 60.0 {
-        catalysts.push("pick.catalyst.clear_catalyst".to_string());
+        catalysts.push(I18nText::new("pick.catalyst.clear_catalyst"));
     }
     if item.factor.quality >= 60.0 {
-        catalysts.push("pick.catalyst.acceptable_quality".to_string());
+        catalysts.push(I18nText::new("pick.catalyst.acceptable_quality"));
     }
+    if item.factor.profitability >= 60.0 {
+        catalysts.push(I18nText::new("pick.catalyst.solid_profitability"));
+    }
+
+    // News catalysts
+    if !item.news.is_empty() {
+        let positive_news = item.news.iter().any(|n| {
+            let text = format!("{} {}", n.title, n.summary).to_lowercase();
+            ["beat", "growth", "upgrade", "approval", "expansion", "contract"]
+                .iter()
+                .any(|keyword| text.contains(keyword))
+        });
+        if positive_news {
+            catalysts.push(I18nText::new("pick.catalyst.positive_news"));
+        }
+    }
+
+    // Valuation catalyst
+    if item.factor.value >= 60.0 {
+        catalysts.push(I18nText::new("pick.catalyst.attractive_valuation"));
+    }
+
     if catalysts.is_empty() {
-        catalysts.push("pick.catalyst.leading_composite_score".to_string());
+        catalysts.push(I18nText::new("pick.catalyst.leading_composite_score"));
     }
     catalysts
 }
 
-pub(crate) fn default_risks(item: &EnrichedCandidate) -> Vec<String> {
+pub(crate) fn default_risks(item: &EnrichedCandidate) -> Vec<I18nText> {
     let mut risks = Vec::new();
+
+    // Price movement risks
     if item.change_pct.unwrap_or_default() >= 9.5 {
-        risks.push("pick.risk.large_short_term_gain".to_string());
+        risks.push(I18nText::new("pick.risk.large_short_term_gain"));
     }
+    if item.change_pct.unwrap_or_default() <= -5.0 {
+        risks.push(I18nText::new("pick.risk.recent_decline"));
+    }
+
+    // Valuation risks
     if item.factor.value < 45.0 {
-        risks.push("pick.risk.average_valuation".to_string());
+        risks.push(I18nText::new("pick.risk.average_valuation"));
     }
+    if let Some(pe) = item.fundamental_snapshot.pe_like {
+        if pe > 50.0 {
+            risks.push(I18nText::new("pick.risk.high_pe"));
+        }
+    }
+
+    // Volatility risks
     if item.factor.risk < 50.0 {
-        risks.push("pick.risk.elevated_volatility".to_string());
+        risks.push(I18nText::new("pick.risk.elevated_volatility"));
     }
+    if let Some(atr) = item.technical_snapshot.atr {
+        if let Some(price) = item.price {
+            if price > 0.0 {
+                let atr_pct = (atr / price) * 100.0;
+                if atr_pct > 5.0 {
+                    risks.push(I18nText::new("pick.risk.high_atr"));
+                }
+            }
+        }
+    }
+
+    // Technical risks
+    if let Some(rsi) = item.technical_snapshot.rsi {
+        if rsi > 70.0 {
+            risks.push(I18nText::new("pick.risk.overbought_rsi"));
+        }
+    }
+
+    // Negative news risks
+    if item.news_snapshot.hard_negative_count > 0 {
+        risks.push(I18nText::new("pick.risk.negative_news"));
+    }
+
     if risks.is_empty() {
-        risks.push("pick.risk.continue_tracking".to_string());
+        risks.push(I18nText::new("pick.risk.continue_tracking"));
     }
     risks
 }

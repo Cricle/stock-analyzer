@@ -32,8 +32,8 @@ use crate::pick::objective::{
 
 use filter::{market_display_label, market_kind_from_value, resolve_candidates};
 use rank::{
-    dedupe_news_items, default_selection_reason_codes, news_items_to_evidence_records,
-    score_evidence_quality, summarize_history_matches,
+    dedupe_news_items, default_selection_reason_codes, filter_relevant_news,
+    news_items_to_evidence_records, score_evidence_quality, summarize_history_matches,
 };
 use select::{
     build_candidate_search_queries, build_light_search_queries, deep_search_limit,
@@ -222,12 +222,16 @@ pub async fn run(
         }
         indexed_evidence_records += deduped_records.len();
         candidate.news = dedupe_news_items(
-            candidate
-                .news
-                .iter()
-                .cloned()
-                .chain(search_items.into_iter())
-                .collect(),
+            filter_relevant_news(
+                candidate
+                    .news
+                    .iter()
+                    .cloned()
+                    .chain(search_items.into_iter())
+                    .collect(),
+                &candidate.symbol,
+                &candidate.name,
+            ),
         );
         candidate.evidence_records = deduped_records;
         candidate.theme_key = infer_theme_key(
@@ -399,6 +403,23 @@ pub async fn run(
                 evidence_points: explanation
                     .map(|value| value.evidence_points.clone())
                     .unwrap_or_else(|| default_evidence(&item)),
+                entry_price: explanation
+                    .and_then(|value| value.entry_price.clone()),
+                entry_rationale: explanation
+                    .and_then(|value| value.entry_rationale.clone()),
+                stop_loss: explanation
+                    .and_then(|value| value.stop_loss.clone()),
+                stop_rationale: explanation
+                    .and_then(|value| value.stop_rationale.clone()),
+                target_price: explanation
+                    .and_then(|value| value.target_price.clone()),
+                target_rationale: explanation
+                    .and_then(|value| value.target_rationale.clone()),
+                holding_period: explanation
+                    .and_then(|value| value.holding_period.clone()),
+                exit_triggers: explanation
+                    .map(|value| value.exit_triggers.clone())
+                    .unwrap_or_default(),
                 price: item.price,
                 change_pct: item.change_pct,
                 market_cap: item.market_cap,
@@ -429,6 +450,63 @@ pub async fn run(
                 rejection_risk_flags,
                 evidence_quality_score,
             };
+            // Apply actionable field defaults if LLM didn't provide them
+            let current_price = item.price.or(item.market_snapshot.current_price);
+            let atr = item.technical_snapshot.atr;
+            // Validate price fields are numeric, reset if free text
+            if let Some(ref ep) = pick.entry_price {
+                if ep.parse::<f64>().is_err() && !ep.contains('-') {
+                    pick.entry_price = None;
+                }
+            }
+            if let Some(ref sl) = pick.stop_loss {
+                if sl.parse::<f64>().is_err() {
+                    pick.stop_loss = None;
+                }
+            }
+            if let Some(ref tp) = pick.target_price {
+                if tp.parse::<f64>().is_err() && !tp.contains('-') {
+                    pick.target_price = None;
+                }
+            }
+            if pick.entry_price.is_none() {
+                if let Some(price) = current_price {
+                    pick.entry_price = Some(format!("{:.2}", price));
+                }
+            }
+            if pick.stop_loss.is_none() {
+                if let Some(entry_str) = &pick.entry_price {
+                    if let Ok(entry) = entry_str.parse::<f64>() {
+                        let stop = if let Some(atr_val) = atr {
+                            entry - 2.0 * atr_val
+                        } else {
+                            entry * 0.95
+                        };
+                        // Cap stop loss at 10% below entry
+                        let max_stop = entry * 0.90;
+                        pick.stop_loss = Some(format!("{:.2}", stop.max(max_stop).max(0.01)));
+                    }
+                }
+            }
+            if pick.target_price.is_none() {
+                if let (Some(entry_str), Some(stop_str)) = (&pick.entry_price, &pick.stop_loss) {
+                    if let (Ok(entry), Ok(stop)) = (entry_str.parse::<f64>(), stop_str.parse::<f64>()) {
+                        let risk = (entry - stop).abs();
+                        if risk > 0.0 {
+                            let target = entry + 3.0 * risk;
+                            pick.target_price = Some(format!("{:.2}", target));
+                        }
+                    }
+                }
+            }
+            if pick.holding_period.is_none() {
+                pick.holding_period = Some("2-4 weeks".to_string());
+            }
+            if pick.exit_triggers.is_empty() {
+                if let Some(stop_str) = &pick.stop_loss {
+                    pick.exit_triggers.push(format!("break below {}", stop_str));
+                }
+            }
             pick.objective_assessment = evaluate_stock_pick_objective_assessment(&pick, &item);
             pick.priority_rank = stock_pick_priority_rank(&pick);
             pick.priority_label = stock_pick_priority_label(pick.priority_rank).to_string();
@@ -436,6 +514,23 @@ pub async fn run(
             pick
         })
         .collect::<Vec<_>>();
+
+    // Filter out picks that are not ready (missing market_cap or low objective score)
+    let picks: Vec<_> = picks
+        .into_iter()
+        .filter(|pick| {
+            if !pick.objective_assessment.ready {
+                tracing::warn!(
+                    symbol = %pick.symbol,
+                    score = pick.objective_assessment.final_score,
+                    "pick filtered: not ready (missing market_cap or low score)"
+                );
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
 
     // Score each pick with the scoring system
     let score_config = crate::config::SaConfig::load().score_config();

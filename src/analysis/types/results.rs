@@ -9,11 +9,11 @@ pub struct StockPickItem {
     pub score: f64,
     #[serde(default)]
     pub confidence: f64,
-    pub thesis: String,
+    pub thesis: crate::guide::I18nText,
     #[serde(default)]
-    pub catalysts: Vec<String>,
+    pub catalysts: Vec<crate::guide::I18nText>,
     #[serde(default)]
-    pub risks: Vec<String>,
+    pub risks: Vec<crate::guide::I18nText>,
     #[serde(default)]
     pub evidence_points: Vec<String>,
     #[serde(default)]
@@ -28,6 +28,22 @@ pub struct StockPickItem {
     pub priority_rank: i32,
     #[serde(default)]
     pub sort_key: f64,
+    #[serde(default)]
+    pub entry_price: Option<String>,
+    #[serde(default)]
+    pub entry_rationale: Option<String>,
+    #[serde(default)]
+    pub stop_loss: Option<String>,
+    #[serde(default)]
+    pub stop_rationale: Option<String>,
+    #[serde(default)]
+    pub target_price: Option<String>,
+    #[serde(default)]
+    pub target_rationale: Option<String>,
+    #[serde(default)]
+    pub holding_period: Option<String>,
+    #[serde(default)]
+    pub exit_triggers: Vec<String>,
     #[serde(default)]
     pub objective_assessment: StockPickObjectiveAssessment,
     #[serde(default)]

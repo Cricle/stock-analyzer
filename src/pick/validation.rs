@@ -142,10 +142,35 @@ pub fn validate_pick(
     }
 }
 
+/// Check if a price string contains a valid numeric value or price range.
+/// Rejects free text like "不推荐主动入场" that doesn't contain parseable numbers.
+fn is_valid_price_string(s: &str) -> bool {
+    parse_price(s).is_some()
+}
+
 /// Apply reasonable defaults for missing actionable fields.
 pub fn apply_defaults(pick: &mut GeneratedStockPickItem, candidate: &EnrichedCandidate) {
     let current_price = candidate.price.or(candidate.market_snapshot.current_price);
     let atr = candidate.technical_snapshot.atr;
+
+    // Validate entry_price is numeric, reset to None if it's free text
+    if let Some(ref ep) = pick.entry_price {
+        if !is_valid_price_string(ep) {
+            pick.entry_price = None;
+        }
+    }
+    // Validate stop_loss is numeric
+    if let Some(ref sl) = pick.stop_loss {
+        if !is_valid_price_string(sl) {
+            pick.stop_loss = None;
+        }
+    }
+    // Validate target_price is numeric
+    if let Some(ref tp) = pick.target_price {
+        if !is_valid_price_string(tp) {
+            pick.target_price = None;
+        }
+    }
 
     // Default entry price: current price
     if pick.entry_price.is_none() {
@@ -155,6 +180,7 @@ pub fn apply_defaults(pick: &mut GeneratedStockPickItem, candidate: &EnrichedCan
     }
 
     // Default stop loss: 2 * ATR below entry, or 5% below entry if ATR unavailable
+    // Cap at 10% below entry to avoid extreme stops on high-ATR low-price stocks
     if pick.stop_loss.is_none() {
         if let Some(entry_str) = &pick.entry_price {
             if let Some(entry) = parse_price(entry_str) {
@@ -163,7 +189,8 @@ pub fn apply_defaults(pick: &mut GeneratedStockPickItem, candidate: &EnrichedCan
                 } else {
                     entry * 0.95
                 };
-                pick.stop_loss = Some(format!("{:.2}", stop.max(0.01)));
+                let max_stop = entry * 0.90;
+                pick.stop_loss = Some(format!("{:.2}", stop.max(max_stop).max(0.01)));
             }
         }
     }
@@ -226,6 +253,7 @@ pub(crate) fn validate_and_enhance_picks(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::guide::I18nText;
     use serde_json::Value;
 
     fn make_pick(
@@ -238,15 +266,18 @@ mod tests {
         GeneratedStockPickItem {
             symbol: "TEST".to_string(),
             confidence: Value::from(0.7),
-            thesis: "Test thesis".to_string(),
-            catalysts: catalysts.into_iter().map(String::from).collect(),
+            thesis: I18nText::new("Test thesis"),
+            catalysts: catalysts.into_iter().map(I18nText::new).collect(),
             risks: vec![],
             evidence_points: vec![],
             decision_reason_codes: vec![],
             data_gaps: vec![],
             entry_price: entry.map(String::from),
+            entry_rationale: None,
             stop_loss: stop.map(String::from),
+            stop_rationale: None,
             target_price: target.map(String::from),
+            target_rationale: None,
             holding_period: None,
             exit_triggers: exit_triggers.into_iter().map(String::from).collect(),
         }

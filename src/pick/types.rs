@@ -4,6 +4,7 @@ use serde_json::Value;
 
 use crate::data::FundamentalsSnapshot;
 use crate::data::NewsItem;
+use crate::guide::I18nText;
 use crate::llm;
 use crate::{
     StockPickDataQualitySnapshot, StockPickFundamentalSnapshot, StockPickHistoryMatchSnapshot,
@@ -80,9 +81,9 @@ pub struct EnrichedCandidate {
 pub struct GeneratedStockPickItem {
     pub symbol: String,
     pub confidence: Value,
-    pub thesis: String,
-    pub catalysts: Vec<String>,
-    pub risks: Vec<String>,
+    pub thesis: I18nText,
+    pub catalysts: Vec<I18nText>,
+    pub risks: Vec<I18nText>,
     pub evidence_points: Vec<String>,
     #[serde(default)]
     pub decision_reason_codes: Vec<String>,
@@ -91,9 +92,15 @@ pub struct GeneratedStockPickItem {
     #[serde(default)]
     pub entry_price: Option<String>,
     #[serde(default)]
+    pub entry_rationale: Option<String>,
+    #[serde(default)]
     pub stop_loss: Option<String>,
     #[serde(default)]
+    pub stop_rationale: Option<String>,
+    #[serde(default)]
     pub target_price: Option<String>,
+    #[serde(default)]
+    pub target_rationale: Option<String>,
     #[serde(default)]
     pub holding_period: Option<String>,
     #[serde(default)]
@@ -158,6 +165,28 @@ pub(crate) struct GeneratedStockPickResponse {
     pub(crate) override_actions: Vec<GeneratedOverrideAction>,
 }
 
+fn parse_i18n_text(value: &serde_json::Value) -> I18nText {
+    match value {
+        serde_json::Value::String(s) => I18nText::new(s),
+        serde_json::Value::Object(map) => {
+            let key = map.get("key").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let params = map.get("params")
+                .and_then(|v| v.as_object())
+                .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+                .unwrap_or_default();
+            I18nText { key, params }
+        }
+        _ => I18nText::default(),
+    }
+}
+
+fn parse_i18n_text_list(value: &serde_json::Value) -> Vec<I18nText> {
+    match value {
+        serde_json::Value::Array(arr) => arr.iter().map(parse_i18n_text).collect(),
+        _ => Vec::new(),
+    }
+}
+
 impl GeneratedStockPickResponse {
     fn from_value(raw: Value) -> Self {
         let object = raw.as_object();
@@ -170,18 +199,9 @@ impl GeneratedStockPickResponse {
                 .map(|map| GeneratedStockPickItem {
                     symbol: llm::parse::text_or_default(map.get("symbol").cloned(), "UNKNOWN"),
                     confidence: map.get("confidence").cloned().unwrap_or(Value::from(0.0)),
-                    thesis: llm::parse::text_or_default(
-                        map.get("thesis").cloned(),
-                        "No thesis returned.",
-                    ),
-                    catalysts: llm::parse::string_list_or_default(
-                        map.get("catalysts").cloned(),
-                        &["No catalyst returned"],
-                    ),
-                    risks: llm::parse::string_list_or_default(
-                        map.get("risks").cloned(),
-                        &["No risk returned"],
-                    ),
+                    thesis: parse_i18n_text(map.get("thesis").unwrap_or(&serde_json::Value::Null)),
+                    catalysts: parse_i18n_text_list(map.get("catalysts").unwrap_or(&serde_json::Value::Array(vec![]))),
+                    risks: parse_i18n_text_list(map.get("risks").unwrap_or(&serde_json::Value::Array(vec![]))),
                     evidence_points: llm::parse::string_list_or_default(
                         map.get("evidence_points").cloned(),
                         &["No evidence returned"],
@@ -198,12 +218,24 @@ impl GeneratedStockPickResponse {
                         .get("entry_price")
                         .and_then(|v| v.as_str())
                         .map(String::from),
+                    entry_rationale: map
+                        .get("entry_rationale")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
                     stop_loss: map
                         .get("stop_loss")
                         .and_then(|v| v.as_str())
                         .map(String::from),
+                    stop_rationale: map
+                        .get("stop_rationale")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
                     target_price: map
                         .get("target_price")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
+                    target_rationale: map
+                        .get("target_rationale")
                         .and_then(|v| v.as_str())
                         .map(String::from),
                     holding_period: map

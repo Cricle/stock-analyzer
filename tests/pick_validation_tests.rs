@@ -1,4 +1,5 @@
 use sa::StockPickTechnicalSnapshot;
+use sa::guide::I18nText;
 use sa::pick::validation::{PickQualityGate, apply_defaults, validate_pick};
 use sa::pick::{EnrichedCandidate, FactorBreakdown};
 
@@ -45,15 +46,18 @@ fn make_pick(
     sa::pick::types::GeneratedStockPickItem {
         symbol: "TEST".to_string(),
         confidence: Value::from(0.7),
-        thesis: "Test thesis".to_string(),
-        catalysts: catalysts.into_iter().map(String::from).collect(),
+        thesis: I18nText::new("Test thesis"),
+        catalysts: catalysts.into_iter().map(I18nText::new).collect(),
         risks: vec![],
         evidence_points: vec![],
         decision_reason_codes: vec![],
         data_gaps: vec![],
         entry_price: entry.map(String::from),
+        entry_rationale: None,
         stop_loss: stop.map(String::from),
+        stop_rationale: None,
         target_price: target.map(String::from),
+        target_rationale: None,
         holding_period: None,
         exit_triggers: exit_triggers.into_iter().map(String::from).collect(),
     }

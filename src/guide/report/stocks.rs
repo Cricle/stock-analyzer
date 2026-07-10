@@ -22,52 +22,49 @@ fn determine_suggested_action(
         "bullish" => {
             if positive_news > negative_news {
                 (
-                    "accumulate".to_string(),
-                    "Bullish market with positive news flow. Consider accumulating on dips."
-                        .to_string(),
+                    "guidance.action.accumulate".to_string(),
+                    "guidance.rationale.bullish_positive_news".to_string(),
                 )
             } else if history_count > 0 {
                 (
-                    "review_memory".to_string(),
-                    "Bullish market but mixed news. Review past analysis for entry timing."
-                        .to_string(),
+                    "guidance.action.review_memory".to_string(),
+                    "guidance.rationale.bullish_mixed_news".to_string(),
                 )
             } else {
                 (
-                    "watch_for_pullback".to_string(),
-                    "Bullish market but limited data. Wait for pullback entry.".to_string(),
+                    "guidance.action.watch_for_pullback".to_string(),
+                    "guidance.rationale.bullish_mixed_news".to_string(),
                 )
             }
         }
         "bearish" => {
             if negative_news > 0 {
                 (
-                    "avoid".to_string(),
-                    "Bearish market with negative news. Avoid new entries, consider reducing exposure.".to_string(),
+                    "guidance.action.avoid".to_string(),
+                    "guidance.rationale.bearish_negative_news".to_string(),
                 )
             } else {
                 (
-                    "wait_for_confirmation".to_string(),
-                    "Bearish market. Wait for reversal confirmation before entry.".to_string(),
+                    "guidance.action.wait_for_confirmation".to_string(),
+                    "guidance.rationale.bearish_negative_news".to_string(),
                 )
             }
         }
         _ => {
             if positive_news > negative_news + 1 {
                 (
-                    "watch_for_pullback".to_string(),
-                    "Neutral market with positive news bias. Watch for pullback entry.".to_string(),
+                    "guidance.action.watch_for_pullback".to_string(),
+                    "guidance.rationale.neutral_positive_bias".to_string(),
                 )
             } else if negative_news > positive_news + 1 {
                 (
-                    "monitor".to_string(),
-                    "Neutral market with negative news bias. Monitor for deterioration."
-                        .to_string(),
+                    "guidance.action.monitor".to_string(),
+                    "guidance.rationale.neutral_negative_bias".to_string(),
                 )
             } else {
                 (
-                    "observe".to_string(),
-                    "Neutral market conditions. Observe and wait for clearer signals.".to_string(),
+                    "guidance.action.observe".to_string(),
+                    "guidance.rationale.neutral_mixed".to_string(),
                 )
             }
         }
@@ -160,24 +157,18 @@ impl DailyGuidanceGenerator {
             // Build rationale with actionable context
             let rationale = if memory_bundle.same_ticker_count > 0 {
                 format!(
-                    "Found {} past analyses for this ticker. {} Suggested action: {}.",
+                    "guidance.rationale.has_history|count={}|lesson={}",
                     memory_bundle.same_ticker_count,
                     memory_bundle
                         .same_ticker_highlights
                         .first()
                         .map(|h| h.lesson.clone())
-                        .unwrap_or_default(),
-                    suggested_action
+                        .unwrap_or_default()
                 )
             } else {
                 format!(
-                    "Limited historical data available for this ticker. {}. Suggested action: {}.",
-                    if !relevant_news.is_empty() {
-                        format!("{} relevant news items found", relevant_news.len())
-                    } else {
-                        "No significant news".to_string()
-                    },
-                    suggested_action
+                    "guidance.rationale.limited_history|news_count={}",
+                    relevant_news.len()
                 )
             };
 

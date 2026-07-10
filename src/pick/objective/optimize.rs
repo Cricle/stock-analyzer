@@ -156,7 +156,7 @@ pub(crate) fn build_prompt(
 
 pub(crate) fn default_thesis(item: &EnrichedCandidate) -> String {
     format!(
-        "{} The composite factor score is {:.1}，with momentum {:.1}、quality {:.1}、value {:.1}、profitability {:.1}、risk {:.1}、event {:.1}。It passed rule filters and was retained under sector diversification constraints, suitable as a balanced pick in the current candidate pool. Entry at current price with stop loss based on ATR.",
+        "pick.default_thesis|name={}|total={:.1}|momentum={:.1}|quality={:.1}|value={:.1}|profitability={:.1}|risk={:.1}|event={:.1}",
         item.name,
         item.factor.total,
         item.factor.momentum,
@@ -171,19 +171,16 @@ pub(crate) fn default_thesis(item: &EnrichedCandidate) -> String {
 pub(crate) fn default_catalysts(item: &EnrichedCandidate) -> Vec<String> {
     let mut catalysts = Vec::new();
     if item.factor.momentum >= 70.0 {
-        catalysts.push("Recent price trend and volume momentum are strong".to_string());
+        catalysts.push("pick.catalyst.strong_momentum".to_string());
     }
     if item.factor.event >= 60.0 {
-        catalysts.push("Recent announcements or news catalysts are relatively clear".to_string());
+        catalysts.push("pick.catalyst.clear_catalyst".to_string());
     }
     if item.factor.quality >= 60.0 {
-        catalysts.push(
-            "Quality factor is acceptable with reasonable balance sheet and earnings structure"
-                .to_string(),
-        );
+        catalysts.push("pick.catalyst.acceptable_quality".to_string());
     }
     if catalysts.is_empty() {
-        catalysts.push("Composite factor score is relatively leading".to_string());
+        catalysts.push("pick.catalyst.leading_composite_score".to_string());
     }
     catalysts
 }
@@ -191,18 +188,16 @@ pub(crate) fn default_catalysts(item: &EnrichedCandidate) -> Vec<String> {
 pub(crate) fn default_risks(item: &EnrichedCandidate) -> Vec<String> {
     let mut risks = Vec::new();
     if item.change_pct.unwrap_or_default() >= 9.5 {
-        risks.push("Short-term gain is large, increasing pullback risk from chasing".to_string());
+        risks.push("pick.risk.large_short_term_gain".to_string());
     }
     if item.factor.value < 45.0 {
-        risks.push("Valuation factor is average, cost-effectiveness not standout".to_string());
+        risks.push("pick.risk.average_valuation".to_string());
     }
     if item.factor.risk < 50.0 {
-        risks.push("Volatility or turnover level is elevated".to_string());
+        risks.push("pick.risk.elevated_volatility".to_string());
     }
     if risks.is_empty() {
-        risks.push(
-            "Need to continue tracking price-volume and announcement fulfillment".to_string(),
-        );
+        risks.push("pick.risk.continue_tracking".to_string());
     }
     risks
 }

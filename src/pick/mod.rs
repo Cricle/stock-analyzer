@@ -18,3 +18,7 @@ pub mod objective;
 
 mod llm_utils;
 pub use llm_utils::llm_client_for_request;
+
+pub mod validation;
+pub use validation::{PickQualityGate, PickValidation};
+pub(crate) use validation::{apply_defaults, validate_and_enhance_picks, validate_pick};

@@ -88,6 +88,16 @@ pub(crate) struct GeneratedStockPickItem {
     pub(crate) decision_reason_codes: Vec<String>,
     #[serde(default)]
     pub(crate) data_gaps: Vec<String>,
+    #[serde(default)]
+    pub(crate) entry_price: Option<String>,
+    #[serde(default)]
+    pub(crate) stop_loss: Option<String>,
+    #[serde(default)]
+    pub(crate) target_price: Option<String>,
+    #[serde(default)]
+    pub(crate) holding_period: Option<String>,
+    #[serde(default)]
+    pub(crate) exit_triggers: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -182,6 +192,14 @@ impl GeneratedStockPickResponse {
                     ),
                     data_gaps: llm::parse::string_list_or_default(
                         map.get("data_gaps").cloned(),
+                        &[],
+                    ),
+                    entry_price: map.get("entry_price").and_then(|v| v.as_str()).map(String::from),
+                    stop_loss: map.get("stop_loss").and_then(|v| v.as_str()).map(String::from),
+                    target_price: map.get("target_price").and_then(|v| v.as_str()).map(String::from),
+                    holding_period: map.get("holding_period").and_then(|v| v.as_str()).map(String::from),
+                    exit_triggers: llm::parse::string_list_or_default(
+                        map.get("exit_triggers").cloned(),
                         &[],
                     ),
                 })

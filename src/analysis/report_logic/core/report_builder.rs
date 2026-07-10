@@ -1854,9 +1854,20 @@ pub(crate) fn convert_to_new_format(report: &StructuredReport) -> NewStructuredR
         technical_indicators: report.technical_indicators.clone(),
         news_insights: report.news_insights.clone(),
         risk_factors,
-        bull_bear_case: NewBullBearCase {
-            bull_arguments: Vec::new(),
-            bear_arguments: Vec::new(),
+        bull_bear_case: {
+            let mut bull = Vec::new();
+            let mut bear = Vec::new();
+            // Extract from rationale (contains bull arguments)
+            let rationale_text = report.rationale.key.trim();
+            if !rationale_text.is_empty() {
+                bull.push(LocalText::new(rationale_text));
+            }
+            // Extract from risk_assessment (contains bear arguments)
+            let risk_text = report.risk_assessment.key.trim();
+            if !risk_text.is_empty() {
+                bear.push(LocalText::new(risk_text));
+            }
+            NewBullBearCase { bull_arguments: bull, bear_arguments: bear }
         },
         calibration: report.calibration_summary.clone(),
         reliability: report.research_reliability.clone(),
@@ -1871,10 +1882,10 @@ pub(crate) fn convert_to_new_format(report: &StructuredReport) -> NewStructuredR
     };
 
     let meta = ReportMeta {
-        analysis_date: String::new(),
+        analysis_date: chrono::Local::now().format("%Y-%m-%d").to_string(),
         stock_code,
         stock_name,
-        market: String::new(),
+        market: format!("{:?}", report.report_flavor),
     };
 
     NewStructuredReport {

@@ -45,7 +45,7 @@ fn parse_price(s: &str) -> Option<f64> {
 }
 
 /// Validate a stock pick against quality gates.
-pub(crate) fn validate_pick(
+pub fn validate_pick(
     pick: &GeneratedStockPickItem,
     _current_price: Option<f64>,
     config: &PickQualityGate,
@@ -138,7 +138,7 @@ pub(crate) fn validate_pick(
 }
 
 /// Apply reasonable defaults for missing actionable fields.
-pub(crate) fn apply_defaults(pick: &mut GeneratedStockPickItem, candidate: &EnrichedCandidate) {
+pub fn apply_defaults(pick: &mut GeneratedStockPickItem, candidate: &EnrichedCandidate) {
     let current_price = candidate.price.or(candidate.market_snapshot.current_price);
     let atr = candidate.technical_snapshot.atr;
 

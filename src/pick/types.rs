@@ -77,27 +77,27 @@ pub struct EnrichedCandidate {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct GeneratedStockPickItem {
-    pub(crate) symbol: String,
-    pub(crate) confidence: Value,
-    pub(crate) thesis: String,
-    pub(crate) catalysts: Vec<String>,
-    pub(crate) risks: Vec<String>,
-    pub(crate) evidence_points: Vec<String>,
+pub struct GeneratedStockPickItem {
+    pub symbol: String,
+    pub confidence: Value,
+    pub thesis: String,
+    pub catalysts: Vec<String>,
+    pub risks: Vec<String>,
+    pub evidence_points: Vec<String>,
     #[serde(default)]
-    pub(crate) decision_reason_codes: Vec<String>,
+    pub decision_reason_codes: Vec<String>,
     #[serde(default)]
-    pub(crate) data_gaps: Vec<String>,
+    pub data_gaps: Vec<String>,
     #[serde(default)]
-    pub(crate) entry_price: Option<String>,
+    pub entry_price: Option<String>,
     #[serde(default)]
-    pub(crate) stop_loss: Option<String>,
+    pub stop_loss: Option<String>,
     #[serde(default)]
-    pub(crate) target_price: Option<String>,
+    pub target_price: Option<String>,
     #[serde(default)]
-    pub(crate) holding_period: Option<String>,
+    pub holding_period: Option<String>,
     #[serde(default)]
-    pub(crate) exit_triggers: Vec<String>,
+    pub exit_triggers: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

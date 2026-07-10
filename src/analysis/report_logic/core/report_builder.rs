@@ -1915,10 +1915,23 @@ fn convert_probability_view(report: &StructuredReport, _is_active_trade: bool) -
         (pv.upside_target, pv.downside_target)
     };
 
+    // Sanity check: reject targets more than 50% away from current price (hallucinated LLM values)
+    let upside_target = upside_target.and_then(|t| {
+        current_price.filter(|p| *p > 0.0).map_or(Some(t), |p| {
+            if (t / p - 1.0).abs() > 0.5 { None } else { Some(t) }
+        })
+    });
+    let downside_target = downside_target.and_then(|t| {
+        current_price.filter(|p| *p > 0.0).map_or(Some(t), |p| {
+            if (t / p - 1.0).abs() > 0.5 { None } else { Some(t) }
+        })
+    });
+
     // For bearish stocks, upside_pct is profit direction (price falling).
     // In traditional convention, upside_pct = profit potential (always positive).
     // downside_pct = loss potential. If missing, compute from max_loss_reference.
-    let upside_pct = pv.upside_pct;
+    // Reject upside_pct > 50% (hallucinated LLM values)
+    let upside_pct = pv.upside_pct.filter(|p| *p <= 50.0 && *p > 0.0);
     let downside_pct = pv.downside_pct.or_else(|| {
         // Try to compute from max_loss_reference (stop loss price)
         current_price.and_then(|price| {

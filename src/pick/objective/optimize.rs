@@ -113,6 +113,13 @@ pub(crate) fn build_prompt(
          For override_actions, action must be one of: \"remove\", \"raise\", \"lower\".\n\
          For any difference, provide override_actions explaining WHY the evidence supports your alternative.\n\
          Disagreement is expected and healthy when evidence warrants it.\n\n\
+         ## CRITICAL: Actionable Recommendations\n\
+         For EACH pick, you MUST provide actionable trading guidance:\n\
+         - entry_price: Specific price or price range for entry (e.g., \"150.00\" or \"150-155\")\n\
+         - stop_loss: Specific stop-loss price (e.g., \"145.00\")\n\
+         - target_price: Realistic price target with justification (e.g., \"175.00 based on resistance\")\n\
+         - holding_period: Expected holding period (e.g., \"2-4 weeks\", \"1-3 months\")\n\
+         - exit_triggers: Specific conditions that would trigger exit (e.g., [\"break below 145\", \"earnings miss\"])\n\n\
          Required JSON schema:\n\
          {{{{\n\
            \"summary\": \"portfolio-level explanation\",\n\
@@ -125,7 +132,12 @@ pub(crate) fn build_prompt(
                \"risks\": [\"...\"],\n\
                \"evidence_points\": [\"...\"],\n\
                \"decision_reason_codes\": [\"score_leader\", \"technical_support\", \"fundamental_support\", \"evidence_support\", \"history_support\", \"risk_capped\"],\n\
-               \"data_gaps\": [\"missing_history\", \"missing_fundamentals\"]\n\
+               \"data_gaps\": [\"missing_history\", \"missing_fundamentals\"],\n\
+               \"entry_price\": \"specific price or range\",\n\
+               \"stop_loss\": \"specific stop price\",\n\
+               \"target_price\": \"specific target price\",\n\
+               \"holding_period\": \"expected duration\",\n\
+               \"exit_triggers\": [\"condition1\", \"condition2\"]\n\
              }}}}\n\
            ],\n\
            \"rejected_symbols\": [\"ticker\"],\n\
@@ -144,7 +156,7 @@ pub(crate) fn build_prompt(
 
 pub(crate) fn default_thesis(item: &EnrichedCandidate) -> String {
     format!(
-        "{} The composite factor score is {:.1}，with momentum {:.1}、quality {:.1}、value {:.1}、profitability {:.1}、risk {:.1}、event {:.1}。It passed rule filters and was retained under sector diversification constraints, suitable as a balanced pick in the current candidate pool.",
+        "{} The composite factor score is {:.1}，with momentum {:.1}、quality {:.1}、value {:.1}、profitability {:.1}、risk {:.1}、event {:.1}。It passed rule filters and was retained under sector diversification constraints, suitable as a balanced pick in the current candidate pool. Entry at current price with stop loss based on ATR.",
         item.name,
         item.factor.total,
         item.factor.momentum,

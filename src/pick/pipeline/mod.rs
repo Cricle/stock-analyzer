@@ -18,6 +18,8 @@ use crate::pick::{
     StockPickHistoryStore, parse_generated_stock_pick,
 };
 
+use crate::pick::validation::{PickQualityGate, validate_and_enhance_picks};
+
 use crate::pick::{
     apply_portfolio_constraints, enrich_candidates, infer_theme_key, score_candidates,
 };
@@ -304,6 +306,19 @@ pub async fn run(
         .context("failed to generate stock picks")?;
     let generated = parse_generated_stock_pick(&content)
         .with_context(|| format!("failed to parse stock pick JSON: {content}"))?;
+
+    // Validate and enhance picks with actionable defaults
+    let quality_gate = PickQualityGate::default();
+    let validated_picks = validate_and_enhance_picks(
+        generated.picks,
+        &preselected,
+        &quality_gate,
+    );
+
+    let generated = crate::pick::types::GeneratedStockPickResponse {
+        picks: validated_picks,
+        ..generated
+    };
 
     let selected_map = preselected
         .iter()

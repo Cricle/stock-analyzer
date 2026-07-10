@@ -846,7 +846,7 @@ impl StructuredReport {
         };
         validate_and_enhance_report(&mut report, &result.artifacts.market_chart, current_price);
         // Convert to new format (separates Analysis from TradePlan)
-        report.new_format = Some(convert_to_new_format(&report));
+        report.new_format = Some(convert_to_new_format(&report, &result.market_type));
         report
     }
 }
@@ -1822,7 +1822,7 @@ fn deduplicate_report_content(report: &mut StructuredReport) {
 }
 
 /// Convert old StructuredReport to new NewStructuredReport format.
-pub(crate) fn convert_to_new_format(report: &StructuredReport) -> NewStructuredReport {
+pub(crate) fn convert_to_new_format(report: &StructuredReport, market_type: &str) -> NewStructuredReport {
     let is_active_trade = matches!(
         report.decision_view.action,
         DecisionAction::BuyNow | DecisionAction::ProbePosition
@@ -1836,13 +1836,17 @@ pub(crate) fn convert_to_new_format(report: &StructuredReport) -> NewStructuredR
         None
     };
 
-    let risk_factors = report.risk_controls.iter().map(|rc| NewRiskFactor {
-        name: rc.risk_name.clone(),
-        probability_pct: rc.probability_pct,
-        impact: rc.impact.clone(),
-        trigger: rc.trigger.clone(),
-        defense_action: rc.defense_action.clone(),
-    }).collect();
+    // Only include risk factors that have a meaningful name; exclude trigger field
+    // as it contains price levels that may be inconsistent with probability targets.
+    let risk_factors = report.risk_controls.iter()
+        .filter(|rc| !rc.risk_name.key.is_empty())
+        .map(|rc| NewRiskFactor {
+            name: rc.risk_name.clone(),
+            probability_pct: rc.probability_pct,
+            impact: rc.impact.clone(),
+            trigger: LocalText::default(),
+            defense_action: rc.defense_action.clone(),
+        }).collect();
 
     let analysis = NewAnalysis {
         summary: report.summary.clone(),
@@ -1885,7 +1889,7 @@ pub(crate) fn convert_to_new_format(report: &StructuredReport) -> NewStructuredR
         analysis_date: chrono::Local::now().format("%Y-%m-%d").to_string(),
         stock_code,
         stock_name,
-        market: format!("{:?}", report.report_flavor),
+        market: market_type.to_string(),
     };
 
     NewStructuredReport {

@@ -1933,9 +1933,21 @@ fn convert_probability_view(report: &StructuredReport, _is_active_trade: bool) -
         if down > 0.0 { Some(up / down) } else { None }
     });
 
+    // Swap probability percentages if inconsistent with direction score.
+    // Internal convention: upside_probability = profit direction (can be higher or lower price).
+    // Traditional convention: upside_probability = higher price probability (always).
+    // Only swap when probabilities contradict the direction score.
+    let (up_prob, down_prob) = if report.direction_score < 0 && pv.upside_probability_pct > pv.downside_probability_pct {
+        (pv.downside_probability_pct, pv.upside_probability_pct)
+    } else if report.direction_score > 0 && pv.downside_probability_pct > pv.upside_probability_pct {
+        (pv.downside_probability_pct, pv.upside_probability_pct)
+    } else {
+        (pv.upside_probability_pct, pv.downside_probability_pct)
+    };
+
     NewProbabilityAnalysis {
-        upside_probability_pct: pv.upside_probability_pct,
-        downside_probability_pct: pv.downside_probability_pct,
+        upside_probability_pct: up_prob,
+        downside_probability_pct: down_prob,
         sideways_probability_pct: pv.sideways_probability_pct,
         risk_probability_pct: pv.risk_probability_pct,
         upside_target,

@@ -79,6 +79,14 @@ pub struct SectorHighlight {
     pub representative_stocks: Vec<String>,
 }
 
+/// Price level for support/resistance analysis.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct PriceLevel {
+    pub price: f64,
+    pub level_type: String,
+    pub significance: String,
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockGuidance {
     pub symbol: String,
@@ -91,6 +99,17 @@ pub struct StockGuidance {
     pub rationale: String,
     pub key_risks: Vec<String>,
     pub memory_relevance: f64,
+    // New actionable fields
+    #[serde(default)]
+    pub entry_zone: Option<String>,
+    #[serde(default)]
+    pub resistance_level: Option<String>,
+    #[serde(default)]
+    pub suggested_action: String,
+    #[serde(default)]
+    pub action_rationale: String,
+    #[serde(default)]
+    pub key_levels: Vec<PriceLevel>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

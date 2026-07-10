@@ -85,6 +85,7 @@ impl DailyGuidanceGenerator {
                 },
                 key_risks,
                 memory_relevance,
+                ..Default::default()
             });
         }
 

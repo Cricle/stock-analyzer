@@ -602,11 +602,9 @@ impl StructuredReport {
                 );
             }
         }
-        append_scenario_gap_narrative(
-            &mut portfolio_decision.executive_summary,
-            &diagnostics,
-            "当前不能升级结论的直接原因是",
-        );
+        // NOTE: append_scenario_gap_narrative is now called in validate_and_enhance_report
+        // (after deduplicate_report_content) to prevent the 500-byte cap from truncating
+        // the appended gap narrative.
         append_scenario_gap_narrative(
             &mut portfolio_decision.risk_assessment,
             &diagnostics,
@@ -1148,6 +1146,13 @@ fn validate_and_enhance_report(
     // (upside = profit from falling), so we swap the labels for output clarity.
     normalize_probability_labels_for_direction(&mut report.probability_view, &report.decision_view);
     deduplicate_report_content(report);
+    // Append scenario gap narrative AFTER dedup caps executive_summary at 500 bytes,
+    // so the gap text isn't truncated.
+    append_scenario_gap_narrative(
+        &mut report.portfolio_decision.executive_summary,
+        &report.diagnostics,
+        "当前不能升级结论的直接原因是",
+    );
     // For bearish: hide invalidation_level from output. It represents the profit target
     // (not the stop loss), which confuses evaluators expecting it to mean "stop loss".
     // The profit target is available in pv.profit_target; the stop loss in dv.invalidation_price.
@@ -1592,46 +1597,6 @@ fn resolve_signal_conflicts(
             "aligned".to_string()
         },
     };
-}
-
-/// P1-5: If mechanical direction score diverges from text sentiment by >20 points,
-/// clamp the score to match the text. Only applies when text expresses a clear
-/// directional view; neutral text does not override the mechanical score.
-fn reconcile_direction_with_text(
-    direction_score: &mut i32,
-    portfolio_decision: &StructuredPortfolioDecision,
-) {
-    let text = portfolio_decision.executive_summary.key.to_lowercase();
-
-    let text_sentiment = if text.contains("偏多")
-        || text.contains("overweight")
-        || text.contains("bullish")
-        || text.contains("看多")
-    {
-        6
-    } else if text.contains("偏空")
-        || text.contains("underweight")
-        || text.contains("bearish")
-        || text.contains("看空")
-    {
-        -6
-    } else {
-        // Text is neutral/ambiguous — do NOT clamp the mechanical score.
-        // The mechanical score is based on analyst probabilities and technical
-        // indicators, which are more reliable than keyword matching on summary text.
-        return;
-    };
-
-    let divergence = (*direction_score - text_sentiment).unsigned_abs();
-    if divergence > 20 {
-        tracing::warn!(
-            mechanical = *direction_score,
-            text_sentiment = text_sentiment,
-            divergence = divergence,
-            "direction score diverges from text narrative, clamping to text range"
-        );
-        *direction_score = (text_sentiment - 10).max(-100).min(text_sentiment + 10).min(100);
-    }
 }
 
 /// P1-6: Detect when there are no unpriced catalyst events.

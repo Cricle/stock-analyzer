@@ -50,13 +50,28 @@ impl FallbackFundamentalsClient {
                 fin.market_cap = met.market_cap;
                 // Prefer metrics-derived income statement fields (TTM) over quarterly financials
                 // This prevents period mixing when calculating P/E ratios
-                if met.net_income_usd.is_some() { fin.net_income_usd = met.net_income_usd; }
-                if met.revenues_usd.is_some() { fin.revenues_usd = met.revenues_usd; }
-                if met.gross_profit_usd.is_some() { fin.gross_profit_usd = met.gross_profit_usd; }
-                if met.operating_income_usd.is_some() { fin.operating_income_usd = met.operating_income_usd; }
-                if met.stockholders_equity_usd.is_some() { fin.stockholders_equity_usd = met.stockholders_equity_usd; }
-                if met.total_debt_usd.is_some() { fin.total_debt_usd = met.total_debt_usd; }
-                tracing::info!(symbol, "fallback: Finnhub merged financials + metrics (TTM preferred)");
+                if met.net_income_usd.is_some() {
+                    fin.net_income_usd = met.net_income_usd;
+                }
+                if met.revenues_usd.is_some() {
+                    fin.revenues_usd = met.revenues_usd;
+                }
+                if met.gross_profit_usd.is_some() {
+                    fin.gross_profit_usd = met.gross_profit_usd;
+                }
+                if met.operating_income_usd.is_some() {
+                    fin.operating_income_usd = met.operating_income_usd;
+                }
+                if met.stockholders_equity_usd.is_some() {
+                    fin.stockholders_equity_usd = met.stockholders_equity_usd;
+                }
+                if met.total_debt_usd.is_some() {
+                    fin.total_debt_usd = met.total_debt_usd;
+                }
+                tracing::info!(
+                    symbol,
+                    "fallback: Finnhub merged financials + metrics (TTM preferred)"
+                );
                 fin
             }
             (Some(fin), None) => {
@@ -120,7 +135,10 @@ impl FallbackFundamentalsClient {
             revenues_usd: financial.total_revenue.as_ref().and_then(|v| v.raw),
             assets_usd: financial.total_assets.as_ref().and_then(|v| v.raw),
             liabilities_usd: financial.total_liabilities.as_ref().and_then(|v| v.raw),
-            stockholders_equity_usd: financial.total_stockholder_equity.as_ref().and_then(|v| v.raw),
+            stockholders_equity_usd: financial
+                .total_stockholder_equity
+                .as_ref()
+                .and_then(|v| v.raw),
             cash_and_equivalents_usd: None,
             gross_profit_usd: financial.gross_profit.as_ref().and_then(|v| v.raw),
             operating_income_usd: financial.operating_income.as_ref().and_then(|v| v.raw),
@@ -168,9 +186,12 @@ impl FallbackFundamentalsClient {
             // Extract balance sheet fields
             let assets_usd = find_report_value(&report.bs, "us-gaap_Assets");
             let liabilities_usd = find_report_value(&report.bs, "us-gaap_Liabilities");
-            let stockholders_equity_usd = find_report_value(&report.bs, "us-gaap_StockholdersEquity");
-            let cash_and_equivalents_usd = find_report_value(&report.bs, "us-gaap_CashAndCashEquivalentsAtCarryingValue");
-            let long_term_debt_usd = find_report_value(&report.bs, "us-gaap_LongTermDebtNoncurrent");
+            let stockholders_equity_usd =
+                find_report_value(&report.bs, "us-gaap_StockholdersEquity");
+            let cash_and_equivalents_usd =
+                find_report_value(&report.bs, "us-gaap_CashAndCashEquivalentsAtCarryingValue");
+            let long_term_debt_usd =
+                find_report_value(&report.bs, "us-gaap_LongTermDebtNoncurrent");
             let current_debt_usd = find_report_value(&report.bs, "us-gaap_LongTermDebtCurrent");
             let total_debt_usd = match (long_term_debt_usd, current_debt_usd) {
                 (Some(lt), Some(ct)) => Some(lt + ct),
@@ -180,15 +201,24 @@ impl FallbackFundamentalsClient {
             };
 
             // Extract cash flow fields
-            let operating_cash_flow_usd = find_report_value(&report.cf, "us-gaap_NetCashProvidedByUsedInOperatingActivities");
-            let capital_expenditure_usd = find_report_value(&report.cf, "us-gaap_PaymentsToAcquirePropertyPlantAndEquipment");
+            let operating_cash_flow_usd = find_report_value(
+                &report.cf,
+                "us-gaap_NetCashProvidedByUsedInOperatingActivities",
+            );
+            let capital_expenditure_usd = find_report_value(
+                &report.cf,
+                "us-gaap_PaymentsToAcquirePropertyPlantAndEquipment",
+            );
             let free_cash_flow_usd = match (operating_cash_flow_usd, capital_expenditure_usd) {
                 (Some(ocf), Some(capex)) => Some(ocf - capex),
                 _ => None,
             };
 
             // Extract income statement fields
-            let revenues_usd = find_report_value(&report.ic, "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax");
+            let revenues_usd = find_report_value(
+                &report.ic,
+                "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax",
+            );
             let gross_profit_usd = find_report_value(&report.ic, "us-gaap_GrossProfit");
             let operating_income_usd = find_report_value(&report.ic, "us-gaap_OperatingIncomeLoss");
             let net_income_usd = find_report_value(&report.ic, "us-gaap_NetIncomeLoss");
@@ -297,10 +327,11 @@ impl FallbackFundamentalsClient {
                 _ => None,
             };
             // Derive total_debt from debt/equity ratio * equity
-            let total_debt_usd = match (stockholders_equity_usd, m.total_debt_total_equity_quarterly) {
-                (Some(eq), Some(ratio)) => Some(eq * ratio),
-                _ => None,
-            };
+            let total_debt_usd =
+                match (stockholders_equity_usd, m.total_debt_total_equity_quarterly) {
+                    (Some(eq), Some(ratio)) => Some(eq * ratio),
+                    _ => None,
+                };
 
             tracing::info!(
                 symbol,
@@ -458,7 +489,11 @@ struct FinnhubReportEntry {
 
 /// Find a value in a report section by concept name.
 fn find_report_value(entries: &Option<Vec<FinnhubReportEntry>>, concept: &str) -> Option<f64> {
-    entries.as_ref()?.iter().find(|e| e.concept == concept)?.value
+    entries
+        .as_ref()?
+        .iter()
+        .find(|e| e.concept == concept)?
+        .value
 }
 
 // ---------------------------------------------------------------------------
@@ -513,7 +548,9 @@ impl FallbackFundamentalsClient {
             return Some(ProfileData {
                 name: profile.name.unwrap_or_default(),
                 industry: profile.industry.unwrap_or_default(),
-                shares_outstanding: profile.share_outstanding.map(|v| (v * 1_000_000.0).round() as i64),
+                shares_outstanding: profile
+                    .share_outstanding
+                    .map(|v| (v * 1_000_000.0).round() as i64),
             });
         }
         None

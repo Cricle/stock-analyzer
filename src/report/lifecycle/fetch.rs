@@ -130,9 +130,12 @@ impl TaskManager {
                                     .into_iter()
                                     .filter_map(|item| {
                                         let headline = item.get("headline")?.as_str()?;
-                                        if headline.is_empty() { return None; }
+                                        if headline.is_empty() {
+                                            return None;
+                                        }
                                         Some(crate::data::NewsItem {
-                                            published_at: item.get("datetime")
+                                            published_at: item
+                                                .get("datetime")
                                                 .and_then(|v| v.as_i64())
                                                 .map(|ts| {
                                                     chrono::DateTime::from_timestamp(ts, 0)
@@ -141,9 +144,20 @@ impl TaskManager {
                                                 })
                                                 .unwrap_or_default(),
                                             title: headline.to_string(),
-                                            summary: item.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                                            source: item.get("source").and_then(|v| v.as_str()).unwrap_or("Finnhub").to_string(),
-                                            url: item.get("url").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                            summary: item
+                                                .get("summary")
+                                                .and_then(|v| v.as_str())
+                                                .unwrap_or("")
+                                                .to_string(),
+                                            source: item
+                                                .get("source")
+                                                .and_then(|v| v.as_str())
+                                                .unwrap_or("Finnhub")
+                                                .to_string(),
+                                            url: item
+                                                .get("url")
+                                                .and_then(|v| v.as_str())
+                                                .map(|s| s.to_string()),
                                         })
                                     })
                                     .collect();

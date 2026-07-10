@@ -8,7 +8,10 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::analysis::{AnalysisResult, SingleAnalysisRequest};
-use crate::store::{AnalysisStore, CacheEntry, CacheStore, CheckpointInfo, CheckpointStore, StoredAnalysisSummary, StoredCheckpoint};
+use crate::store::{
+    AnalysisStore, CacheEntry, CacheStore, CheckpointInfo, CheckpointStore, StoredAnalysisSummary,
+    StoredCheckpoint,
+};
 use crate::task::PersistedTask;
 
 /// In-memory store that implements all required storage traits.
@@ -37,12 +40,18 @@ impl PgStore {
 #[async_trait]
 impl AnalysisStore for PgStore {
     async fn insert_task(&self, task: &PersistedTask) -> anyhow::Result<()> {
-        self.tasks.write().await.insert(task.task_id.clone(), task.clone());
+        self.tasks
+            .write()
+            .await
+            .insert(task.task_id.clone(), task.clone());
         Ok(())
     }
 
     async fn update_task(&self, task: &PersistedTask) -> anyhow::Result<()> {
-        self.tasks.write().await.insert(task.task_id.clone(), task.clone());
+        self.tasks
+            .write()
+            .await
+            .insert(task.task_id.clone(), task.clone());
         Ok(())
     }
 
@@ -54,23 +63,44 @@ impl AnalysisStore for PgStore {
         let tasks = self.tasks.read().await;
         let mut sorted: Vec<_> = tasks.values().cloned().collect();
         sorted.sort_by(|a, b| b.created_at.cmp(&a.created_at));
-        Ok(sorted.into_iter().skip(offset as usize).take(limit as usize).collect())
+        Ok(sorted
+            .into_iter()
+            .skip(offset as usize)
+            .take(limit as usize)
+            .collect())
     }
 
-    async fn list_tasks_for_user(&self, owner_username: &str, limit: i64, offset: i64) -> anyhow::Result<Vec<PersistedTask>> {
+    async fn list_tasks_for_user(
+        &self,
+        owner_username: &str,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<PersistedTask>> {
         let tasks = self.tasks.read().await;
-        let mut sorted: Vec<_> = tasks.values()
+        let mut sorted: Vec<_> = tasks
+            .values()
             .filter(|t| t.owner_username == owner_username)
             .cloned()
             .collect();
         sorted.sort_by(|a, b| b.created_at.cmp(&a.created_at));
-        Ok(sorted.into_iter().skip(offset as usize).take(limit as usize).collect())
+        Ok(sorted
+            .into_iter()
+            .skip(offset as usize)
+            .take(limit as usize)
+            .collect())
     }
 
-    async fn find_cached_task(&self, symbol: &str, analysis_date: &str) -> anyhow::Result<Option<String>> {
+    async fn find_cached_task(
+        &self,
+        symbol: &str,
+        analysis_date: &str,
+    ) -> anyhow::Result<Option<String>> {
         let tasks = self.tasks.read().await;
         for task in tasks.values() {
-            if task.symbol == symbol && task.analysis_date == analysis_date && task.status == crate::TaskStatus::Completed {
+            if task.symbol == symbol
+                && task.analysis_date == analysis_date
+                && task.status == crate::TaskStatus::Completed
+            {
                 return Ok(Some(task.task_id.clone()));
             }
         }
@@ -78,7 +108,10 @@ impl AnalysisStore for PgStore {
     }
 
     async fn save_result(&self, task_id: &str, result: &AnalysisResult) -> anyhow::Result<()> {
-        self.results.write().await.insert(task_id.to_string(), result.clone());
+        self.results
+            .write()
+            .await
+            .insert(task_id.to_string(), result.clone());
         Ok(())
     }
 
@@ -86,7 +119,11 @@ impl AnalysisStore for PgStore {
         Ok(self.results.read().await.get(task_id).cloned())
     }
 
-    async fn list_analyses(&self, symbol: Option<&str>, limit: usize) -> anyhow::Result<Vec<StoredAnalysisSummary>> {
+    async fn list_analyses(
+        &self,
+        symbol: Option<&str>,
+        limit: usize,
+    ) -> anyhow::Result<Vec<StoredAnalysisSummary>> {
         let tasks = self.tasks.read().await;
         let mut summaries: Vec<StoredAnalysisSummary> = Vec::new();
 
@@ -119,8 +156,15 @@ impl AnalysisStore for PgStore {
         Ok(())
     }
 
-    async fn save_request(&self, task_id: &str, request: &SingleAnalysisRequest) -> anyhow::Result<()> {
-        self.requests.write().await.insert(task_id.to_string(), request.clone());
+    async fn save_request(
+        &self,
+        task_id: &str,
+        request: &SingleAnalysisRequest,
+    ) -> anyhow::Result<()> {
+        self.requests
+            .write()
+            .await
+            .insert(task_id.to_string(), request.clone());
         Ok(())
     }
 
@@ -131,8 +175,16 @@ impl AnalysisStore for PgStore {
 
 #[async_trait]
 impl CheckpointStore for PgStore {
-    async fn save_checkpoint(&self, task_id: &str, _step_name: &str, checkpoint: &StoredCheckpoint) -> anyhow::Result<()> {
-        self.checkpoints.write().await.insert(task_id.to_string(), checkpoint.clone());
+    async fn save_checkpoint(
+        &self,
+        task_id: &str,
+        _step_name: &str,
+        checkpoint: &StoredCheckpoint,
+    ) -> anyhow::Result<()> {
+        self.checkpoints
+            .write()
+            .await
+            .insert(task_id.to_string(), checkpoint.clone());
         Ok(())
     }
 
@@ -157,7 +209,10 @@ impl CacheStore for PgStore {
     }
 
     async fn set(&self, key: &str, value: &[u8], _ttl_seconds: Option<u64>) -> anyhow::Result<()> {
-        self.cache.write().await.insert(key.to_string(), value.to_vec());
+        self.cache
+            .write()
+            .await
+            .insert(key.to_string(), value.to_vec());
         Ok(())
     }
 
@@ -172,7 +227,8 @@ impl CacheStore for PgStore {
 
     async fn list_entries(&self, prefix: &str) -> anyhow::Result<Vec<CacheEntry>> {
         let cache = self.cache.read().await;
-        let entries: Vec<CacheEntry> = cache.iter()
+        let entries: Vec<CacheEntry> = cache
+            .iter()
             .filter(|(k, _)| k.starts_with(prefix))
             .map(|(k, v)| CacheEntry {
                 key: k.clone(),

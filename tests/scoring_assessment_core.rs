@@ -139,7 +139,7 @@ fn score_catalyst_quality_with_dates() {
 #[test]
 fn score_catalyst_quality_empty() {
     let d = score_catalyst_quality(None, "", &StructuredPortfolioDecision::default());
-    assert_eq!(d.score, 0);
+    assert_eq!(d.score, 3); // CATALYST_VACUUM_FLOOR
 }
 
 // --- score_historical_transferability ---

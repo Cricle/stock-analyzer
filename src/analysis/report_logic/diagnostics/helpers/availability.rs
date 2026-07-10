@@ -136,6 +136,7 @@ fn derive_scenario_minimum_diagnostics(result: &AnalysisResult) -> Vec<ReportDia
         }
         crate::AnalysisScenarioMarket::UsEquity => {
             if !has_fundamentals {
+                missing.push("fundamentals");
                 diagnostics.push(ReportDiagnosticItem {
                     code: "scenario_minimum_us_fundamentals_soft_gap".to_string(),
                     severity: "warning".to_string(),
@@ -148,6 +149,7 @@ fn derive_scenario_minimum_diagnostics(result: &AnalysisResult) -> Vec<ReportDia
                 });
             }
             if !has_company_news {
+                missing.push("company_news");
                 diagnostics.push(ReportDiagnosticItem {
                     code: "scenario_minimum_us_news_soft_gap".to_string(),
                     severity: "warning".to_string(),

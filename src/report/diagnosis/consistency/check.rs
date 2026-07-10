@@ -240,8 +240,18 @@ pub fn fix_entry_stop(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
 /// If entry_price < invalidation_level, the risk control logic is inverted
 /// (buying below the stop). Lower invalidation to stop_loss or entry * 0.95.
 pub fn fix_entry_invalidation(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
-    let entry_str = result.report.decision_view.entry_reference.trim().to_string();
-    let inval_str = result.report.decision_view.invalidation_level.trim().to_string();
+    let entry_str = result
+        .report
+        .decision_view
+        .entry_reference
+        .trim()
+        .to_string();
+    let inval_str = result
+        .report
+        .decision_view
+        .invalidation_level
+        .trim()
+        .to_string();
 
     if entry_str.is_empty() || inval_str.is_empty() {
         return Vec::new();

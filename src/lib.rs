@@ -185,15 +185,15 @@ pub use types::{
 // TAR references `stock_analyzer::engine::*` which maps to the top-level modules.
 
 pub mod engine {
-    pub use crate::task_manager::{self, TaskManager, TaskRunParams, TASK_STEPS};
-    pub use crate::telemetry::{self, SharedTelemetry, TelemetryState};
+    pub use crate::checkpoint;
+    pub use crate::data;
+    pub use crate::env_config as config;
+    pub use crate::guide as guidance;
     pub use crate::llm;
     pub use crate::memory;
-    pub use crate::checkpoint;
     pub use crate::pick as stock_pick;
-    pub use crate::guide as guidance;
-    pub use crate::env_config as config;
-    pub use crate::data;
+    pub use crate::task_manager::{self, TASK_STEPS, TaskManager, TaskRunParams};
+    pub use crate::telemetry::{self, SharedTelemetry, TelemetryState};
 
     /// Stub for qlib_import (not present in this version).
     pub mod qlib_import {

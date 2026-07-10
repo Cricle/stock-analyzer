@@ -235,11 +235,6 @@ fn fallback_rating(portfolio_decision: &StructuredPortfolioDecision) -> Rating {
     portfolio_decision.rating.clone()
 }
 
-fn preferred_scenario_path(guides: &ReportActionGuides) -> Option<&ActionScenarioPath> {
-    // For bearish views, prefer the failed_breakdown path
-    preferred_scenario_path_with_direction(guides, None)
-}
-
 fn preferred_scenario_path_with_direction<'a>(
     guides: &'a ReportActionGuides,
     direction: Option<&CoreResearchCall>,

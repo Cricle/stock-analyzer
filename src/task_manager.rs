@@ -501,11 +501,15 @@ impl TaskManager {
     /// Resume a paused/failed task.
     pub async fn resume_task(&self, task_id: &str) -> anyhow::Result<bool> {
         if let Some(mut task) = self.analysis_store.get_task(task_id).await? {
-            if task.status == crate::TaskStatus::Failed || task.status == crate::TaskStatus::Cancelled {
+            if task.status == crate::TaskStatus::Failed
+                || task.status == crate::TaskStatus::Cancelled
+            {
                 task.status = crate::TaskStatus::Running;
                 task.updated_at = Utc::now();
                 self.analysis_store.update_task(&task).await?;
-                let params = self.task_run_params_from_request(&task, &task.request).await;
+                let params = self
+                    .task_run_params_from_request(&task, &task.request)
+                    .await;
                 let this = self.clone();
                 let tid = task_id.to_string();
                 tokio::spawn(async move {
@@ -528,7 +532,10 @@ impl TaskManager {
     }
 
     /// Get task result as report JSON.
-    pub async fn task_result_report_json(&self, task_id: &str) -> anyhow::Result<Option<serde_json::Value>> {
+    pub async fn task_result_report_json(
+        &self,
+        task_id: &str,
+    ) -> anyhow::Result<Option<serde_json::Value>> {
         if let Some(result) = self.analysis_store.load_result(task_id).await? {
             Ok(Some(serde_json::to_value(&result.report)?))
         } else {
@@ -537,7 +544,10 @@ impl TaskManager {
     }
 
     /// Get task result as chart JSON.
-    pub async fn task_result_chart_json(&self, task_id: &str) -> anyhow::Result<Option<serde_json::Value>> {
+    pub async fn task_result_chart_json(
+        &self,
+        task_id: &str,
+    ) -> anyhow::Result<Option<serde_json::Value>> {
         if let Some(result) = self.analysis_store.load_result(task_id).await? {
             Ok(Some(serde_json::json!({
                 "chart": result.report.market_chart,
@@ -548,7 +558,10 @@ impl TaskManager {
     }
 
     /// Get task result as artifacts JSON.
-    pub async fn task_result_artifacts_json(&self, task_id: &str) -> anyhow::Result<Option<serde_json::Value>> {
+    pub async fn task_result_artifacts_json(
+        &self,
+        task_id: &str,
+    ) -> anyhow::Result<Option<serde_json::Value>> {
         if let Some(result) = self.analysis_store.load_result(task_id).await? {
             Ok(Some(serde_json::json!({
                 "artifacts": result.artifacts,
@@ -559,7 +572,10 @@ impl TaskManager {
     }
 
     /// Get task result as IC report JSON.
-    pub async fn task_result_ic_report_json(&self, task_id: &str) -> anyhow::Result<Option<serde_json::Value>> {
+    pub async fn task_result_ic_report_json(
+        &self,
+        task_id: &str,
+    ) -> anyhow::Result<Option<serde_json::Value>> {
         if let Some(result) = self.analysis_store.load_result(task_id).await? {
             Ok(Some(serde_json::json!({
                 "ic_report": result.report.ic_navigator,

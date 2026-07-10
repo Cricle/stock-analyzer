@@ -43,6 +43,8 @@ fn probability_view_serde_roundtrip() {
             value: "high".into(),
             evidence_keys: vec!["e1".into()],
         }],
+        profit_target: Some(160.0),
+        stop_loss: Some(140.0),
     };
     let json = serde_json::to_string(&p).unwrap();
     let restored: ProbabilityView = serde_json::from_str(&json).unwrap();
@@ -60,6 +62,11 @@ fn profit_risk_view_serde_roundtrip() {
         max_loss_reference: Some(140.0),
         risk_budget: LocalText::new("5%"),
         actionability: LocalText::new("high"),
+        calc_entry: Some(150.0),
+        calc_target: Some(165.0),
+        calc_stop: Some(140.0),
+        trade_direction: "long".into(),
+        trade_summary: "Buy at 150, target 165, stop 140".into(),
     };
     let json = serde_json::to_string(&p).unwrap();
     let restored: ProfitRiskView = serde_json::from_str(&json).unwrap();

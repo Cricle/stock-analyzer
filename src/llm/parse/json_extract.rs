@@ -1,9 +1,7 @@
 pub fn strip_code_fence(content: &str) -> Option<&str> {
     let fenced = content.strip_prefix("```")?;
-    let body = match fenced.find('\n') {
-        Some(index) => &fenced[index + 1..],
-        None => return None,
-    };
+    let index = fenced.find('\n')?;
+    let body = &fenced[index + 1..];
     let end = body.rfind("```")?;
     Some(body[..end].trim())
 }

@@ -1,6 +1,43 @@
 //! Data structures for the daily guidance system.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+/// Localized text with i18n key and parameters.
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct I18nText {
+    pub key: String,
+    #[serde(default)]
+    pub params: std::collections::HashMap<String, serde_json::Value>,
+}
+
+impl I18nText {
+    pub fn new(key: impl Into<String>) -> Self {
+        Self {
+            key: key.into(),
+            params: std::collections::HashMap::new(),
+        }
+    }
+
+    pub fn with_param(
+        mut self,
+        name: impl Into<String>,
+        value: impl Into<serde_json::Value>,
+    ) -> Self {
+        self.params.insert(name.into(), value.into());
+        self
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.key.is_empty()
+    }
+}
+
+impl Default for I18nText {
+    fn default() -> Self {
+        Self::new("")
+    }
+}
 
 /// Market scope for guidance generation.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -94,20 +131,18 @@ pub struct StockGuidance {
     pub market: String,
     pub current_price: Option<f64>,
     pub price_change_pct: Option<f64>,
-    pub guidance_action: String,
+    pub guidance_action: I18nText,
     pub confidence: i32,
-    pub rationale: String,
-    pub key_risks: Vec<String>,
+    pub rationale: I18nText,
+    pub key_risks: Vec<I18nText>,
     pub memory_relevance: f64,
     // New actionable fields
     #[serde(default)]
     pub entry_zone: Option<String>,
     #[serde(default)]
     pub resistance_level: Option<String>,
-    #[serde(default)]
-    pub suggested_action: String,
-    #[serde(default)]
-    pub action_rationale: String,
+    pub suggested_action: I18nText,
+    pub action_rationale: I18nText,
     #[serde(default)]
     pub key_levels: Vec<PriceLevel>,
 }

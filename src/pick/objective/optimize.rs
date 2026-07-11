@@ -239,9 +239,16 @@ pub(crate) fn default_catalysts(item: &EnrichedCandidate) -> Vec<I18nText> {
     if !item.news.is_empty() {
         let positive_news = item.news.iter().any(|n| {
             let text = format!("{} {}", n.title, n.summary).to_lowercase();
-            ["beat", "growth", "upgrade", "approval", "expansion", "contract"]
-                .iter()
-                .any(|keyword| text.contains(keyword))
+            [
+                "beat",
+                "growth",
+                "upgrade",
+                "approval",
+                "expansion",
+                "contract",
+            ]
+            .iter()
+            .any(|keyword| text.contains(keyword))
         });
         if positive_news {
             catalysts.push(I18nText::new("pick.catalyst.positive_news"));

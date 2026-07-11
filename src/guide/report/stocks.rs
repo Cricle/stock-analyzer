@@ -2,13 +2,14 @@
 
 use super::*;
 use crate::guide::embedding::semantic_embed;
+use crate::guide::models::I18nText;
 
 /// Determine suggested action based on market conditions.
 fn determine_suggested_action(
     sentiment: &MarketSentiment,
     relevant_news: &[&GuidanceNewsItem],
     history_count: usize,
-) -> (String, String) {
+) -> (I18nText, I18nText) {
     let positive_news = relevant_news
         .iter()
         .filter(|n| n.impact == "positive")
@@ -22,49 +23,49 @@ fn determine_suggested_action(
         "bullish" => {
             if positive_news > negative_news {
                 (
-                    "guidance.action.accumulate".to_string(),
-                    "guidance.rationale.bullish_positive_news".to_string(),
+                    I18nText::new("guidance.action.accumulate"),
+                    I18nText::new("guidance.rationale.bullish_positive_news"),
                 )
             } else if history_count > 0 {
                 (
-                    "guidance.action.review_memory".to_string(),
-                    "guidance.rationale.bullish_mixed_news".to_string(),
+                    I18nText::new("guidance.action.review_memory"),
+                    I18nText::new("guidance.rationale.bullish_mixed_news"),
                 )
             } else {
                 (
-                    "guidance.action.watch_for_pullback".to_string(),
-                    "guidance.rationale.bullish_mixed_news".to_string(),
+                    I18nText::new("guidance.action.watch_for_pullback"),
+                    I18nText::new("guidance.rationale.bullish_limited_data"),
                 )
             }
         }
         "bearish" => {
             if negative_news > 0 {
                 (
-                    "guidance.action.avoid".to_string(),
-                    "guidance.rationale.bearish_negative_news".to_string(),
+                    I18nText::new("guidance.action.avoid"),
+                    I18nText::new("guidance.rationale.bearish_negative_news"),
                 )
             } else {
                 (
-                    "guidance.action.wait_for_confirmation".to_string(),
-                    "guidance.rationale.bearish_negative_news".to_string(),
+                    I18nText::new("guidance.action.wait_for_confirmation"),
+                    I18nText::new("guidance.rationale.bearish_no_news"),
                 )
             }
         }
         _ => {
             if positive_news > negative_news + 1 {
                 (
-                    "guidance.action.watch_for_pullback".to_string(),
-                    "guidance.rationale.neutral_positive_bias".to_string(),
+                    I18nText::new("guidance.action.watch_for_pullback"),
+                    I18nText::new("guidance.rationale.neutral_positive_bias"),
                 )
             } else if negative_news > positive_news + 1 {
                 (
-                    "guidance.action.monitor".to_string(),
-                    "guidance.rationale.neutral_negative_bias".to_string(),
+                    I18nText::new("guidance.action.monitor"),
+                    I18nText::new("guidance.rationale.neutral_negative_bias"),
                 )
             } else {
                 (
-                    "guidance.action.observe".to_string(),
-                    "guidance.rationale.neutral_mixed".to_string(),
+                    I18nText::new("guidance.action.observe"),
+                    I18nText::new("guidance.rationale.neutral_mixed"),
                 )
             }
         }
@@ -129,11 +130,11 @@ impl DailyGuidanceGenerator {
                 .collect();
 
             let guidance_action = if memory_bundle.same_ticker_count > 0 {
-                "review_memory"
+                I18nText::new("guidance.action.review_memory")
             } else if !relevant_news.is_empty() {
-                "monitor_news"
+                I18nText::new("guidance.action.monitor_news")
             } else {
-                "observe"
+                I18nText::new("guidance.action.observe")
             };
 
             // Determine suggested action based on sentiment and news
@@ -147,29 +148,28 @@ impl DailyGuidanceGenerator {
             let base_confidence = if memory_relevance > 0.5 { 70 } else { 40 };
             let confidence = adjust_confidence_for_sentiment(base_confidence, sentiment);
 
-            let key_risks: Vec<String> = memory_bundle
+            let key_risks: Vec<I18nText> = memory_bundle
                 .same_ticker_highlights
                 .iter()
-                .map(|h| h.key_risk.clone())
-                .filter(|r| !r.trim().is_empty())
+                .map(|h| I18nText::new(&h.key_risk))
+                .filter(|r| !r.key.trim().is_empty())
                 .collect();
 
             // Build rationale with actionable context
             let rationale = if memory_bundle.same_ticker_count > 0 {
-                format!(
-                    "guidance.rationale.has_history|count={}|lesson={}",
-                    memory_bundle.same_ticker_count,
-                    memory_bundle
-                        .same_ticker_highlights
-                        .first()
-                        .map(|h| h.lesson.clone())
-                        .unwrap_or_default()
-                )
+                I18nText::new("guidance.rationale.has_history")
+                    .with_param("count", memory_bundle.same_ticker_count as i64)
+                    .with_param(
+                        "lesson",
+                        memory_bundle
+                            .same_ticker_highlights
+                            .first()
+                            .map(|h| h.lesson.clone())
+                            .unwrap_or_default(),
+                    )
             } else {
-                format!(
-                    "guidance.rationale.limited_history|news_count={}",
-                    relevant_news.len()
-                )
+                I18nText::new("guidance.rationale.limited_history")
+                    .with_param("news_count", relevant_news.len() as i64)
             };
 
             guidances.push(StockGuidance {
@@ -178,7 +178,7 @@ impl DailyGuidanceGenerator {
                 market: market.as_str().to_string(),
                 current_price: None,
                 price_change_pct: None,
-                guidance_action: guidance_action.to_string(),
+                guidance_action,
                 confidence,
                 rationale,
                 key_risks,

@@ -569,7 +569,7 @@ fn derive_core_research_call(
     );
     let confirmation_gated_bullish_hold =
         hold_language_implies_buy_on_confirmation(research_plan, portfolio_decision);
-    if research_anchor.is_bearish() || direction_score <= -45 {
+    if research_anchor.is_bearish() || direction_score <= -40 {
         if matches!(consensus, AnalystConsensus::StrongBearish | AnalystConsensus::ModerateBearish) {
             if !portfolio_decision.invalidation_level.trim().is_empty() {
                 return CoreResearchCall::SellOnBreak;

@@ -1,4 +1,5 @@
 use sa::data::{CandlePoint, FundamentalsSnapshot, NewsItem};
+use sa::guide::I18nText;
 use sa::pick::objective::{
     evaluate_stock_pick_objective_assessment, format_valuation_line, stock_pick_objective_gaps,
     stock_pick_objective_grade, stock_pick_objective_headline,
@@ -21,9 +22,9 @@ fn make_pick(
         name: "Test".to_string(),
         market: "US".to_string(),
         exchange: "US".to_string(),
-        thesis: thesis.to_string(),
-        catalysts: catalysts.into_iter().map(String::from).collect(),
-        risks: risks.into_iter().map(String::from).collect(),
+        thesis: I18nText::new(thesis),
+        catalysts: catalysts.into_iter().map(I18nText::new).collect(),
+        risks: risks.into_iter().map(I18nText::new).collect(),
         evidence_points: evidence.into_iter().map(String::from).collect(),
         price: Some(100.0),
         change_pct: Some(1.5),

@@ -169,8 +169,13 @@ fn parse_i18n_text(value: &serde_json::Value) -> I18nText {
     match value {
         serde_json::Value::String(s) => I18nText::new(s),
         serde_json::Value::Object(map) => {
-            let key = map.get("key").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let params = map.get("params")
+            let key = map
+                .get("key")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let params = map
+                .get("params")
                 .and_then(|v| v.as_object())
                 .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
                 .unwrap_or_default();
@@ -200,8 +205,14 @@ impl GeneratedStockPickResponse {
                     symbol: llm::parse::text_or_default(map.get("symbol").cloned(), "UNKNOWN"),
                     confidence: map.get("confidence").cloned().unwrap_or(Value::from(0.0)),
                     thesis: parse_i18n_text(map.get("thesis").unwrap_or(&serde_json::Value::Null)),
-                    catalysts: parse_i18n_text_list(map.get("catalysts").unwrap_or(&serde_json::Value::Array(vec![]))),
-                    risks: parse_i18n_text_list(map.get("risks").unwrap_or(&serde_json::Value::Array(vec![]))),
+                    catalysts: parse_i18n_text_list(
+                        map.get("catalysts")
+                            .unwrap_or(&serde_json::Value::Array(vec![])),
+                    ),
+                    risks: parse_i18n_text_list(
+                        map.get("risks")
+                            .unwrap_or(&serde_json::Value::Array(vec![])),
+                    ),
                     evidence_points: llm::parse::string_list_or_default(
                         map.get("evidence_points").cloned(),
                         &["No evidence returned"],

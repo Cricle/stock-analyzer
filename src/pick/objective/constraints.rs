@@ -145,7 +145,15 @@ pub fn evaluate_stock_pick_objective_assessment(
     let final_score = total_score.clamp(0, applied_cap);
     let grade = stock_pick_objective_grade(final_score);
     let gaps = stock_pick_objective_gaps(pick, item);
-    let ready = final_score >= 75 && gaps.len() <= 2;
+    // Require market_cap for "ready" status - stocks without fundamental data
+    // should not be recommended
+    let has_market_cap = pick.market_cap.is_some()
+        || item
+            .fundamentals
+            .as_ref()
+            .and_then(|f| f.market_cap)
+            .is_some();
+    let ready = final_score >= 75 && gaps.len() <= 2 && has_market_cap;
     let headline = stock_pick_objective_headline(final_score, ready, &gaps);
 
     StockPickObjectiveAssessment {
@@ -378,7 +386,7 @@ fn score_pick_market_validation(pick: &StockPickItem, item: &EnrichedCandidate) 
 fn score_pick_reasoning_structure(pick: &StockPickItem) -> ScoreDimension {
     let mut score = 0;
     let mut reasons = Vec::new();
-    let thesis_len = pick.thesis.trim().chars().count();
+    let thesis_len = pick.thesis.key.trim().chars().count();
     if thesis_len >= 80 {
         score += 4;
         reasons.push("thesis>=80 chars");
@@ -415,7 +423,7 @@ fn score_pick_reasoning_structure(pick: &StockPickItem) -> ScoreDimension {
         .catalysts
         .iter()
         .chain(pick.risks.iter())
-        .map(|value| value.trim())
+        .map(|value| value.key.trim())
         .filter(|value| !value.is_empty())
         .collect::<HashSet<_>>()
         .len();
@@ -439,14 +447,14 @@ fn score_pick_risk_balance(pick: &StockPickItem, item: &EnrichedCandidate) -> Sc
     let unique_catalysts = pick
         .catalysts
         .iter()
-        .map(|value| value.trim())
+        .map(|value| value.key.trim())
         .filter(|value| !value.is_empty())
         .collect::<HashSet<_>>()
         .len();
     let unique_risks = pick
         .risks
         .iter()
-        .map(|value| value.trim())
+        .map(|value| value.key.trim())
         .filter(|value| !value.is_empty())
         .collect::<HashSet<_>>()
         .len();
@@ -567,7 +575,7 @@ fn stock_pick_objective_cap(pick: &StockPickItem, item: &EnrichedCandidate) -> i
     if fundamentals
         .is_some_and(|value| value.market_cap.is_none() || value.shares_outstanding.is_none())
     {
-        cap = cap.min(82);
+        cap = cap.min(75);
     }
     if !has_industry {
         cap = cap.min(88);
@@ -587,7 +595,7 @@ fn stock_pick_objective_cap(pick: &StockPickItem, item: &EnrichedCandidate) -> i
     if pick.catalysts.len() < 2 || pick.risks.len() < 2 {
         cap = cap.min(83);
     }
-    if pick.thesis.trim().chars().count() < 120 {
+    if pick.thesis.key.trim().chars().count() < 120 {
         cap = cap.min(80);
     }
     if item.factor.total < 55.0 {

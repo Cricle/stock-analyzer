@@ -135,7 +135,7 @@ impl StockPickHistoryStore {
                 selected: true,
                 grade: pick.objective_assessment.grade.clone(),
                 ready: pick.objective_assessment.ready,
-                summary: pick.thesis.clone(),
+                summary: pick.thesis.key.clone(),
                 evidence_points: pick.evidence_points.clone(),
                 risk_flags: pick.rejection_risk_flags.clone(),
                 alpha_return: None,

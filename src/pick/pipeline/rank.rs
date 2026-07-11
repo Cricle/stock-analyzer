@@ -5,6 +5,75 @@ use crate::{StockPickHistoryMatchSnapshot, StockPickItem};
 
 use super::{CandidateEvidenceRecord, EnrichedCandidate};
 
+/// Filter news items for relevance to a stock candidate.
+/// Keeps items where the ticker symbol or significant company name tokens appear in title/summary.
+pub fn filter_relevant_news(items: Vec<NewsItem>, symbol: &str, name: &str) -> Vec<NewsItem> {
+    let symbol_upper = symbol.trim().to_uppercase();
+    let name_lower = name.trim().to_lowercase();
+    // Extract meaningful name tokens (skip common words like "Inc", "Co", "Ltd", "Corp")
+    let stop_words: HashSet<&str> = [
+        "inc",
+        "co",
+        "ltd",
+        "corp",
+        "corporation",
+        "company",
+        "group",
+        "holdings",
+        "plc",
+        "ag",
+        "sa",
+        "nv",
+        "the",
+        "and",
+        "for",
+        "of",
+    ]
+    .into_iter()
+    .collect();
+    let name_tokens: Vec<String> = name_lower
+        .split_whitespace()
+        .filter(|w| w.len() >= 3 && !stop_words.contains(w.to_ascii_lowercase().as_str()))
+        .map(|w| w.to_ascii_lowercase())
+        .collect();
+
+    if symbol_upper.is_empty() && name_tokens.is_empty() {
+        return items;
+    }
+
+    items
+        .into_iter()
+        .filter(|item| {
+            let title_lower = item.title.to_lowercase();
+            let summary_lower = item.summary.to_lowercase();
+            let combined = format!("{} {}", title_lower, summary_lower);
+            // Ticker symbol match (exact word boundary)
+            if !symbol_upper.is_empty() {
+                let symbol_lower = symbol_upper.to_lowercase();
+                // Check for exact ticker match in title (e.g., "AFJK" not as substring of other words)
+                if title_lower.contains(&symbol_lower) || summary_lower.contains(&symbol_lower) {
+                    return true;
+                }
+            }
+            // Company name token match: require at least 2 tokens to match
+            if name_tokens.len() >= 2 {
+                let matches = name_tokens
+                    .iter()
+                    .filter(|token| combined.contains(token.as_str()))
+                    .count();
+                if matches >= 2 {
+                    return true;
+                }
+            } else if name_tokens.len() == 1 {
+                if combined.contains(name_tokens[0].as_str()) {
+                    return true;
+                }
+            }
+            false
+        })
+        .collect()
+}
+
 // ---------------------------------------------------------------------------
 // Evidence processing
 // ---------------------------------------------------------------------------

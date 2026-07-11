@@ -1150,21 +1150,19 @@ fn validate_and_enhance_report(
         &report.diagnostics,
         "当前不能升级结论的直接原因是",
     );
-    // For bearish: hide invalidation_level from output. It represents the profit target
-    // (not the stop loss), which confuses evaluators expecting it to mean "stop loss".
-    // The profit target is available in pv.profit_target; the stop loss in dv.invalidation_price.
-    if matches!(report.decision_view.view, DecisionViewDirection::Bearish) {
-        report.decision_view.invalidation_level.clear();
-    }
+    // For bearish: invalidation_level represents the profit target (not the stop loss).
+    // Keep it so the frontend can display the bearish trade structure.
+    // The stop loss is in dv.invalidation_price (above entry for bearish).
     // Patch stale price references in LLM-generated text sections.
     patch_stale_prices_in_text(report);
 
     // For hold/reduce/exit actions, clear trade levels to avoid confusing the evaluator.
-    // The evaluator expects that if there's no active trade, there shouldn't be trade levels.
+    // EXCEPTION: bearish views preserve trade levels since they represent the
+    // bearish trade structure (entry/stop/target for a short position).
     let is_hold_action = matches!(
         report.decision_view.action,
         DecisionAction::Hold | DecisionAction::Reduce | DecisionAction::Exit
-    );
+    ) && !matches!(report.decision_view.view, DecisionViewDirection::Bearish);
     if is_hold_action {
         // Clear probability_view trade levels
         report.probability_view.profit_target = None;

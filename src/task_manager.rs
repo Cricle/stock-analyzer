@@ -7,6 +7,7 @@ use tokio::task::AbortHandle;
 use crate::checkpoint::TaskCheckpointStore;
 use crate::memory::TradingMemoryLog;
 use crate::memory::cross_collection::CrossCollectionSearcher;
+use crate::task::PersistedTask;
 use crate::telemetry::SharedTelemetry;
 
 /// Ordered analysis pipeline steps with progress percentages.
@@ -488,6 +489,16 @@ impl TaskManager {
         }
     }
 
+    /// Check if a task is still running (has an active tokio task).
+    pub async fn is_task_running(&self, task_id: &str) -> bool {
+        self.running_tasks.read().await.contains_key(task_id)
+    }
+
+    /// Get a persisted task by ID.
+    pub async fn get_task(&self, task_id: &str) -> anyhow::Result<Option<PersistedTask>> {
+        self.analysis_store.get_task(task_id).await
+    }
+
     /// Create a task for a user and run it (non-blocking, returns task_id).
     pub async fn create_task_for_user(
         &self,
@@ -549,9 +560,7 @@ impl TaskManager {
         task_id: &str,
     ) -> anyhow::Result<Option<serde_json::Value>> {
         if let Some(result) = self.analysis_store.load_result(task_id).await? {
-            Ok(Some(serde_json::json!({
-                "chart": result.report.market_chart,
-            })))
+            Ok(Some(serde_json::to_value(&result.report.market_chart)?))
         } else {
             Ok(None)
         }

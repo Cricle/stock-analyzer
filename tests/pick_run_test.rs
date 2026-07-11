@@ -61,13 +61,15 @@ async fn run_pick(market: &str, market_label: &str) {
                     i + 1,
                     pick.symbol,
                     pick.confidence,
-                    pick.thesis.chars().take(80).collect::<String>()
+                    pick.thesis.key.chars().take(80).collect::<String>()
                 );
                 if !pick.catalysts.is_empty() {
-                    println!("     催化剂: {}", pick.catalysts.join(", "));
+                    let cats: Vec<&str> = pick.catalysts.iter().map(|c| c.key.as_str()).collect();
+                    println!("     催化剂: {}", cats.join(", "));
                 }
                 if !pick.risks.is_empty() {
-                    println!("     风险: {}", pick.risks.join(", "));
+                    let rks: Vec<&str> = pick.risks.iter().map(|r| r.key.as_str()).collect();
+                    println!("     风险: {}", rks.join(", "));
                 }
             }
             if !response.rejected_symbols.is_empty() {

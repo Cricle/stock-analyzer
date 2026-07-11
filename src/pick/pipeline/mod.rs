@@ -221,18 +221,16 @@ pub async fn run(
             anyhow::bail!("missing structured deep evidence for {}", candidate.symbol);
         }
         indexed_evidence_records += deduped_records.len();
-        candidate.news = dedupe_news_items(
-            filter_relevant_news(
-                candidate
-                    .news
-                    .iter()
-                    .cloned()
-                    .chain(search_items.into_iter())
-                    .collect(),
-                &candidate.symbol,
-                &candidate.name,
-            ),
-        );
+        candidate.news = dedupe_news_items(filter_relevant_news(
+            candidate
+                .news
+                .iter()
+                .cloned()
+                .chain(search_items.into_iter())
+                .collect(),
+            &candidate.symbol,
+            &candidate.name,
+        ));
         candidate.evidence_records = deduped_records;
         candidate.theme_key = infer_theme_key(
             &candidate.name,
@@ -403,20 +401,13 @@ pub async fn run(
                 evidence_points: explanation
                     .map(|value| value.evidence_points.clone())
                     .unwrap_or_else(|| default_evidence(&item)),
-                entry_price: explanation
-                    .and_then(|value| value.entry_price.clone()),
-                entry_rationale: explanation
-                    .and_then(|value| value.entry_rationale.clone()),
-                stop_loss: explanation
-                    .and_then(|value| value.stop_loss.clone()),
-                stop_rationale: explanation
-                    .and_then(|value| value.stop_rationale.clone()),
-                target_price: explanation
-                    .and_then(|value| value.target_price.clone()),
-                target_rationale: explanation
-                    .and_then(|value| value.target_rationale.clone()),
-                holding_period: explanation
-                    .and_then(|value| value.holding_period.clone()),
+                entry_price: explanation.and_then(|value| value.entry_price.clone()),
+                entry_rationale: explanation.and_then(|value| value.entry_rationale.clone()),
+                stop_loss: explanation.and_then(|value| value.stop_loss.clone()),
+                stop_rationale: explanation.and_then(|value| value.stop_rationale.clone()),
+                target_price: explanation.and_then(|value| value.target_price.clone()),
+                target_rationale: explanation.and_then(|value| value.target_rationale.clone()),
+                holding_period: explanation.and_then(|value| value.holding_period.clone()),
                 exit_triggers: explanation
                     .map(|value| value.exit_triggers.clone())
                     .unwrap_or_default(),
@@ -490,7 +481,9 @@ pub async fn run(
             }
             if pick.target_price.is_none() {
                 if let (Some(entry_str), Some(stop_str)) = (&pick.entry_price, &pick.stop_loss) {
-                    if let (Ok(entry), Ok(stop)) = (entry_str.parse::<f64>(), stop_str.parse::<f64>()) {
+                    if let (Ok(entry), Ok(stop)) =
+                        (entry_str.parse::<f64>(), stop_str.parse::<f64>())
+                    {
                         let risk = (entry - stop).abs();
                         if risk > 0.0 {
                             let target = entry + 3.0 * risk;

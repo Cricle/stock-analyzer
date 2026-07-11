@@ -1,8 +1,8 @@
-use sa::memory::MemoryContextBundleWithTags;
-use sa::task_manager::{
+use stock_analyzer::memory::MemoryContextBundleWithTags;
+use stock_analyzer::task_manager::{
     TaskManager, TaskRunParams, memory_snapshot_from_bundle, seconds_until_local_midnight,
 };
-use sa::{AnalysisScenarioContext, AnalysisUserContext, MemoryContextSnapshot};
+use stock_analyzer::{AnalysisScenarioContext, AnalysisUserContext, MemoryContextSnapshot};
 
 #[test]
 fn memory_snapshot_from_bundle_maps_fields() {

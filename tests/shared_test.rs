@@ -1,4 +1,4 @@
-use sa::shared::safe_ticker_component;
+use stock_analyzer::shared::safe_ticker_component;
 
 #[test]
 fn safe_ticker_component_basic() {

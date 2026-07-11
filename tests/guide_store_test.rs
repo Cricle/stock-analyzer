@@ -1,4 +1,4 @@
-use sa::guide::store::GuidanceStore;
+use stock_analyzer::guide::store::GuidanceStore;
 
 #[test]
 fn vector_point_id_deterministic() {

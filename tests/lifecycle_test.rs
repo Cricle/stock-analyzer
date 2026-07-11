@@ -1,8 +1,8 @@
-use sa::report::lifecycle::{
+use stock_analyzer::report::lifecycle::{
     bounded_user_notes, build_user_context, build_user_context_prompt, normalize_language,
     normalize_option,
 };
-use sa::{AnalysisParameters, AnalysisUserContext};
+use stock_analyzer::{AnalysisParameters, AnalysisUserContext};
 
 // ---- normalize_language ----
 

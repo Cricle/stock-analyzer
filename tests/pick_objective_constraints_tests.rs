@@ -1,11 +1,11 @@
-use sa::data::{CandlePoint, FundamentalsSnapshot, NewsItem};
-use sa::guide::I18nText;
-use sa::pick::objective::{
+use stock_analyzer::data::{CandlePoint, FundamentalsSnapshot, NewsItem};
+use stock_analyzer::guide::I18nText;
+use stock_analyzer::pick::objective::{
     evaluate_stock_pick_objective_assessment, format_valuation_line, stock_pick_objective_gaps,
     stock_pick_objective_grade, stock_pick_objective_headline,
 };
-use sa::pick::{EnrichedCandidate, FactorBreakdown};
-use sa::{
+use stock_analyzer::pick::{EnrichedCandidate, FactorBreakdown};
+use stock_analyzer::{
     StockPickDataQualitySnapshot, StockPickFundamentalSnapshot, StockPickHistoryMatchSnapshot,
     StockPickItem, StockPickMarketSnapshot, StockPickNewsSnapshot, StockPickRiskSnapshot,
     StockPickTechnicalSnapshot,

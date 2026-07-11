@@ -14,11 +14,11 @@ pub fn load_fixture(name: &str) -> Value {
 }
 
 #[allow(dead_code)]
-pub fn sample_scoreable_pick() -> sa::score::scorer::ScoreablePick {
-    sa::score::scorer::ScoreablePick {
+pub fn sample_scoreable_pick() -> stock_analyzer::score::scorer::ScoreablePick {
+    stock_analyzer::score::scorer::ScoreablePick {
         symbol: "AAPL".into(),
         market: "美股".into(),
-        technical: sa::scoring::dimensions::technical::TechnicalInput {
+        technical: stock_analyzer::scoring::dimensions::technical::TechnicalInput {
             rsi: Some(55.0),
             macd: Some(0.3),
             macd_signal: Some(0.2),

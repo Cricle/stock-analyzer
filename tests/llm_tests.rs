@@ -1,4 +1,4 @@
-use sa::llm::{LlmClient, LlmUsageAccumulator};
+use stock_analyzer::llm::{LlmClient, LlmUsageAccumulator};
 
 fn make_client() -> LlmClient {
     let http = reqwest_middleware::ClientBuilder::new(reqwest::Client::new()).build();

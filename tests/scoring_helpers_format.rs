@@ -1,8 +1,8 @@
-use sa::scoring::{
+use stock_analyzer::scoring::{
     CalibrationProfile, calibrate_recommendation_with_profile, evaluate_confidence_score,
     evaluate_direction_score,
 };
-use sa::{
+use stock_analyzer::{
     AgentReportNode, AgentStateSnapshot, AnalysisArtifacts, AnalysisGraph, AnalysisResult,
     AnalystRuntimeState, TechnicalIndicatorView, ToolObservation,
 };
@@ -95,7 +95,7 @@ fn confidence_caps_missing_core_data_without_text_matching() {
         sideways_probability: 0.25,
         ..Default::default()
     }];
-    let caps = sa::scoring::config::ConfidenceCapsConfig::default();
+    let caps = stock_analyzer::scoring::config::ConfidenceCapsConfig::default();
     let assessment = evaluate_confidence_score(&result, &caps, false, "");
     assert!(assessment.final_score <= 65);
     assert!(
@@ -114,7 +114,7 @@ fn setup_history_gap_adds_confidence_cap() {
         .memory_context
         .used_setup_filtered_retrieval = true;
     result.artifacts.memory_context.setup_match_count = 1;
-    let caps = sa::scoring::config::ConfidenceCapsConfig::default();
+    let caps = stock_analyzer::scoring::config::ConfidenceCapsConfig::default();
     let assessment = evaluate_confidence_score(&result, &caps, false, "");
     assert!(
         assessment
@@ -172,7 +172,7 @@ fn single_tool_failure_does_not_trigger_missing_core_data_cap_when_core_is_prese
         ..Default::default()
     }];
 
-    let caps = sa::scoring::config::ConfidenceCapsConfig::default();
+    let caps = stock_analyzer::scoring::config::ConfidenceCapsConfig::default();
     let assessment = evaluate_confidence_score(&result, &caps, false, "");
     assert!(
         assessment
@@ -191,7 +191,7 @@ fn setup_history_cap_is_relaxed_when_fallback_samples_exist() {
         .used_setup_filtered_retrieval = true;
     result.artifacts.memory_context.setup_match_count = 1;
     result.artifacts.memory_context.same_ticker_count = 2;
-    let caps = sa::scoring::config::ConfidenceCapsConfig::default();
+    let caps = stock_analyzer::scoring::config::ConfidenceCapsConfig::default();
     let assessment = evaluate_confidence_score(&result, &caps, false, "");
     let cap = assessment
         .caps

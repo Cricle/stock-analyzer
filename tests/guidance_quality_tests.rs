@@ -1,4 +1,4 @@
-use sa::guide::{PriceLevel, RiskAlert, StockGuidance, sentiment_label, sentiment_score};
+use stock_analyzer::guide::{PriceLevel, RiskAlert, StockGuidance, sentiment_label, sentiment_score};
 
 #[test]
 fn test_sentiment_score_calculation() {

@@ -1,4 +1,4 @@
-use sa::scoring::{ScoreWeights, score_label};
+use stock_analyzer::scoring::{ScoreWeights, score_label};
 
 // --- ScoreWeights::validate ---
 

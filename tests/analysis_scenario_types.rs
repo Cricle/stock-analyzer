@@ -1,4 +1,4 @@
-use sa::analysis::{AnalysisScenarioContext, AnalysisScenarioData, AnalysisScenarioMarket};
+use stock_analyzer::analysis::{AnalysisScenarioContext, AnalysisScenarioData, AnalysisScenarioMarket};
 
 // --- AnalysisScenarioMarket::from_market_type ---
 

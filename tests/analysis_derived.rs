@@ -1,4 +1,4 @@
-use sa::{AnalysisResult, LocalText, Rating};
+use stock_analyzer::{AnalysisResult, LocalText, Rating};
 
 fn make_result() -> AnalysisResult {
     AnalysisResult {

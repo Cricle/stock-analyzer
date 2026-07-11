@@ -1,4 +1,4 @@
-use sa::MarketKind;
+use stock_analyzer::MarketKind;
 
 pub struct TestStock {
     pub symbol: &'static str,

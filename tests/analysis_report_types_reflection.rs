@@ -1,4 +1,4 @@
-use sa::analysis::{
+use stock_analyzer::analysis::{
     ActionScenarioPath, CatalystScoreCard, CatalystScoreItem, LocalText, MissingEvidenceLadder,
     Rating, ReviewChecklist, ReviewItem, StructuredPortfolioDecision, StructuredResearchPlan,
     StructuredTraderPlan,

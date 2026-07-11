@@ -1,6 +1,6 @@
-use sa::MarketDataClient;
-use sa::StockPickRequest;
-use sa::llm::LlmClient;
+use stock_analyzer::MarketDataClient;
+use stock_analyzer::StockPickRequest;
+use stock_analyzer::llm::LlmClient;
 
 #[tokio::test]
 #[ignore]
@@ -51,7 +51,7 @@ async fn run_pick(market: &str, market_label: &str) {
         history_retrieval: None,
     };
 
-    match sa::pick::run(&market_data, &llm, &request).await {
+    match stock_analyzer::pick::run(&market_data, &llm, &request).await {
         Ok(response) => {
             println!("  摘要: {}", response.summary);
             println!("  选出 {} 只:", response.picks.len());

@@ -1,8 +1,8 @@
-use sa::data::{CandlePoint, FundamentalsSnapshot};
-use sa::pick::EnrichedCandidate;
-use sa::pick::FactorBreakdown;
-use sa::pick::scoring::factors::{compute_factor_breakdown, penalty_score};
-use sa::{
+use stock_analyzer::data::{CandlePoint, FundamentalsSnapshot};
+use stock_analyzer::pick::EnrichedCandidate;
+use stock_analyzer::pick::FactorBreakdown;
+use stock_analyzer::pick::scoring::factors::{compute_factor_breakdown, penalty_score};
+use stock_analyzer::{
     StockPickDataQualitySnapshot, StockPickFundamentalSnapshot, StockPickHistoryMatchSnapshot,
     StockPickMarketSnapshot, StockPickNewsSnapshot, StockPickRiskSnapshot,
     StockPickTechnicalSnapshot,

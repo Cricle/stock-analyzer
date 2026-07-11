@@ -22,7 +22,7 @@
     clippy::redundant_pattern_matching
 )]
 
-//! sa — Unified stock analysis crate.
+//! stock-analyzer — Unified stock analysis crate.
 //!
 //! Data fetching is delegated to [akshare-rs](https://github.com/Cricle/akshare-rs); this crate focuses on
 //! analysis, scoring, LLM-powered reports, and stock picking.
@@ -38,8 +38,8 @@
 //! # Key Types
 //!
 //! ```rust
-//! use sa::{Rating, LocalText};
-//! use sa::store::InMemoryAnalysisStore;
+//! use stock_analyzer::{Rating, LocalText};
+//! use stock_analyzer::store::InMemoryAnalysisStore;
 //!
 //! // Rating enum for buy/hold/sell recommendations
 //! let rating = Rating::parse("buy");
@@ -95,7 +95,7 @@ pub mod task;
 pub mod value_utils;
 
 pub mod scoring;
-/// Backward-compatibility alias: `sa::score` → `sa::scoring`.
+/// Backward-compatibility alias: `stock_analyzer::score` → `stock_analyzer::scoring`.
 pub use scoring as score;
 
 // ── Feature modules ──

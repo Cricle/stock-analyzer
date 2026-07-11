@@ -1,8 +1,8 @@
-use sa::analysis::{
+use stock_analyzer::analysis::{
     ReportDiagnosticItem, ReportDiagnostics, StructuredPortfolioDecision, StructuredResearchPlan,
     StructuredTraderPlan,
 };
-use sa::analysis::{
+use stock_analyzer::analysis::{
     collect_execution_blocking_gaps, normalize_gap_match_text, normalize_gap_to_i18n_key,
     related_gap_items, scenario_gap_messages, score_related_gap_match, tokenize_gap_match_text,
 };

@@ -1,7 +1,7 @@
-use sa::analysis::{
+use stock_analyzer::analysis::{
     DecisionAction, DecisionView, ReferenceFactItem, ReportDiagnosticItem, ReportReferenceSnapshot,
 };
-use sa::analysis::{derive_evidence_cards, has_report_diagnostic, news_watch_next_summary};
+use stock_analyzer::analysis::{derive_evidence_cards, has_report_diagnostic, news_watch_next_summary};
 
 #[test]
 fn derive_evidence_cards_empty_references() {

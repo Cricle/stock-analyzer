@@ -1,4 +1,4 @@
-use sa::scoring::{
+use stock_analyzer::scoring::{
     bool_text, count_numeric_dates, count_numeric_levels, looks_like_ymd_date, numeric_tokens,
     parse_first_number, parse_position_percentage,
 };

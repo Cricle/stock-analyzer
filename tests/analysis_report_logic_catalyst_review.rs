@@ -1,4 +1,4 @@
-use sa::analysis::priority_rank;
+use stock_analyzer::analysis::priority_rank;
 
 #[test]
 fn priority_rank_high() {

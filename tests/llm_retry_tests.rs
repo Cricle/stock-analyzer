@@ -1,5 +1,5 @@
-use sa::llm::parse::DiagnosisIssue;
-use sa::llm::retry::default_retry_hint_builder;
+use stock_analyzer::llm::parse::DiagnosisIssue;
+use stock_analyzer::llm::retry::default_retry_hint_builder;
 
 #[test]
 fn default_retry_hint_builder_single_issue() {

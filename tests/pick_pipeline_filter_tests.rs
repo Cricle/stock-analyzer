@@ -1,5 +1,5 @@
-use sa::data::{BillboardEntry, CapitalFlowPoint, MarketKind};
-use sa::pick::pipeline::filter::{
+use stock_analyzer::data::{BillboardEntry, CapitalFlowPoint, MarketKind};
+use stock_analyzer::pick::pipeline::filter::{
     billboard_source_score, capital_flow_source_score, market_display_label, market_exchange_code,
     market_kind_from_value, market_search_label,
 };

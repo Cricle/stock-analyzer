@@ -1,4 +1,4 @@
-use sa::scoring::dimensions::fundamental::{FundamentalInput, score_fundamental};
+use stock_analyzer::scoring::dimensions::fundamental::{FundamentalInput, score_fundamental};
 
 #[test]
 fn test_strong_fundamentals() {

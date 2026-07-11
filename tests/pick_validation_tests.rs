@@ -1,7 +1,7 @@
-use sa::StockPickTechnicalSnapshot;
-use sa::guide::I18nText;
-use sa::pick::validation::{PickQualityGate, apply_defaults, validate_pick};
-use sa::pick::{EnrichedCandidate, FactorBreakdown};
+use stock_analyzer::StockPickTechnicalSnapshot;
+use stock_analyzer::guide::I18nText;
+use stock_analyzer::pick::validation::{PickQualityGate, apply_defaults, validate_pick};
+use stock_analyzer::pick::{EnrichedCandidate, FactorBreakdown};
 
 fn make_candidate(price: Option<f64>, atr: Option<f64>) -> EnrichedCandidate {
     let mut technical = StockPickTechnicalSnapshot::default();
@@ -41,9 +41,9 @@ fn make_pick(
     target: Option<&str>,
     catalysts: Vec<&str>,
     exit_triggers: Vec<&str>,
-) -> sa::pick::types::GeneratedStockPickItem {
+) -> stock_analyzer::pick::types::GeneratedStockPickItem {
     use serde_json::Value;
-    sa::pick::types::GeneratedStockPickItem {
+    stock_analyzer::pick::types::GeneratedStockPickItem {
         symbol: "TEST".to_string(),
         confidence: Value::from(0.7),
         thesis: I18nText::new("Test thesis"),

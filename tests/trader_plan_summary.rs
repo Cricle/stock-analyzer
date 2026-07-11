@@ -1,4 +1,4 @@
-use sa::{
+use stock_analyzer::{
     CoreResearchCall, DecisionAction, DecisionView, Rating, StructuredPortfolioDecision,
     StructuredTraderPlan, is_publishable_summary_reference,
 };
@@ -44,7 +44,7 @@ fn authoritative_summary_skips_unpublishable_confirmation_and_target_fragments()
 
 #[test]
 fn llm_summary_is_preserved_when_substantive() {
-    use sa::{
+    use stock_analyzer::{
         CoreResearchCall, DecisionAction, DecisionView, LocalText, Rating,
         StructuredPortfolioDecision, StructuredTraderPlan,
     };
@@ -78,7 +78,7 @@ fn llm_summary_is_preserved_when_substantive() {
 
 #[test]
 fn template_fallback_when_llm_summary_is_placeholder() {
-    use sa::{
+    use stock_analyzer::{
         CoreResearchCall, DecisionAction, DecisionView, LocalText, Rating,
         StructuredPortfolioDecision, StructuredTraderPlan,
     };

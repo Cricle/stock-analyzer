@@ -1,5 +1,5 @@
-use sa::analysis::ReportCandle;
-use sa::analysis::{
+use stock_analyzer::analysis::ReportCandle;
+use stock_analyzer::analysis::{
     adx_report, atr_report, bollinger_report, ema_report, kdj_report, macd_report, obv_report,
     obv_signal, rsi_report, sma_report,
 };

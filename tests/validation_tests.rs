@@ -1,4 +1,4 @@
-use sa::analysis::validation::check_consistency;
+use stock_analyzer::analysis::validation::check_consistency;
 
 #[test]
 fn consistency_flag_when_sell_with_oversold_rsi() {

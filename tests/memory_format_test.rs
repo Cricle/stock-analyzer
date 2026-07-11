@@ -1,5 +1,5 @@
-use sa::memory::{EmbeddingBackend, MemoryEntry, RagConfig, TradingMemoryLog};
-use sa::{LocalText, StructuredReflection, StructuredRiskAssessment};
+use stock_analyzer::memory::{EmbeddingBackend, MemoryEntry, RagConfig, TradingMemoryLog};
+use stock_analyzer::{LocalText, StructuredReflection, StructuredRiskAssessment};
 
 fn make_entry(ticker: &str, rating: &str) -> MemoryEntry {
     MemoryEntry {

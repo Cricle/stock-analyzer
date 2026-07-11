@@ -4,32 +4,32 @@
 
 #[test]
 fn safe_ticker_component_valid() {
-    let result = sa::shared::safe_ticker_component("AAPL", 10).unwrap();
+    let result = stock_analyzer::shared::safe_ticker_component("AAPL", 10).unwrap();
     assert_eq!(result, "AAPL");
 }
 
 #[test]
 fn safe_ticker_component_with_special_chars() {
-    let result = sa::shared::safe_ticker_component("600519.SH", 20).unwrap();
+    let result = stock_analyzer::shared::safe_ticker_component("600519.SH", 20).unwrap();
     assert_eq!(result, "600519.SH");
 }
 
 #[test]
 fn safe_ticker_component_replaces_invalid_chars() {
-    let result = sa::shared::safe_ticker_component("AAPL/MSFT", 20).unwrap();
+    let result = stock_analyzer::shared::safe_ticker_component("AAPL/MSFT", 20).unwrap();
     assert_eq!(result, "AAPL_MSFT");
 }
 
 #[test]
 fn safe_ticker_component_truncates() {
-    let result = sa::shared::safe_ticker_component("VERYLONGTICKER", 5).unwrap();
+    let result = stock_analyzer::shared::safe_ticker_component("VERYLONGTICKER", 5).unwrap();
     assert_eq!(result, "VERYL");
 }
 
 #[test]
 fn safe_ticker_component_empty_fails() {
-    assert!(sa::shared::safe_ticker_component("", 10).is_err());
-    assert!(sa::shared::safe_ticker_component("   ", 10).is_err());
+    assert!(stock_analyzer::shared::safe_ticker_component("", 10).is_err());
+    assert!(stock_analyzer::shared::safe_ticker_component("   ", 10).is_err());
 }
 
 // =========================================================================
@@ -38,26 +38,26 @@ fn safe_ticker_component_empty_fails() {
 
 #[test]
 fn task_status_as_str() {
-    assert_eq!(sa::task::TaskStatus::Pending.as_str(), "pending");
-    assert_eq!(sa::task::TaskStatus::Running.as_str(), "running");
-    assert_eq!(sa::task::TaskStatus::Completed.as_str(), "completed");
-    assert_eq!(sa::task::TaskStatus::Cancelled.as_str(), "cancelled");
-    assert_eq!(sa::task::TaskStatus::Failed.as_str(), "failed");
+    assert_eq!(stock_analyzer::task::TaskStatus::Pending.as_str(), "pending");
+    assert_eq!(stock_analyzer::task::TaskStatus::Running.as_str(), "running");
+    assert_eq!(stock_analyzer::task::TaskStatus::Completed.as_str(), "completed");
+    assert_eq!(stock_analyzer::task::TaskStatus::Cancelled.as_str(), "cancelled");
+    assert_eq!(stock_analyzer::task::TaskStatus::Failed.as_str(), "failed");
 }
 
 #[test]
 fn task_status_from_str_roundtrip() {
     let cases = ["pending", "running", "completed", "cancelled", "failed"];
     for s in cases {
-        let status: sa::task::TaskStatus = s.parse().unwrap();
+        let status: stock_analyzer::task::TaskStatus = s.parse().unwrap();
         assert_eq!(status.as_str(), s);
     }
 }
 
 #[test]
 fn task_status_from_str_invalid() {
-    assert!("unknown".parse::<sa::task::TaskStatus>().is_err());
-    assert!("".parse::<sa::task::TaskStatus>().is_err());
+    assert!("unknown".parse::<stock_analyzer::task::TaskStatus>().is_err());
+    assert!("".parse::<stock_analyzer::task::TaskStatus>().is_err());
 }
 
 // =========================================================================
@@ -66,7 +66,7 @@ fn task_status_from_str_invalid() {
 
 #[test]
 fn score_config_default() {
-    let config = sa::scoring::config::ScoreConfig::default();
+    let config = stock_analyzer::scoring::config::ScoreConfig::default();
     assert_eq!(config.sentiment_news_limit, 10);
     // Weights should sum to 100
     let sum = config.weights.technical
@@ -82,13 +82,13 @@ fn score_config_default() {
 
 #[test]
 fn score_weights_default_valid() {
-    let weights = sa::scoring::types::ScoreWeights::default();
+    let weights = stock_analyzer::scoring::types::ScoreWeights::default();
     assert!(weights.validate().is_ok());
 }
 
 #[test]
 fn score_weights_invalid_sum() {
-    let weights = sa::scoring::types::ScoreWeights {
+    let weights = stock_analyzer::scoring::types::ScoreWeights {
         technical: 50,
         fundamental: 50,
         sentiment: 50,
@@ -99,11 +99,11 @@ fn score_weights_invalid_sum() {
 
 #[test]
 fn score_label_mapping() {
-    assert_eq!(sa::scoring::types::score_label(85), "strong_buy");
-    assert_eq!(sa::scoring::types::score_label(70), "buy");
-    assert_eq!(sa::scoring::types::score_label(55), "neutral");
-    assert_eq!(sa::scoring::types::score_label(35), "cautious");
-    assert_eq!(sa::scoring::types::score_label(20), "avoid");
+    assert_eq!(stock_analyzer::scoring::types::score_label(85), "strong_buy");
+    assert_eq!(stock_analyzer::scoring::types::score_label(70), "buy");
+    assert_eq!(stock_analyzer::scoring::types::score_label(55), "neutral");
+    assert_eq!(stock_analyzer::scoring::types::score_label(35), "cautious");
+    assert_eq!(stock_analyzer::scoring::types::score_label(20), "avoid");
 }
 
 // =========================================================================
@@ -113,7 +113,7 @@ fn score_label_mapping() {
 #[test]
 fn normalize_value_null() {
     assert_eq!(
-        sa::value_utils::normalize_value(&serde_json::Value::Null),
+        stock_analyzer::value_utils::normalize_value(&serde_json::Value::Null),
         ""
     );
 }
@@ -121,7 +121,7 @@ fn normalize_value_null() {
 #[test]
 fn normalize_value_string() {
     assert_eq!(
-        sa::value_utils::normalize_value(&serde_json::json!("hello")),
+        stock_analyzer::value_utils::normalize_value(&serde_json::json!("hello")),
         "hello"
     );
 }
@@ -129,7 +129,7 @@ fn normalize_value_string() {
 #[test]
 fn normalize_value_number() {
     assert_eq!(
-        sa::value_utils::normalize_value(&serde_json::json!(42)),
+        stock_analyzer::value_utils::normalize_value(&serde_json::json!(42)),
         "42"
     );
 }
@@ -137,7 +137,7 @@ fn normalize_value_number() {
 #[test]
 fn normalize_value_bool() {
     assert_eq!(
-        sa::value_utils::normalize_value(&serde_json::json!(true)),
+        stock_analyzer::value_utils::normalize_value(&serde_json::json!(true)),
         "true"
     );
 }
@@ -145,15 +145,15 @@ fn normalize_value_bool() {
 #[test]
 fn normalize_probability_valid() {
     assert_eq!(
-        sa::value_utils::normalize_probability(&serde_json::json!(0.5)),
+        stock_analyzer::value_utils::normalize_probability(&serde_json::json!(0.5)),
         0.5
     );
     assert_eq!(
-        sa::value_utils::normalize_probability(&serde_json::json!(-0.1)),
+        stock_analyzer::value_utils::normalize_probability(&serde_json::json!(-0.1)),
         0.0
     );
     assert_eq!(
-        sa::value_utils::normalize_probability(&serde_json::json!(1.5)),
+        stock_analyzer::value_utils::normalize_probability(&serde_json::json!(1.5)),
         1.0
     );
 }
@@ -164,7 +164,7 @@ fn normalize_probability_valid() {
 
 #[test]
 fn score_technical_bullish() {
-    let input = sa::scoring::dimensions::technical::TechnicalInput {
+    let input = stock_analyzer::scoring::dimensions::technical::TechnicalInput {
         rsi: Some(35.0),
         macd: Some(0.5),
         macd_signal: Some(0.3),
@@ -178,7 +178,7 @@ fn score_technical_bullish() {
         volume_elevated: true,
         latest_positive: true,
     };
-    let result = sa::scoring::dimensions::technical::score_technical(&input);
+    let result = stock_analyzer::scoring::dimensions::technical::score_technical(&input);
     assert!(
         result.score >= 60,
         "expected bullish score, got {}",
@@ -188,7 +188,7 @@ fn score_technical_bullish() {
 
 #[test]
 fn score_technical_bearish() {
-    let input = sa::scoring::dimensions::technical::TechnicalInput {
+    let input = stock_analyzer::scoring::dimensions::technical::TechnicalInput {
         rsi: Some(75.0),
         macd: Some(-0.5),
         macd_signal: Some(-0.2),
@@ -202,7 +202,7 @@ fn score_technical_bearish() {
         volume_elevated: true,
         latest_positive: false,
     };
-    let result = sa::scoring::dimensions::technical::score_technical(&input);
+    let result = stock_analyzer::scoring::dimensions::technical::score_technical(&input);
     assert!(
         result.score <= 40,
         "expected bearish score, got {}",
@@ -216,7 +216,7 @@ fn score_technical_bearish() {
 
 #[test]
 fn score_fundamental_good() {
-    let input = sa::scoring::dimensions::fundamental::FundamentalInput {
+    let input = stock_analyzer::scoring::dimensions::fundamental::FundamentalInput {
         pe_like: Some(12.0),
         ps_like: Some(3.0),
         roe: Some(25.0),
@@ -225,7 +225,7 @@ fn score_fundamental_good() {
         revenues_usd: Some(50_000_000_000.0),
         net_income_usd: Some(10_000_000_000.0),
     };
-    let result = sa::scoring::dimensions::fundamental::score_fundamental(&input);
+    let result = stock_analyzer::scoring::dimensions::fundamental::score_fundamental(&input);
     assert!(
         result.score >= 60,
         "expected good fundamental score, got {}",
@@ -235,7 +235,7 @@ fn score_fundamental_good() {
 
 #[test]
 fn score_fundamental_bad() {
-    let input = sa::scoring::dimensions::fundamental::FundamentalInput {
+    let input = stock_analyzer::scoring::dimensions::fundamental::FundamentalInput {
         pe_like: Some(100.0),
         ps_like: Some(20.0),
         roe: Some(-10.0),
@@ -244,7 +244,7 @@ fn score_fundamental_bad() {
         revenues_usd: Some(100_000_000.0),
         net_income_usd: Some(-50_000_000.0),
     };
-    let result = sa::scoring::dimensions::fundamental::score_fundamental(&input);
+    let result = stock_analyzer::scoring::dimensions::fundamental::score_fundamental(&input);
     assert!(
         result.score <= 40,
         "expected bad fundamental score, got {}",
@@ -258,7 +258,7 @@ fn score_fundamental_bad() {
 
 #[test]
 fn score_llm_analysis_consensus() {
-    let input = sa::scoring::dimensions::llm_analysis::LlmAnalysisInput {
+    let input = stock_analyzer::scoring::dimensions::llm_analysis::LlmAnalysisInput {
         confidence: 70.0,
         objective_final_score: 70.0,
         momentum_score: 65.0,
@@ -268,7 +268,7 @@ fn score_llm_analysis_consensus() {
         volume_ratio: Some(1.2),
         period_return_pct: Some(3.0),
     };
-    let result = sa::scoring::dimensions::llm_analysis::score_llm_analysis(&input);
+    let result = stock_analyzer::scoring::dimensions::llm_analysis::score_llm_analysis(&input);
     assert!(
         result.score >= 55,
         "expected decent score, got {}",
@@ -282,26 +282,26 @@ fn score_llm_analysis_consensus() {
 
 #[test]
 fn rr_label_sufficient() {
-    assert_eq!(sa::analysis::rr_label(2.5), "赔率充裕");
-    assert_eq!(sa::analysis::rr_label(2.0), "赔率充裕");
+    assert_eq!(stock_analyzer::analysis::rr_label(2.5), "赔率充裕");
+    assert_eq!(stock_analyzer::analysis::rr_label(2.0), "赔率充裕");
 }
 
 #[test]
 fn rr_label_moderate() {
-    assert_eq!(sa::analysis::rr_label(1.5), "赔率尚可");
-    assert_eq!(sa::analysis::rr_label(1.2), "赔率尚可");
+    assert_eq!(stock_analyzer::analysis::rr_label(1.5), "赔率尚可");
+    assert_eq!(stock_analyzer::analysis::rr_label(1.2), "赔率尚可");
 }
 
 #[test]
 fn rr_label_weak() {
-    assert_eq!(sa::analysis::rr_label(0.8), "赔率偏弱");
-    assert_eq!(sa::analysis::rr_label(0.5), "赔率偏弱");
+    assert_eq!(stock_analyzer::analysis::rr_label(0.8), "赔率偏弱");
+    assert_eq!(stock_analyzer::analysis::rr_label(0.5), "赔率偏弱");
 }
 
 #[test]
 fn rr_label_poor() {
-    assert_eq!(sa::analysis::rr_label(0.3), "赔率极差");
-    assert_eq!(sa::analysis::rr_label(0.0), "赔率极差");
+    assert_eq!(stock_analyzer::analysis::rr_label(0.3), "赔率极差");
+    assert_eq!(stock_analyzer::analysis::rr_label(0.0), "赔率极差");
 }
 
 // =========================================================================
@@ -310,18 +310,18 @@ fn rr_label_poor() {
 
 #[test]
 fn task_steps_not_empty() {
-    assert!(!sa::task_manager::TASK_STEPS.is_empty());
+    assert!(!stock_analyzer::task_manager::TASK_STEPS.is_empty());
 }
 
 // =========================================================================
 // store/ traits — InMemory stores
 // =========================================================================
 
-use sa::CacheStore;
+use stock_analyzer::CacheStore;
 
 #[tokio::test]
 async fn in_memory_cache_store_basic() {
-    let store = sa::store::InMemoryCacheStore::new();
+    let store = stock_analyzer::store::InMemoryCacheStore::new();
     // Set and get
     store.set("key1", b"value1", None).await.unwrap();
     let result = store.get("key1").await.unwrap();
@@ -336,7 +336,7 @@ async fn in_memory_cache_store_basic() {
 
 #[tokio::test]
 async fn in_memory_cache_store_list_entries() {
-    let store = sa::store::InMemoryCacheStore::new();
+    let store = stock_analyzer::store::InMemoryCacheStore::new();
     store.set("prefix:a", b"1", None).await.unwrap();
     store.set("prefix:b", b"2", None).await.unwrap();
     store.set("other:c", b"3", None).await.unwrap();
@@ -350,28 +350,28 @@ async fn in_memory_cache_store_list_entries() {
 
 #[test]
 fn weighted_total_balanced() {
-    let weights = sa::scoring::types::ScoreWeights::default();
-    let tech = sa::scoring::DimensionScore {
+    let weights = stock_analyzer::scoring::types::ScoreWeights::default();
+    let tech = stock_analyzer::scoring::DimensionScore {
         score: 80,
         reason: String::new(),
-        reliability: sa::scoring::ScoreReliability::High,
+        reliability: stock_analyzer::scoring::ScoreReliability::High,
     };
-    let fund = sa::scoring::DimensionScore {
+    let fund = stock_analyzer::scoring::DimensionScore {
         score: 60,
         reason: String::new(),
-        reliability: sa::scoring::ScoreReliability::High,
+        reliability: stock_analyzer::scoring::ScoreReliability::High,
     };
-    let sent = sa::scoring::DimensionScore {
+    let sent = stock_analyzer::scoring::DimensionScore {
         score: 70,
         reason: String::new(),
-        reliability: sa::scoring::ScoreReliability::High,
+        reliability: stock_analyzer::scoring::ScoreReliability::High,
     };
-    let llm = sa::scoring::DimensionScore {
+    let llm = stock_analyzer::scoring::DimensionScore {
         score: 90,
         reason: String::new(),
-        reliability: sa::scoring::ScoreReliability::High,
+        reliability: stock_analyzer::scoring::ScoreReliability::High,
     };
-    let total = sa::scoring::scorer::weighted_total(&weights, &tech, &fund, &sent, &llm);
+    let total = stock_analyzer::scoring::scorer::weighted_total(&weights, &tech, &fund, &sent, &llm);
     assert!(total >= 70 && total <= 80, "expected ~75, got {total}");
 }
 
@@ -381,9 +381,9 @@ fn weighted_total_balanced() {
 
 #[test]
 fn market_kind_variants() {
-    let a = sa::data::MarketKind::AShare;
-    let hk = sa::data::MarketKind::HongKong;
-    let us = sa::data::MarketKind::UsEquity;
+    let a = stock_analyzer::data::MarketKind::AShare;
+    let hk = stock_analyzer::data::MarketKind::HongKong;
+    let us = stock_analyzer::data::MarketKind::UsEquity;
     assert_ne!(a, hk);
     assert_ne!(hk, us);
     assert_ne!(a, us);
@@ -395,7 +395,7 @@ fn market_kind_variants() {
 
 #[test]
 fn format_valuation_line_valid() {
-    let result = sa::pick::objective::format_valuation_line("PE", Some(15.0), 20.0);
+    let result = stock_analyzer::pick::objective::format_valuation_line("PE", Some(15.0), 20.0);
     assert!(result.is_some());
     let line = result.unwrap();
     assert!(line.contains("PE"));
@@ -406,7 +406,7 @@ fn format_valuation_line_valid() {
 
 #[test]
 fn format_valuation_line_premium() {
-    let result = sa::pick::objective::format_valuation_line("PE", Some(25.0), 20.0);
+    let result = stock_analyzer::pick::objective::format_valuation_line("PE", Some(25.0), 20.0);
     assert!(result.is_some());
     let line = result.unwrap();
     assert!(line.contains("premium"));
@@ -414,19 +414,19 @@ fn format_valuation_line_premium() {
 
 #[test]
 fn format_valuation_line_none_value() {
-    let result = sa::pick::objective::format_valuation_line("PE", None, 20.0);
+    let result = stock_analyzer::pick::objective::format_valuation_line("PE", None, 20.0);
     assert!(result.is_none());
 }
 
 #[test]
 fn format_valuation_line_zero_value() {
-    let result = sa::pick::objective::format_valuation_line("PE", Some(0.0), 20.0);
+    let result = stock_analyzer::pick::objective::format_valuation_line("PE", Some(0.0), 20.0);
     assert!(result.is_none());
 }
 
 #[test]
 fn format_valuation_line_negative_value() {
-    let result = sa::pick::objective::format_valuation_line("PE", Some(-5.0), 20.0);
+    let result = stock_analyzer::pick::objective::format_valuation_line("PE", Some(-5.0), 20.0);
     assert!(result.is_none());
 }
 
@@ -436,30 +436,30 @@ fn format_valuation_line_negative_value() {
 
 #[test]
 fn stock_pick_objective_grade_a() {
-    assert_eq!(sa::pick::objective::stock_pick_objective_grade(85), "A");
-    assert_eq!(sa::pick::objective::stock_pick_objective_grade(95), "A");
-    assert_eq!(sa::pick::objective::stock_pick_objective_grade(100), "A");
+    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(85), "A");
+    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(95), "A");
+    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(100), "A");
 }
 
 #[test]
 fn stock_pick_objective_grade_b() {
-    assert_eq!(sa::pick::objective::stock_pick_objective_grade(75), "B");
-    assert_eq!(sa::pick::objective::stock_pick_objective_grade(80), "B");
-    assert_eq!(sa::pick::objective::stock_pick_objective_grade(84), "B");
+    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(75), "B");
+    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(80), "B");
+    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(84), "B");
 }
 
 #[test]
 fn stock_pick_objective_grade_c() {
-    assert_eq!(sa::pick::objective::stock_pick_objective_grade(60), "C");
-    assert_eq!(sa::pick::objective::stock_pick_objective_grade(70), "C");
-    assert_eq!(sa::pick::objective::stock_pick_objective_grade(74), "C");
+    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(60), "C");
+    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(70), "C");
+    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(74), "C");
 }
 
 #[test]
 fn stock_pick_objective_grade_d() {
-    assert_eq!(sa::pick::objective::stock_pick_objective_grade(0), "D");
-    assert_eq!(sa::pick::objective::stock_pick_objective_grade(50), "D");
-    assert_eq!(sa::pick::objective::stock_pick_objective_grade(59), "D");
+    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(0), "D");
+    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(50), "D");
+    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(59), "D");
 }
 
 // =========================================================================
@@ -468,19 +468,19 @@ fn stock_pick_objective_grade_d() {
 
 #[test]
 fn stock_pick_objective_headline_ready_high() {
-    let headline = sa::pick::objective::stock_pick_objective_headline(90, true, &[]);
+    let headline = stock_analyzer::pick::objective::stock_pick_objective_headline(90, true, &[]);
     assert!(headline.contains("High-quality"));
 }
 
 #[test]
 fn stock_pick_objective_headline_ready_normal() {
-    let headline = sa::pick::objective::stock_pick_objective_headline(75, true, &[]);
+    let headline = stock_analyzer::pick::objective::stock_pick_objective_headline(75, true, &[]);
     assert!(headline.contains("Usable"));
 }
 
 #[test]
 fn stock_pick_objective_headline_not_ready_no_gaps() {
-    let headline = sa::pick::objective::stock_pick_objective_headline(60, false, &[]);
+    let headline = stock_analyzer::pick::objective::stock_pick_objective_headline(60, false, &[]);
     assert!(headline.contains("mixed"));
 }
 
@@ -490,7 +490,7 @@ fn stock_pick_objective_headline_not_ready_with_gaps() {
         "missing_fundamentals".to_string(),
         "thin_evidence".to_string(),
     ];
-    let headline = sa::pick::objective::stock_pick_objective_headline(50, false, &gaps);
+    let headline = stock_analyzer::pick::objective::stock_pick_objective_headline(50, false, &gaps);
     assert!(headline.contains("Not fully ready"));
     assert!(headline.contains("missing_fundamentals"));
 }
@@ -501,14 +501,14 @@ fn stock_pick_objective_headline_not_ready_with_gaps() {
 
 #[test]
 fn rank_news_items_to_evidence_records() {
-    let news = vec![sa::data::NewsItem {
+    let news = vec![stock_analyzer::data::NewsItem {
         title: "Test news".to_string(),
         source: "Test source".to_string(),
         published_at: "2024-01-01".to_string(),
         url: Some("https://example.com".to_string()),
         summary: "Test summary".to_string(),
     }];
-    let records = sa::pick::pipeline::rank::news_items_to_evidence_records(
+    let records = stock_analyzer::pick::pipeline::rank::news_items_to_evidence_records(
         "AAPL",
         "美股",
         "tech",
@@ -524,13 +524,13 @@ fn rank_news_items_to_evidence_records() {
 
 #[test]
 fn capital_flow_source_score_empty() {
-    let score = sa::pick::pipeline::filter::capital_flow_source_score(&[]);
+    let score = stock_analyzer::pick::pipeline::filter::capital_flow_source_score(&[]);
     assert_eq!(score, 0.0);
 }
 
 #[test]
 fn capital_flow_source_score_with_data() {
-    let items = vec![sa::data::CapitalFlowPoint {
+    let items = vec![stock_analyzer::data::CapitalFlowPoint {
         trade_date: "2024-01-01".to_string(),
         main_net_inflow: 1000000.0,
         small_net_inflow: 500000.0,
@@ -545,7 +545,7 @@ fn capital_flow_source_score_with_data() {
         close: 100.0,
         change_pct: 2.0,
     }];
-    let score = sa::pick::pipeline::filter::capital_flow_source_score(&items);
+    let score = stock_analyzer::pick::pipeline::filter::capital_flow_source_score(&items);
     assert!(score > 0.0);
 }
 
@@ -555,13 +555,13 @@ fn capital_flow_source_score_with_data() {
 
 #[test]
 fn billboard_source_score_empty() {
-    let score = sa::pick::pipeline::filter::billboard_source_score(&[]);
+    let score = stock_analyzer::pick::pipeline::filter::billboard_source_score(&[]);
     assert_eq!(score, 0.0);
 }
 
 #[test]
 fn billboard_source_score_with_data() {
-    let items = vec![sa::data::BillboardEntry {
+    let items = vec![stock_analyzer::data::BillboardEntry {
         trade_date: "2024-01-01".to_string(),
         symbol: "600519".to_string(),
         name: "贵州茅台".to_string(),
@@ -574,7 +574,7 @@ fn billboard_source_score_with_data() {
         explanation: Some("大宗交易".to_string()),
         reason: Some("机构买入".to_string()),
     }];
-    let score = sa::pick::pipeline::filter::billboard_source_score(&items);
+    let score = stock_analyzer::pick::pipeline::filter::billboard_source_score(&items);
     assert!(score > 0.0);
 }
 
@@ -584,7 +584,7 @@ fn billboard_source_score_with_data() {
 
 #[test]
 fn build_valuation_vs_industry_block_empty() {
-    let block = sa::pick::objective::build_valuation_vs_industry_block(&[], &[]);
+    let block = stock_analyzer::pick::objective::build_valuation_vs_industry_block(&[], &[]);
     assert!(block.is_empty());
 }
 
@@ -595,59 +595,59 @@ fn build_valuation_vs_industry_block_empty() {
 #[test]
 fn market_kind_from_value_a_share() {
     assert_eq!(
-        sa::pick::pipeline::filter::market_kind_from_value("a"),
-        sa::data::MarketKind::AShare
+        stock_analyzer::pick::pipeline::filter::market_kind_from_value("a"),
+        stock_analyzer::data::MarketKind::AShare
     );
     assert_eq!(
-        sa::pick::pipeline::filter::market_kind_from_value("A-share"),
-        sa::data::MarketKind::AShare
+        stock_analyzer::pick::pipeline::filter::market_kind_from_value("A-share"),
+        stock_analyzer::data::MarketKind::AShare
     );
     assert_eq!(
-        sa::pick::pipeline::filter::market_kind_from_value("cn"),
-        sa::data::MarketKind::AShare
+        stock_analyzer::pick::pipeline::filter::market_kind_from_value("cn"),
+        stock_analyzer::data::MarketKind::AShare
     );
     assert_eq!(
-        sa::pick::pipeline::filter::market_kind_from_value("a股"),
-        sa::data::MarketKind::AShare
+        stock_analyzer::pick::pipeline::filter::market_kind_from_value("a股"),
+        stock_analyzer::data::MarketKind::AShare
     );
 }
 
 #[test]
 fn market_kind_from_value_hk() {
     assert_eq!(
-        sa::pick::pipeline::filter::market_kind_from_value("hk"),
-        sa::data::MarketKind::HongKong
+        stock_analyzer::pick::pipeline::filter::market_kind_from_value("hk"),
+        stock_analyzer::data::MarketKind::HongKong
     );
     assert_eq!(
-        sa::pick::pipeline::filter::market_kind_from_value("港股"),
-        sa::data::MarketKind::HongKong
+        stock_analyzer::pick::pipeline::filter::market_kind_from_value("港股"),
+        stock_analyzer::data::MarketKind::HongKong
     );
 }
 
 #[test]
 fn market_kind_from_value_us() {
     assert_eq!(
-        sa::pick::pipeline::filter::market_kind_from_value("us"),
-        sa::data::MarketKind::UsEquity
+        stock_analyzer::pick::pipeline::filter::market_kind_from_value("us"),
+        stock_analyzer::data::MarketKind::UsEquity
     );
     assert_eq!(
-        sa::pick::pipeline::filter::market_kind_from_value("unknown"),
-        sa::data::MarketKind::UsEquity
+        stock_analyzer::pick::pipeline::filter::market_kind_from_value("unknown"),
+        stock_analyzer::data::MarketKind::UsEquity
     );
 }
 
 #[test]
 fn market_display_label_all() {
     assert_eq!(
-        sa::pick::pipeline::filter::market_display_label(sa::data::MarketKind::AShare),
+        stock_analyzer::pick::pipeline::filter::market_display_label(stock_analyzer::data::MarketKind::AShare),
         "A-share"
     );
     assert_eq!(
-        sa::pick::pipeline::filter::market_display_label(sa::data::MarketKind::HongKong),
+        stock_analyzer::pick::pipeline::filter::market_display_label(stock_analyzer::data::MarketKind::HongKong),
         "HK"
     );
     assert_eq!(
-        sa::pick::pipeline::filter::market_display_label(sa::data::MarketKind::UsEquity),
+        stock_analyzer::pick::pipeline::filter::market_display_label(stock_analyzer::data::MarketKind::UsEquity),
         "US"
     );
 }
@@ -655,11 +655,11 @@ fn market_display_label_all() {
 #[test]
 fn market_search_label_all() {
     assert_eq!(
-        sa::pick::pipeline::filter::market_search_label(sa::data::MarketKind::AShare),
+        stock_analyzer::pick::pipeline::filter::market_search_label(stock_analyzer::data::MarketKind::AShare),
         "A-share"
     );
     assert_eq!(
-        sa::pick::pipeline::filter::market_search_label(sa::data::MarketKind::HongKong),
+        stock_analyzer::pick::pipeline::filter::market_search_label(stock_analyzer::data::MarketKind::HongKong),
         "HK"
     );
 }
@@ -667,15 +667,15 @@ fn market_search_label_all() {
 #[test]
 fn market_exchange_code_all() {
     assert_eq!(
-        sa::pick::pipeline::filter::market_exchange_code(sa::data::MarketKind::AShare),
+        stock_analyzer::pick::pipeline::filter::market_exchange_code(stock_analyzer::data::MarketKind::AShare),
         "CN"
     );
     assert_eq!(
-        sa::pick::pipeline::filter::market_exchange_code(sa::data::MarketKind::HongKong),
+        stock_analyzer::pick::pipeline::filter::market_exchange_code(stock_analyzer::data::MarketKind::HongKong),
         "HK"
     );
     assert_eq!(
-        sa::pick::pipeline::filter::market_exchange_code(sa::data::MarketKind::UsEquity),
+        stock_analyzer::pick::pipeline::filter::market_exchange_code(stock_analyzer::data::MarketKind::UsEquity),
         "US"
     );
 }
@@ -687,21 +687,21 @@ fn market_exchange_code_all() {
 #[test]
 fn hex_16_basic() {
     let bytes: &[u8] = &[0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef];
-    let result = sa::checkpoint::hex_16(bytes);
+    let result = stock_analyzer::checkpoint::hex_16(bytes);
     assert_eq!(result, "0123456789abcdef");
 }
 
 #[test]
 fn hex_16_zeros() {
     let bytes: &[u8] = &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-    let result = sa::checkpoint::hex_16(bytes);
+    let result = stock_analyzer::checkpoint::hex_16(bytes);
     assert_eq!(result, "0000000000000000");
 }
 
 #[test]
 fn hex_16_short_input() {
     let bytes: &[u8] = &[0xff, 0x00];
-    let result = sa::checkpoint::hex_16(bytes);
+    let result = stock_analyzer::checkpoint::hex_16(bytes);
     assert_eq!(result, "ff00");
 }
 
@@ -711,7 +711,7 @@ fn hex_16_short_input() {
 
 #[test]
 fn seconds_until_local_midnight_positive() {
-    let secs = sa::task_manager::seconds_until_local_midnight();
+    let secs = stock_analyzer::task_manager::seconds_until_local_midnight();
     assert!(secs > 0);
     assert!(secs <= 86400);
 }
@@ -724,15 +724,15 @@ fn seconds_until_local_midnight_positive() {
 fn extract_labeled_block_found() {
     let text = "META:\nmeta content\nDECISION:\ndecision content\nREFLECTION:\nreflection content";
     assert_eq!(
-        sa::memory::stats::extract_labeled_block(text, "META"),
+        stock_analyzer::memory::stats::extract_labeled_block(text, "META"),
         Some("meta content")
     );
     assert_eq!(
-        sa::memory::stats::extract_labeled_block(text, "DECISION"),
+        stock_analyzer::memory::stats::extract_labeled_block(text, "DECISION"),
         Some("decision content")
     );
     assert_eq!(
-        sa::memory::stats::extract_labeled_block(text, "REFLECTION"),
+        stock_analyzer::memory::stats::extract_labeled_block(text, "REFLECTION"),
         Some("reflection content")
     );
 }
@@ -740,12 +740,12 @@ fn extract_labeled_block_found() {
 #[test]
 fn extract_labeled_block_not_found() {
     let text = "DECISION:\ndecision content";
-    assert!(sa::memory::stats::extract_labeled_block(text, "META").is_none());
+    assert!(stock_analyzer::memory::stats::extract_labeled_block(text, "META").is_none());
 }
 
 #[test]
 fn extract_labeled_block_empty_text() {
-    assert!(sa::memory::stats::extract_labeled_block("", "META").is_none());
+    assert!(stock_analyzer::memory::stats::extract_labeled_block("", "META").is_none());
 }
 
 // =========================================================================
@@ -754,19 +754,19 @@ fn extract_labeled_block_empty_text() {
 
 #[test]
 fn realized_call_hit_buy() {
-    assert!(sa::memory::stats::realized_call_hit("Buy", 0.05, 0.03));
-    assert!(!sa::memory::stats::realized_call_hit("Buy", -0.05, 0.03));
-    assert!(!sa::memory::stats::realized_call_hit("Buy", 0.05, -0.03));
+    assert!(stock_analyzer::memory::stats::realized_call_hit("Buy", 0.05, 0.03));
+    assert!(!stock_analyzer::memory::stats::realized_call_hit("Buy", -0.05, 0.03));
+    assert!(!stock_analyzer::memory::stats::realized_call_hit("Buy", 0.05, -0.03));
 }
 
 #[test]
 fn realized_call_hit_overweight() {
-    assert!(sa::memory::stats::realized_call_hit(
+    assert!(stock_analyzer::memory::stats::realized_call_hit(
         "Overweight",
         -0.05,
         0.03
     ));
-    assert!(!sa::memory::stats::realized_call_hit(
+    assert!(!stock_analyzer::memory::stats::realized_call_hit(
         "Overweight",
         0.05,
         -0.03
@@ -775,18 +775,18 @@ fn realized_call_hit_overweight() {
 
 #[test]
 fn realized_call_hit_hold() {
-    assert!(sa::memory::stats::realized_call_hit("Hold", 0.02, 0.01));
-    assert!(!sa::memory::stats::realized_call_hit("Hold", 0.10, 0.10));
+    assert!(stock_analyzer::memory::stats::realized_call_hit("Hold", 0.02, 0.01));
+    assert!(!stock_analyzer::memory::stats::realized_call_hit("Hold", 0.10, 0.10));
 }
 
 #[test]
 fn realized_call_hit_underweight() {
-    assert!(sa::memory::stats::realized_call_hit(
+    assert!(stock_analyzer::memory::stats::realized_call_hit(
         "Underweight",
         0.05,
         -0.03
     ));
-    assert!(!sa::memory::stats::realized_call_hit(
+    assert!(!stock_analyzer::memory::stats::realized_call_hit(
         "Underweight",
         0.05,
         0.03
@@ -795,13 +795,13 @@ fn realized_call_hit_underweight() {
 
 #[test]
 fn realized_call_hit_sell() {
-    assert!(sa::memory::stats::realized_call_hit("Sell", -0.05, -0.03));
-    assert!(!sa::memory::stats::realized_call_hit("Sell", 0.05, -0.03));
+    assert!(stock_analyzer::memory::stats::realized_call_hit("Sell", -0.05, -0.03));
+    assert!(!stock_analyzer::memory::stats::realized_call_hit("Sell", 0.05, -0.03));
 }
 
 #[test]
 fn realized_call_hit_unknown() {
-    assert!(!sa::memory::stats::realized_call_hit("Unknown", 0.05, 0.03));
+    assert!(!stock_analyzer::memory::stats::realized_call_hit("Unknown", 0.05, 0.03));
 }
 
 // =========================================================================
@@ -811,27 +811,27 @@ fn realized_call_hit_unknown() {
 #[test]
 fn bucket_score_various() {
     assert_eq!(
-        sa::memory::stats::bucket_score(None, &[40, 55, 70, 85]),
+        stock_analyzer::memory::stats::bucket_score(None, &[40, 55, 70, 85]),
         "unknown"
     );
     assert_eq!(
-        sa::memory::stats::bucket_score(Some(30), &[40, 55, 70, 85]),
+        stock_analyzer::memory::stats::bucket_score(Some(30), &[40, 55, 70, 85]),
         "<40"
     );
     assert_eq!(
-        sa::memory::stats::bucket_score(Some(50), &[40, 55, 70, 85]),
+        stock_analyzer::memory::stats::bucket_score(Some(50), &[40, 55, 70, 85]),
         "40-54"
     );
     assert_eq!(
-        sa::memory::stats::bucket_score(Some(60), &[40, 55, 70, 85]),
+        stock_analyzer::memory::stats::bucket_score(Some(60), &[40, 55, 70, 85]),
         "55-69"
     );
     assert_eq!(
-        sa::memory::stats::bucket_score(Some(80), &[40, 55, 70, 85]),
+        stock_analyzer::memory::stats::bucket_score(Some(80), &[40, 55, 70, 85]),
         "70-84"
     );
     assert_eq!(
-        sa::memory::stats::bucket_score(Some(90), &[40, 55, 70, 85]),
+        stock_analyzer::memory::stats::bucket_score(Some(90), &[40, 55, 70, 85]),
         ">=85"
     );
 }
@@ -839,27 +839,27 @@ fn bucket_score_various() {
 #[test]
 fn bucket_signed_score_various() {
     assert_eq!(
-        sa::memory::stats::bucket_signed_score(None, &[-60, -20, 20, 60]),
+        stock_analyzer::memory::stats::bucket_signed_score(None, &[-60, -20, 20, 60]),
         "unknown"
     );
     assert_eq!(
-        sa::memory::stats::bucket_signed_score(Some(-70), &[-60, -20, 20, 60]),
+        stock_analyzer::memory::stats::bucket_signed_score(Some(-70), &[-60, -20, 20, 60]),
         "<-60"
     );
     assert_eq!(
-        sa::memory::stats::bucket_signed_score(Some(-30), &[-60, -20, 20, 60]),
+        stock_analyzer::memory::stats::bucket_signed_score(Some(-30), &[-60, -20, 20, 60]),
         "-60..-21"
     );
     assert_eq!(
-        sa::memory::stats::bucket_signed_score(Some(0), &[-60, -20, 20, 60]),
+        stock_analyzer::memory::stats::bucket_signed_score(Some(0), &[-60, -20, 20, 60]),
         "-20..19"
     );
     assert_eq!(
-        sa::memory::stats::bucket_signed_score(Some(30), &[-60, -20, 20, 60]),
+        stock_analyzer::memory::stats::bucket_signed_score(Some(30), &[-60, -20, 20, 60]),
         "20..59"
     );
     assert_eq!(
-        sa::memory::stats::bucket_signed_score(Some(70), &[-60, -20, 20, 60]),
+        stock_analyzer::memory::stats::bucket_signed_score(Some(70), &[-60, -20, 20, 60]),
         ">=60"
     );
 }
@@ -870,14 +870,14 @@ fn bucket_signed_score_various() {
 
 #[test]
 fn summarize_entries_empty() {
-    let result = sa::memory::stats::summarize_entries(&[]);
+    let result = stock_analyzer::memory::stats::summarize_entries(&[]);
     assert_eq!(result["count"], 0);
     assert_eq!(result["hit_rate"], 0.0);
 }
 
 #[test]
 fn summarize_entries_with_data() {
-    use sa::memory::MemoryEntry;
+    use stock_analyzer::memory::MemoryEntry;
     let entries = vec![
         MemoryEntry {
             ticker: "AAPL".to_string(),
@@ -894,7 +894,7 @@ fn summarize_entries_with_data() {
             ..MemoryEntry::default()
         },
     ];
-    let result = sa::memory::stats::summarize_entries(&entries);
+    let result = stock_analyzer::memory::stats::summarize_entries(&entries);
     assert_eq!(result["count"], 2);
     assert!(result["avg_raw_return"].as_f64().unwrap() > 0.0);
 }
@@ -905,9 +905,9 @@ fn summarize_entries_with_data() {
 
 #[test]
 fn derive_calibration_profile_insufficient() {
-    use sa::memory::MemoryEntry;
-    let entries: Vec<sa::memory::MemoryEntry> = (0..5).map(|_| MemoryEntry::default()).collect();
-    let profile = sa::memory::stats::derive_calibration_profile(&entries);
+    use stock_analyzer::memory::MemoryEntry;
+    let entries: Vec<stock_analyzer::memory::MemoryEntry> = (0..5).map(|_| MemoryEntry::default()).collect();
+    let profile = stock_analyzer::memory::stats::derive_calibration_profile(&entries);
     assert_eq!(profile.sample_count, 0);
 }
 
@@ -917,7 +917,7 @@ fn derive_calibration_profile_insufficient() {
 
 #[test]
 fn evaluate_profile_candidate_buy_hit() {
-    use sa::memory::MemoryEntry;
+    use stock_analyzer::memory::MemoryEntry;
     let entries = vec![MemoryEntry {
         ticker: "AAPL".to_string(),
         rating: "Buy".to_string(),
@@ -928,13 +928,13 @@ fn evaluate_profile_candidate_buy_hit() {
         alpha_return: Some(0.03),
         ..MemoryEntry::default()
     }];
-    let score = sa::memory::stats::evaluate_profile_candidate(&entries, 60, 50, 20, 60);
+    let score = stock_analyzer::memory::stats::evaluate_profile_candidate(&entries, 60, 50, 20, 60);
     assert!(score > 0.0);
 }
 
 #[test]
 fn evaluate_profile_candidate_hold() {
-    use sa::memory::MemoryEntry;
+    use stock_analyzer::memory::MemoryEntry;
     let entries = vec![MemoryEntry {
         ticker: "AAPL".to_string(),
         rating: "Hold".to_string(),
@@ -945,14 +945,14 @@ fn evaluate_profile_candidate_hold() {
         alpha_return: Some(0.005),
         ..MemoryEntry::default()
     }];
-    let score = sa::memory::stats::evaluate_profile_candidate(&entries, 60, 50, 20, 60);
+    let score = stock_analyzer::memory::stats::evaluate_profile_candidate(&entries, 60, 50, 20, 60);
     // Hold entries don't count as coverage
     assert!(score >= 0.0);
 }
 
 #[test]
 fn evaluate_profile_candidate_sell() {
-    use sa::memory::MemoryEntry;
+    use stock_analyzer::memory::MemoryEntry;
     let entries = vec![MemoryEntry {
         ticker: "AAPL".to_string(),
         rating: "Sell".to_string(),
@@ -963,13 +963,13 @@ fn evaluate_profile_candidate_sell() {
         alpha_return: Some(-0.03),
         ..MemoryEntry::default()
     }];
-    let score = sa::memory::stats::evaluate_profile_candidate(&entries, 60, 50, 20, 60);
+    let score = stock_analyzer::memory::stats::evaluate_profile_candidate(&entries, 60, 50, 20, 60);
     assert!(score > 0.0);
 }
 
 #[test]
 fn evaluate_profile_candidate_overweight() {
-    use sa::memory::MemoryEntry;
+    use stock_analyzer::memory::MemoryEntry;
     let entries = vec![MemoryEntry {
         ticker: "AAPL".to_string(),
         rating: "Overweight".to_string(),
@@ -980,13 +980,13 @@ fn evaluate_profile_candidate_overweight() {
         alpha_return: Some(0.01),
         ..MemoryEntry::default()
     }];
-    let score = sa::memory::stats::evaluate_profile_candidate(&entries, 60, 50, 20, 60);
+    let score = stock_analyzer::memory::stats::evaluate_profile_candidate(&entries, 60, 50, 20, 60);
     assert!(score >= 0.0);
 }
 
 #[test]
 fn evaluate_profile_candidate_underweight() {
-    use sa::memory::MemoryEntry;
+    use stock_analyzer::memory::MemoryEntry;
     let entries = vec![MemoryEntry {
         ticker: "AAPL".to_string(),
         rating: "Underweight".to_string(),
@@ -997,13 +997,13 @@ fn evaluate_profile_candidate_underweight() {
         alpha_return: Some(-0.01),
         ..MemoryEntry::default()
     }];
-    let score = sa::memory::stats::evaluate_profile_candidate(&entries, 60, 50, 20, 60);
+    let score = stock_analyzer::memory::stats::evaluate_profile_candidate(&entries, 60, 50, 20, 60);
     assert!(score >= 0.0);
 }
 
 #[test]
 fn suggested_calibration_profile_basic() {
-    use sa::memory::MemoryEntry;
+    use stock_analyzer::memory::MemoryEntry;
     let entries: Vec<_> = (0..15)
         .map(|_i| MemoryEntry {
             ticker: "AAPL".to_string(),
@@ -1016,7 +1016,7 @@ fn suggested_calibration_profile_basic() {
             ..MemoryEntry::default()
         })
         .collect();
-    let result = sa::memory::stats::suggested_calibration_profile(&entries);
+    let result = stock_analyzer::memory::stats::suggested_calibration_profile(&entries);
     assert!(result.get("sample_count").is_some());
     assert!(result.get("is_default_profile").is_some());
 }
@@ -1027,7 +1027,7 @@ fn suggested_calibration_profile_basic() {
 
 #[test]
 fn group_summary_by_ticker() {
-    use sa::memory::MemoryEntry;
+    use stock_analyzer::memory::MemoryEntry;
     let entries = vec![
         MemoryEntry {
             ticker: "AAPL".to_string(),
@@ -1051,7 +1051,7 @@ fn group_summary_by_ticker() {
             ..MemoryEntry::default()
         },
     ];
-    let result = sa::memory::stats::group_summary(&entries, |e| e.ticker.clone());
+    let result = stock_analyzer::memory::stats::group_summary(&entries, |e| e.ticker.clone());
     assert!(result.get("AAPL").is_some());
     assert!(result.get("MSFT").is_some());
     assert_eq!(result["AAPL"]["count"], 2);
@@ -1065,7 +1065,7 @@ fn group_summary_by_ticker() {
 #[test]
 fn weighted_score_balanced() {
     // total/weight_sum * 100 = 2/4 * 100 = 50
-    let result = sa::scoring::dimensions::weighted_score(2.0, 4.0, "default", &[]);
+    let result = stock_analyzer::scoring::dimensions::weighted_score(2.0, 4.0, "default", &[]);
     assert_eq!(result.score, 50);
     assert_eq!(result.reason, "default");
 }
@@ -1074,20 +1074,20 @@ fn weighted_score_balanced() {
 fn weighted_score_with_reasons() {
     let reasons = vec!["reason1".to_string(), "reason2".to_string()];
     // total/weight_sum * 100 = 3/4 * 100 = 75
-    let result = sa::scoring::dimensions::weighted_score(3.0, 4.0, "default", &reasons);
+    let result = stock_analyzer::scoring::dimensions::weighted_score(3.0, 4.0, "default", &reasons);
     assert_eq!(result.score, 75);
     assert!(result.reason.contains("reason1"));
 }
 
 #[test]
 fn weighted_score_zero_weight() {
-    let result = sa::scoring::dimensions::weighted_score(100.0, 0.0, "no data", &[]);
+    let result = stock_analyzer::scoring::dimensions::weighted_score(100.0, 0.0, "no data", &[]);
     assert_eq!(result.score, 50);
 }
 
 #[test]
 fn weighted_score_clamps() {
-    let result = sa::scoring::dimensions::weighted_score(500.0, 4.0, "default", &[]);
+    let result = stock_analyzer::scoring::dimensions::weighted_score(500.0, 4.0, "default", &[]);
     assert_eq!(result.score, 100);
 }
 
@@ -1098,7 +1098,7 @@ fn weighted_score_clamps() {
 #[test]
 fn report_stage_variants() {
     // Just test that the function doesn't panic with a default ReportCandle
-    use sa::analysis::ReportCandle;
+    use stock_analyzer::analysis::ReportCandle;
     let candle = ReportCandle {
         trade_date: "2024-01-01".to_string(),
         open: 100.0,
@@ -1123,21 +1123,21 @@ fn report_stage_variants() {
 #[test]
 fn news_items_to_evidence_records_empty() {
     let records =
-        sa::pick::pipeline::rank::news_items_to_evidence_records("AAPL", "美股", "tech", &[], &[]);
+        stock_analyzer::pick::pipeline::rank::news_items_to_evidence_records("AAPL", "美股", "tech", &[], &[]);
     assert!(records.is_empty());
 }
 
 #[test]
 fn news_items_to_evidence_records_with_queries() {
     let news = vec![
-        sa::data::NewsItem {
+        stock_analyzer::data::NewsItem {
             title: "Apple beats earnings".to_string(),
             source: "Reuters".to_string(),
             published_at: "2024-01-15".to_string(),
             url: Some("https://example.com/1".to_string()),
             summary: "Apple reported strong earnings".to_string(),
         },
-        sa::data::NewsItem {
+        stock_analyzer::data::NewsItem {
             title: "Apple beats earnings".to_string(),
             source: "Reuters".to_string(),
             published_at: "2024-01-15".to_string(),
@@ -1146,7 +1146,7 @@ fn news_items_to_evidence_records_with_queries() {
         },
     ];
     let queries = vec!["Apple".to_string(), "earnings".to_string()];
-    let records = sa::pick::pipeline::rank::news_items_to_evidence_records(
+    let records = stock_analyzer::pick::pipeline::rank::news_items_to_evidence_records(
         "AAPL", "美股", "tech", &queries, &news,
     );
     // Should deduplicate
@@ -1159,27 +1159,27 @@ fn news_items_to_evidence_records_with_queries() {
 
 #[test]
 fn hash_embed_text_deterministic() {
-    let v1 = sa::memory::hash_embed_text("hello world", 128);
-    let v2 = sa::memory::hash_embed_text("hello world", 128);
+    let v1 = stock_analyzer::memory::hash_embed_text("hello world", 128);
+    let v2 = stock_analyzer::memory::hash_embed_text("hello world", 128);
     assert_eq!(v1, v2);
 }
 
 #[test]
 fn hash_embed_text_different_inputs() {
-    let v1 = sa::memory::hash_embed_text("hello", 128);
-    let v2 = sa::memory::hash_embed_text("world", 128);
+    let v1 = stock_analyzer::memory::hash_embed_text("hello", 128);
+    let v2 = stock_analyzer::memory::hash_embed_text("world", 128);
     assert_ne!(v1, v2);
 }
 
 #[test]
 fn hash_embed_text_dimension() {
-    let v = sa::memory::hash_embed_text("test", 64);
+    let v = stock_analyzer::memory::hash_embed_text("test", 64);
     assert_eq!(v.len(), 64);
 }
 
 #[test]
 fn hash_embed_text_normalized() {
-    let v = sa::memory::hash_embed_text("some text for testing", 128);
+    let v = stock_analyzer::memory::hash_embed_text("some text for testing", 128);
     let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
     assert!(
         (norm - 1.0).abs() < 0.01,
@@ -1194,19 +1194,19 @@ fn hash_embed_text_normalized() {
 #[test]
 fn format_memory_parts_empty() {
     let parts =
-        sa::memory::format_memory_parts(&[], &[], |e| e.ticker.clone(), |e| e.ticker.clone());
+        stock_analyzer::memory::format_memory_parts(&[], &[], |e| e.ticker.clone(), |e| e.ticker.clone());
     assert!(parts.is_empty());
 }
 
 #[test]
 fn format_memory_parts_same_only() {
-    use sa::memory::MemoryEntry;
+    use stock_analyzer::memory::MemoryEntry;
     let entries = vec![MemoryEntry {
         ticker: "AAPL".to_string(),
         ..MemoryEntry::default()
     }];
     let parts =
-        sa::memory::format_memory_parts(&entries, &[], |e| e.ticker.clone(), |e| e.ticker.clone());
+        stock_analyzer::memory::format_memory_parts(&entries, &[], |e| e.ticker.clone(), |e| e.ticker.clone());
     assert!(!parts.is_empty());
     assert!(parts[0].contains("AAPL"));
 }
@@ -1214,22 +1214,22 @@ fn format_memory_parts_same_only() {
 #[test]
 fn build_highlights_empty() {
     let (same, cross) =
-        sa::memory::build_highlights(&[], &[], |_, _| sa::HistoricalMemoryHighlight::default());
+        stock_analyzer::memory::build_highlights(&[], &[], |_, _| stock_analyzer::HistoricalMemoryHighlight::default());
     assert!(same.is_empty());
     assert!(cross.is_empty());
 }
 
 #[test]
 fn build_highlights_limits_to_three() {
-    use sa::memory::MemoryEntry;
+    use stock_analyzer::memory::MemoryEntry;
     let entries: Vec<_> = (0..5)
         .map(|i| MemoryEntry {
             ticker: format!("T{i}"),
             ..MemoryEntry::default()
         })
         .collect();
-    let (same, cross) = sa::memory::build_highlights(&entries, &entries, |_, _| {
-        sa::HistoricalMemoryHighlight::default()
+    let (same, cross) = stock_analyzer::memory::build_highlights(&entries, &entries, |_, _| {
+        stock_analyzer::HistoricalMemoryHighlight::default()
     });
     assert_eq!(same.len(), 3);
     assert_eq!(cross.len(), 3);
@@ -1241,8 +1241,8 @@ fn build_highlights_limits_to_three() {
 
 #[tokio::test]
 async fn in_memory_cache_store_overwrite() {
-    use sa::CacheStore;
-    let store = sa::store::InMemoryCacheStore::new();
+    use stock_analyzer::CacheStore;
+    let store = stock_analyzer::store::InMemoryCacheStore::new();
     store.set("key", b"v1", None).await.unwrap();
     store.set("key", b"v2", None).await.unwrap();
     let result = store.get("key").await.unwrap();
@@ -1251,8 +1251,8 @@ async fn in_memory_cache_store_overwrite() {
 
 #[tokio::test]
 async fn in_memory_cache_store_with_ttl() {
-    use sa::CacheStore;
-    let store = sa::store::InMemoryCacheStore::new();
+    use stock_analyzer::CacheStore;
+    let store = stock_analyzer::store::InMemoryCacheStore::new();
     store.set("key", b"value", Some(3600)).await.unwrap();
     let result = store.get("key").await.unwrap();
     assert_eq!(result, Some(b"value".to_vec()));
@@ -1264,7 +1264,7 @@ async fn in_memory_cache_store_with_ttl() {
 
 #[test]
 fn news_item_construction() {
-    let item = sa::data::NewsItem {
+    let item = stock_analyzer::data::NewsItem {
         title: "Test".to_string(),
         source: "Source".to_string(),
         published_at: "2024-01-01".to_string(),
@@ -1279,11 +1279,11 @@ fn news_item_construction() {
 // indicators.rs — technical indicator functions
 // =========================================================================
 
-fn make_candles(n: usize, base: f64, trend: f64) -> Vec<sa::analysis::ReportCandle> {
+fn make_candles(n: usize, base: f64, trend: f64) -> Vec<stock_analyzer::analysis::ReportCandle> {
     (0..n)
         .map(|i| {
             let price = base + trend * i as f64;
-            sa::analysis::ReportCandle {
+            stock_analyzer::analysis::ReportCandle {
                 trade_date: format!("2024-01-{:02}", (i % 28) + 1),
                 open: price - 0.5,
                 high: price + 1.0,
@@ -1303,7 +1303,7 @@ fn make_candles(n: usize, base: f64, trend: f64) -> Vec<sa::analysis::ReportCand
 #[test]
 fn sma_basic() {
     let candles = make_candles(10, 100.0, 1.0);
-    let result = sa::indicators::sma(&candles, 5);
+    let result = stock_analyzer::indicators::sma(&candles, 5);
     assert!(result.is_some());
     // Last 5 closes: 105, 106, 107, 108, 109 → avg = 107
     assert!((result.unwrap() - 107.0).abs() < 0.01);
@@ -1312,13 +1312,13 @@ fn sma_basic() {
 #[test]
 fn sma_insufficient_data() {
     let candles = make_candles(3, 100.0, 1.0);
-    assert!(sa::indicators::sma(&candles, 5).is_none());
+    assert!(stock_analyzer::indicators::sma(&candles, 5).is_none());
 }
 
 #[test]
 fn ema_basic() {
     let candles = make_candles(20, 100.0, 0.5);
-    let result = sa::indicators::ema(&candles, 10);
+    let result = stock_analyzer::indicators::ema(&candles, 10);
     assert!(result.is_some());
     assert!(result.unwrap() > 100.0);
 }
@@ -1326,13 +1326,13 @@ fn ema_basic() {
 #[test]
 fn ema_insufficient_data() {
     let candles = make_candles(5, 100.0, 1.0);
-    assert!(sa::indicators::ema(&candles, 10).is_none());
+    assert!(stock_analyzer::indicators::ema(&candles, 10).is_none());
 }
 
 #[test]
 fn ema_series_basic() {
     let candles = make_candles(20, 100.0, 0.5);
-    let result = sa::indicators::ema_series(&candles, 10);
+    let result = stock_analyzer::indicators::ema_series(&candles, 10);
     assert!(result.is_some());
     let series = result.unwrap();
     assert_eq!(series.len(), 11); // 20 - 10 + 1
@@ -1341,13 +1341,13 @@ fn ema_series_basic() {
 #[test]
 fn ema_series_insufficient() {
     let candles = make_candles(5, 100.0, 1.0);
-    assert!(sa::indicators::ema_series(&candles, 10).is_none());
+    assert!(stock_analyzer::indicators::ema_series(&candles, 10).is_none());
 }
 
 #[test]
 fn ema_values_basic() {
     let values: Vec<f64> = (0..20).map(|i| 100.0 + i as f64 * 0.5).collect();
-    let result = sa::indicators::ema_values(&values, 10);
+    let result = stock_analyzer::indicators::ema_values(&values, 10);
     assert!(result.is_some());
     assert_eq!(result.unwrap().len(), 11);
 }
@@ -1355,13 +1355,13 @@ fn ema_values_basic() {
 #[test]
 fn ema_values_insufficient() {
     let values = vec![1.0, 2.0, 3.0];
-    assert!(sa::indicators::ema_values(&values, 5).is_none());
+    assert!(stock_analyzer::indicators::ema_values(&values, 5).is_none());
 }
 
 #[test]
 fn rsi_basic() {
     let candles = make_candles(20, 100.0, 1.0);
-    let result = sa::indicators::rsi(&candles, 14);
+    let result = stock_analyzer::indicators::rsi(&candles, 14);
     assert!(result.is_some());
     let rsi = result.unwrap();
     assert!(rsi > 50.0 && rsi <= 100.0, "RSI={rsi}");
@@ -1370,20 +1370,20 @@ fn rsi_basic() {
 #[test]
 fn rsi_all_gains() {
     let candles = make_candles(20, 100.0, 2.0);
-    let result = sa::indicators::rsi(&candles, 14);
+    let result = stock_analyzer::indicators::rsi(&candles, 14);
     assert_eq!(result.unwrap(), 100.0);
 }
 
 #[test]
 fn rsi_insufficient() {
     let candles = make_candles(5, 100.0, 1.0);
-    assert!(sa::indicators::rsi(&candles, 14).is_none());
+    assert!(stock_analyzer::indicators::rsi(&candles, 14).is_none());
 }
 
 #[test]
 fn atr_basic() {
     let candles = make_candles(20, 100.0, 0.5);
-    let result = sa::indicators::atr(&candles, 14);
+    let result = stock_analyzer::indicators::atr(&candles, 14);
     assert!(result.is_some());
     assert!(result.unwrap() > 0.0);
 }
@@ -1391,13 +1391,13 @@ fn atr_basic() {
 #[test]
 fn atr_insufficient() {
     let candles = make_candles(5, 100.0, 1.0);
-    assert!(sa::indicators::atr(&candles, 14).is_none());
+    assert!(stock_analyzer::indicators::atr(&candles, 14).is_none());
 }
 
 #[test]
 fn vwma_basic() {
     let candles = make_candles(10, 100.0, 1.0);
-    let result = sa::indicators::vwma(&candles, 5);
+    let result = stock_analyzer::indicators::vwma(&candles, 5);
     assert!(result.is_some());
     assert!(result.unwrap() > 0.0);
 }
@@ -1405,13 +1405,13 @@ fn vwma_basic() {
 #[test]
 fn vwma_insufficient() {
     let candles = make_candles(3, 100.0, 1.0);
-    assert!(sa::indicators::vwma(&candles, 5).is_none());
+    assert!(stock_analyzer::indicators::vwma(&candles, 5).is_none());
 }
 
 #[test]
 fn bollinger_basic() {
     let candles = make_candles(20, 100.0, 0.5);
-    let result = sa::indicators::bollinger(&candles, 10);
+    let result = stock_analyzer::indicators::bollinger(&candles, 10);
     assert!(result.is_some());
     let (mid, upper, lower) = result.unwrap();
     assert!(upper > mid);
@@ -1421,13 +1421,13 @@ fn bollinger_basic() {
 #[test]
 fn bollinger_insufficient() {
     let candles = make_candles(5, 100.0, 1.0);
-    assert!(sa::indicators::bollinger(&candles, 10).is_none());
+    assert!(stock_analyzer::indicators::bollinger(&candles, 10).is_none());
 }
 
 #[test]
 fn macd_basic() {
     let candles = make_candles(40, 100.0, 0.5);
-    let result = sa::indicators::macd(&candles);
+    let result = stock_analyzer::indicators::macd(&candles);
     assert!(result.is_some());
     let (macd, signal, hist) = result.unwrap();
     // hist = macd - signal
@@ -1437,13 +1437,13 @@ fn macd_basic() {
 #[test]
 fn macd_insufficient() {
     let candles = make_candles(20, 100.0, 1.0);
-    assert!(sa::indicators::macd(&candles).is_none());
+    assert!(stock_analyzer::indicators::macd(&candles).is_none());
 }
 
 #[test]
 fn kdj_basic() {
     let candles = make_candles(20, 100.0, 0.5);
-    let result = sa::indicators::kdj(&candles, 9);
+    let result = stock_analyzer::indicators::kdj(&candles, 9);
     assert!(result.is_some());
     let (k, d, j) = result.unwrap();
     assert!((j - (3.0 * k - 2.0 * d)).abs() < 0.01);
@@ -1452,26 +1452,26 @@ fn kdj_basic() {
 #[test]
 fn kdj_insufficient() {
     let candles = make_candles(5, 100.0, 1.0);
-    assert!(sa::indicators::kdj(&candles, 9).is_none());
+    assert!(stock_analyzer::indicators::kdj(&candles, 9).is_none());
 }
 
 #[test]
 fn cci_basic() {
     let candles = make_candles(20, 100.0, 0.5);
-    let result = sa::indicators::cci(&candles, 14);
+    let result = stock_analyzer::indicators::cci(&candles, 14);
     assert!(result.is_some());
 }
 
 #[test]
 fn cci_insufficient() {
     let candles = make_candles(5, 100.0, 1.0);
-    assert!(sa::indicators::cci(&candles, 14).is_none());
+    assert!(stock_analyzer::indicators::cci(&candles, 14).is_none());
 }
 
 #[test]
 fn wr_basic() {
     let candles = make_candles(20, 100.0, 0.5);
-    let result = sa::indicators::wr(&candles, 14);
+    let result = stock_analyzer::indicators::wr(&candles, 14);
     assert!(result.is_some());
     let wr = result.unwrap();
     assert!(wr >= -100.0 && wr <= 0.0, "WR={wr}");
@@ -1480,13 +1480,13 @@ fn wr_basic() {
 #[test]
 fn wr_insufficient() {
     let candles = make_candles(5, 100.0, 1.0);
-    assert!(sa::indicators::wr(&candles, 14).is_none());
+    assert!(stock_analyzer::indicators::wr(&candles, 14).is_none());
 }
 
 #[test]
 fn adx_basic() {
     let candles = make_candles(30, 100.0, 0.5);
-    let result = sa::indicators::adx(&candles, 14);
+    let result = stock_analyzer::indicators::adx(&candles, 14);
     assert!(result.is_some());
     let adx = result.unwrap();
     assert!(adx >= 0.0 && adx <= 100.0, "ADX={adx}");
@@ -1495,13 +1495,13 @@ fn adx_basic() {
 #[test]
 fn adx_insufficient() {
     let candles = make_candles(10, 100.0, 1.0);
-    assert!(sa::indicators::adx(&candles, 14).is_none());
+    assert!(stock_analyzer::indicators::adx(&candles, 14).is_none());
 }
 
 #[test]
 fn obv_basic() {
     let candles = make_candles(10, 100.0, 1.0);
-    let result = sa::indicators::obv(&candles);
+    let result = stock_analyzer::indicators::obv(&candles);
     assert!(result.is_some());
     let (obv, delta) = result.unwrap();
     // With upward trend, OBV should be positive
@@ -1512,13 +1512,13 @@ fn obv_basic() {
 #[test]
 fn obv_insufficient() {
     let candles = make_candles(1, 100.0, 1.0);
-    assert!(sa::indicators::obv(&candles).is_none());
+    assert!(stock_analyzer::indicators::obv(&candles).is_none());
 }
 
 #[test]
 fn vwap_basic() {
     let candles = make_candles(10, 100.0, 1.0);
-    let result = sa::indicators::vwap(&candles, 5);
+    let result = stock_analyzer::indicators::vwap(&candles, 5);
     assert!(result.is_some());
     assert!(result.unwrap() > 0.0);
 }
@@ -1526,13 +1526,13 @@ fn vwap_basic() {
 #[test]
 fn vwap_insufficient() {
     let candles = make_candles(3, 100.0, 1.0);
-    assert!(sa::indicators::vwap(&candles, 5).is_none());
+    assert!(stock_analyzer::indicators::vwap(&candles, 5).is_none());
 }
 
 #[test]
 fn candle_volume_ratio_basic() {
     let candles = make_candles(10, 100.0, 1.0);
-    let result = sa::indicators::candle_volume_ratio(&candles, 5);
+    let result = stock_analyzer::indicators::candle_volume_ratio(&candles, 5);
     assert!(result.is_some());
     assert!(result.unwrap() > 0.0);
 }
@@ -1540,7 +1540,7 @@ fn candle_volume_ratio_basic() {
 #[test]
 fn candle_volume_ratio_insufficient() {
     let candles = make_candles(3, 100.0, 1.0);
-    assert!(sa::indicators::candle_volume_ratio(&candles, 5).is_none());
+    assert!(stock_analyzer::indicators::candle_volume_ratio(&candles, 5).is_none());
 }
 
 // =========================================================================
@@ -1549,8 +1549,8 @@ fn candle_volume_ratio_insufficient() {
 
 #[test]
 fn candle_like_trait() {
-    use sa::indicators::CandleLike;
-    let candle = sa::analysis::ReportCandle {
+    use stock_analyzer::indicators::CandleLike;
+    let candle = stock_analyzer::analysis::ReportCandle {
         trade_date: "2024-01-01".to_string(),
         open: 100.0,
         high: 105.0,
@@ -1575,26 +1575,26 @@ fn candle_like_trait() {
 
 #[test]
 fn weighted_total_all_zero() {
-    let weights = sa::scoring::types::ScoreWeights::default();
-    let zero = sa::scoring::DimensionScore {
+    let weights = stock_analyzer::scoring::types::ScoreWeights::default();
+    let zero = stock_analyzer::scoring::DimensionScore {
         score: 0,
         reason: String::new(),
-        reliability: sa::scoring::ScoreReliability::High,
+        reliability: stock_analyzer::scoring::ScoreReliability::High,
     };
-    let total = sa::scoring::scorer::weighted_total(&weights, &zero, &zero, &zero, &zero);
+    let total = stock_analyzer::scoring::scorer::weighted_total(&weights, &zero, &zero, &zero, &zero);
     assert_eq!(total, 0);
 }
 
 #[test]
 fn weighted_total_all_hundred() {
-    let weights = sa::scoring::types::ScoreWeights::default();
-    let hundred = sa::scoring::DimensionScore {
+    let weights = stock_analyzer::scoring::types::ScoreWeights::default();
+    let hundred = stock_analyzer::scoring::DimensionScore {
         score: 100,
         reason: String::new(),
-        reliability: sa::scoring::ScoreReliability::High,
+        reliability: stock_analyzer::scoring::ScoreReliability::High,
     };
     let total =
-        sa::scoring::scorer::weighted_total(&weights, &hundred, &hundred, &hundred, &hundred);
+        stock_analyzer::scoring::scorer::weighted_total(&weights, &hundred, &hundred, &hundred, &hundred);
     assert_eq!(total, 100);
 }
 
@@ -1604,14 +1604,14 @@ fn weighted_total_all_hundred() {
 
 #[test]
 fn structured_report_default() {
-    let report = sa::analysis::StructuredReport::default();
+    let report = stock_analyzer::analysis::StructuredReport::default();
     // StructuredReport has nested fields, just verify it constructs
     let _ = format!("{:?}", report);
 }
 
 #[test]
 fn calibration_profile_default() {
-    let profile = sa::scoring::CalibrationProfile::default();
+    let profile = stock_analyzer::scoring::CalibrationProfile::default();
     assert_eq!(profile.sample_count, 0);
 }
 
@@ -1621,10 +1621,10 @@ fn calibration_profile_default() {
 
 #[test]
 fn dimension_score_construction() {
-    let ds = sa::scoring::DimensionScore {
+    let ds = stock_analyzer::scoring::DimensionScore {
         score: 42,
         reason: "test".to_string(),
-        reliability: sa::scoring::ScoreReliability::High,
+        reliability: stock_analyzer::scoring::ScoreReliability::High,
     };
     assert_eq!(ds.score, 42);
     assert_eq!(ds.reason, "test");
@@ -1632,8 +1632,8 @@ fn dimension_score_construction() {
 
 #[test]
 fn score_weights_label_mapping() {
-    assert_eq!(sa::scoring::types::score_label(0), "avoid");
-    assert_eq!(sa::scoring::types::score_label(100), "strong_buy");
+    assert_eq!(stock_analyzer::scoring::types::score_label(0), "avoid");
+    assert_eq!(stock_analyzer::scoring::types::score_label(100), "strong_buy");
 }
 
 // =========================================================================
@@ -1643,7 +1643,7 @@ fn score_weights_label_mapping() {
 #[test]
 fn score_config_from_env_default() {
     // Without env vars set, should return defaults
-    let config = sa::scoring::config::ScoreConfig::from_env();
+    let config = stock_analyzer::scoring::config::ScoreConfig::from_env();
     assert_eq!(config.sentiment_news_limit, 10);
     assert_eq!(config.weights.technical, 30);
 }
@@ -1652,7 +1652,7 @@ fn score_config_from_env_default() {
 fn score_config_from_env_with_vars() {
     // This test covers the env var parsing branches
     // Note: env vars may or may not be set in CI, so we just verify it doesn't panic
-    let _config = sa::scoring::config::ScoreConfig::from_env();
+    let _config = stock_analyzer::scoring::config::ScoreConfig::from_env();
 }
 
 // =========================================================================
@@ -1661,13 +1661,13 @@ fn score_config_from_env_with_vars() {
 
 #[test]
 fn default_retry_hint_builder_basic() {
-    let issues = vec![sa::llm::parse::DiagnosisIssue {
-        severity: sa::llm::parse::IssueSeverity::Error,
+    let issues = vec![stock_analyzer::llm::parse::DiagnosisIssue {
+        severity: stock_analyzer::llm::parse::IssueSeverity::Error,
         category: "missing".to_string(),
         field: "summary".to_string(),
         message: "Field is empty".to_string(),
     }];
-    let hint = sa::llm::retry::default_retry_hint_builder(&issues, 1);
+    let hint = stock_analyzer::llm::retry::default_retry_hint_builder(&issues, 1);
     assert!(hint.contains("retry 1"));
     assert!(hint.contains("summary"));
     assert!(hint.contains("Field is empty"));
@@ -1675,7 +1675,7 @@ fn default_retry_hint_builder_basic() {
 
 #[test]
 fn default_retry_hint_builder_empty_issues() {
-    let hint = sa::llm::retry::default_retry_hint_builder(&[], 3);
+    let hint = stock_analyzer::llm::retry::default_retry_hint_builder(&[], 3);
     assert!(hint.contains("retry 3"));
 }
 
@@ -1685,10 +1685,10 @@ fn default_retry_hint_builder_empty_issues() {
 
 #[test]
 fn diagnosis_issue_error() {
-    let issue = sa::llm::parse::DiagnosisIssue::error("missing", "field1", "message1");
+    let issue = stock_analyzer::llm::parse::DiagnosisIssue::error("missing", "field1", "message1");
     assert!(matches!(
         issue.severity,
-        sa::llm::parse::IssueSeverity::Error
+        stock_analyzer::llm::parse::IssueSeverity::Error
     ));
     assert_eq!(issue.category, "missing");
     assert_eq!(issue.field, "field1");
@@ -1697,19 +1697,19 @@ fn diagnosis_issue_error() {
 
 #[test]
 fn diagnosis_issue_warning() {
-    let issue = sa::llm::parse::DiagnosisIssue::warning("quality", "field2", "message2");
+    let issue = stock_analyzer::llm::parse::DiagnosisIssue::warning("quality", "field2", "message2");
     assert!(matches!(
         issue.severity,
-        sa::llm::parse::IssueSeverity::Warning
+        stock_analyzer::llm::parse::IssueSeverity::Warning
     ));
 }
 
 #[test]
 fn diagnosis_issue_info() {
-    let issue = sa::llm::parse::DiagnosisIssue::info("info", "field3", "message3");
+    let issue = stock_analyzer::llm::parse::DiagnosisIssue::info("info", "field3", "message3");
     assert!(matches!(
         issue.severity,
-        sa::llm::parse::IssueSeverity::Info
+        stock_analyzer::llm::parse::IssueSeverity::Info
     ));
 }
 
@@ -1719,20 +1719,20 @@ fn diagnosis_issue_info() {
 
 #[test]
 fn local_text_new() {
-    let lt = sa::analysis::LocalText::new("test_key");
+    let lt = stock_analyzer::analysis::LocalText::new("test_key");
     assert_eq!(lt.as_str(), "test_key");
     assert!(!lt.is_empty());
 }
 
 #[test]
 fn local_text_empty() {
-    let lt = sa::analysis::LocalText::new("");
+    let lt = stock_analyzer::analysis::LocalText::new("");
     assert!(lt.is_empty());
 }
 
 #[test]
 fn local_text_with_params() {
-    let lt = sa::analysis::LocalText::new("key")
+    let lt = stock_analyzer::analysis::LocalText::new("key")
         .with_str("name", "value")
         .with_f64("price", 100.0)
         .with_i32("count", 5)
@@ -1743,61 +1743,61 @@ fn local_text_with_params() {
 
 #[test]
 fn local_text_from_str() {
-    let lt: sa::analysis::LocalText = "hello".into();
+    let lt: stock_analyzer::analysis::LocalText = "hello".into();
     assert_eq!(lt.as_str(), "hello");
 }
 
 #[test]
 fn local_text_from_string() {
-    let lt: sa::analysis::LocalText = "hello".to_string().into();
+    let lt: stock_analyzer::analysis::LocalText = "hello".to_string().into();
     assert_eq!(lt.as_str(), "hello");
 }
 
 #[test]
 fn local_text_display() {
-    let lt = sa::analysis::LocalText::new("test");
+    let lt = stock_analyzer::analysis::LocalText::new("test");
     assert_eq!(format!("{lt}"), "test");
 }
 
 #[test]
 fn local_text_partial_eq() {
-    let a = sa::analysis::LocalText::new("same");
-    let b = sa::analysis::LocalText::new("same");
-    let c = sa::analysis::LocalText::new("different");
+    let a = stock_analyzer::analysis::LocalText::new("same");
+    let b = stock_analyzer::analysis::LocalText::new("same");
+    let c = stock_analyzer::analysis::LocalText::new("different");
     assert_eq!(a, b);
     assert_ne!(a, c);
 }
 
 #[test]
 fn local_text_trim() {
-    let lt = sa::analysis::LocalText::new("  hello  ");
+    let lt = stock_analyzer::analysis::LocalText::new("  hello  ");
     assert_eq!(lt.trim(), "hello");
 }
 
 #[test]
 fn local_text_split() {
-    let lt = sa::analysis::LocalText::new("a,b,c");
+    let lt = stock_analyzer::analysis::LocalText::new("a,b,c");
     let parts: Vec<&str> = lt.split(",").collect();
     assert_eq!(parts, vec!["a", "b", "c"]);
 }
 
 #[test]
 fn local_text_contains() {
-    let lt = sa::analysis::LocalText::new("hello world");
+    let lt = stock_analyzer::analysis::LocalText::new("hello world");
     assert!(lt.contains("world"));
     assert!(!lt.contains("xyz"));
 }
 
 #[test]
 fn local_text_starts_with() {
-    let lt = sa::analysis::LocalText::new("hello world");
+    let lt = stock_analyzer::analysis::LocalText::new("hello world");
     assert!(lt.starts_with("hello"));
     assert!(!lt.starts_with("world"));
 }
 
 #[test]
 fn local_text_to_ascii_lowercase() {
-    let lt = sa::analysis::LocalText::new("Hello World");
+    let lt = stock_analyzer::analysis::LocalText::new("Hello World");
     assert_eq!(lt.to_ascii_lowercase(), "hello world");
 }
 
@@ -1808,92 +1808,92 @@ fn local_text_to_ascii_lowercase() {
 #[test]
 fn rating_parse_all() {
     assert!(matches!(
-        sa::analysis::Rating::parse("Buy"),
-        sa::analysis::Rating::Buy
+        stock_analyzer::analysis::Rating::parse("Buy"),
+        stock_analyzer::analysis::Rating::Buy
     ));
     assert!(matches!(
-        sa::analysis::Rating::parse("Overweight"),
-        sa::analysis::Rating::Overweight
+        stock_analyzer::analysis::Rating::parse("Overweight"),
+        stock_analyzer::analysis::Rating::Overweight
     ));
     assert!(matches!(
-        sa::analysis::Rating::parse("Hold"),
-        sa::analysis::Rating::Hold
+        stock_analyzer::analysis::Rating::parse("Hold"),
+        stock_analyzer::analysis::Rating::Hold
     ));
     assert!(matches!(
-        sa::analysis::Rating::parse("Underweight"),
-        sa::analysis::Rating::Underweight
+        stock_analyzer::analysis::Rating::parse("Underweight"),
+        stock_analyzer::analysis::Rating::Underweight
     ));
     assert!(matches!(
-        sa::analysis::Rating::parse("Sell"),
-        sa::analysis::Rating::Sell
+        stock_analyzer::analysis::Rating::parse("Sell"),
+        stock_analyzer::analysis::Rating::Sell
     ));
     assert!(matches!(
-        sa::analysis::Rating::parse("unknown"),
-        sa::analysis::Rating::Unknown
+        stock_analyzer::analysis::Rating::parse("unknown"),
+        stock_analyzer::analysis::Rating::Unknown
     ));
 }
 
 #[test]
 fn rating_is_bullish() {
-    assert!(sa::analysis::Rating::Buy.is_bullish());
-    assert!(sa::analysis::Rating::Overweight.is_bullish());
-    assert!(!sa::analysis::Rating::Hold.is_bullish());
-    assert!(!sa::analysis::Rating::Sell.is_bullish());
+    assert!(stock_analyzer::analysis::Rating::Buy.is_bullish());
+    assert!(stock_analyzer::analysis::Rating::Overweight.is_bullish());
+    assert!(!stock_analyzer::analysis::Rating::Hold.is_bullish());
+    assert!(!stock_analyzer::analysis::Rating::Sell.is_bullish());
 }
 
 #[test]
 fn rating_is_bearish() {
-    assert!(sa::analysis::Rating::Sell.is_bearish());
-    assert!(sa::analysis::Rating::Underweight.is_bearish());
-    assert!(!sa::analysis::Rating::Hold.is_bearish());
-    assert!(!sa::analysis::Rating::Buy.is_bearish());
+    assert!(stock_analyzer::analysis::Rating::Sell.is_bearish());
+    assert!(stock_analyzer::analysis::Rating::Underweight.is_bearish());
+    assert!(!stock_analyzer::analysis::Rating::Hold.is_bearish());
+    assert!(!stock_analyzer::analysis::Rating::Buy.is_bearish());
 }
 
 #[test]
 fn rating_is_neutral() {
-    assert!(sa::analysis::Rating::Hold.is_neutral());
-    assert!(!sa::analysis::Rating::Buy.is_neutral());
-    assert!(!sa::analysis::Rating::Sell.is_neutral());
+    assert!(stock_analyzer::analysis::Rating::Hold.is_neutral());
+    assert!(!stock_analyzer::analysis::Rating::Buy.is_neutral());
+    assert!(!stock_analyzer::analysis::Rating::Sell.is_neutral());
 }
 
 #[test]
 fn rating_bias() {
-    assert_eq!(sa::analysis::Rating::Buy.bias(100), 100);
-    assert_eq!(sa::analysis::Rating::Overweight.bias(100), 75);
-    assert_eq!(sa::analysis::Rating::Hold.bias(100), 0);
-    assert_eq!(sa::analysis::Rating::Underweight.bias(100), -75);
-    assert_eq!(sa::analysis::Rating::Sell.bias(100), -100);
+    assert_eq!(stock_analyzer::analysis::Rating::Buy.bias(100), 100);
+    assert_eq!(stock_analyzer::analysis::Rating::Overweight.bias(100), 75);
+    assert_eq!(stock_analyzer::analysis::Rating::Hold.bias(100), 0);
+    assert_eq!(stock_analyzer::analysis::Rating::Underweight.bias(100), -75);
+    assert_eq!(stock_analyzer::analysis::Rating::Sell.bias(100), -100);
 }
 
 #[test]
 fn rating_to_score() {
-    assert_eq!(sa::analysis::Rating::Buy.to_score(), 2);
-    assert_eq!(sa::analysis::Rating::Overweight.to_score(), 1);
-    assert_eq!(sa::analysis::Rating::Hold.to_score(), 0);
-    assert_eq!(sa::analysis::Rating::Underweight.to_score(), -1);
-    assert_eq!(sa::analysis::Rating::Sell.to_score(), -2);
+    assert_eq!(stock_analyzer::analysis::Rating::Buy.to_score(), 2);
+    assert_eq!(stock_analyzer::analysis::Rating::Overweight.to_score(), 1);
+    assert_eq!(stock_analyzer::analysis::Rating::Hold.to_score(), 0);
+    assert_eq!(stock_analyzer::analysis::Rating::Underweight.to_score(), -1);
+    assert_eq!(stock_analyzer::analysis::Rating::Sell.to_score(), -2);
 }
 
 #[test]
 fn rating_to_action_group() {
-    assert_eq!(sa::analysis::Rating::Buy.to_action_group(), "Buy");
-    assert_eq!(sa::analysis::Rating::Overweight.to_action_group(), "Buy");
-    assert_eq!(sa::analysis::Rating::Hold.to_action_group(), "Hold");
-    assert_eq!(sa::analysis::Rating::Sell.to_action_group(), "Sell");
-    assert_eq!(sa::analysis::Rating::Underweight.to_action_group(), "Sell");
+    assert_eq!(stock_analyzer::analysis::Rating::Buy.to_action_group(), "Buy");
+    assert_eq!(stock_analyzer::analysis::Rating::Overweight.to_action_group(), "Buy");
+    assert_eq!(stock_analyzer::analysis::Rating::Hold.to_action_group(), "Hold");
+    assert_eq!(stock_analyzer::analysis::Rating::Sell.to_action_group(), "Sell");
+    assert_eq!(stock_analyzer::analysis::Rating::Underweight.to_action_group(), "Sell");
 }
 
 #[test]
 fn rating_display() {
-    assert_eq!(format!("{}", sa::analysis::Rating::Buy), "Buy");
-    assert_eq!(format!("{}", sa::analysis::Rating::Hold), "Hold");
-    assert_eq!(format!("{}", sa::analysis::Rating::Sell), "Sell");
+    assert_eq!(format!("{}", stock_analyzer::analysis::Rating::Buy), "Buy");
+    assert_eq!(format!("{}", stock_analyzer::analysis::Rating::Hold), "Hold");
+    assert_eq!(format!("{}", stock_analyzer::analysis::Rating::Sell), "Sell");
 }
 
 #[test]
 fn rating_default() {
-    let r = sa::analysis::Rating::default();
-    assert!(matches!(r, sa::analysis::Rating::Hold));
+    let r = stock_analyzer::analysis::Rating::default();
+    assert!(matches!(r, stock_analyzer::analysis::Rating::Hold));
 }
 
 // =========================================================================
@@ -1902,18 +1902,18 @@ fn rating_default() {
 
 #[test]
 fn analysis_result_derived_methods() {
-    let result = sa::analysis::AnalysisResult {
+    let result = stock_analyzer::analysis::AnalysisResult {
         task_id: "task1".to_string(),
         report_id: "report1".to_string(),
         symbol: "AAPL".to_string(),
         stock_name: "Apple Inc.".to_string(),
         analysis_date: "2024-01-15".to_string(),
         market_type: "美股".to_string(),
-        graph: sa::analysis::AnalysisGraph::default(),
-        agent_state: sa::analysis::AgentStateSnapshot::default(),
-        artifacts: sa::analysis::AnalysisArtifacts::default(),
-        report: sa::analysis::StructuredReport::default(),
-        ic_report: sa::analysis::StructuredReport::default(),
+        graph: stock_analyzer::analysis::AnalysisGraph::default(),
+        agent_state: stock_analyzer::analysis::AgentStateSnapshot::default(),
+        artifacts: stock_analyzer::analysis::AnalysisArtifacts::default(),
+        report: stock_analyzer::analysis::StructuredReport::default(),
+        ic_report: stock_analyzer::analysis::StructuredReport::default(),
         created_at: "2024-01-15T10:00:00Z".to_string(),
     };
 
@@ -1939,52 +1939,52 @@ fn analysis_result_derived_methods() {
 
 #[test]
 fn normalize_gap_match_text_basic() {
-    let result = sa::analysis::normalize_gap_match_text("Hello, World.");
+    let result = stock_analyzer::analysis::normalize_gap_match_text("Hello, World.");
     assert_eq!(result, "hello  world ");
 }
 
 #[test]
 fn normalize_gap_match_text_chinese() {
-    let result = sa::analysis::normalize_gap_match_text("测试，内容：");
+    let result = stock_analyzer::analysis::normalize_gap_match_text("测试，内容：");
     assert_eq!(result, "测试 内容 ");
 }
 
 #[test]
 fn tokenize_gap_match_text_basic() {
-    let tokens = sa::analysis::tokenize_gap_match_text("hello world test");
+    let tokens = stock_analyzer::analysis::tokenize_gap_match_text("hello world test");
     assert_eq!(tokens, vec!["hello", "world", "test"]);
 }
 
 #[test]
 fn tokenize_gap_match_text_short_tokens() {
-    let tokens = sa::analysis::tokenize_gap_match_text("a bb ccc");
+    let tokens = stock_analyzer::analysis::tokenize_gap_match_text("a bb ccc");
     assert_eq!(tokens, vec!["bb", "ccc"]);
 }
 
 #[test]
 fn tokenize_gap_match_text_empty() {
-    let tokens = sa::analysis::tokenize_gap_match_text("");
+    let tokens = stock_analyzer::analysis::tokenize_gap_match_text("");
     assert!(tokens.is_empty());
 }
 
 #[test]
 fn score_related_gap_match_basic() {
     let base = vec!["missing".to_string(), "fundamentals".to_string()];
-    let score = sa::analysis::score_related_gap_match(&base, "missing fundamentals data");
+    let score = stock_analyzer::analysis::score_related_gap_match(&base, "missing fundamentals data");
     assert_eq!(score, 2);
 }
 
 #[test]
 fn score_related_gap_match_partial() {
     let base = vec!["missing".to_string(), "fundamentals".to_string()];
-    let score = sa::analysis::score_related_gap_match(&base, "missing data");
+    let score = stock_analyzer::analysis::score_related_gap_match(&base, "missing data");
     assert_eq!(score, 1);
 }
 
 #[test]
 fn score_related_gap_match_none() {
     let base = vec!["missing".to_string(), "fundamentals".to_string()];
-    let score = sa::analysis::score_related_gap_match(&base, "no match here");
+    let score = stock_analyzer::analysis::score_related_gap_match(&base, "no match here");
     assert_eq!(score, 0);
 }
 
@@ -1995,7 +1995,7 @@ fn score_related_gap_match_none() {
 #[test]
 fn diagnosis_summary_from_issues() {
     let issues = vec![
-        sa::analysis::DiagnosisIssue {
+        stock_analyzer::analysis::DiagnosisIssue {
             severity: "error".to_string(),
             check_name: "consistency".to_string(),
             field: "entry_price".to_string(),
@@ -2003,7 +2003,7 @@ fn diagnosis_summary_from_issues() {
             fixed_value: "100.0".to_string(),
             message: "Missing entry price".to_string(),
         },
-        sa::analysis::DiagnosisIssue {
+        stock_analyzer::analysis::DiagnosisIssue {
             severity: "warning".to_string(),
             check_name: "format".to_string(),
             field: "summary".to_string(),
@@ -2012,7 +2012,7 @@ fn diagnosis_summary_from_issues() {
             message: "Empty summary".to_string(),
         },
     ];
-    let summary = sa::analysis::DiagnosisSummary::from_issues(&issues);
+    let summary = stock_analyzer::analysis::DiagnosisSummary::from_issues(&issues);
     assert_eq!(summary.total_issues, 2);
     assert_eq!(summary.fixed_count, 1);
     assert_eq!(summary.unfixed_count, 1);
@@ -2020,7 +2020,7 @@ fn diagnosis_summary_from_issues() {
 
 #[test]
 fn diagnosis_summary_empty() {
-    let summary = sa::analysis::DiagnosisSummary::from_issues(&[]);
+    let summary = stock_analyzer::analysis::DiagnosisSummary::from_issues(&[]);
     assert_eq!(summary.total_issues, 0);
     assert_eq!(summary.fixed_count, 0);
 }
@@ -2031,43 +2031,43 @@ fn diagnosis_summary_empty() {
 
 #[test]
 fn is_zero_value_number() {
-    assert!(sa::llm::generated::helpers::is_zero_value(
+    assert!(stock_analyzer::llm::generated::helpers::is_zero_value(
         &serde_json::json!(0)
     ));
-    assert!(sa::llm::generated::helpers::is_zero_value(
+    assert!(stock_analyzer::llm::generated::helpers::is_zero_value(
         &serde_json::json!(0.0)
     ));
-    assert!(!sa::llm::generated::helpers::is_zero_value(
+    assert!(!stock_analyzer::llm::generated::helpers::is_zero_value(
         &serde_json::json!(1.0)
     ));
 }
 
 #[test]
 fn is_zero_value_string() {
-    assert!(sa::llm::generated::helpers::is_zero_value(
+    assert!(stock_analyzer::llm::generated::helpers::is_zero_value(
         &serde_json::json!("0")
     ));
-    assert!(sa::llm::generated::helpers::is_zero_value(
+    assert!(stock_analyzer::llm::generated::helpers::is_zero_value(
         &serde_json::json!("0.0")
     ));
-    assert!(!sa::llm::generated::helpers::is_zero_value(
+    assert!(!stock_analyzer::llm::generated::helpers::is_zero_value(
         &serde_json::json!("1")
     ));
 }
 
 #[test]
 fn is_zero_value_other() {
-    assert!(!sa::llm::generated::helpers::is_zero_value(
+    assert!(!stock_analyzer::llm::generated::helpers::is_zero_value(
         &serde_json::json!(true)
     ));
-    assert!(!sa::llm::generated::helpers::is_zero_value(
+    assert!(!stock_analyzer::llm::generated::helpers::is_zero_value(
         &serde_json::json!(null)
     ));
 }
 
 #[test]
 fn is_uniform_distribution_yes() {
-    assert!(sa::llm::generated::helpers::is_uniform_distribution(
+    assert!(stock_analyzer::llm::generated::helpers::is_uniform_distribution(
         &serde_json::json!(0.333),
         &serde_json::json!(0.333),
         &serde_json::json!(0.333),
@@ -2076,7 +2076,7 @@ fn is_uniform_distribution_yes() {
 
 #[test]
 fn is_uniform_distribution_no() {
-    assert!(!sa::llm::generated::helpers::is_uniform_distribution(
+    assert!(!stock_analyzer::llm::generated::helpers::is_uniform_distribution(
         &serde_json::json!(0.6),
         &serde_json::json!(0.3),
         &serde_json::json!(0.1),
@@ -2085,34 +2085,34 @@ fn is_uniform_distribution_no() {
 
 #[test]
 fn is_meaningful_value_various() {
-    assert!(!sa::llm::generated::helpers::is_meaningful_value(
+    assert!(!stock_analyzer::llm::generated::helpers::is_meaningful_value(
         &serde_json::json!(null)
     ));
-    assert!(!sa::llm::generated::helpers::is_meaningful_value(
+    assert!(!stock_analyzer::llm::generated::helpers::is_meaningful_value(
         &serde_json::json!("")
     ));
-    assert!(!sa::llm::generated::helpers::is_meaningful_value(
+    assert!(!stock_analyzer::llm::generated::helpers::is_meaningful_value(
         &serde_json::json!("  ")
     ));
-    assert!(sa::llm::generated::helpers::is_meaningful_value(
+    assert!(stock_analyzer::llm::generated::helpers::is_meaningful_value(
         &serde_json::json!("hello")
     ));
-    assert!(sa::llm::generated::helpers::is_meaningful_value(
+    assert!(stock_analyzer::llm::generated::helpers::is_meaningful_value(
         &serde_json::json!(42)
     ));
-    assert!(sa::llm::generated::helpers::is_meaningful_value(
+    assert!(stock_analyzer::llm::generated::helpers::is_meaningful_value(
         &serde_json::json!(true)
     ));
-    assert!(sa::llm::generated::helpers::is_meaningful_value(
+    assert!(stock_analyzer::llm::generated::helpers::is_meaningful_value(
         &serde_json::json!([1, 2])
     ));
-    assert!(sa::llm::generated::helpers::is_meaningful_value(
+    assert!(stock_analyzer::llm::generated::helpers::is_meaningful_value(
         &serde_json::json!({"a": 1})
     ));
-    assert!(!sa::llm::generated::helpers::is_meaningful_value(
+    assert!(!stock_analyzer::llm::generated::helpers::is_meaningful_value(
         &serde_json::json!([])
     ));
-    assert!(!sa::llm::generated::helpers::is_meaningful_value(
+    assert!(!stock_analyzer::llm::generated::helpers::is_meaningful_value(
         &serde_json::json!({})
     ));
 }
@@ -2120,74 +2120,74 @@ fn is_meaningful_value_various() {
 #[test]
 fn meaningful_value_some() {
     assert!(
-        sa::llm::generated::helpers::meaningful_value(Some(serde_json::json!("test"))).is_some()
+        stock_analyzer::llm::generated::helpers::meaningful_value(Some(serde_json::json!("test"))).is_some()
     );
-    assert!(sa::llm::generated::helpers::meaningful_value(Some(serde_json::json!(null))).is_none());
-    assert!(sa::llm::generated::helpers::meaningful_value(None).is_none());
+    assert!(stock_analyzer::llm::generated::helpers::meaningful_value(Some(serde_json::json!(null))).is_none());
+    assert!(stock_analyzer::llm::generated::helpers::meaningful_value(None).is_none());
 }
 
 #[test]
 fn extract_object_value_basic() {
     let obj = serde_json::json!({"name": "test", "value": 42});
-    let result = sa::llm::generated::helpers::extract_object_value(Some(&obj), &["name"]);
+    let result = stock_analyzer::llm::generated::helpers::extract_object_value(Some(&obj), &["name"]);
     assert_eq!(result, Some(serde_json::json!("test")));
 }
 
 #[test]
 fn extract_object_value_missing_key() {
     let obj = serde_json::json!({"name": "test"});
-    let result = sa::llm::generated::helpers::extract_object_value(Some(&obj), &["missing"]);
+    let result = stock_analyzer::llm::generated::helpers::extract_object_value(Some(&obj), &["missing"]);
     assert!(result.is_none());
 }
 
 #[test]
 fn extract_object_value_none() {
-    let result = sa::llm::generated::helpers::extract_object_value(None, &["key"]);
+    let result = stock_analyzer::llm::generated::helpers::extract_object_value(None, &["key"]);
     assert!(result.is_none());
 }
 
 #[test]
 fn extract_object_value_not_object() {
     let val = serde_json::json!("not an object");
-    let result = sa::llm::generated::helpers::extract_object_value(Some(&val), &["key"]);
+    let result = stock_analyzer::llm::generated::helpers::extract_object_value(Some(&val), &["key"]);
     assert!(result.is_none());
 }
 
 #[test]
 fn extract_object_string_list_basic() {
     let obj = serde_json::json!({"tags": ["a", "b", "c"]});
-    let result = sa::llm::generated::helpers::extract_object_string_list(Some(&obj), &["tags"]);
+    let result = stock_analyzer::llm::generated::helpers::extract_object_string_list(Some(&obj), &["tags"]);
     assert_eq!(result, vec!["a", "b", "c"]);
 }
 
 #[test]
 fn extract_object_string_list_missing() {
     let obj = serde_json::json!({"other": "value"});
-    let result = sa::llm::generated::helpers::extract_object_string_list(Some(&obj), &["tags"]);
+    let result = stock_analyzer::llm::generated::helpers::extract_object_string_list(Some(&obj), &["tags"]);
     assert!(result.is_empty());
 }
 
 #[test]
 fn split_list_like_text_basic() {
-    let result = sa::llm::generated::helpers::split_list_like_text("a;b;c");
+    let result = stock_analyzer::llm::generated::helpers::split_list_like_text("a;b;c");
     assert_eq!(result, vec!["a", "b", "c"]);
 }
 
 #[test]
 fn split_list_like_text_multiline() {
-    let result = sa::llm::generated::helpers::split_list_like_text("line1\nline2");
+    let result = stock_analyzer::llm::generated::helpers::split_list_like_text("line1\nline2");
     assert_eq!(result, vec!["line1", "line2"]);
 }
 
 #[test]
 fn split_list_like_text_dedup() {
-    let result = sa::llm::generated::helpers::split_list_like_text("a;b;a");
+    let result = stock_analyzer::llm::generated::helpers::split_list_like_text("a;b;a");
     assert_eq!(result, vec!["a", "b"]);
 }
 
 #[test]
 fn split_list_like_text_empty() {
-    let result = sa::llm::generated::helpers::split_list_like_text("");
+    let result = stock_analyzer::llm::generated::helpers::split_list_like_text("");
     assert!(result.is_empty());
 }
 
@@ -2197,28 +2197,28 @@ fn split_list_like_text_empty() {
 
 #[test]
 fn skip_json_whitespace_basic() {
-    assert_eq!(sa::llm::parse::skip_json_whitespace("  hello", 0), 2);
-    assert_eq!(sa::llm::parse::skip_json_whitespace("hello", 0), 0);
-    assert_eq!(sa::llm::parse::skip_json_whitespace("\t\n  x", 0), 4);
+    assert_eq!(stock_analyzer::llm::parse::skip_json_whitespace("  hello", 0), 2);
+    assert_eq!(stock_analyzer::llm::parse::skip_json_whitespace("hello", 0), 0);
+    assert_eq!(stock_analyzer::llm::parse::skip_json_whitespace("\t\n  x", 0), 4);
 }
 
 #[test]
 fn find_json_string_end_basic() {
     assert_eq!(
-        sa::llm::parse::find_json_string_end(r#""hello""#, 0),
+        stock_analyzer::llm::parse::find_json_string_end(r#""hello""#, 0),
         Some(6)
     );
     assert_eq!(
-        sa::llm::parse::find_json_string_end(r#""he\"llo""#, 0),
+        stock_analyzer::llm::parse::find_json_string_end(r#""he\"llo""#, 0),
         Some(8)
     );
-    assert!(sa::llm::parse::find_json_string_end(r#"hello"#, 0).is_none());
+    assert!(stock_analyzer::llm::parse::find_json_string_end(r#"hello"#, 0).is_none());
 }
 
 #[test]
 fn find_json_string_end_escaped() {
     assert_eq!(
-        sa::llm::parse::find_json_string_end(r#""test\\end""#, 0),
+        stock_analyzer::llm::parse::find_json_string_end(r#""test\\end""#, 0),
         Some(10)
     );
 }
@@ -2226,7 +2226,7 @@ fn find_json_string_end_escaped() {
 #[test]
 fn find_json_value_end_string() {
     assert_eq!(
-        sa::llm::parse::find_json_value_end(r#""hello""#, 0),
+        stock_analyzer::llm::parse::find_json_value_end(r#""hello""#, 0),
         Some(6)
     );
 }
@@ -2234,56 +2234,56 @@ fn find_json_value_end_string() {
 #[test]
 fn find_json_value_end_object() {
     assert_eq!(
-        sa::llm::parse::find_json_value_end(r#"{"a":1}"#, 0),
+        stock_analyzer::llm::parse::find_json_value_end(r#"{"a":1}"#, 0),
         Some(6)
     );
 }
 
 #[test]
 fn find_json_value_end_array() {
-    assert_eq!(sa::llm::parse::find_json_value_end("[1,2,3]", 0), Some(6));
+    assert_eq!(stock_analyzer::llm::parse::find_json_value_end("[1,2,3]", 0), Some(6));
 }
 
 #[test]
 fn find_json_value_end_number() {
-    let result = sa::llm::parse::find_json_value_end("42,", 0);
+    let result = stock_analyzer::llm::parse::find_json_value_end("42,", 0);
     assert_eq!(result, Some(1));
 }
 
 #[test]
 fn decode_json_string_literal_basic() {
-    let result = sa::llm::parse::decode_json_string_literal(r#""hello world""#).unwrap();
+    let result = stock_analyzer::llm::parse::decode_json_string_literal(r#""hello world""#).unwrap();
     assert_eq!(result, "hello world");
 }
 
 #[test]
 fn decode_json_string_literal_escaped() {
-    let result = sa::llm::parse::decode_json_string_literal(r#""he\"llo""#).unwrap();
+    let result = stock_analyzer::llm::parse::decode_json_string_literal(r#""he\"llo""#).unwrap();
     assert_eq!(result, "he\"llo");
 }
 
 #[test]
 fn extract_simple_json_string_field_basic() {
     let json = r#"{"name":"test","value":42}"#;
-    let result = sa::llm::parse::extract_simple_json_string_field(json, "name");
+    let result = stock_analyzer::llm::parse::extract_simple_json_string_field(json, "name");
     assert_eq!(result, Some("test".to_string()));
 }
 
 #[test]
 fn extract_simple_json_string_field_missing() {
     let json = r#"{"name":"test"}"#;
-    let result = sa::llm::parse::extract_simple_json_string_field(json, "missing");
+    let result = stock_analyzer::llm::parse::extract_simple_json_string_field(json, "missing");
     assert!(result.is_none());
 }
 
 #[test]
 fn normalize_relaxed_json_string_basic() {
     assert_eq!(
-        sa::llm::parse::normalize_relaxed_json_string("hello"),
+        stock_analyzer::llm::parse::normalize_relaxed_json_string("hello"),
         "hello"
     );
     assert_eq!(
-        sa::llm::parse::normalize_relaxed_json_string("he\"llo"),
+        stock_analyzer::llm::parse::normalize_relaxed_json_string("he\"llo"),
         "he\"llo"
     );
 }
@@ -2291,11 +2291,11 @@ fn normalize_relaxed_json_string_basic() {
 #[test]
 fn normalize_relaxed_json_string_escapes() {
     assert_eq!(
-        sa::llm::parse::normalize_relaxed_json_string("line1\\nline2"),
+        stock_analyzer::llm::parse::normalize_relaxed_json_string("line1\\nline2"),
         "line1\nline2"
     );
     assert_eq!(
-        sa::llm::parse::normalize_relaxed_json_string("tab\\there"),
+        stock_analyzer::llm::parse::normalize_relaxed_json_string("tab\\there"),
         "tab\there"
     );
 }
@@ -2306,7 +2306,7 @@ fn normalize_relaxed_json_string_escapes() {
 
 #[test]
 fn approximate_tokens_from_chars_basic() {
-    let tokens = sa::llm::client::approximate_tokens_from_chars(100);
+    let tokens = stock_analyzer::llm::client::approximate_tokens_from_chars(100);
     assert!(tokens > 0);
     assert!(tokens < 100);
 }

@@ -54,19 +54,19 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../sa-${{ github.ref_name }}-${{ matrix.target }}.tar.gz sa${{ matrix.suffix }}
+          tar czf ../../../stock-analyzer-${{ github.ref_name }}-${{ matrix.target }}.tar.gz stock-analyzer${{ matrix.suffix }}
           cd ../../..
       - name: Package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path "target/${{ matrix.target }}/release/sa${{ matrix.suffix }}" -DestinationPath "sa-${{ github.ref_name }}-${{ matrix.target }}.zip"
+          Compress-Archive -Path "target/${{ matrix.target }}/release/stock-analyzer${{ matrix.suffix }}" -DestinationPath "stock-analyzer-${{ github.ref_name }}-${{ matrix.target }}.zip"
       - name: Upload artifact
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            sa-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
-            sa-${{ github.ref_name }}-${{ matrix.target }}.zip
+            stock-analyzer-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+            stock-analyzer-${{ github.ref_name }}-${{ matrix.target }}.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,4 +1,4 @@
-use sa::analysis::{LocalText, Rating};
+use stock_analyzer::analysis::{LocalText, Rating};
 
 // --- LocalText ---
 

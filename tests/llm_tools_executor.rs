@@ -1,4 +1,4 @@
-use sa::llm::tools::{AnalysisDataCollector, execute_tool_call};
+use stock_analyzer::llm::tools::{AnalysisDataCollector, execute_tool_call};
 use serde_json::json;
 
 #[test]

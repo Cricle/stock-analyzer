@@ -1,4 +1,4 @@
-use sa::guide::{DailyGuidanceRequest, GuidanceMarket};
+use stock_analyzer::guide::{DailyGuidanceRequest, GuidanceMarket};
 
 #[test]
 fn guidance_market_as_str() {

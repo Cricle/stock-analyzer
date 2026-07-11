@@ -1,4 +1,4 @@
-use sa::scoring::dimensions::technical::{TechnicalInput, score_technical};
+use stock_analyzer::scoring::dimensions::technical::{TechnicalInput, score_technical};
 
 fn bullish_input() -> TechnicalInput {
     TechnicalInput {

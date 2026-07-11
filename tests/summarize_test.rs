@@ -1,4 +1,4 @@
-use sa::report::runtime::summarize_stock_data_output;
+use stock_analyzer::report::runtime::summarize_stock_data_output;
 
 #[test]
 fn summarize_stock_data_output_supports_pre_summarized_payload() {

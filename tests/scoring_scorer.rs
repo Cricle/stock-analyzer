@@ -1,5 +1,5 @@
-use sa::scoring::scorer::weighted_total;
-use sa::scoring::{DimensionScore, ScoreReliability, ScoreWeights};
+use stock_analyzer::scoring::scorer::weighted_total;
+use stock_analyzer::scoring::{DimensionScore, ScoreReliability, ScoreWeights};
 
 #[test]
 fn test_weighted_total_equal_weights() {

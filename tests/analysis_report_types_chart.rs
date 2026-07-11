@@ -1,4 +1,4 @@
-use sa::analysis::{ChartOverlay, ReportCandle, ReportMarketChart, TrendLine, TrendLinePoint};
+use stock_analyzer::analysis::{ChartOverlay, ReportCandle, ReportMarketChart, TrendLine, TrendLinePoint};
 
 #[test]
 fn report_market_chart_serde_roundtrip() {

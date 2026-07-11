@@ -1,8 +1,8 @@
-use sa::analysis::{
+use stock_analyzer::analysis::{
     AgentReportNode, AgentStateSnapshot, AnalysisArtifacts, AnalysisGraph, AnalysisResult,
     DebateTurn, StructuredPortfolioDecision, StructuredResearchPlan, StructuredTraderPlan,
 };
-use sa::scoring::{
+use stock_analyzer::scoring::{
     score_catalyst_quality, score_cross_agent_consistency, score_data_quality, score_fundamentals,
     score_historical_transferability, score_risk_clarity, score_setup_direction_alignment,
     score_trend_confirmation,

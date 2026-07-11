@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use sa::telemetry::{
+use stock_analyzer::telemetry::{
     TelemetryState, init_telemetry, mark_span_task, record_analysis_task_duration, record_llm_usage,
 };
 

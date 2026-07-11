@@ -1,5 +1,5 @@
-use sa::llm::GeneratedResearchManager;
-use sa::llm::parse::*;
+use stock_analyzer::llm::GeneratedResearchManager;
+use stock_analyzer::llm::parse::*;
 
 #[test]
 fn repairs_research_manager_missing_object_wrapper() {

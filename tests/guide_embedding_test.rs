@@ -1,5 +1,5 @@
-use sa::guide::embedding::EMBEDDING_DIMENSION;
-use sa::guide::{hash_embed, semantic_embed};
+use stock_analyzer::guide::embedding::EMBEDDING_DIMENSION;
+use stock_analyzer::guide::{hash_embed, semantic_embed};
 
 #[test]
 fn hash_embed_returns_correct_dimension() {

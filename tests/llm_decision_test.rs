@@ -1,5 +1,5 @@
-use sa::llm::prompt::ConfidenceCalibration;
-use sa::llm::prompt::build_decision_framework_prompt;
+use stock_analyzer::llm::prompt::ConfidenceCalibration;
+use stock_analyzer::llm::prompt::build_decision_framework_prompt;
 
 #[test]
 fn test_decision_framework_prompt_with_high_completeness() {

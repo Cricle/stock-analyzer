@@ -1,7 +1,7 @@
-use sa::data::FundamentalsSnapshot;
-use sa::data::cache::DataCacheLayer;
-use sa::data::pipeline::{DataPipelineConfig, ParallelExecutor};
-use sa::data::validator::DataValidator;
+use stock_analyzer::data::FundamentalsSnapshot;
+use stock_analyzer::data::cache::DataCacheLayer;
+use stock_analyzer::data::pipeline::{DataPipelineConfig, ParallelExecutor};
+use stock_analyzer::data::validator::DataValidator;
 use std::time::Duration;
 
 #[test]

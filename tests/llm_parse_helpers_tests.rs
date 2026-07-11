@@ -1,4 +1,4 @@
-use sa::llm::parse::*;
+use stock_analyzer::llm::parse::*;
 use serde_json::json;
 
 // --- text_or_default ---

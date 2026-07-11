@@ -1,4 +1,4 @@
-use sa::env_config::{env_flag, env_flag_value};
+use stock_analyzer::env_config::{env_flag, env_flag_value};
 
 #[test]
 fn env_flag_value_true_variants() {

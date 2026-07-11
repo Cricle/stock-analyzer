@@ -1,4 +1,4 @@
-use sa::llm::parse::{
+use stock_analyzer::llm::parse::{
     parse_generated_portfolio_decision, parse_generated_research_manager,
     parse_generated_trader_decision,
 };

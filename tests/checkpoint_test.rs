@@ -1,4 +1,4 @@
-use sa::checkpoint::{TaskCheckpointStore, hex_16};
+use stock_analyzer::checkpoint::{TaskCheckpointStore, hex_16};
 
 #[test]
 fn thread_id_deterministic() {

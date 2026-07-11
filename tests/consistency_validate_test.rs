@@ -1,6 +1,6 @@
-use sa::report::diagnosis::ConsistencyValidator;
-use sa::report::diagnosis::consistency::check::parse_price;
-use sa::{ActionScenarioPath, AnalysisResult, LocalText};
+use stock_analyzer::report::diagnosis::ConsistencyValidator;
+use stock_analyzer::report::diagnosis::consistency::check::parse_price;
+use stock_analyzer::{ActionScenarioPath, AnalysisResult, LocalText};
 
 fn default_result() -> AnalysisResult {
     AnalysisResult {

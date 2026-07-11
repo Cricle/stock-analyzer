@@ -1,5 +1,5 @@
-use sa::scoring::config::ConfidenceCapsConfig;
-use sa::{
+use stock_analyzer::scoring::config::ConfidenceCapsConfig;
+use stock_analyzer::{
     AgentReportNode, AgentStateSnapshot, AnalysisArtifacts, AnalysisGraph, AnalysisResult,
     AnalystRuntimeState, Rating, StructuredPortfolioDecision, StructuredTraderPlan,
     ToolObservation, evaluate_confidence_score,

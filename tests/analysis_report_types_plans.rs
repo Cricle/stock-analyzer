@@ -1,4 +1,4 @@
-use sa::analysis::{
+use stock_analyzer::analysis::{
     CalibrationBias, CalibrationSummary, HistoricalCalibrationStats, LocalText, ScoreDimension,
     SetupMatchExplanation, TradeSetupQuality,
 };

@@ -1,4 +1,4 @@
-use sa::analysis::{
+use stock_analyzer::analysis::{
     IcDisciplineView, IcNavigatorView, LocalText, NewsInsight, PriceContext, ProbabilityDriver,
     ProbabilityView, ProfitRiskView, ReportEvidenceCard, RiskControl, TechnicalIndicatorCategory,
     TechnicalIndicatorConclusion, TechnicalIndicatorItem, TechnicalIndicatorView,

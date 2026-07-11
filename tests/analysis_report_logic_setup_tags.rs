@@ -1,5 +1,5 @@
-use sa::analysis::derive_setup_tags;
-use sa::analysis::{
+use stock_analyzer::analysis::derive_setup_tags;
+use stock_analyzer::analysis::{
     ConfidenceBreakdown, DirectionBreakdown, ExecutionReadiness, LocalText, ScoreDimension,
     SignedScoreDimension, StructuredPortfolioDecision, StructuredResearchPlan,
     StructuredTraderPlan,

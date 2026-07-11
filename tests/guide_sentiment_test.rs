@@ -1,4 +1,4 @@
-use sa::guide::sentiment_score;
+use stock_analyzer::guide::sentiment_score;
 
 #[test]
 fn empty_news_returns_zero() {

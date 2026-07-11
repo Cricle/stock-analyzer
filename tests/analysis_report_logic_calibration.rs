@@ -1,5 +1,5 @@
-use sa::analysis::{MemoryContextSnapshot, Rating};
-use sa::analysis::{derive_calibration_bias, fallback_sizing_reference};
+use stock_analyzer::analysis::{MemoryContextSnapshot, Rating};
+use stock_analyzer::analysis::{derive_calibration_bias, fallback_sizing_reference};
 
 #[test]
 fn derive_calibration_bias_misaligned() {

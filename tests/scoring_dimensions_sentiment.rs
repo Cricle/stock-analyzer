@@ -1,4 +1,4 @@
-use sa::scoring::dimensions::sentiment::parse_sentiment_response;
+use stock_analyzer::scoring::dimensions::sentiment::parse_sentiment_response;
 
 #[test]
 fn test_parse_valid_json() {

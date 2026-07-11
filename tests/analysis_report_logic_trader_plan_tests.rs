@@ -1,10 +1,10 @@
-use sa::analysis::is_publishable_summary_reference;
-use sa::analysis::{
+use stock_analyzer::analysis::is_publishable_summary_reference;
+use stock_analyzer::analysis::{
     TechnicalValues, derive_action_guides, derive_memory_reference_facts, derive_news_diagnostics,
     derive_news_insights, derive_report_diagnostics, derive_setup_match_explanation,
     derive_technical_conclusions, detect_disclosure_sequence_complexity, is_semantically_similar,
 };
-use sa::{
+use stock_analyzer::{
     AgentStateSnapshot, AnalysisArtifacts, AnalysisResult, AnalysisScenarioContext,
     AnalysisScenarioData, AnalysisScenarioIssue, AnalystRuntimeState, CalibrationProfile,
     CandlePoint, ConfidenceCap, ConfidenceProfile, CoreResearchCall, DecisionAction,
@@ -456,7 +456,7 @@ fn scenario_minimum_errors_become_execution_blocking_gaps() {
                 candles_status: "ok".to_string(),
                 fundamentals_status: "missing".to_string(),
                 company_news_status: "missing".to_string(),
-                quote: Some(sa::types::QuoteSnapshot {
+                quote: Some(stock_analyzer::types::QuoteSnapshot {
                     symbol: "TEST-US".to_string(),
                     date: "2026-05-20".to_string(),
                     open: 1.0,
@@ -540,7 +540,7 @@ fn availability_diagnostics_include_related_gap_linkage() {
                 candles_status: "ok".to_string(),
                 fundamentals_status: "missing".to_string(),
                 company_news_status: "missing".to_string(),
-                quote: Some(sa::types::QuoteSnapshot {
+                quote: Some(stock_analyzer::types::QuoteSnapshot {
                     symbol: "TEST-US-2".to_string(),
                     date: "2026-05-20".to_string(),
                     open: 1.0,
@@ -602,7 +602,7 @@ fn scenario_minimum_errors_are_injected_into_executive_summary() {
                 candles_status: "ok".to_string(),
                 fundamentals_status: "missing".to_string(),
                 company_news_status: "missing".to_string(),
-                quote: Some(sa::types::QuoteSnapshot {
+                quote: Some(stock_analyzer::types::QuoteSnapshot {
                     symbol: "TEST-US-3".to_string(),
                     date: "2026-05-20".to_string(),
                     open: 1.0,

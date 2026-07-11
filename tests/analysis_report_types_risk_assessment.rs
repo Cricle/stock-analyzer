@@ -1,11 +1,11 @@
-use sa::TaskStatus;
-use sa::analysis::{
+use stock_analyzer::TaskStatus;
+use stock_analyzer::analysis::{
     AgentReportNode, AnalysisCheckpoint, AnalysisTaskSummary, AnalystRuntimeState, DebateTurn,
     InvestmentDebateState, LlmTokenUsageSummary, LocalText, ReflectionState, ReportStageState,
     RiskDebateState, RuntimeNodeTrace, StructuredReflection, StructuredRiskAssessment,
 };
-use sa::types::PendingToolCall;
-use sa::types::ToolObservation;
+use stock_analyzer::types::PendingToolCall;
+use stock_analyzer::types::ToolObservation;
 
 #[test]
 fn structured_reflection_serde_roundtrip() {

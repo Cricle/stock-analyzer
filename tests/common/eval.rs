@@ -1,4 +1,4 @@
-use sa::{CandlePoint, FundamentalsSnapshot, NewsItem, QuoteSnapshot};
+use stock_analyzer::{CandlePoint, FundamentalsSnapshot, NewsItem, QuoteSnapshot};
 
 pub struct StockEvalResult {
     pub symbol: String,

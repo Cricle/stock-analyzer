@@ -1,4 +1,4 @@
-use sa::analysis::{
+use stock_analyzer::analysis::{
     StructuredRiskAssessment, first_non_empty_sentence, is_semantically_similar,
     normalize_semantic_snippet, parse_risk_assessment_sections, split_semicolon_items,
     strip_redundant_prefix,

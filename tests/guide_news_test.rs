@@ -1,4 +1,4 @@
-use sa::guide::classify_impact;
+use stock_analyzer::guide::classify_impact;
 
 #[test]
 fn stock_crash_is_negative() {

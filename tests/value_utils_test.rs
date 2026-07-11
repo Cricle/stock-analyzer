@@ -1,4 +1,4 @@
-use sa::value_utils::{clamp_probability, normalize_probability, normalize_value};
+use stock_analyzer::value_utils::{clamp_probability, normalize_probability, normalize_value};
 use serde_json::json;
 
 // --- normalize_probability ---

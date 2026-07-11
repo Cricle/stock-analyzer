@@ -1,4 +1,4 @@
-use sa::llm::parse::{
+use stock_analyzer::llm::parse::{
     repair_bracket_confusion, repair_common_malformed_json_variants,
     slice_first_complete_json_value, slice_outer_json_object, strip_code_fence,
 };

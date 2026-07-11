@@ -1,5 +1,5 @@
-use sa::analysis::{StructuredPortfolioDecision, StructuredTraderPlan};
-use sa::analysis::{compute_reward_risk_hint, extract_first_price};
+use stock_analyzer::analysis::{StructuredPortfolioDecision, StructuredTraderPlan};
+use stock_analyzer::analysis::{compute_reward_risk_hint, extract_first_price};
 
 #[test]
 fn extract_first_price_simple() {

@@ -1,10 +1,10 @@
-use sa::data::NewsItem;
-use sa::pick::pipeline::rank::{
+use stock_analyzer::data::NewsItem;
+use stock_analyzer::pick::pipeline::rank::{
     dedupe_news_items, default_selection_reason_codes, news_items_to_evidence_records,
     score_evidence_quality, summarize_history_matches,
 };
-use sa::pick::{CandidateEvidenceRecord, EnrichedCandidate, FactorBreakdown};
-use sa::{
+use stock_analyzer::pick::{CandidateEvidenceRecord, EnrichedCandidate, FactorBreakdown};
+use stock_analyzer::{
     StockPickHistoryMatchSnapshot, StockPickItem, StockPickNewsSnapshot, StockPickRiskSnapshot,
 };
 

@@ -7,8 +7,8 @@ use axum::{Json, Router, routing::post};
 use serde_json::json;
 use tokio::net::TcpListener;
 
-use sa::llm::LlmClient;
-use sa::llm::client::{ChatMessageResponse, extract_stream_delta_text, is_retryable_llm_error};
+use stock_analyzer::llm::LlmClient;
+use stock_analyzer::llm::client::{ChatMessageResponse, extract_stream_delta_text, is_retryable_llm_error};
 
 #[test]
 fn retryable_llm_error_detection_only_matches_transient_failures() {

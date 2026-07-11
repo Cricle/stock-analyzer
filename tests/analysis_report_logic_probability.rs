@@ -1,4 +1,4 @@
-use sa::analysis::round_to_100;
+use stock_analyzer::analysis::round_to_100;
 
 #[test]
 fn round_to_100_sums_exactly() {

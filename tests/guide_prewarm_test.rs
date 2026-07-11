@@ -1,4 +1,4 @@
-use sa::guide::generate_prewarm_tasks;
+use stock_analyzer::guide::generate_prewarm_tasks;
 
 #[test]
 fn generate_prewarm_tasks_with_custom_tickers() {

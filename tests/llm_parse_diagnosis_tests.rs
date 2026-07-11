@@ -1,4 +1,4 @@
-use sa::llm::parse::{DiagnosisIssue, IssueSeverity};
+use stock_analyzer::llm::parse::{DiagnosisIssue, IssueSeverity};
 
 #[test]
 fn diagnosis_issue_error() {

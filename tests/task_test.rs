@@ -1,5 +1,5 @@
-use sa::task::{AnalysisStep, PersistedTask, ResultStage, StepStatus, TaskEvent, TaskStatus};
-use sa::{LlmTokenUsageSummary, SingleAnalysisRequest};
+use stock_analyzer::task::{AnalysisStep, PersistedTask, ResultStage, StepStatus, TaskEvent, TaskStatus};
+use stock_analyzer::{LlmTokenUsageSummary, SingleAnalysisRequest};
 
 // --- TaskStatus ---
 

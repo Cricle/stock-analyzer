@@ -21,7 +21,7 @@ fn e2e_score_consistency_bullish() {
     assert!(pick.technical.volume_elevated);
     assert!(pick.technical.latest_positive);
     // Score should be above neutral
-    let tech = sa::score::dimensions::technical::score_technical(&pick.technical);
+    let tech = stock_analyzer::score::dimensions::technical::score_technical(&pick.technical);
     assert!(
         tech.score >= 60,
         "expected bullish tech score, got {}",
@@ -32,7 +32,7 @@ fn e2e_score_consistency_bullish() {
 
 #[test]
 fn e2e_score_consistency_bearish() {
-    let tech_input = sa::score::dimensions::technical::TechnicalInput {
+    let tech_input = stock_analyzer::score::dimensions::technical::TechnicalInput {
         rsi: Some(80.0),
         macd: Some(-0.5),
         macd_signal: Some(-0.2),
@@ -46,7 +46,7 @@ fn e2e_score_consistency_bearish() {
         volume_elevated: true,
         latest_positive: false,
     };
-    let tech = sa::score::dimensions::technical::score_technical(&tech_input);
+    let tech = stock_analyzer::score::dimensions::technical::score_technical(&tech_input);
     assert!(
         tech.score <= 40,
         "expected bearish tech score, got {}",
@@ -56,7 +56,7 @@ fn e2e_score_consistency_bearish() {
 
 #[test]
 fn e2e_score_fundamental_mixed() {
-    let fund_input = sa::score::dimensions::fundamental::FundamentalInput {
+    let fund_input = stock_analyzer::score::dimensions::fundamental::FundamentalInput {
         pe_like: Some(10.0),
         ps_like: None,
         roe: Some(-5.0),
@@ -65,7 +65,7 @@ fn e2e_score_fundamental_mixed() {
         revenues_usd: Some(1_000_000_000.0),
         net_income_usd: Some(-100_000_000.0),
     };
-    let fund = sa::score::dimensions::fundamental::score_fundamental(&fund_input);
+    let fund = stock_analyzer::score::dimensions::fundamental::score_fundamental(&fund_input);
     assert!(
         fund.score >= 20 && fund.score <= 80,
         "mixed signals should be mid-range, got {}",
@@ -75,7 +75,7 @@ fn e2e_score_fundamental_mixed() {
 
 #[test]
 fn e2e_score_llm_analysis_consensus() {
-    let llm_input = sa::score::dimensions::llm_analysis::LlmAnalysisInput {
+    let llm_input = stock_analyzer::score::dimensions::llm_analysis::LlmAnalysisInput {
         confidence: 70.0,
         objective_final_score: 70.0,
         momentum_score: 65.0,
@@ -85,7 +85,7 @@ fn e2e_score_llm_analysis_consensus() {
         volume_ratio: Some(1.2),
         period_return_pct: Some(3.0),
     };
-    let result = sa::score::dimensions::llm_analysis::score_llm_analysis(&llm_input);
+    let result = stock_analyzer::score::dimensions::llm_analysis::score_llm_analysis(&llm_input);
     assert!(
         result.score >= 55,
         "expected decent score with consensus, got {}",
@@ -95,19 +95,19 @@ fn e2e_score_llm_analysis_consensus() {
 
 #[test]
 fn e2e_score_label_mapping() {
-    assert_eq!(sa::score::types::score_label(85), "strong_buy");
-    assert_eq!(sa::score::types::score_label(70), "buy");
-    assert_eq!(sa::score::types::score_label(55), "neutral");
-    assert_eq!(sa::score::types::score_label(35), "cautious");
-    assert_eq!(sa::score::types::score_label(20), "avoid");
+    assert_eq!(stock_analyzer::score::types::score_label(85), "strong_buy");
+    assert_eq!(stock_analyzer::score::types::score_label(70), "buy");
+    assert_eq!(stock_analyzer::score::types::score_label(55), "neutral");
+    assert_eq!(stock_analyzer::score::types::score_label(35), "cautious");
+    assert_eq!(stock_analyzer::score::types::score_label(20), "avoid");
 }
 
 #[test]
 fn e2e_score_weights_validation() {
-    let weights = sa::score::types::ScoreWeights::default();
+    let weights = stock_analyzer::score::types::ScoreWeights::default();
     assert!(weights.validate().is_ok());
 
-    let invalid = sa::score::types::ScoreWeights {
+    let invalid = stock_analyzer::score::types::ScoreWeights {
         technical: 50,
         fundamental: 50,
         sentiment: 50,

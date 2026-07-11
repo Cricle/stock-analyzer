@@ -1,4 +1,4 @@
-use sa::llm::tools::{AnalysisDataCollector, ScenarioPathData};
+use stock_analyzer::llm::tools::{AnalysisDataCollector, ScenarioPathData};
 
 #[test]
 fn test_collector_full_workflow() {

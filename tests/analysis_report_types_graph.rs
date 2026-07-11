@@ -1,4 +1,4 @@
-use sa::analysis::{
+use stock_analyzer::analysis::{
     AgentReportNode, AgentStateSnapshot, AnalysisArtifacts, AnalysisGraph, AnalysisScenarioContext,
     AnalysisScenarioData, AnalysisUserContext, DiagnosisIssue, DiagnosisSummary,
     InvestmentDebateState, LlmTokenUsageSummary, MemoryContextSnapshot, ReflectionState,

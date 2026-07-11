@@ -1,4 +1,4 @@
-use sa::analysis::{
+use stock_analyzer::analysis::{
     CalibrationBias, ConfidenceBreakdown, ConfidenceCap, HistoricalCalibrationStats, LocalText,
     ReferenceFactItem, ReportDiagnosticItem, ReportDiagnostics, ReportReferenceSnapshot,
     ResearchReliability, ScoreDimension,

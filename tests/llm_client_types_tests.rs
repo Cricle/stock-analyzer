@@ -1,4 +1,4 @@
-use sa::llm::client::{
+use stock_analyzer::llm::client::{
     AnthropicResponse, ChatCompletionRequest, ChatCompletionResponse, ChatMessage,
     ChatMessageResponse, approximate_tokens_from_chars, estimate_chat_completion_usage,
 };

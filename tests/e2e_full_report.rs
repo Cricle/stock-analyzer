@@ -3,7 +3,7 @@ mod common;
 use std::io::Write;
 use std::sync::Arc;
 
-use sa::{InMemoryAnalysisStore, InMemoryCacheStore, InMemoryCheckpointStore};
+use stock_analyzer::{InMemoryAnalysisStore, InMemoryCacheStore, InMemoryCheckpointStore};
 
 /// LLM configuration loaded from Claude settings or environment variables.
 struct LlmConfig {
@@ -100,12 +100,12 @@ fn enable_debug_mode() {
     }
 }
 
-fn setup_llm_client() -> Option<sa::llm::LlmClient> {
+fn setup_llm_client() -> Option<stock_analyzer::llm::LlmClient> {
     let config = load_llm_config()?;
     let http = reqwest_middleware::ClientBuilder::new(reqwest::Client::new()).build();
     // Use 600s timeout — mimo-v2.5-pro with thinking tokens takes 200-400s per call
     let timeout = config.timeout_secs.max(600);
-    Some(sa::llm::LlmClient::anthropic(
+    Some(stock_analyzer::llm::LlmClient::anthropic(
         http,
         &config.base_url,
         &config.api_key,
@@ -114,20 +114,20 @@ fn setup_llm_client() -> Option<sa::llm::LlmClient> {
     ))
 }
 
-async fn setup_task_manager() -> Option<(sa::TaskManager, tempfile::TempDir)> {
+async fn setup_task_manager() -> Option<(stock_analyzer::TaskManager, tempfile::TempDir)> {
     enable_debug_mode();
     let data_dir = tempfile::tempdir().unwrap();
-    let analysis_store: Arc<dyn sa::AnalysisStore> = Arc::new(InMemoryAnalysisStore::new());
-    let cache_store: Arc<dyn sa::CacheStore> = Arc::new(InMemoryCacheStore::new());
-    let checkpoint_inner: Arc<dyn sa::CheckpointStore> = Arc::new(InMemoryCheckpointStore::new());
-    let checkpoint_store = sa::checkpoint::TaskCheckpointStore::new(checkpoint_inner);
-    let market_data = sa::MarketDataClient::new().await.unwrap();
+    let analysis_store: Arc<dyn stock_analyzer::AnalysisStore> = Arc::new(InMemoryAnalysisStore::new());
+    let cache_store: Arc<dyn stock_analyzer::CacheStore> = Arc::new(InMemoryCacheStore::new());
+    let checkpoint_inner: Arc<dyn stock_analyzer::CheckpointStore> = Arc::new(InMemoryCheckpointStore::new());
+    let checkpoint_store = stock_analyzer::checkpoint::TaskCheckpointStore::new(checkpoint_inner);
+    let market_data = stock_analyzer::MarketDataClient::new().await.unwrap();
     let memory_log =
-        sa::memory::TradingMemoryLog::new(data_dir.path().to_str().unwrap(), 100).unwrap();
-    let telemetry = sa::telemetry::init_telemetry();
+        stock_analyzer::memory::TradingMemoryLog::new(data_dir.path().to_str().unwrap(), 100).unwrap();
+    let telemetry = stock_analyzer::telemetry::init_telemetry();
     let llm = setup_llm_client()?;
 
-    let manager = sa::TaskManager::new(
+    let manager = stock_analyzer::TaskManager::new(
         analysis_store,
         cache_store,
         Some(llm.clone()),
@@ -148,10 +148,10 @@ async fn setup_task_manager() -> Option<(sa::TaskManager, tempfile::TempDir)> {
 
 /// Poll until a task reaches a terminal status (Completed or Failed).
 async fn wait_for_task(
-    manager: &sa::TaskManager,
+    manager: &stock_analyzer::TaskManager,
     task_id: &str,
     timeout: std::time::Duration,
-) -> sa::PersistedTask {
+) -> stock_analyzer::PersistedTask {
     let deadline = std::time::Instant::now() + timeout;
     let start = std::time::Instant::now();
     loop {
@@ -162,7 +162,7 @@ async fn wait_for_task(
             .unwrap()
             .expect("task should exist");
         match task.status {
-            sa::TaskStatus::Completed | sa::TaskStatus::Failed => {
+            stock_analyzer::TaskStatus::Completed | stock_analyzer::TaskStatus::Failed => {
                 println!(
                     "[{:?}] Task {} finished: {:?}",
                     start.elapsed(),
@@ -205,11 +205,11 @@ async fn e2e_full_report_aapl() {
         eprintln!("Skipping: LLM config not available");
         return;
     };
-    let request = sa::SingleAnalysisRequest {
+    let request = stock_analyzer::SingleAnalysisRequest {
         symbol: Some("AAPL".to_string()),
         stock_code: None,
         stock_name: Some("Apple".to_string()),
-        parameters: Some(sa::AnalysisParameters {
+        parameters: Some(stock_analyzer::AnalysisParameters {
             market_type: Some("US".to_string()),
             analysis_date: Some(chrono::Local::now().format("%Y-%m-%d").to_string()),
             ..Default::default()
@@ -236,7 +236,7 @@ async fn e2e_full_report_aapl() {
 
     assert_eq!(
         task.status,
-        sa::TaskStatus::Completed,
+        stock_analyzer::TaskStatus::Completed,
         "task should complete successfully"
     );
 
@@ -272,11 +272,11 @@ async fn run_single_stock_owned(symbol: String, name: String, market: String) {
         return;
     };
     println!("\n=== Running report for {} ({}) ===", name, symbol);
-    let request = sa::SingleAnalysisRequest {
+    let request = stock_analyzer::SingleAnalysisRequest {
         symbol: Some(symbol.to_string()),
         stock_code: None,
         stock_name: Some(name.to_string()),
-        parameters: Some(sa::AnalysisParameters {
+        parameters: Some(stock_analyzer::AnalysisParameters {
             market_type: Some(market.to_string()),
             analysis_date: Some(chrono::Local::now().format("%Y-%m-%d").to_string()),
             // Run full analyst pipeline (market + fundamentals + news + sentiment)
@@ -310,7 +310,7 @@ async fn run_single_stock_owned(symbol: String, name: String, market: String) {
     };
     println!("Summary: {}", &s[..end]);
     println!("Recommendation: {}", result.report.recommendation);
-    assert_eq!(task.status, sa::TaskStatus::Completed);
+    assert_eq!(task.status, stock_analyzer::TaskStatus::Completed);
     assert!(!summary.is_empty(), "summary should not be empty");
 }
 

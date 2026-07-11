@@ -1,6 +1,6 @@
-use sa::scoring::dimensions::sentiment::parse_sentiment_response;
-use sa::scoring::dimensions::weighted_score;
-use sa::scoring::score_types::{DimensionScore, ScoreReliability};
+use stock_analyzer::scoring::dimensions::sentiment::parse_sentiment_response;
+use stock_analyzer::scoring::dimensions::weighted_score;
+use stock_analyzer::scoring::score_types::{DimensionScore, ScoreReliability};
 
 #[test]
 fn weighted_score_missing_when_no_data() {
@@ -49,7 +49,7 @@ fn sentiment_parse_failure_is_missing_reliability() {
     assert_eq!(result.score, 50);
     assert_eq!(
         result.reliability,
-        sa::scoring::score_types::ScoreReliability::Missing
+        stock_analyzer::scoring::score_types::ScoreReliability::Missing
     );
 }
 
@@ -58,11 +58,11 @@ fn sentiment_empty_headlines_is_missing() {
     let result = parse_sentiment_response("{}");
     assert_eq!(
         result.reliability,
-        sa::scoring::score_types::ScoreReliability::Missing
+        stock_analyzer::scoring::score_types::ScoreReliability::Missing
     );
 }
 
-use sa::scoring::dimensions::llm_analysis::{LlmAnalysisInput, score_llm_analysis};
+use stock_analyzer::scoring::dimensions::llm_analysis::{LlmAnalysisInput, score_llm_analysis};
 
 #[test]
 fn llm_analysis_missing_history_is_low_reliability() {
@@ -79,7 +79,7 @@ fn llm_analysis_missing_history_is_low_reliability() {
     let result = score_llm_analysis(&input);
     assert_eq!(
         result.reliability,
-        sa::scoring::score_types::ScoreReliability::Low,
+        stock_analyzer::scoring::score_types::ScoreReliability::Low,
         "missing history and market data should yield Low reliability"
     );
 }

@@ -1,4 +1,4 @@
-use sa::llm_config::LlmProviderConfig;
+use stock_analyzer::llm_config::LlmProviderConfig;
 
 #[test]
 fn llm_provider_config_serde_roundtrip() {

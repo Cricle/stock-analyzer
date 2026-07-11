@@ -1,4 +1,4 @@
-use sa::analysis::{
+use stock_analyzer::analysis::{
     AnalysisUserContext, HistoricalMemoryHighlight, LlmTokenUsageByModel, LlmTokenUsageSummary,
     MemoryContextSnapshot,
 };

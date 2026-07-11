@@ -1,10 +1,10 @@
 use chrono::Utc;
-use sa::store::{
+use stock_analyzer::store::{
     AnalysisStore, CacheStore, CheckpointStore, GuidanceStore, InMemoryAnalysisStore,
     InMemoryCacheStore, InMemoryCheckpointStore, InMemoryGuidanceStore,
 };
-use sa::{AgentStateSnapshot, AnalysisGraph, StructuredReport};
-use sa::{
+use stock_analyzer::{AgentStateSnapshot, AnalysisGraph, StructuredReport};
+use stock_analyzer::{
     AnalysisResult, GuidanceRule, PersistedTask, SingleAnalysisRequest, StoredCheckpoint,
     TaskStatus,
 };

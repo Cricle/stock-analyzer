@@ -1,4 +1,4 @@
-use sa::analysis::{
+use stock_analyzer::analysis::{
     ActionBreakdown, ActionScenarioPath, AudienceActionGuide, DirectionBreakdown, LocalText,
     ReportActionGuides, ReportSection, ScoreDimension, SignedScoreDimension,
 };

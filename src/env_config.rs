@@ -41,7 +41,7 @@ pub fn fundamentals_fallback_enabled() -> bool {
 }
 
 /// Finnhub API keys for fallback fundamentals fetching.
-/// Priority: FALLBACK_FINNHUB_API_KEYS env var > config.toml [api_keys] finnhub.
+/// Priority: FALLBACK_FINNHUB_API_KEYS env var > config.toml \[api_keys\] finnhub.
 pub fn fallback_finnhub_api_keys() -> Vec<String> {
     // Env var takes priority
     if let Ok(val) = std::env::var("FALLBACK_FINNHUB_API_KEYS") {

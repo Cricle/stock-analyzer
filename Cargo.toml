@@ -5,6 +5,8 @@ name = "sa"
 version = "0.1.14"
 edition = "2024"
 license = "MIT"
+description = "Stock analysis engine — CLI & MCP server for market guidance, stock selection, and analysis reports"
+repository = "https://github.com/Cricle/stock-analyzer"
 
 [[bin]]
 name = "sa"

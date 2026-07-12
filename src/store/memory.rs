@@ -67,7 +67,7 @@ impl AnalysisStore for InMemoryAnalysisStore {
     async fn list_tasks(&self, limit: i64, offset: i64) -> anyhow::Result<Vec<PersistedTask>> {
         let tasks = self.tasks.read().await;
         let mut all: Vec<_> = tasks.values().cloned().collect();
-        all.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        all.sort_by_key(|b| std::cmp::Reverse(b.created_at));
         Ok(all
             .into_iter()
             .skip(offset as usize)
@@ -87,7 +87,7 @@ impl AnalysisStore for InMemoryAnalysisStore {
             .filter(|t| t.owner_username == owner_username)
             .cloned()
             .collect();
-        all.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        all.sort_by_key(|b| std::cmp::Reverse(b.created_at));
         Ok(all
             .into_iter()
             .skip(offset as usize)
@@ -129,7 +129,7 @@ impl AnalysisStore for InMemoryAnalysisStore {
         let tasks = self.tasks.read().await;
         let mut summaries: Vec<StoredAnalysisSummary> = tasks
             .values()
-            .filter(|t| symbol.map_or(true, |s| t.symbol == s))
+            .filter(|t| symbol.is_none_or(|s| t.symbol == s))
             .map(|t| StoredAnalysisSummary {
                 task_id: t.task_id.clone(),
                 symbol: t.symbol.clone(),
@@ -204,11 +204,10 @@ impl CacheStore for InMemoryCacheStore {
         let entries = self.entries.read().await;
         match entries.get(key) {
             Some(entry) => {
-                if let Some(exp) = entry.expires_at {
-                    if std::time::Instant::now() > exp {
+                if let Some(exp) = entry.expires_at
+                    && std::time::Instant::now() > exp {
                         return Ok(None);
                     }
-                }
                 Ok(Some(entry.data.clone()))
             }
             None => Ok(None),
@@ -237,11 +236,10 @@ impl CacheStore for InMemoryCacheStore {
         let entries = self.entries.read().await;
         match entries.get(key) {
             Some(entry) => {
-                if let Some(exp) = entry.expires_at {
-                    if std::time::Instant::now() > exp {
+                if let Some(exp) = entry.expires_at
+                    && std::time::Instant::now() > exp {
                         return Ok(false);
                     }
-                }
                 Ok(true)
             }
             None => Ok(false),

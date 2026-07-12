@@ -1,25 +1,8 @@
 #![allow(
-    clippy::collapsible_if,
-    clippy::let_and_return,
-    clippy::type_complexity,
-    clippy::redundant_closure,
-    clippy::needless_question_mark,
-    clippy::unnecessary_lazy_evaluations,
-    clippy::manual_contains,
-    clippy::unnecessary_map_or,
-    clippy::manual_clamp,
     clippy::too_many_arguments,
-    clippy::unnecessary_sort_by,
-    clippy::useless_conversion,
-    clippy::manual_is_ascii_check,
-    clippy::derivable_impls,
-    clippy::redundant_field_names,
-    clippy::bool_comparison,
-    clippy::needless_borrow,
-    clippy::if_same_then_else,
-    clippy::manual_range_contains,
+    clippy::type_complexity,
     clippy::should_implement_trait,
-    clippy::redundant_pattern_matching
+    clippy::if_same_then_else
 )]
 
 //! stock-analyzer — Unified stock analysis crate.

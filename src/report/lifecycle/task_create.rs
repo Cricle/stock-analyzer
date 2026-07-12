@@ -47,8 +47,8 @@ impl TaskManager {
                 .as_ref()
                 .and_then(|p| p.analysis_date.as_deref())
                 .unwrap_or("");
-            if !symbol.is_empty() && !analysis_date.is_empty() {
-                if let Some(cached_id) = self
+            if !symbol.is_empty() && !analysis_date.is_empty()
+                && let Some(cached_id) = self
                     .analysis_store
                     .find_cached_task(symbol, analysis_date)
                     .await?
@@ -56,7 +56,6 @@ impl TaskManager {
                     tracing::info!(symbol, analysis_date, cached_id, "returning cached report");
                     return Ok(cached_id);
                 }
-            }
         }
 
         let original_request = req.clone();

@@ -616,7 +616,7 @@ async fn pre_rank_a_share_candidates(
     candidates: Vec<CandidateContext>,
     candidate_limit: usize,
 ) -> Vec<CandidateContext> {
-    let mut ranked = stream::iter(candidates.into_iter())
+    let mut ranked = stream::iter(candidates)
         .map(|candidate| {
             let market_data = market_data.clone();
             async move {

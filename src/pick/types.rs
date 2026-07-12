@@ -109,17 +109,14 @@ pub struct GeneratedStockPickItem {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub(crate) enum OverrideActionKind {
+    #[default]
     Remove,
     Raise,
     Lower,
 }
 
-impl Default for OverrideActionKind {
-    fn default() -> Self {
-        Self::Remove
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub(crate) struct GeneratedOverrideAction {
@@ -132,17 +129,14 @@ pub(crate) struct GeneratedOverrideAction {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub(crate) enum AgreementLevel {
+    #[default]
     Agree,
     Partial,
     Disagree,
 }
 
-impl Default for AgreementLevel {
-    fn default() -> Self {
-        Self::Agree
-    }
-}
 
 impl std::fmt::Display for AgreementLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -288,13 +282,11 @@ pub(crate) fn parse_generated_stock_pick(
 ) -> anyhow::Result<GeneratedStockPickResponse> {
     let trimmed = content.trim();
     let mut candidates = vec![trimmed.to_string()];
-    if let Some(start) = trimmed.find('{') {
-        if let Some(end) = trimmed.rfind('}') {
-            if start < end {
+    if let Some(start) = trimmed.find('{')
+        && let Some(end) = trimmed.rfind('}')
+            && start < end {
                 candidates.push(trimmed[start..=end].trim().to_string());
             }
-        }
-    }
 
     let mut last_error = None;
     for candidate in candidates {

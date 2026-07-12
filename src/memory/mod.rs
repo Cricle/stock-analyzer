@@ -201,11 +201,11 @@ pub fn format_memory_parts(
             "Past analyses of {} (most relevant first):",
             same_entries[0].ticker.trim().to_uppercase()
         ));
-        parts.extend(same_entries.iter().map(|e| format_full(e)));
+        parts.extend(same_entries.iter().map(format_full));
     }
     if !cross_entries.is_empty() {
         parts.push("Recent cross-ticker lessons:".to_string());
-        parts.extend(cross_entries.iter().map(|e| format_reflection(e)));
+        parts.extend(cross_entries.iter().map(format_reflection));
     }
     parts
 }

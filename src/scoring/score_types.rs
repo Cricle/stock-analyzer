@@ -4,8 +4,10 @@ use serde::{Deserialize, Serialize};
 /// Indicates how much trust to place in a dimension score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ScoreReliability {
     /// All required data present, score computed from real signals.
+    #[default]
     High,
     /// Some data missing or degraded; score is a rough estimate.
     Low,
@@ -13,11 +15,6 @@ pub enum ScoreReliability {
     Missing,
 }
 
-impl Default for ScoreReliability {
-    fn default() -> Self {
-        Self::High
-    }
-}
 
 impl std::fmt::Display for ScoreReliability {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

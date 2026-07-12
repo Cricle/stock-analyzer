@@ -14,7 +14,7 @@ impl super::super::TradingMemoryLog {
             .with_context(|| format!("failed to read {}", self.log_path.display()))?;
         Ok(text
             .split(ENTRY_SEPARATOR)
-            .filter_map(|raw| Self::parse_entry(raw))
+            .filter_map(Self::parse_entry)
             .collect())
     }
 

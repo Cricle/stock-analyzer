@@ -267,7 +267,7 @@ pub fn derive_price_context(chart: &ReportMarketChart, current_price: Option<f64
     let high = window
         .iter()
         .filter(|c| {
-            current.map_or(true, |cur| {
+            current.is_none_or(|cur| {
                 cur <= 0.0 || (c.high / cur) <= max_high_ratio
             })
         })
@@ -275,7 +275,7 @@ pub fn derive_price_context(chart: &ReportMarketChart, current_price: Option<f64
     let low = window
         .iter()
         .filter(|c| {
-            current.map_or(true, |cur| {
+            current.is_none_or(|cur| {
                 cur <= 0.0 || (c.low / cur) >= min_low_ratio
             })
         })

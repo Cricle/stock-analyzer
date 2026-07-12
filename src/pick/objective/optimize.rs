@@ -170,11 +170,10 @@ pub(crate) fn default_thesis(item: &EnrichedCandidate) -> I18nText {
         .with_param("event", item.factor.event);
 
     // Add industry context if available
-    if let Some(ref fundamentals) = item.fundamentals {
-        if let Some(ref industry) = fundamentals.industry {
+    if let Some(ref fundamentals) = item.fundamentals
+        && let Some(ref industry) = fundamentals.industry {
             thesis = thesis.with_param("industry", industry.clone());
         }
-    }
 
     // Add technical signals
     if let Some(rsi) = item.technical_snapshot.rsi {
@@ -218,11 +217,10 @@ pub(crate) fn default_catalysts(item: &EnrichedCandidate) -> Vec<I18nText> {
             catalysts.push(I18nText::new("pick.catalyst.bullish_rsi"));
         }
     }
-    if let Some(macd_hist) = item.technical_snapshot.macd_hist {
-        if macd_hist > 0.0 {
+    if let Some(macd_hist) = item.technical_snapshot.macd_hist
+        && macd_hist > 0.0 {
             catalysts.push(I18nText::new("pick.catalyst.bullish_macd"));
         }
-    }
 
     // Fundamental catalysts
     if item.factor.event >= 60.0 {
@@ -281,33 +279,29 @@ pub(crate) fn default_risks(item: &EnrichedCandidate) -> Vec<I18nText> {
     if item.factor.value < 45.0 {
         risks.push(I18nText::new("pick.risk.average_valuation"));
     }
-    if let Some(pe) = item.fundamental_snapshot.pe_like {
-        if pe > 50.0 {
+    if let Some(pe) = item.fundamental_snapshot.pe_like
+        && pe > 50.0 {
             risks.push(I18nText::new("pick.risk.high_pe"));
         }
-    }
 
     // Volatility risks
     if item.factor.risk < 50.0 {
         risks.push(I18nText::new("pick.risk.elevated_volatility"));
     }
-    if let Some(atr) = item.technical_snapshot.atr {
-        if let Some(price) = item.price {
-            if price > 0.0 {
+    if let Some(atr) = item.technical_snapshot.atr
+        && let Some(price) = item.price
+            && price > 0.0 {
                 let atr_pct = (atr / price) * 100.0;
                 if atr_pct > 5.0 {
                     risks.push(I18nText::new("pick.risk.high_atr"));
                 }
             }
-        }
-    }
 
     // Technical risks
-    if let Some(rsi) = item.technical_snapshot.rsi {
-        if rsi > 70.0 {
+    if let Some(rsi) = item.technical_snapshot.rsi
+        && rsi > 70.0 {
             risks.push(I18nText::new("pick.risk.overbought_rsi"));
         }
-    }
 
     // Negative news risks
     if item.news_snapshot.hard_negative_count > 0 {

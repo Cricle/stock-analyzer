@@ -176,8 +176,8 @@ impl DailyGuidanceGenerator {
         let force_refresh = request.refresh.unwrap_or(false);
 
         // Check cache first (unless force refresh)
-        if !force_refresh {
-            if let Some(cached) = self.store.get_cached_report(&date, market.as_str()).await {
+        if !force_refresh
+            && let Some(cached) = self.store.get_cached_report(&date, market.as_str()).await {
                 tracing::info!(
                     date = %date,
                     market = %market.as_str(),
@@ -185,7 +185,6 @@ impl DailyGuidanceGenerator {
                 );
                 return Ok(cached);
             }
-        }
 
         // (Redundant second cache check removed — get_cached_report already checks both
         // fresh and stale keys, so a miss from the first call guarantees a miss here.)

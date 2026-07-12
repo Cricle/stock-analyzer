@@ -32,14 +32,13 @@ impl TaskManager {
         let mut result_data = None;
         let include_result_snapshot =
             matches!(task.status, TaskStatus::Completed | TaskStatus::Failed);
-        if include_result_snapshot {
-            if let Some(mut result) = self.analysis_store.get_result(task_id).await? {
+        if include_result_snapshot
+            && let Some(mut result) = self.analysis_store.get_result(task_id).await? {
                 result.sync_derived_fields();
                 result_stage = Some(Self::infer_result_stage(&result));
                 report_stage_state = Some(result.report_stage());
                 result_data = Some(result);
             }
-        }
         let current_step_name = task.current_step_name.clone();
         let elapsed_anchor = match task.status {
             TaskStatus::Completed | TaskStatus::Cancelled | TaskStatus::Failed => task.updated_at,
@@ -89,7 +88,7 @@ impl TaskManager {
         offset: i64,
     ) -> anyhow::Result<Vec<crate::AnalysisTaskSummary>> {
         let rows = self.analysis_store.list_tasks(limit, offset).await?;
-        Ok(rows.into_iter().map(|task| task_to_summary(task)).collect())
+        Ok(rows.into_iter().map(task_to_summary).collect())
     }
 
     pub async fn list_tasks_for_user(
@@ -102,14 +101,14 @@ impl TaskManager {
             .analysis_store
             .list_tasks_for_user(owner_username, limit, offset)
             .await?;
-        Ok(rows.into_iter().map(|task| task_to_summary(task)).collect())
+        Ok(rows.into_iter().map(task_to_summary).collect())
     }
 
     pub async fn task_result(&self, task_id: &str) -> anyhow::Result<Option<AnalysisResult>> {
         let task = self.analysis_store.get_task(task_id).await?;
         let mut result = self.analysis_store.get_result(task_id).await?;
-        if result.is_none() {
-            if let Some(task_meta) = task.as_ref() {
+        if result.is_none()
+            && let Some(task_meta) = task.as_ref() {
                 result = self
                     .checkpoint_store
                     .load(
@@ -120,7 +119,6 @@ impl TaskManager {
                     .await?
                     .map(|checkpoint| checkpoint.result);
             }
-        }
         if let Some(ref mut result) = result {
             let is_terminal = matches!(
                 task.as_ref().map(|item| &item.status),

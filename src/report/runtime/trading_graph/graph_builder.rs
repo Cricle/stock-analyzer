@@ -330,11 +330,10 @@ impl TradingAgentsGraph {
     }
 
     fn recursion_limit(&self) -> usize {
-        if let Ok(val) = std::env::var("RECURSION_LIMIT") {
-            if let Ok(n) = val.parse::<usize>() {
+        if let Ok(val) = std::env::var("RECURSION_LIMIT")
+            && let Ok(n) = val.parse::<usize>() {
                 return n;
             }
-        }
         self.selected_analysts.len() * 6
             + self.manager.max_debate_rounds * 2
             + self.manager.max_risk_discuss_rounds * 3

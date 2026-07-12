@@ -215,7 +215,6 @@ pub fn evaluate_action_score(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn calibrate_recommendation_with_profile(
     raw_llm_recommendation: &str,
     direction_score: i32,
@@ -289,8 +288,6 @@ pub fn calibrate_recommendation_with_profile(
     {
         if pm_says_hold {
             0 // Respect PM's Hold for moderate direction
-        } else if execution_boundary_complete {
-            evidence_score.signum()
         } else {
             evidence_score.signum()
         }

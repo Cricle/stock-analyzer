@@ -93,7 +93,7 @@ pub fn execute_tool_call(
                 .get("sideways")
                 .and_then(Value::as_f64)
                 .ok_or("missing 'sideways'")?;
-            if up < 0.0 || up > 1.0 || down < 0.0 || down > 1.0 || sideways < 0.0 || sideways > 1.0
+            if !(0.0..=1.0).contains(&up) || !(0.0..=1.0).contains(&down) || !(0.0..=1.0).contains(&sideways)
             {
                 return Err("probabilities must be 0-1".into());
             }

@@ -82,8 +82,7 @@ impl StructuredReport {
         // If confirmation <= current: use 97% of confirmation.
         if trader_plan.entry_price.trim().is_empty()
             && !portfolio_decision.confirmation_level.trim().is_empty()
-        {
-            if let Some(conf_price) = extract_first_price(&portfolio_decision.confirmation_level) {
+            && let Some(conf_price) = extract_first_price(&portfolio_decision.confirmation_level) {
                 let current = latest_market_close(result).unwrap_or(conf_price);
                 let entry_price = if conf_price > current && current > 0.0 {
                     let pullback = current + (conf_price - current) * 0.8;
@@ -103,7 +102,6 @@ impl StructuredReport {
                     conf_price
                 ).into();
             }
-        }
         // Also sanitize portfolio_decision price fields that came directly from
         // the LLM (not backfilled from trader_plan).  confirmation_level and
         // invalidation_level can contain hallucinated numbers.
@@ -142,8 +140,8 @@ impl StructuredReport {
             if let (Some(target), Some(confirm)) = (
                 parse_first_numeric(&portfolio_decision.price_target),
                 parse_first_numeric(&portfolio_decision.confirmation_level),
-            ) {
-                if (target - confirm).abs() / confirm.max(1.0) < 0.05 {
+            )
+                && (target - confirm).abs() / confirm.max(1.0) < 0.05 {
                     // Target ≈ confirmation: derive a proper target
                     tracing::info!(
                         stock = %result.symbol,
@@ -163,7 +161,6 @@ impl StructuredReport {
                         }
                     }
                 }
-            }
             // 2. When invalidation is missing, derive from stop_loss or set default
             if portfolio_decision.invalidation_level.trim().is_empty() {
                 if !trader_plan.stop_loss.trim().is_empty() {
@@ -375,8 +372,8 @@ impl StructuredReport {
         if let (Some(entry), Some(inval)) = (
             extract_first_price(&trader_plan.entry_price),
             extract_first_price(&portfolio_decision.invalidation_level),
-        ) {
-            if entry > 0.0 && inval > 0.0 && entry < inval {
+        )
+            && entry > 0.0 && inval > 0.0 && entry < inval {
                 let new_inval = if let Some(stop) = extract_first_price(&trader_plan.stop_loss)
                     .filter(|&s| s > 0.0 && s < entry)
                 {
@@ -393,7 +390,6 @@ impl StructuredReport {
                 );
                 portfolio_decision.invalidation_level = new_inval;
             }
-        }
         if portfolio_decision.target_reference.trim().is_empty() {
             portfolio_decision.target_reference = visible_target_reference(&portfolio_decision)
                 .unwrap_or_default();
@@ -939,38 +935,34 @@ fn validate_and_enhance_report(
     if let Some(current) = entry_for_pct.filter(|v| v.is_finite() && *v > 0.0) {
         if is_bearish_sync {
             // Bearish: upside_pct = profit from falling (current - target) / current
-            if let Some(target) = report.probability_view.upside_target {
-                if current > 0.0 && target < current {
+            if let Some(target) = report.probability_view.upside_target
+                && current > 0.0 && target < current {
                     report.probability_view.upside_pct = Some(((current - target) / current) * 100.0);
                     report.profit_risk.upside_pct = report.probability_view.upside_pct;
                     report.ic_discipline.upside_pct = report.probability_view.upside_pct;
                 }
-            }
             // Bearish: downside_pct = loss from rising (stop - current) / current
-            if let Some(stop) = report.probability_view.stop_loss {
-                if current > 0.0 && stop > current {
+            if let Some(stop) = report.probability_view.stop_loss
+                && current > 0.0 && stop > current {
                     report.probability_view.downside_pct = Some(((stop - current) / current) * 100.0);
                     report.profit_risk.downside_pct = report.probability_view.downside_pct;
                     report.ic_discipline.downside_pct = report.probability_view.downside_pct;
                 }
-            }
         } else {
             // Non-bearish: upside_pct = profit from rising (target - current) / current
-            if let Some(target) = report.probability_view.upside_target {
-                if current > 0.0 && target > current {
+            if let Some(target) = report.probability_view.upside_target
+                && current > 0.0 && target > current {
                     report.probability_view.upside_pct = Some(((target - current) / current) * 100.0);
                     report.profit_risk.upside_pct = report.probability_view.upside_pct;
                     report.ic_discipline.upside_pct = report.probability_view.upside_pct;
                 }
-            }
             // Non-bearish: downside_pct = loss from falling (current - stop) / current
-            if let Some(stop) = report.probability_view.stop_loss {
-                if current > 0.0 && stop < current {
+            if let Some(stop) = report.probability_view.stop_loss
+                && current > 0.0 && stop < current {
                     report.probability_view.downside_pct = Some(((current - stop) / current) * 100.0);
                     report.profit_risk.downside_pct = report.probability_view.downside_pct;
                     report.ic_discipline.downside_pct = report.probability_view.downside_pct;
                 }
-            }
         }
     }
 
@@ -1237,8 +1229,8 @@ fn patch_stale_prices_in_text(report: &mut StructuredReport) {
 
     // Patch reader_summary if it contains stale prices
     // reader_summary.text = executive_summary, which may contain stale R/R or prices
-    if let Some(text) = report.decision_view.reader_summary.params.get("text") {
-        if let Some(text_str) = text.as_str() {
+    if let Some(text) = report.decision_view.reader_summary.params.get("text")
+        && let Some(text_str) = text.as_str() {
             let mut updated = text_str.to_string();
             // Strip stale R/R references (will be re-appended by validate_and_enhance_report)
             if let Some(rr_pos) = updated.find("风险收益比") {
@@ -1257,7 +1249,6 @@ fn patch_stale_prices_in_text(report: &mut StructuredReport) {
                 );
             }
         }
-    }
 }
 
 /// When IC discipline is "no_attack" (poor reward-risk or overheated RSI),
@@ -1396,16 +1387,14 @@ fn derive_execution_levels(
     }
 
     // Sync invalidation_level for long: if entry < invalidation, lower invalidation
-    if !is_bearish {
-        if let (Some(entry_val), Some(inval)) = (
+    if !is_bearish
+        && let (Some(entry_val), Some(inval)) = (
             parse_first_numeric(&trader_plan.entry_price),
             parse_first_numeric(&portfolio_decision.invalidation_level),
-        ) {
-            if entry_val > 0.0 && inval > 0.0 && entry_val < inval {
+        )
+            && entry_val > 0.0 && inval > 0.0 && entry_val < inval {
                 portfolio_decision.invalidation_level = trader_plan.stop_loss.clone();
             }
-        }
-    }
 }
 
 /// P0-2: Enforce single source of truth for price levels.

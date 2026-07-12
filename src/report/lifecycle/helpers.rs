@@ -135,8 +135,8 @@ impl TaskManager {
     ) -> Vec<String> {
         let mut tags = Vec::new();
 
-        if let Some(quote) = quote {
-            if quote.close > 0.0 {
+        if let Some(quote) = quote
+            && quote.close > 0.0 {
                 let hundred = 100.0;
                 let intraday_change = ((quote.close - quote.open) / quote.close.abs()) * hundred;
                 let intraday_range = ((quote.high - quote.low) / quote.close.abs()) * hundred;
@@ -147,7 +147,6 @@ impl TaskManager {
                     tags.push("event_driven".to_string());
                 }
             }
-        }
 
         if let Some(fundamentals) = fundamentals {
             let market_cap = fundamentals.market_cap.unwrap_or_default();

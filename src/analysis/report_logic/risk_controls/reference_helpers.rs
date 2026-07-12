@@ -249,8 +249,8 @@ fn preferred_scenario_path_with_direction<'a>(
     };
 
     // For bearish views (LeanSell/SellOnBreak), prefer failed_breakdown path
-    if let Some(call) = direction {
-        if matches!(
+    if let Some(call) = direction
+        && matches!(
             call,
             CoreResearchCall::LeanSell | CoreResearchCall::SellOnBreak
         ) {
@@ -260,7 +260,6 @@ fn preferred_scenario_path_with_direction<'a>(
                     all_paths().find(|item| !item.key.trim().is_empty())
                 });
         }
-    }
 
     // For bullish/neutral views, prefer breakout_continuation or retest_confirmation
     all_paths()

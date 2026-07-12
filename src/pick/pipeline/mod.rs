@@ -226,7 +226,7 @@ pub async fn run(
                 .news
                 .iter()
                 .cloned()
-                .chain(search_items.into_iter())
+                .chain(search_items)
                 .collect(),
             &candidate.symbol,
             &candidate.name,
@@ -286,8 +286,8 @@ pub async fn run(
     let mut memory_context_parts = Vec::with_capacity(4);
     if let Some(ref mem) = memory_log {
         // Get cross-ticker lessons for this market
-        if let Ok(lessons) = mem.cross_ticker_lessons(&request.market, &[], 3).await {
-            if !lessons.is_empty() {
+        if let Ok(lessons) = mem.cross_ticker_lessons(&request.market, &[], 3).await
+            && !lessons.is_empty() {
                 let lessons_text = lessons
                     .iter()
                     .map(|l| format!("- {} (rating: {})", l.summary, l.rating))
@@ -295,12 +295,11 @@ pub async fn run(
                     .join("\n");
                 memory_context_parts.push(format!("Cross-ticker lessons:\n{}", lessons_text));
             }
-        }
 
         // For top candidates, get past context
         for candidate in preselected.iter().take(3) {
-            if let Ok(bundle) = mem.past_context_bundle_async(&candidate.symbol, 3, 2).await {
-                if bundle.same_ticker_count > 0 {
+            if let Ok(bundle) = mem.past_context_bundle_async(&candidate.symbol, 3, 2).await
+                && bundle.same_ticker_count > 0 {
                     let highlights_text = bundle
                         .same_ticker_highlights
                         .iter()
@@ -319,7 +318,6 @@ pub async fn run(
                         candidate.symbol, bundle.same_ticker_count, highlights_text
                     ));
                 }
-            }
         }
     }
 
@@ -445,29 +443,25 @@ pub async fn run(
             let current_price = item.price.or(item.market_snapshot.current_price);
             let atr = item.technical_snapshot.atr;
             // Validate price fields are numeric, reset if free text
-            if let Some(ref ep) = pick.entry_price {
-                if ep.parse::<f64>().is_err() && !ep.contains('-') {
+            if let Some(ref ep) = pick.entry_price
+                && ep.parse::<f64>().is_err() && !ep.contains('-') {
                     pick.entry_price = None;
                 }
-            }
-            if let Some(ref sl) = pick.stop_loss {
-                if sl.parse::<f64>().is_err() {
+            if let Some(ref sl) = pick.stop_loss
+                && sl.parse::<f64>().is_err() {
                     pick.stop_loss = None;
                 }
-            }
-            if let Some(ref tp) = pick.target_price {
-                if tp.parse::<f64>().is_err() && !tp.contains('-') {
+            if let Some(ref tp) = pick.target_price
+                && tp.parse::<f64>().is_err() && !tp.contains('-') {
                     pick.target_price = None;
                 }
-            }
-            if pick.entry_price.is_none() {
-                if let Some(price) = current_price {
+            if pick.entry_price.is_none()
+                && let Some(price) = current_price {
                     pick.entry_price = Some(format!("{:.2}", price));
                 }
-            }
-            if pick.stop_loss.is_none() {
-                if let Some(entry_str) = &pick.entry_price {
-                    if let Ok(entry) = entry_str.parse::<f64>() {
+            if pick.stop_loss.is_none()
+                && let Some(entry_str) = &pick.entry_price
+                    && let Ok(entry) = entry_str.parse::<f64>() {
                         let stop = if let Some(atr_val) = atr {
                             entry - 2.0 * atr_val
                         } else {
@@ -477,11 +471,9 @@ pub async fn run(
                         let max_stop = entry * 0.90;
                         pick.stop_loss = Some(format!("{:.2}", stop.max(max_stop).max(0.01)));
                     }
-                }
-            }
-            if pick.target_price.is_none() {
-                if let (Some(entry_str), Some(stop_str)) = (&pick.entry_price, &pick.stop_loss) {
-                    if let (Ok(entry), Ok(stop)) =
+            if pick.target_price.is_none()
+                && let (Some(entry_str), Some(stop_str)) = (&pick.entry_price, &pick.stop_loss)
+                    && let (Ok(entry), Ok(stop)) =
                         (entry_str.parse::<f64>(), stop_str.parse::<f64>())
                     {
                         let risk = (entry - stop).abs();
@@ -490,16 +482,13 @@ pub async fn run(
                             pick.target_price = Some(format!("{:.2}", target));
                         }
                     }
-                }
-            }
             if pick.holding_period.is_none() {
                 pick.holding_period = Some("2-4 weeks".to_string());
             }
-            if pick.exit_triggers.is_empty() {
-                if let Some(stop_str) = &pick.stop_loss {
+            if pick.exit_triggers.is_empty()
+                && let Some(stop_str) = &pick.stop_loss {
                     pick.exit_triggers.push(format!("break below {}", stop_str));
                 }
-            }
             pick.objective_assessment = evaluate_stock_pick_objective_assessment(&pick, &item);
             pick.priority_rank = stock_pick_priority_rank(&pick);
             pick.priority_label = stock_pick_priority_label(pick.priority_rank).to_string();

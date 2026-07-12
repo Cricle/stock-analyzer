@@ -23,7 +23,6 @@ impl std::fmt::Display for DecisionMode {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn build_decision_view(
     trader_plan: &StructuredTraderPlan,
     portfolio_decision: &StructuredPortfolioDecision,
@@ -58,8 +57,8 @@ fn build_decision_view(
     if let (Some(entry), Some(inval)) = (
         parse_first_numeric(trader_plan.entry_price.trim()).filter(|&e| e > 0.0),
         invalidation_price.filter(|&i| i > 0.0),
-    ) {
-        if entry < inval {
+    )
+        && entry < inval {
             let corrected = parse_first_numeric(trader_plan.stop_loss.trim())
                 .filter(|&s| s > 0.0 && s < entry)
                 .unwrap_or(entry * 0.95);
@@ -71,13 +70,12 @@ fn build_decision_view(
             );
             invalidation_price = Some(corrected);
         }
-    }
     // Invalidation minimum distance from current price.
     // If invalidation is closer than 1×ATR(14) to current price, auto-adjust
     // to 1.5×ATR away in the risk direction.
-    if let (Some(current), Some(atr)) = (current_price, atr_14) {
-        if current > 0.0 && atr > 0.0 {
-            if let Some(inval) = invalidation_price.filter(|&i| i > 0.0) {
+    if let (Some(current), Some(atr)) = (current_price, atr_14)
+        && current > 0.0 && atr > 0.0
+            && let Some(inval) = invalidation_price.filter(|&i| i > 0.0) {
                 let distance = (current - inval).abs();
                 if distance < atr {
                     let adjusted = if inval < current {
@@ -97,13 +95,11 @@ fn build_decision_view(
                     invalidation_price = Some(adjusted);
                 }
             }
-        }
-    }
     // Guard: if invalidation == confirmation, it's a logic error.
     // The confirmation level is where you wait for breakout; the invalidation
     // is where you stop-loss. They cannot be the same price.
-    if let (Some(confirm), Some(inval)) = (confirmation_price, invalidation_price) {
-        if confirm > 0.0 && inval > 0.0 && (confirm - inval).abs() / confirm < 0.005 {
+    if let (Some(confirm), Some(inval)) = (confirmation_price, invalidation_price)
+        && confirm > 0.0 && inval > 0.0 && (confirm - inval).abs() / confirm < 0.005 {
             // Derive a proper invalidation: use stop_loss from trader_plan if available,
             // otherwise use entry * 0.95 or current_price * 0.95
             let corrected = parse_first_numeric(trader_plan.stop_loss.trim())
@@ -124,12 +120,11 @@ fn build_decision_view(
                 invalidation_price = Some(corrected);
             }
         }
-    }
     // Invalidation maximum distance from current price.
     // Cap at 7% from current price to prevent overly wide stop-losses.
     const MAX_INVALIDATION_PCT: f64 = 0.07;
-    if let (Some(current), Some(inval)) = (current_price, invalidation_price) {
-        if current > 0.0 && inval > 0.0 {
+    if let (Some(current), Some(inval)) = (current_price, invalidation_price)
+        && current > 0.0 && inval > 0.0 {
             let distance_pct = (current - inval).abs() / current;
             if distance_pct > MAX_INVALIDATION_PCT {
                 let capped = if inval < current {
@@ -147,7 +142,6 @@ fn build_decision_view(
                 invalidation_price = Some(capped);
             }
         }
-    }
     let has_confirmation_gate = !confirmation_reference.clone().unwrap_or_default().is_empty();
     let primary_path = preferred_scenario_path_with_direction(action_guides, Some(core_research_call))
         .map(|path| path.name.key.clone())

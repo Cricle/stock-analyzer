@@ -147,6 +147,7 @@ impl LocalText {
     }
 }
 
+/// Investment rating (Buy/Hold/Sell and variants).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "PascalCase")]
 pub enum Rating {
@@ -228,6 +229,7 @@ impl std::fmt::Display for Rating {
     }
 }
 
+/// Report output format variant.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ReportFlavor {
@@ -239,6 +241,7 @@ pub enum ReportFlavor {
     AppendixReliability,
 }
 
+/// Core research call variants (lean buy, buy on confirmation, etc.).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum CoreResearchCall {

@@ -12,6 +12,7 @@ use crate::{
     StockPickTechnicalSnapshot,
 };
 
+/// Basic context for a stock candidate in the picking pipeline.
 #[derive(Debug, Clone)]
 pub struct CandidateContext {
     pub symbol: String,
@@ -21,6 +22,7 @@ pub struct CandidateContext {
     pub source_score: f64,
 }
 
+/// Multi-factor score breakdown for a stock pick candidate.
 #[derive(Debug, Clone, Default)]
 pub struct FactorBreakdown {
     pub momentum: f64,
@@ -35,6 +37,7 @@ pub struct FactorBreakdown {
     pub total: f64,
 }
 
+/// Evidence record collected for a stock candidate.
 #[derive(Debug, Clone, Default)]
 pub struct CandidateEvidenceRecord {
     pub query: String,
@@ -49,6 +52,7 @@ pub struct CandidateEvidenceRecord {
     pub dedupe_key: String,
 }
 
+/// A stock candidate enriched with market data, news, and factor scores.
 #[derive(Debug, Clone)]
 pub struct EnrichedCandidate {
     pub symbol: String,

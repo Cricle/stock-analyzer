@@ -1,3 +1,4 @@
+/// OpenAI-compatible chat completion request.
 #[derive(Debug, Serialize)]
 pub struct ChatCompletionRequest {
     pub model: String,
@@ -11,18 +12,21 @@ pub struct ChatCompletionRequest {
     pub tool_choice: Option<Value>,
 }
 
+/// A single message in a chat conversation.
 #[derive(Debug, Serialize)]
 pub struct ChatMessage {
     pub role: String,
     pub content: String,
 }
 
+/// Response format hint (e.g., JSON mode).
 #[derive(Debug, Serialize)]
 pub struct ResponseFormat {
     #[serde(rename = "type")]
     pub kind: String,
 }
 
+/// Chat completion API response.
 #[derive(Debug, Deserialize)]
 pub struct ChatCompletionResponse {
     #[serde(default)]
@@ -32,6 +36,7 @@ pub struct ChatCompletionResponse {
     pub usage: Option<ChatCompletionUsage>,
 }
 
+/// Token usage statistics from a chat completion.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ChatCompletionUsage {
     #[serde(default)]
@@ -42,6 +47,7 @@ pub struct ChatCompletionUsage {
     pub total_tokens: i64,
 }
 
+/// Estimate token usage when the API doesn't return it.
 pub fn estimate_chat_completion_usage(
     request: &ChatCompletionRequest,
     content: &str,
@@ -61,15 +67,18 @@ pub fn estimate_chat_completion_usage(
     }
 }
 
+/// Approximate token count from character count (~4 chars per token).
 pub fn approximate_tokens_from_chars(chars: i64) -> i64 {
     ((chars.max(1) + 3) / 4).max(1)
 }
 
+/// A single choice in a chat completion response.
 #[derive(Debug, Deserialize)]
 pub struct ChatChoice {
     pub message: ChatMessageResponse,
 }
 
+/// Message content in a chat completion response.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChatMessageResponse {
     #[serde(default)]

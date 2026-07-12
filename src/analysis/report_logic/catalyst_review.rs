@@ -329,6 +329,7 @@ fn derive_review_checklist(
     ReviewChecklist { daily, weekly }
 }
 
+/// Compute Priority_rank.
 pub fn priority_rank(p: &str) -> u8 {
     match p {
         "high" => 0,

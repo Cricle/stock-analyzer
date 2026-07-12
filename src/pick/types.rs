@@ -82,6 +82,7 @@ pub struct EnrichedCandidate {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+/// Generated stock pick item.
 pub struct GeneratedStockPickItem {
     pub symbol: String,
     pub confidence: Value,

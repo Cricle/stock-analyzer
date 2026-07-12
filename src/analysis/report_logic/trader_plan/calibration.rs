@@ -1,3 +1,4 @@
+/// Compute Render_calibration_discipline_markdown.
 pub fn render_calibration_discipline_markdown(
     report: &StructuredReport,
     memory_context: &MemoryContextSnapshot,
@@ -94,6 +95,7 @@ pub fn render_calibration_discipline_markdown(
     parts.join("\n")
 }
 
+/// Compute First_non_empty_sentence.
 pub fn first_non_empty_sentence(candidates: &[&str]) -> Option<String> {
     candidates
         .iter()
@@ -110,6 +112,7 @@ pub fn first_non_empty_sentence(candidates: &[&str]) -> Option<String> {
         })
 }
 
+/// Compute Strip_redundant_prefix.
 pub fn strip_redundant_prefix(text: &str, prefixes: &[&str]) -> String {
     let mut current = text.trim();
     for prefix in prefixes {
@@ -128,6 +131,7 @@ fn render_risk_assessment_sections(text: &str) -> String {
     render_structured_risk_assessment_sections(&StructuredRiskAssessment::from_text(text))
 }
 
+/// Compute Parse_risk_assessment_sections.
 pub fn parse_risk_assessment_sections(text: &str) -> std::collections::BTreeMap<String, String> {
     let mut sections = std::collections::BTreeMap::new();
     let trimmed = text.trim();
@@ -170,6 +174,7 @@ pub fn parse_risk_assessment_sections(text: &str) -> std::collections::BTreeMap<
     sections
 }
 
+/// Compute Split_semicolon_items.
 pub fn split_semicolon_items(text: &str) -> Vec<String> {
     text.split(';')
         .map(str::trim)
@@ -178,6 +183,7 @@ pub fn split_semicolon_items(text: &str) -> Vec<String> {
         .collect()
 }
 
+/// Compute Normalize_semantic_snippet.
 pub fn normalize_semantic_snippet(text: &str) -> String {
     text.to_ascii_lowercase()
         .chars()
@@ -191,6 +197,7 @@ pub fn normalize_semantic_snippet(text: &str) -> String {
         .join(" ")
 }
 
+/// Compute Is_semantically_similar.
 pub fn is_semantically_similar(left: Option<&String>, right: Option<&String>) -> bool {
     let (Some(left), Some(right)) = (left, right) else {
         return false;
@@ -245,6 +252,7 @@ fn normalize_reflection_text(markdown: &str) -> String {
 }
 
 impl StructuredReflection {
+    /// Compute From_text.
     pub fn from_text(markdown: &str) -> Self {
         let normalized = normalize_reflection_text(markdown);
         let paragraphs = normalized
@@ -266,6 +274,7 @@ impl StructuredReflection {
 }
 
 impl StructuredRiskAssessment {
+    /// Compute From_text.
     pub fn from_text(text: &str) -> Self {
         let trimmed = text.trim();
         let sections = parse_risk_assessment_sections(trimmed);

@@ -1,5 +1,6 @@
 impl StructuredReport {
 
+    /// Compute Ic_chair_from_report.
     pub fn ic_chair_from_report(result: &AnalysisResult, report: &StructuredReport) -> Self {
         let sections = build_ic_report_sections(result, report);
         let summary = build_ic_report_summary(report);

@@ -34,12 +34,14 @@ pub struct PreparedData {
 }
 
 #[derive(Clone)]
+/// Guidance store.
 pub struct GuidanceStore {
     cache: std::sync::Arc<dyn crate::CacheStore>,
     vector_store: std::sync::Arc<dyn crate::VectorStore>,
 }
 
 impl GuidanceStore {
+    /// Compute New.
     pub fn new(
         cache: std::sync::Arc<dyn crate::CacheStore>,
         vector_store: std::sync::Arc<dyn crate::VectorStore>,
@@ -66,6 +68,7 @@ impl GuidanceStore {
 
     // --- Helpers ---
 
+    /// Compute Vector_point_id.
     pub fn vector_point_id(entry_id: &str) -> String {
         let digest = Sha256::digest(entry_id.as_bytes());
         let mut bytes = [0u8; 16];
@@ -75,6 +78,7 @@ impl GuidanceStore {
         Uuid::from_bytes(bytes).to_string()
     }
 
+    /// Compute News_dedup_key.
     pub fn news_dedup_key(title: &str, source: &str) -> String {
         let digest = Sha256::digest(format!(
             "{}:{}",

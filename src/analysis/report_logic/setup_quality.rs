@@ -95,6 +95,7 @@ fn derive_trade_setup_quality(
     }
 }
 
+/// Compute Collect_execution_blocking_gaps.
 pub fn collect_execution_blocking_gaps(
     _research_plan: &StructuredResearchPlan,
     _trader_plan: &StructuredTraderPlan,
@@ -131,6 +132,7 @@ pub fn collect_execution_blocking_gaps(
     gaps
 }
 
+/// Compute Normalize_gap_match_text.
 pub fn normalize_gap_match_text(value: &str) -> String {
     value.trim()
         .to_ascii_lowercase()
@@ -140,6 +142,7 @@ pub fn normalize_gap_match_text(value: &str) -> String {
         )
 }
 
+/// Compute Tokenize_gap_match_text.
 pub fn tokenize_gap_match_text(value: &str) -> Vec<String> {
     normalize_gap_match_text(value)
         .split_whitespace()
@@ -148,6 +151,7 @@ pub fn tokenize_gap_match_text(value: &str) -> Vec<String> {
         .collect()
 }
 
+/// Compute Score_related_gap_match.
 pub fn score_related_gap_match(base_tokens: &[String], candidate: &str) -> usize {
     let candidate_tokens = tokenize_gap_match_text(candidate);
     base_tokens
@@ -156,6 +160,7 @@ pub fn score_related_gap_match(base_tokens: &[String], candidate: &str) -> usize
         .count()
 }
 
+/// Compute Related_gap_items.
 pub fn related_gap_items(item: &ReportDiagnosticItem, pool: &[String]) -> Vec<String> {
     let source = [item.code.as_str(), item.message.as_str()]
         .into_iter()
@@ -252,6 +257,7 @@ fn enrich_diagnostic_linkage(
     }
 }
 
+/// Compute Scenario_gap_messages.
 pub fn scenario_gap_messages(diagnostics: &ReportDiagnostics) -> Vec<String> {
     diagnostics
         .availability
@@ -295,6 +301,7 @@ fn append_scenario_gap_narrative(
     }
 }
 
+/// Compute Normalize_gap_to_i18n_key.
 pub fn normalize_gap_to_i18n_key(gap: &str) -> String {
     let lower = gap.to_ascii_lowercase();
     if lower.contains("cash flow") || lower.contains("现金流") {

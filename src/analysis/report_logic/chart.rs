@@ -105,6 +105,7 @@ fn reference_numeric(references: &ReportReferenceSnapshot, key: &str) -> Option<
         .and_then(|item| parse_first_numeric(&item.value))
 }
 
+/// Compute Add_overlay.
 pub fn add_overlay(overlays: &mut Vec<ChartOverlay>, key: &str, value: Option<f64>, emphasis: &str) {
     let Some(value) = value.filter(|item| item.is_finite() && *item > 0.0) else {
         return;
@@ -173,6 +174,7 @@ fn enrich_market_chart(
     chart.trend_lines = compute_trend_lines(&chart.candles);
 }
 
+/// Compute Compute_trend_lines.
 pub fn compute_trend_lines(candles: &[ReportCandle]) -> Vec<TrendLine> {
     if candles.len() < 50 {
         return Vec::new();
@@ -249,6 +251,7 @@ pub fn compute_trend_lines(candles: &[ReportCandle]) -> Vec<TrendLine> {
     lines
 }
 
+/// Compute Derive_price_context.
 pub fn derive_price_context(chart: &ReportMarketChart, current_price: Option<f64>) -> PriceContext {
     let lookback = chart.candles.len().min(252);
     let window = if lookback > 0 {

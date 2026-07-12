@@ -104,6 +104,7 @@ fn derive_news_quality_reference_facts(result: &AnalysisResult) -> Vec<Reference
     facts
 }
 
+/// Compute Derive_memory_reference_facts.
 pub fn derive_memory_reference_facts(
     confidence_breakdown: &ConfidenceBreakdown,
     memory_context: &MemoryContextSnapshot,
@@ -256,6 +257,7 @@ fn summarize_setup_tags(tags: &[String]) -> Option<String> {
     (!items.is_empty()).then(|| items.join("、"))
 }
 
+/// Compute Derive_setup_match_explanation.
 pub fn derive_setup_match_explanation(
     memory_context: &MemoryContextSnapshot,
     fallback_sample_count: usize,

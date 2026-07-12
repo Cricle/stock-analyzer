@@ -234,6 +234,7 @@ fn fallback_us_stocks() -> Vec<(&'static str, &'static str)> {
 // Market helpers
 // ---------------------------------------------------------------------------
 
+/// Compute Market_kind_from_value.
 pub fn market_kind_from_value(value: &str) -> MarketKind {
     match value.trim().to_ascii_lowercase().as_str() {
         "a" | "a-share" | "a_share" | "ashare" | "cn" | "china" | "a股" => MarketKind::AShare,
@@ -242,6 +243,7 @@ pub fn market_kind_from_value(value: &str) -> MarketKind {
     }
 }
 
+/// Compute Market_display_label.
 pub fn market_display_label(market: MarketKind) -> &'static str {
     match market {
         MarketKind::AShare => "A-share",
@@ -250,10 +252,12 @@ pub fn market_display_label(market: MarketKind) -> &'static str {
     }
 }
 
+/// Compute Market_search_label.
 pub fn market_search_label(market: MarketKind) -> &'static str {
     market_display_label(market)
 }
 
+/// Compute Market_exchange_code.
 pub fn market_exchange_code(market: MarketKind) -> &'static str {
     match market {
         MarketKind::AShare => "CN",
@@ -655,6 +659,7 @@ async fn pre_rank_a_share_candidates(
 // Source score helpers
 // ---------------------------------------------------------------------------
 
+/// Compute Capital_flow_source_score.
 pub fn capital_flow_source_score(items: &[CapitalFlowPoint]) -> f64 {
     let Some(latest) = items.first().or_else(|| items.last()) else {
         return 0.0;
@@ -666,6 +671,7 @@ pub fn capital_flow_source_score(items: &[CapitalFlowPoint]) -> f64 {
     inflow_component + ratio_component + price_component
 }
 
+/// Compute Billboard_source_score.
 pub fn billboard_source_score(items: &[BillboardEntry]) -> f64 {
     let Some(latest) = items.first().or_else(|| items.last()) else {
         return 0.0;

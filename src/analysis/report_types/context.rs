@@ -1,5 +1,6 @@
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Analysis user context.
 pub struct AnalysisUserContext {
     #[serde(default)]
     pub language: String,
@@ -20,6 +21,7 @@ pub struct AnalysisUserContext {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Llm token usage summary.
 pub struct LlmTokenUsageSummary {
     #[serde(default)]
     pub total_requests: i64,
@@ -34,6 +36,7 @@ pub struct LlmTokenUsageSummary {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Llm token usage by model.
 pub struct LlmTokenUsageByModel {
     #[serde(default)]
     pub model: String,
@@ -48,6 +51,7 @@ pub struct LlmTokenUsageByModel {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Memory context snapshot.
 pub struct MemoryContextSnapshot {
     #[serde(default)]
     pub source: String,
@@ -104,6 +108,7 @@ pub struct MemoryContextSnapshot {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Historical memory highlight.
 pub struct HistoricalMemoryHighlight {
     #[serde(default)]
     pub trade_date: String,

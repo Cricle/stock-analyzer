@@ -8,6 +8,7 @@ pub enum IssueSeverity {
 }
 
 impl IssueSeverity {
+    /// Compute As_str.
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Warning => "warning",
@@ -20,6 +21,7 @@ impl IssueSeverity {
 // Helpers
 // ======================================================================
 
+/// Compute Make_issue.
 pub fn make_issue(
     severity: IssueSeverity,
     check_name: &str,

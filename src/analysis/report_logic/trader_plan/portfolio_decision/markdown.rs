@@ -1,4 +1,5 @@
 impl StructuredTraderPlan {
+    /// Compute Render_markdown.
     pub fn render_markdown(&self) -> String {
         let mut parts = vec![
             "# Trader Execution Plan".to_string(),

@@ -65,12 +65,14 @@ pub struct ChartOverlay {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Trend line point.
 pub struct TrendLinePoint {
     pub date: String,
     pub value: f64,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Trend line.
 pub struct TrendLine {
     pub key: String,
     pub color: String,

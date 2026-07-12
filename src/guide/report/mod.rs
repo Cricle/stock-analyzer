@@ -46,6 +46,7 @@ impl Clone for DailyGuidanceGenerator {
 }
 
 impl DailyGuidanceGenerator {
+    /// Compute New.
     pub fn new(
         market_data: crate::data::MarketDataClient,
         memory: std::sync::Arc<dyn crate::guide::GuidanceMemory>,

@@ -1,4 +1,5 @@
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Analysis graph.
 pub struct AnalysisGraph {
     #[serde(default)]
     pub analysts: Vec<AgentReportNode>,
@@ -13,6 +14,7 @@ pub struct AnalysisGraph {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Agent state snapshot.
 pub struct AgentStateSnapshot {
     pub company_of_interest: String,
     pub trade_date: String,
@@ -36,6 +38,7 @@ pub struct AgentStateSnapshot {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Analysis artifacts.
 pub struct AnalysisArtifacts {
     pub full_state_log_path: String,
     #[serde(default)]
@@ -104,6 +107,7 @@ pub struct DiagnosisIssue {
 }
 
 impl DiagnosisSummary {
+    /// Compute From_issues.
     pub fn from_issues(issues: &[DiagnosisIssue]) -> Self {
         let fixed_count = issues
             .iter()

@@ -247,6 +247,7 @@ fn build_watcher_actions(
     actions
 }
 
+/// Compute Render_action_guides_markdown.
 pub fn render_action_guides_markdown(guides: &ReportActionGuides) -> String {
     [
         render_single_action_guide(&guides.holders),

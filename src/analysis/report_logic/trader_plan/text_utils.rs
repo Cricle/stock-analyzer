@@ -62,6 +62,7 @@ fn render_structured_risk_assessment_sections(risk: &StructuredRiskAssessment) -
 }
 
 impl AnalysisResult {
+    /// Compute Analyst_runtime_state.
     pub fn analyst_runtime_state(&self, key: &str) -> Option<&AnalystRuntimeState> {
         self.artifacts
             .analyst_runtime_states
@@ -69,6 +70,7 @@ impl AnalysisResult {
             .find(|item| item.key == key)
     }
 
+    /// Compute Analyst_runtime_state_mut.
     pub fn analyst_runtime_state_mut(&mut self, key: &str) -> &mut AnalystRuntimeState {
         if let Some(index) = self
             .artifacts

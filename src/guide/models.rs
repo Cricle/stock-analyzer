@@ -30,6 +30,7 @@ impl I18nText {
         self
     }
 
+    /// Compute Is_empty.
     pub fn is_empty(&self) -> bool {
         self.key.is_empty()
     }
@@ -176,6 +177,7 @@ pub struct RiskAlert {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// User profile guide.
 pub struct UserProfileGuide {
     pub profile: String,
     pub summary: String,
@@ -185,6 +187,7 @@ pub struct UserProfileGuide {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Guidance metadata.
 pub struct GuidanceMetadata {
     pub news_count: usize,
     pub news_sources: Vec<String>,
@@ -204,6 +207,7 @@ pub struct DailyGuidanceRequest {
 }
 
 impl DailyGuidanceRequest {
+    /// Compute Market.
     pub fn market(&self) -> GuidanceMarket {
         self.market
             .as_deref()

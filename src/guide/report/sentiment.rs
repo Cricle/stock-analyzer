@@ -15,6 +15,7 @@ pub fn sentiment_score(pos: usize, neg: usize, total: usize) -> i32 {
     (ratio * 100.0).clamp(-100.0, 100.0) as i32
 }
 
+/// Compute Sentiment_label.
 pub fn sentiment_label(score: i32) -> &'static str {
     if score > 30 {
         "bullish"

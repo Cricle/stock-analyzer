@@ -1,3 +1,4 @@
+/// Compute Derive_evidence_cards.
 pub fn derive_evidence_cards(references: &ReportReferenceSnapshot) -> Vec<ReportEvidenceCard> {
     let mut cards = Vec::new();
     for (category, items) in [
@@ -35,6 +36,7 @@ pub fn derive_evidence_cards(references: &ReportReferenceSnapshot) -> Vec<Report
     cards
 }
 
+/// Compute Derive_news_insights.
 pub fn derive_news_insights(
     references: &ReportReferenceSnapshot,
     decision: &DecisionView,
@@ -277,6 +279,7 @@ fn news_follow_through_summary(
     news_watch_next_summary(decision)
 }
 
+/// Compute News_watch_next_summary.
 pub fn news_watch_next_summary(decision: &DecisionView) -> LocalText {
     if decision.early_probe_allowed {
         return LocalText::new("watch_price_volume_follow_through");
@@ -287,6 +290,7 @@ pub fn news_watch_next_summary(decision: &DecisionView) -> LocalText {
     LocalText::new("watch_confirmation_breakout")
 }
 
+/// Compute Has_report_diagnostic.
 pub fn has_report_diagnostic(items: &[ReportDiagnosticItem], code: &str) -> bool {
     items.iter().any(|item| item.code == code)
 }

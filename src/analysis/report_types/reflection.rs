@@ -88,6 +88,7 @@ pub struct StructuredTraderPlan {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Structured portfolio decision.
 pub struct StructuredPortfolioDecision {
     pub rating: Rating,
     #[serde(default)]
@@ -125,6 +126,7 @@ pub struct StructuredPortfolioDecision {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Missing evidence ladder.
 pub struct MissingEvidenceLadder {
     #[serde(default)]
     pub tolerable_gaps: Vec<String>,
@@ -159,6 +161,7 @@ pub struct CatalystScoreCard {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Catalyst score item.
 pub struct CatalystScoreItem {
     /// The evaluation question, e.g. "管理层是否明确指引毛利率改善？"
     #[serde(default)]
@@ -183,6 +186,7 @@ pub struct ReviewChecklist {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Review item.
 pub struct ReviewItem {
     /// What to check, e.g. "价格是否接近61.75或66.0？"
     #[serde(default)]

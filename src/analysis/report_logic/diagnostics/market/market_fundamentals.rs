@@ -1,3 +1,4 @@
+/// Compute Derive_report_diagnostics.
 pub fn derive_report_diagnostics(result: &AnalysisResult) -> ReportDiagnostics {
     ReportDiagnostics {
         market: derive_market_diagnostics(result),
@@ -189,6 +190,7 @@ fn derive_fundamentals_diagnostics(result: &AnalysisResult) -> Vec<ReportDiagnos
     }
 }
 
+/// Compute Derive_news_diagnostics.
 pub fn derive_news_diagnostics(result: &AnalysisResult) -> Vec<ReportDiagnosticItem> {
     let mut diagnostics = Vec::new();
     let mut source_set = std::collections::BTreeSet::new();

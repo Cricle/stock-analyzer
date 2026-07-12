@@ -1,4 +1,5 @@
 
+/// Compute Detect_disclosure_sequence_complexity.
 pub fn detect_disclosure_sequence_complexity(
     result: &AnalysisResult,
     news_items: &[ReferenceFactItem],

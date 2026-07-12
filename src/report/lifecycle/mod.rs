@@ -23,6 +23,7 @@ pub fn normalize_option(value: Option<&str>, allowed: &[&str], default_value: &s
         .to_string()
 }
 
+/// Compute Bounded_user_notes.
 pub fn bounded_user_notes(value: Option<&str>) -> String {
     value
         .unwrap_or_default()
@@ -34,6 +35,7 @@ pub fn bounded_user_notes(value: Option<&str>) -> String {
         .collect()
 }
 
+/// Compute Build_user_context.
 pub fn build_user_context(params: &AnalysisParameters) -> AnalysisUserContext {
     AnalysisUserContext {
         language: normalize_language(params.language.as_deref()),
@@ -73,6 +75,7 @@ pub fn build_user_context(params: &AnalysisParameters) -> AnalysisUserContext {
     }
 }
 
+/// Compute Build_user_context_prompt.
 pub fn build_user_context_prompt(context: &AnalysisUserContext) -> String {
     let mut lines = vec![
         format!("language={}", context.language),

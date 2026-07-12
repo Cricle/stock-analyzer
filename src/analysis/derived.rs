@@ -77,6 +77,7 @@ impl AnalysisResult {
         }
     }
 
+    /// Compute Derived_risk_assessment.
     pub fn derived_risk_assessment(&self) -> String {
         let portfolio_decision = self.structured_portfolio_decision();
         let pd_ra = portfolio_decision.risk_assessment.trim();
@@ -93,6 +94,7 @@ impl AnalysisResult {
         }
     }
 
+    /// Compute Derived_confidence.
     pub fn derived_confidence(&self) -> String {
         let portfolio_decision = self.structured_portfolio_decision();
         if !portfolio_decision.confidence.trim().is_empty() {
@@ -103,6 +105,7 @@ impl AnalysisResult {
         }
     }
 
+    /// Compute Derived_rationale.
     pub fn derived_rationale(&self) -> String {
         let portfolio_decision = self.structured_portfolio_decision();
         if !portfolio_decision.investment_thesis.trim().is_empty() {
@@ -113,6 +116,7 @@ impl AnalysisResult {
         }
     }
 
+    /// Compute Sync_derived_fields.
     pub fn sync_derived_fields(&mut self) {
         self.agent_state.investment_debate_state = self.graph.investment_debate.clone();
         self.agent_state.risk_debate_state = self.graph.risk_debate.clone();
@@ -124,6 +128,7 @@ impl AnalysisResult {
         }
     }
 
+    /// Compute Rebuild_report.
     pub fn rebuild_report(
         &mut self,
         calibration_profile: &crate::scoring::CalibrationProfile,
@@ -132,6 +137,7 @@ impl AnalysisResult {
         self.ic_report = StructuredReport::ic_chair_from_report(self, &self.report);
     }
 
+    /// Compute Apply_calibrated_markdown.
     pub fn apply_calibrated_markdown(&mut self) {
         // When blocking gaps exist, override position_sizing before rendering markdown
         // so the execution plan output doesn't contain stale LLM sizing like "2%"
@@ -176,6 +182,7 @@ impl AnalysisResult {
         }
     }
 
+    /// Compute Report_stage.
     pub fn report_stage(&self) -> ReportStageState {
         ReportStageState {
             overview: true,

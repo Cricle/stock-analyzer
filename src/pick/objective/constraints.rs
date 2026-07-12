@@ -64,6 +64,7 @@ fn compute_industry_averages(
     averages
 }
 
+/// Compute Format_valuation_line.
 pub fn format_valuation_line(label: &str, value: Option<f64>, avg: f64) -> Option<String> {
     let v = value?;
     if !v.is_finite() || v <= 0.0 {
@@ -81,6 +82,7 @@ pub fn format_valuation_line(label: &str, value: Option<f64>, avg: f64) -> Optio
     ))
 }
 
+/// Compute Build_valuation_vs_industry_block.
 pub fn build_valuation_vs_industry_block(
     all_candidates: &[EnrichedCandidate],
     selected: &[EnrichedCandidate],
@@ -123,6 +125,7 @@ pub fn build_valuation_vs_industry_block(
     format!("Valuation vs Industry:\n{}\n\n", lines.join("\n"))
 }
 
+/// Compute Evaluate_stock_pick_objective_assessment.
 pub fn evaluate_stock_pick_objective_assessment(
     pick: &StockPickItem,
     item: &EnrichedCandidate,
@@ -630,6 +633,7 @@ fn stock_pick_objective_cap(pick: &StockPickItem, item: &EnrichedCandidate) -> i
 // selection (inlined from objective/selection.rs)
 // ---------------------------------------------------------------------------
 
+/// Compute Stock_pick_objective_grade.
 pub fn stock_pick_objective_grade(score: i32) -> &'static str {
     match score {
         85..=100 => "A",
@@ -639,6 +643,7 @@ pub fn stock_pick_objective_grade(score: i32) -> &'static str {
     }
 }
 
+/// Compute Stock_pick_objective_gaps.
 pub fn stock_pick_objective_gaps(pick: &StockPickItem, item: &EnrichedCandidate) -> Vec<String> {
     let mut gaps = Vec::new();
     let fundamentals = item.fundamentals.as_ref();
@@ -676,6 +681,7 @@ pub fn stock_pick_objective_gaps(pick: &StockPickItem, item: &EnrichedCandidate)
     gaps
 }
 
+/// Compute Stock_pick_objective_headline.
 pub fn stock_pick_objective_headline(score: i32, ready: bool, gaps: &[String]) -> String {
     if ready && score >= 85 {
         return "High-quality candidate with broad evidence coverage.".to_string();

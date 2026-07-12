@@ -1,4 +1,5 @@
 
+/// Compute Derive_calibration_bias.
 pub fn derive_calibration_bias(
     memory_context: &MemoryContextSnapshot,
     memory_threshold_tightened: bool,
@@ -36,6 +37,7 @@ pub fn derive_calibration_bias(
 }
 
 
+/// Compute Fallback_sizing_reference.
 pub fn fallback_sizing_reference(existing: &str, rating: &Rating, blocker_present: bool) -> LocalText {
     if blocker_present {
         return LocalText::new("sizing_reference_blockers");
@@ -62,6 +64,7 @@ fn parse_first_numeric_local(value: &str) -> Option<f64> {
     None
 }
 
+/// Compute Derive_action_guides.
 pub fn derive_action_guides(
     _result: &AnalysisResult,
     research_plan: &StructuredResearchPlan,

@@ -64,6 +64,7 @@ pub struct ReportActionGuides {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Audience action guide.
 pub struct AudienceActionGuide {
     #[serde(default)]
     pub audience: LocalText,

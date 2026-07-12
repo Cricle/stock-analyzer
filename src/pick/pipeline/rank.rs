@@ -77,6 +77,7 @@ pub fn filter_relevant_news(items: Vec<NewsItem>, symbol: &str, name: &str) -> V
 // Evidence processing
 // ---------------------------------------------------------------------------
 
+/// Compute News_items_to_evidence_records.
 pub fn news_items_to_evidence_records(
     _symbol: &str,
     market: &str,
@@ -152,6 +153,7 @@ pub fn news_items_to_evidence_records(
     records
 }
 
+/// Compute Dedupe_news_items.
 pub fn dedupe_news_items(items: Vec<NewsItem>) -> Vec<NewsItem> {
     let mut dedup = HashSet::new();
     let mut output = Vec::new();
@@ -179,6 +181,7 @@ pub fn dedupe_news_items(items: Vec<NewsItem>) -> Vec<NewsItem> {
 // Selection reason and quality scoring
 // ---------------------------------------------------------------------------
 
+/// Compute Default_selection_reason_codes.
 pub fn default_selection_reason_codes(item: &EnrichedCandidate) -> Vec<String> {
     let mut codes = vec!["score_leader".to_string()];
     if item.factor.momentum >= 60.0 {
@@ -199,6 +202,7 @@ pub fn default_selection_reason_codes(item: &EnrichedCandidate) -> Vec<String> {
     codes
 }
 
+/// Compute Score_evidence_quality.
 pub fn score_evidence_quality(item: &EnrichedCandidate) -> i32 {
     let source_score = item.news_snapshot.unique_source_count.min(5) as i32 * 10;
     let evidence_score = item.evidence_records.len().min(8) as i32 * 5;
@@ -211,6 +215,7 @@ pub fn score_evidence_quality(item: &EnrichedCandidate) -> i32 {
     (source_score + evidence_score + history_score - penalty).clamp(0, 100)
 }
 
+/// Compute Summarize_history_matches.
 pub fn summarize_history_matches(picks: &[StockPickItem]) -> StockPickHistoryMatchSnapshot {
     if picks.is_empty() {
         return StockPickHistoryMatchSnapshot::default();

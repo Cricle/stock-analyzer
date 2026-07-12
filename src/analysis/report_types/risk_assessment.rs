@@ -119,6 +119,7 @@ where
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Debate turn.
 pub struct DebateTurn {
     pub speaker: String,
     pub stance: String,
@@ -131,6 +132,7 @@ pub struct DebateTurn {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Investment debate state.
 pub struct InvestmentDebateState {
     pub bull_history: String,
     pub bear_history: String,
@@ -143,6 +145,7 @@ pub struct InvestmentDebateState {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Risk debate state.
 pub struct RiskDebateState {
     pub aggressive_history: String,
     pub conservative_history: String,
@@ -159,6 +162,7 @@ pub struct RiskDebateState {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Reflection state.
 pub struct ReflectionState {
     pub status: String,
     pub reflection: String,
@@ -166,6 +170,7 @@ pub struct ReflectionState {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Analysis checkpoint.
 pub struct AnalysisCheckpoint {
     pub stage_key: String,
     pub stage_name: String,
@@ -175,6 +180,7 @@ pub struct AnalysisCheckpoint {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+/// Analysis task summary.
 pub struct AnalysisTaskSummary {
     pub task_id: String,
     pub stock_code: String,

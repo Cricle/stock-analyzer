@@ -16,6 +16,7 @@ impl StructuredPortfolioDecision {
         rating_changed || action_changed
     }
 
+    /// Compute Authoritative_summary.
     pub fn authoritative_summary(
         &self,
         trader_plan: &StructuredTraderPlan,
@@ -210,6 +211,7 @@ impl StructuredPortfolioDecision {
         )
     }
 
+    /// Compute Render_markdown.
     pub fn render_markdown(&self) -> String {
         let risk_summary = humanize_risk_assessment(self.risk_assessment.as_str());
         let risk_sections = render_risk_assessment_sections(self.risk_assessment.as_str());

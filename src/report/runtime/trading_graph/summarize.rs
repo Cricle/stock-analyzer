@@ -1,5 +1,6 @@
 use serde_json::Value;
 
+/// Compute Summarize_tool_observation.
 pub fn summarize_tool_observation(item: &crate::types::ToolObservation) -> String {
     if !item.success {
         return item.output.clone();
@@ -17,6 +18,7 @@ pub fn summarize_tool_observation(item: &crate::types::ToolObservation) -> Strin
     }
 }
 
+/// Compute Summarize_stock_data_output.
 pub fn summarize_stock_data_output(output: &str) -> String {
     let Ok(value) = serde_json::from_str::<Value>(output) else {
         return bounded_output(output, 1800);
@@ -260,6 +262,7 @@ fn bounded_output(text: &str, max_chars: usize) -> String {
     format!("{truncated}\n...[truncated]")
 }
 
+/// Compute Format_fundamental_metrics.
 pub fn format_fundamental_metrics(sd: &crate::AnalysisScenarioData) -> String {
     let Some(f) = &sd.fundamentals else {
         return String::new();
@@ -301,6 +304,7 @@ pub fn format_fundamental_metrics(sd: &crate::AnalysisScenarioData) -> String {
     }
 }
 
+/// Compute Format_volume_profile.
 pub fn format_volume_profile(sd: &crate::AnalysisScenarioData) -> String {
     let candles = &sd.candles;
     if candles.len() < 5 {

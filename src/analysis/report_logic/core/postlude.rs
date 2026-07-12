@@ -1,4 +1,5 @@
 
+/// Compute Compute_reward_risk_hint.
 pub fn compute_reward_risk_hint(
     trader_plan: &StructuredTraderPlan,
     portfolio_decision: &StructuredPortfolioDecision,
@@ -14,6 +15,7 @@ pub fn compute_reward_risk_hint(
     }
 }
 
+/// Compute Extract_first_price.
 pub fn extract_first_price(text: &str) -> Option<f64> {
     let Ok(re) = Regex::new(r"(\d{1,6}(?:\.\d{1,4})?)") else {
         return None;

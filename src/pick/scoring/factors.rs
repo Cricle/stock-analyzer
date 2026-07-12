@@ -1,5 +1,6 @@
 use crate::pick::{EnrichedCandidate, FactorBreakdown};
 
+/// Compute Compute_factor_breakdown.
 pub fn compute_factor_breakdown(item: &EnrichedCandidate) -> FactorBreakdown {
     let momentum = momentum_score(item);
     let quality = quality_score(item);
@@ -195,6 +196,7 @@ fn history_score(item: &EnrichedCandidate) -> f64 {
     (20.0 + sample_component + hit_component + alpha_component).clamp(0.0, 100.0)
 }
 
+/// Compute Penalty_score.
 pub fn penalty_score(item: &EnrichedCandidate) -> f64 {
     let mut penalty = 0.0;
     if let Some(change_pct) = item.change_pct {

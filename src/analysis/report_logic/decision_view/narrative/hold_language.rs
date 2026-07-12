@@ -262,6 +262,7 @@ fn normalize_reference_phrase(value: &str) -> String {
         .to_string()
 }
 
+/// Compute Is_publishable_summary_reference.
 pub fn is_publishable_summary_reference(value: &str) -> bool {
     let normalized = normalize_reference_phrase(value);
     if normalized.is_empty() {

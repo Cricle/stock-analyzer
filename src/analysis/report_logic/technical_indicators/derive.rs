@@ -47,6 +47,7 @@ fn derive_technical_indicators(chart: &ReportMarketChart) -> TechnicalIndicatorV
 }
 
 #[derive(Default)]
+/// Technical values.
 pub struct TechnicalValues {
     pub ma50: Option<f64>,
     pub ma200: Option<f64>,
@@ -156,6 +157,7 @@ fn indicator_item(
     }
 }
 
+/// Compute Derive_technical_conclusions.
 pub fn derive_technical_conclusions(values: &TechnicalValues, current: Option<f64>) -> Vec<TechnicalIndicatorConclusion> {
     let mut out = Vec::new();
     if values.rsi.is_some_and(|value| value > 75.0) {

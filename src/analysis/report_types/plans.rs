@@ -1,5 +1,6 @@
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Trade setup quality.
 pub struct TradeSetupQuality {
     #[serde(default)]
     pub score: i32,
@@ -18,6 +19,7 @@ pub struct TradeSetupQuality {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Calibration summary.
 pub struct CalibrationSummary {
     #[serde(default)]
     pub threshold_tightened: bool,
@@ -54,6 +56,7 @@ pub struct CalibrationSummary {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Setup match explanation.
 pub struct SetupMatchExplanation {
     #[serde(default)]
     pub reason_code: String,

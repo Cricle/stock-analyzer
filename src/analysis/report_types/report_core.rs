@@ -15,6 +15,7 @@ where
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Structured report.
 pub struct StructuredReport {
     #[serde(default)]
     pub report_flavor: ReportFlavor,

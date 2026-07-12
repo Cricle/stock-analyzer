@@ -56,6 +56,7 @@ pub struct ReportReferenceSnapshot {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Reference fact item.
 pub struct ReferenceFactItem {
     #[serde(default)]
     pub key: String,
@@ -83,6 +84,7 @@ pub struct HistoricalCalibrationStats {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Confidence breakdown.
 pub struct ConfidenceBreakdown {
     #[serde(default)]
     pub data_quality: ScoreDimension,
@@ -107,6 +109,7 @@ pub struct ConfidenceBreakdown {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Score dimension.
 pub struct ScoreDimension {
     pub score: i32,
     pub max_score: i32,
@@ -115,6 +118,7 @@ pub struct ScoreDimension {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Confidence cap.
 pub struct ConfidenceCap {
     pub key: String,
     #[serde(default, skip_serializing)]
@@ -125,6 +129,7 @@ pub struct ConfidenceCap {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+/// Research reliability.
 pub struct ResearchReliability {
     #[serde(default)]
     pub score: i32,

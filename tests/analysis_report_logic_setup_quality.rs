@@ -283,27 +283,29 @@ fn collect_execution_blocking_gaps_deduplicates() {
     let research = StructuredResearchPlan::default();
     let trader = StructuredTraderPlan::default();
     let portfolio = StructuredPortfolioDecision::default();
-    let mut diagnostics = ReportDiagnostics::default();
-    diagnostics.availability = vec![
-        ReportDiagnosticItem {
-            code: "scenario_minimum_1".into(),
-            message: "missing data".into(),
-            severity: "error".into(),
-            details: vec![],
-            related_blocking_gaps: vec![],
-            related_trigger_checklist: vec![],
-            elevated_to_execution_blocking_gap: false,
-        },
-        ReportDiagnosticItem {
-            code: "scenario_minimum_2".into(),
-            message: "missing data".into(),
-            severity: "error".into(),
-            details: vec![],
-            related_blocking_gaps: vec![],
-            related_trigger_checklist: vec![],
-            elevated_to_execution_blocking_gap: false,
-        },
-    ];
+    let diagnostics = ReportDiagnostics {
+        availability: vec![
+            ReportDiagnosticItem {
+                code: "scenario_minimum_1".into(),
+                message: "missing data".into(),
+                severity: "error".into(),
+                details: vec![],
+                related_blocking_gaps: vec![],
+                related_trigger_checklist: vec![],
+                elevated_to_execution_blocking_gap: false,
+            },
+            ReportDiagnosticItem {
+                code: "scenario_minimum_2".into(),
+                message: "missing data".into(),
+                severity: "error".into(),
+                details: vec![],
+                related_blocking_gaps: vec![],
+                related_trigger_checklist: vec![],
+                elevated_to_execution_blocking_gap: false,
+            },
+        ],
+        ..Default::default()
+    };
     let gaps = collect_execution_blocking_gaps(&research, &trader, &portfolio, &diagnostics);
     assert_eq!(gaps.iter().filter(|g| *g == "missing data").count(), 1);
 }
@@ -313,16 +315,18 @@ fn collect_execution_blocking_gaps_from_diagnostics() {
     let research = StructuredResearchPlan::default();
     let trader = StructuredTraderPlan::default();
     let portfolio = StructuredPortfolioDecision::default();
-    let mut diagnostics = ReportDiagnostics::default();
-    diagnostics.availability = vec![ReportDiagnosticItem {
-        code: "scenario_minimum_1".into(),
-        message: "missing scenario data".into(),
-        severity: "error".into(),
-        details: vec![],
-        related_blocking_gaps: vec![],
-        related_trigger_checklist: vec![],
-        elevated_to_execution_blocking_gap: false,
-    }];
+    let diagnostics = ReportDiagnostics {
+        availability: vec![ReportDiagnosticItem {
+            code: "scenario_minimum_1".into(),
+            message: "missing scenario data".into(),
+            severity: "error".into(),
+            details: vec![],
+            related_blocking_gaps: vec![],
+            related_trigger_checklist: vec![],
+            elevated_to_execution_blocking_gap: false,
+        }],
+        ..Default::default()
+    };
     let gaps = collect_execution_blocking_gaps(&research, &trader, &portfolio, &diagnostics);
     assert!(gaps.contains(&"missing scenario data".to_string()));
 }
@@ -331,16 +335,18 @@ fn collect_execution_blocking_gaps_from_diagnostics() {
 
 #[test]
 fn scenario_gap_messages_from_availability() {
-    let mut diagnostics = ReportDiagnostics::default();
-    diagnostics.availability = vec![ReportDiagnosticItem {
-        code: "scenario_minimum_1".into(),
-        message: "missing data".into(),
-        severity: "error".into(),
-        details: vec![],
-        related_blocking_gaps: vec![],
-        related_trigger_checklist: vec![],
-        elevated_to_execution_blocking_gap: false,
-    }];
+    let diagnostics = ReportDiagnostics {
+        availability: vec![ReportDiagnosticItem {
+            code: "scenario_minimum_1".into(),
+            message: "missing data".into(),
+            severity: "error".into(),
+            details: vec![],
+            related_blocking_gaps: vec![],
+            related_trigger_checklist: vec![],
+            elevated_to_execution_blocking_gap: false,
+        }],
+        ..Default::default()
+    };
     let messages = scenario_gap_messages(&diagnostics);
     assert_eq!(messages, vec!["missing data"]);
 }

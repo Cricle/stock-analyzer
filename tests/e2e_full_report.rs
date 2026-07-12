@@ -22,40 +22,39 @@ fn load_llm_config() -> Option<LlmConfig> {
         .join(".claude")
         .join("settings.json");
 
-    if let Ok(content) = std::fs::read_to_string(&settings_path) {
-        if let Ok(settings) = serde_json::from_str::<serde_json::Value>(&content) {
-            if let Some(env) = settings.get("env") {
-                let base_url = env
-                    .get("ANTHROPIC_BASE_URL")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let api_key = env
-                    .get("ANTHROPIC_AUTH_TOKEN")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let model = env
-                    .get("ANTHROPIC_MODEL")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let timeout_ms = env
-                    .get("API_TIMEOUT_MS")
-                    .and_then(|v| v.as_str())
-                    .and_then(|s| s.parse::<u64>().ok())
-                    .unwrap_or(30000);
+    if let Ok(content) = std::fs::read_to_string(&settings_path)
+        && let Ok(settings) = serde_json::from_str::<serde_json::Value>(&content)
+        && let Some(env) = settings.get("env")
+    {
+        let base_url = env
+            .get("ANTHROPIC_BASE_URL")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let api_key = env
+            .get("ANTHROPIC_AUTH_TOKEN")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let model = env
+            .get("ANTHROPIC_MODEL")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let timeout_ms = env
+            .get("API_TIMEOUT_MS")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(30000);
 
-                if let (Some(base_url), Some(api_key), Some(model)) = (base_url, api_key, model) {
-                    println!("Loaded LLM config from Claude settings:");
-                    println!("  Base URL: {}", base_url);
-                    println!("  Model: {}", model);
-                    println!("  Timeout: {}ms", timeout_ms);
-                    return Some(LlmConfig {
-                        base_url,
-                        api_key,
-                        model,
-                        timeout_secs: timeout_ms / 1000,
-                    });
-                }
-            }
+        if let (Some(base_url), Some(api_key), Some(model)) = (base_url, api_key, model) {
+            println!("Loaded LLM config from Claude settings:");
+            println!("  Base URL: {}", base_url);
+            println!("  Model: {}", model);
+            println!("  Timeout: {}ms", timeout_ms);
+            return Some(LlmConfig {
+                base_url,
+                api_key,
+                model,
+                timeout_secs: timeout_ms / 1000,
+            });
         }
     }
 

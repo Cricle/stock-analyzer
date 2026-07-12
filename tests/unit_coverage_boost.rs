@@ -372,7 +372,7 @@ fn weighted_total_balanced() {
         reliability: stock_analyzer::scoring::ScoreReliability::High,
     };
     let total = stock_analyzer::scoring::scorer::weighted_total(&weights, &tech, &fund, &sent, &llm);
-    assert!(total >= 70 && total <= 80, "expected ~75, got {total}");
+    assert!((70..=80).contains(&total), "expected ~75, got {total}");
 }
 
 // =========================================================================
@@ -1474,7 +1474,7 @@ fn wr_basic() {
     let result = stock_analyzer::indicators::wr(&candles, 14);
     assert!(result.is_some());
     let wr = result.unwrap();
-    assert!(wr >= -100.0 && wr <= 0.0, "WR={wr}");
+    assert!((-100.0..=0.0).contains(&wr), "WR={wr}");
 }
 
 #[test]
@@ -1489,7 +1489,7 @@ fn adx_basic() {
     let result = stock_analyzer::indicators::adx(&candles, 14);
     assert!(result.is_some());
     let adx = result.unwrap();
-    assert!(adx >= 0.0 && adx <= 100.0, "ADX={adx}");
+    assert!((0.0..=100.0).contains(&adx), "ADX={adx}");
 }
 
 #[test]

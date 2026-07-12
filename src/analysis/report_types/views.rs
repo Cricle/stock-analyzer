@@ -1,4 +1,4 @@
-
+/// Price context — current price, lookback high/low, and distance metrics.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct PriceContext {
     #[serde(default)]
@@ -25,6 +25,7 @@ pub struct PriceContext {
     pub volume_change_pct: Option<f64>,
 }
 
+/// Probability view — upside/downside/sideways probabilities with targets.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ProbabilityView {
     #[serde(default)]
@@ -57,6 +58,7 @@ pub struct ProbabilityView {
     pub stop_loss: Option<f64>,
 }
 
+/// A driver contributing to probability assessment.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ProbabilityDriver {
     #[serde(default)]
@@ -69,6 +71,7 @@ pub struct ProbabilityDriver {
     pub evidence_keys: Vec<String>,
 }
 
+/// Profit/risk view — upside/downside percentages and reward-risk ratio.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ProfitRiskView {
     #[serde(default)]

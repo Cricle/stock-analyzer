@@ -81,8 +81,8 @@ pub fn assert_candles_valid(candles: &[CandlePoint]) -> bool {
 
 pub fn print_completeness_table(results: &[StockEvalResult]) {
     println!(
-        "\n{:<10} | {:<8} | {:<15} | {:<8} | {:<10} | {}",
-        "Stock", "Quote", "Fundamentals", "News", "Candles", "Score"
+        "\n{:<10} | {:<8} | {:<15} | {:<8} | {:<10} | Score",
+        "Stock", "Quote", "Fundamentals", "News", "Candles"
     );
     println!("{}", "-".repeat(75));
     for r in results {

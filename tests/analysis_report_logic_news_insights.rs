@@ -107,16 +107,20 @@ fn derive_evidence_cards_claim_from_summary() {
 
 #[test]
 fn news_watch_next_summary_early_probe() {
-    let mut decision = DecisionView::default();
-    decision.early_probe_allowed = true;
+    let decision = DecisionView {
+        early_probe_allowed: true,
+        ..Default::default()
+    };
     let result = news_watch_next_summary(&decision);
     assert_eq!(result.key, "watch_price_volume_follow_through");
 }
 
 #[test]
 fn news_watch_next_summary_wait_retest() {
-    let mut decision = DecisionView::default();
-    decision.action = DecisionAction::WaitRetest;
+    let decision = DecisionView {
+        action: DecisionAction::WaitRetest,
+        ..Default::default()
+    };
     let result = news_watch_next_summary(&decision);
     assert_eq!(result.key, "watch_retest_acceptance");
 }

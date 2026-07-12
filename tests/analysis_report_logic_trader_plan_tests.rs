@@ -225,7 +225,6 @@ fn disclosure_sequence_complexity_detects_clustered_capital_markets_filings() {
                 summary: "Registration filing for securities resale.".to_string(),
                 emphasis: "SEC".to_string(),
                 url: "https://www.sec.gov/Archives/example-1".to_string(),
-                ..Default::default()
             },
             ReferenceFactItem {
                 key: "news_item".to_string(),
@@ -234,7 +233,6 @@ fn disclosure_sequence_complexity_detects_clustered_capital_markets_filings() {
                 summary: "Potential insider sale registration notice.".to_string(),
                 emphasis: "SEC".to_string(),
                 url: "https://www.sec.gov/Archives/example-2".to_string(),
-                ..Default::default()
             },
             ReferenceFactItem {
                 key: "news_item".to_string(),
@@ -243,7 +241,6 @@ fn disclosure_sequence_complexity_detects_clustered_capital_markets_filings() {
                 summary: "No direct business catalyst disclosed.".to_string(),
                 emphasis: "SEC".to_string(),
                 url: "https://www.sec.gov/Archives/example-3".to_string(),
-                ..Default::default()
             },
         ],
     )

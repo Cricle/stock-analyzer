@@ -4,8 +4,10 @@ use stock_analyzer::pick::validation::{PickQualityGate, apply_defaults, validate
 use stock_analyzer::pick::{EnrichedCandidate, FactorBreakdown};
 
 fn make_candidate(price: Option<f64>, atr: Option<f64>) -> EnrichedCandidate {
-    let mut technical = StockPickTechnicalSnapshot::default();
-    technical.atr = atr;
+    let technical = StockPickTechnicalSnapshot {
+        atr,
+        ..Default::default()
+    };
 
     EnrichedCandidate {
         symbol: "TEST".to_string(),

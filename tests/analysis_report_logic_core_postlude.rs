@@ -54,11 +54,15 @@ fn extract_first_price_allows_after_chinese() {
 
 #[test]
 fn compute_reward_risk_hint_basic() {
-    let mut trader = StructuredTraderPlan::default();
-    trader.entry_price = "150".into();
-    trader.stop_loss = "145".into();
-    let mut portfolio = StructuredPortfolioDecision::default();
-    portfolio.price_target = "165".into();
+    let trader = StructuredTraderPlan {
+        entry_price: "150".into(),
+        stop_loss: "145".into(),
+        ..Default::default()
+    };
+    let portfolio = StructuredPortfolioDecision {
+        price_target: "165".into(),
+        ..Default::default()
+    };
     let hint = compute_reward_risk_hint(&trader, &portfolio);
     // (165-150)/(150-145) = 15/5 = 3.0
     assert!(hint.is_some());
@@ -67,12 +71,16 @@ fn compute_reward_risk_hint_basic() {
 
 #[test]
 fn compute_reward_risk_hint_uses_confirmation_as_fallback() {
-    let mut trader = StructuredTraderPlan::default();
-    trader.entry_price = "150".into();
-    trader.stop_loss = "145".into();
-    let mut portfolio = StructuredPortfolioDecision::default();
-    portfolio.price_target = "".into();
-    portfolio.confirmation_level = "160".into();
+    let trader = StructuredTraderPlan {
+        entry_price: "150".into(),
+        stop_loss: "145".into(),
+        ..Default::default()
+    };
+    let portfolio = StructuredPortfolioDecision {
+        price_target: "".into(),
+        confirmation_level: "160".into(),
+        ..Default::default()
+    };
     let hint = compute_reward_risk_hint(&trader, &portfolio);
     assert!(hint.is_some());
 }
@@ -86,10 +94,14 @@ fn compute_reward_risk_hint_missing_entry() {
 
 #[test]
 fn compute_reward_risk_hint_entry_below_stop() {
-    let mut trader = StructuredTraderPlan::default();
-    trader.entry_price = "145".into();
-    trader.stop_loss = "150".into();
-    let mut portfolio = StructuredPortfolioDecision::default();
-    portfolio.price_target = "160".into();
+    let trader = StructuredTraderPlan {
+        entry_price: "145".into(),
+        stop_loss: "150".into(),
+        ..Default::default()
+    };
+    let portfolio = StructuredPortfolioDecision {
+        price_target: "160".into(),
+        ..Default::default()
+    };
     assert!(compute_reward_risk_hint(&trader, &portfolio).is_none());
 }

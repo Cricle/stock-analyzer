@@ -1,6 +1,7 @@
 
 use crate::types::{PendingToolCall, ToolObservation};
 
+/// Structured post-analysis reflection with strengths, uncertainties, and lessons.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StructuredReflection {
     #[serde(default, deserialize_with = "deserialize_local_text_or_string")]
@@ -15,6 +16,7 @@ pub struct StructuredReflection {
     pub markdown: String,
 }
 
+/// Structured risk assessment with blocking gaps, key risks, and supports.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StructuredRiskAssessment {
     #[serde(default)]
@@ -35,6 +37,7 @@ pub struct StructuredRiskAssessment {
     pub raw_text: String,
 }
 
+/// Completion state of each report pipeline stage.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ReportStageState {
     pub overview: bool,
@@ -51,6 +54,7 @@ pub struct ReportStageState {
     pub reflection: bool,
 }
 
+/// Runtime state of an analyst agent during report generation.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AnalystRuntimeState {
     pub key: String,
@@ -64,6 +68,7 @@ pub struct AnalystRuntimeState {
     pub cleared: bool,
 }
 
+/// Trace of a single node execution in the report pipeline.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RuntimeNodeTrace {
     pub stage: String,
@@ -72,6 +77,7 @@ pub struct RuntimeNodeTrace {
     pub timestamp: String,
 }
 
+/// A node in the agent report graph (key, title, agent, summary).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AgentReportNode {
     pub key: String,

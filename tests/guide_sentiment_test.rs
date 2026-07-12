@@ -33,5 +33,5 @@ fn all_positive_large_set_near_plus_100() {
 #[test]
 fn score_clamped() {
     let s = sentiment_score(100, 0, 100);
-    assert!(s >= -100 && s <= 100);
+    assert!((-100..=100).contains(&s));
 }

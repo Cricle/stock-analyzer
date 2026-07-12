@@ -62,7 +62,7 @@ fn ema_report_insufficient_data() {
 fn rsi_report_basic() {
     let candles = sample_candles();
     let rsi = rsi_report(&candles, 3).unwrap();
-    assert!(rsi >= 0.0 && rsi <= 100.0);
+    assert!((0.0..=100.0).contains(&rsi));
 }
 
 #[test]
@@ -116,8 +116,8 @@ fn macd_report_insufficient_data() {
 fn kdj_report_basic() {
     let candles = sample_candles();
     let (k, d, j) = kdj_report(&candles, 3).unwrap();
-    assert!(k >= 0.0 && k <= 100.0);
-    assert!(d >= 0.0 && d <= 100.0);
+    assert!((0.0..=100.0).contains(&k));
+    assert!((0.0..=100.0).contains(&d));
     // j = 3k - 2d, can be outside 0-100
     assert!((j - (3.0 * k - 2.0 * d)).abs() < 0.01);
 }
@@ -134,7 +134,7 @@ fn kdj_report_insufficient_data() {
 fn adx_report_basic() {
     let candles = sample_candles();
     let adx = adx_report(&candles, 2).unwrap();
-    assert!(adx >= 0.0 && adx <= 100.0);
+    assert!((0.0..=100.0).contains(&adx));
 }
 
 #[test]

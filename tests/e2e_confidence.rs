@@ -32,46 +32,52 @@ fn good_result() -> AnalysisResult {
         make_analyst("sentiment", 0.58, 0.19, 0.23),
     ];
 
-    let mut agent_state = AgentStateSnapshot::default();
-    agent_state.market_report = "Strong uptrend with resistance at 150, support at 120".into();
-    agent_state.fundamentals_report = "PE 18.5 ROE 22% growing revenue 15% YoY".into();
-    agent_state.news_report = "Earnings beat expectations on 2026-07-15, new product launch".into();
-    agent_state.sentiment_report =
-        "Positive sentiment from institutional investors, 65% bullish".into();
+    let trader_plan = StructuredTraderPlan {
+        entry_price: "135.50".into(),
+        stop_loss: "128.00".into(),
+        execution_trigger_checklist: vec![
+            "confirm_breakout".into(),
+            "volume_surge".into(),
+            "sector_momentum".into(),
+        ],
+        ..Default::default()
+    };
 
-    let mut trader_plan = StructuredTraderPlan::default();
-    trader_plan.entry_price = "135.50".into();
-    trader_plan.stop_loss = "128.00".into();
-    trader_plan.execution_trigger_checklist = vec![
-        "confirm_breakout".into(),
-        "volume_surge".into(),
-        "sector_momentum".into(),
-    ];
+    let portfolio_decision = StructuredPortfolioDecision {
+        rating: Rating::Buy,
+        raw_rating: "Buy".into(),
+        price_target: "155.00".into(),
+        confirmation_level: "145.00".into(),
+        time_horizon: "2026-07-01 to 2026-12-31".into(),
+        trigger_checklist: vec!["check_earnings".into(), "check_sector".into()],
+        ..Default::default()
+    };
 
-    let mut portfolio_decision = StructuredPortfolioDecision::default();
-    portfolio_decision.rating = Rating::Buy;
-    portfolio_decision.raw_rating = "Buy".into();
-    portfolio_decision.price_target = "155.00".into();
-    portfolio_decision.confirmation_level = "145.00".into();
-    portfolio_decision.time_horizon = "2026-07-01 to 2026-12-31".into();
-    portfolio_decision.trigger_checklist = vec!["check_earnings".into(), "check_sector".into()];
-
-    agent_state.structured_trader_plan = trader_plan;
+    let mut agent_state = AgentStateSnapshot {
+        market_report: "Strong uptrend with resistance at 150, support at 120".into(),
+        fundamentals_report: "PE 18.5 ROE 22% growing revenue 15% YoY".into(),
+        news_report: "Earnings beat expectations on 2026-07-15, new product launch".into(),
+        sentiment_report: "Positive sentiment from institutional investors, 65% bullish".into(),
+        structured_trader_plan: trader_plan,
+        ..Default::default()
+    };
     agent_state.structured_portfolio_decision = portfolio_decision;
 
-    let mut artifacts = AnalysisArtifacts::default();
-    artifacts.analyst_runtime_states = vec![AnalystRuntimeState {
-        key: "market".into(),
-        tool_history: vec![ToolObservation {
-            tool_name: "get_market_data".into(),
-            arguments: serde_json::Value::Null,
-            output: "success".into(),
-            meta: serde_json::Value::Null,
-            success: true,
-            created_at: "2026-06-29T00:00:00Z".into(),
+    let artifacts = AnalysisArtifacts {
+        analyst_runtime_states: vec![AnalystRuntimeState {
+            key: "market".into(),
+            tool_history: vec![ToolObservation {
+                tool_name: "get_market_data".into(),
+                arguments: serde_json::Value::Null,
+                output: "success".into(),
+                meta: serde_json::Value::Null,
+                success: true,
+                created_at: "2026-06-29T00:00:00Z".into(),
+            }],
+            ..Default::default()
         }],
         ..Default::default()
-    }];
+    };
 
     AnalysisResult {
         task_id: "task-e2e".into(),

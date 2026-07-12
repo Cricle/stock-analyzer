@@ -1,10 +1,18 @@
+/// Maximum score for data quality dimension.
 pub const DATA_QUALITY_MAX: i32 = 25;
+/// Maximum score for trend confirmation dimension.
 pub const TREND_CONFIRMATION_MAX: i32 = 25;
+/// Maximum score for fundamental confirmation dimension.
 pub const FUNDAMENTAL_CONFIRMATION_MAX: i32 = 25;
+/// Maximum score for catalyst quality dimension.
 pub const CATALYST_QUALITY_MAX: i32 = 25;
+/// Maximum score for historical transferability dimension.
 pub const HISTORICAL_TRANSFERABILITY_MAX: i32 = 15;
+/// Maximum score for cross-agent consistency dimension.
 pub const CROSS_AGENT_CONSISTENCY_MAX: i32 = 25;
+/// Maximum score for risk clarity dimension.
 pub const RISK_CLARITY_MAX: i32 = 15;
+/// Floor score when catalyst vacuum is detected (no news report).
 pub const CATALYST_VACUUM_FLOOR: i32 = 3;
 
 /// Final confidence score with breakdown and applied caps.

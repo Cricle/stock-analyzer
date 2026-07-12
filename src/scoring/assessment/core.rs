@@ -1,3 +1,4 @@
+/// Score data completeness (core reports, analyst count, tool success/failure).
 pub fn score_data_quality(
     non_empty_core: usize,
     analyst_count: usize,
@@ -18,6 +19,7 @@ pub fn score_data_quality(
     }
 }
 
+/// Score trend confirmation (market report, evidence, numeric anchors, probabilities).
 pub fn score_trend_confirmation(
     analyst: Option<&AgentReportNode>,
     market_report: &str,
@@ -53,6 +55,7 @@ pub fn score_trend_confirmation(
     }
 }
 
+/// Score fundamental analysis quality (report, evidence, numeric anchors).
 pub fn score_fundamentals(
     analyst: Option<&AgentReportNode>,
     fundamentals_report: &str,
@@ -83,6 +86,7 @@ pub fn score_fundamentals(
     }
 }
 
+/// Score catalyst quality (news report, evidence, dates, next steps).
 pub fn score_catalyst_quality(
     analyst: Option<&AgentReportNode>,
     news_report: &str,
@@ -115,6 +119,7 @@ pub fn score_catalyst_quality(
     }
 }
 
+/// Score historical transferability based on memory matches and hit rates.
 pub fn score_historical_transferability(result: &AnalysisResult) -> ScoreDimension {
     let memory = &result.artifacts.memory_context;
     let setup_match_count = memory.setup_match_count as i32;
@@ -181,6 +186,7 @@ pub fn score_historical_transferability(result: &AnalysisResult) -> ScoreDimensi
     }
 }
 
+/// Score alignment between current direction and historical setup outcomes.
 pub fn score_setup_direction_alignment(result: &AnalysisResult) -> ScoreDimension {
     let memory = &result.artifacts.memory_context;
     let recommendation = &result.structured_portfolio_decision().rating;
@@ -241,6 +247,7 @@ pub fn score_setup_direction_alignment(result: &AnalysisResult) -> ScoreDimensio
     }
 }
 
+/// Score cross-agent directional consistency (all bullish/bearish = high).
 pub fn score_cross_agent_consistency(result: &AnalysisResult) -> ScoreDimension {
     let nets = result
         .graph
@@ -287,6 +294,7 @@ pub fn score_cross_agent_consistency(result: &AnalysisResult) -> ScoreDimension 
     }
 }
 
+/// Score risk clarity (risk assessment, debate turns, numeric boundaries).
 pub fn score_risk_clarity(
     result: &AnalysisResult,
     research_plan: &StructuredResearchPlan,

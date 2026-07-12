@@ -9,21 +9,25 @@ pub(crate) struct FieldExtractor<'a> {
 }
 
 impl<'a> FieldExtractor<'a> {
+    /// Create a field extractor from a JSON value.
     pub fn from_raw(raw: &'a Value) -> Self {
         Self {
             object: raw.as_object(),
         }
     }
 
+    /// Get a field value by key.
     pub fn field(&self, key: &str) -> Option<Value> {
         self.object.and_then(|map| map.get(key)).cloned()
     }
 
+    /// Get a text field with a default fallback.
     pub fn text(&self, key: &str, default: &str) -> String {
         parse::text_or_default(self.field(key), default)
     }
 }
 
+/// Resolve probabilities from LLM output, falling back to neutral defaults.
 pub fn role_report_probabilities(
     up: Option<Value>,
     down: Option<Value>,
@@ -66,6 +70,7 @@ pub fn is_uniform_distribution(up: &Value, down: &Value, sideways: &Value) -> bo
     (u - 0.333).abs() < 0.02 && (d - 0.333).abs() < 0.02 && (s - 0.333).abs() < 0.02
 }
 
+/// Check if a JSON value is zero (number 0 or string "0").
 pub fn is_zero_value(value: &Value) -> bool {
     match value {
         Value::Number(n) => n.as_f64().is_some_and(|f| f.abs() < f64::EPSILON),
@@ -74,10 +79,12 @@ pub fn is_zero_value(value: &Value) -> bool {
     }
 }
 
+/// Filter an option to only meaningful (non-null, non-empty) values.
 pub fn meaningful_value(value: Option<Value>) -> Option<Value> {
     value.filter(is_meaningful_value)
 }
 
+/// Check if a JSON value is meaningful (not null, not empty string).
 pub fn is_meaningful_value(value: &Value) -> bool {
     match value {
         Value::Null => false,
@@ -88,6 +95,7 @@ pub fn is_meaningful_value(value: &Value) -> bool {
     }
 }
 
+/// Extract a value from a JSON object by trying multiple keys.
 pub fn extract_object_value(value: Option<&Value>, keys: &[&str]) -> Option<Value> {
     let Value::Object(map) = value? else {
         return None;
@@ -99,6 +107,7 @@ pub fn extract_object_value(value: Option<&Value>, keys: &[&str]) -> Option<Valu
         .filter(is_meaningful_value)
 }
 
+/// Extract a string list from a JSON object by trying multiple keys.
 pub fn extract_object_string_list(value: Option<&Value>, keys: &[&str]) -> Vec<String> {
     for key in keys {
         let items = extract_object_value(value, &[*key])
@@ -119,6 +128,7 @@ fn split_list_like_value(value: &Value) -> Vec<String> {
     }
 }
 
+/// Split text into list items by newlines and semicolons.
 pub fn split_list_like_text(text: &str) -> Vec<String> {
     dedup_string_items(
         text.lines()

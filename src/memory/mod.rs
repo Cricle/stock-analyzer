@@ -28,6 +28,7 @@ pub(crate) const WEAK_SETUP_TAGS: &[&str] = &["watchlist_only"];
 /// Uses the trait-based VectorStore from sa_models.
 pub type VectorMemoryBackend = std::sync::Arc<dyn crate::VectorStore>;
 
+/// Configuration for RAG (Retrieval-Augmented Generation) memory.
 #[derive(Clone)]
 pub struct RagConfig {
     pub enabled: bool,
@@ -38,6 +39,7 @@ pub struct RagConfig {
     pub cross_ticker_top_k: usize,
 }
 
+/// Embedding model backend (local fastembed or remote provider).
 #[derive(Clone)]
 pub struct EmbeddingBackend {
     #[cfg(feature = "local-rag-embeddings")]
@@ -56,6 +58,7 @@ pub(crate) struct RagRuntimeSnapshot {
     pub embedding_model: String,
 }
 
+/// Main memory store with vector search, log persistence, and embedding.
 #[derive(Clone)]
 pub struct TradingMemoryLog {
     pub log_path: PathBuf,
@@ -65,6 +68,7 @@ pub struct TradingMemoryLog {
     pub embedding: EmbeddingBackend,
 }
 
+/// A single memory record (analysis outcome, reflection, scores).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MemoryEntry {
     pub ticker: String,
@@ -110,6 +114,7 @@ pub struct MemoryEntry {
     pub pending: bool,
 }
 
+/// Research-oriented memory record for cross-collection search.
 #[derive(Clone, Debug, Default)]
 pub struct ResearchMemoryRecord {
     pub stock_name: String,
@@ -125,6 +130,7 @@ pub struct ResearchMemoryRecord {
     pub structured_snapshot: serde_json::Value,
 }
 
+/// Bundle of memory context (text + metadata) for LLM injection.
 #[derive(Clone, Debug)]
 pub struct MemoryContextBundle {
     pub context_text: String,
@@ -158,6 +164,7 @@ impl Default for MemoryContextBundle {
     }
 }
 
+/// Extended memory context bundle with setup tag matching metadata.
 #[derive(Clone, Debug, Default)]
 pub struct MemoryContextBundleWithTags {
     pub context_text: String,
@@ -185,6 +192,7 @@ pub struct MemoryContextBundleWithTags {
     pub setup_neutral_match_count: usize,
 }
 
+/// Query parameters for memory retrieval (ticker, market, tags).
 #[derive(Clone, Debug, Default)]
 pub struct MemoryQuery {
     pub ticker: String,

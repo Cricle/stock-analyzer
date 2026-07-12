@@ -3,6 +3,7 @@ use super::{
     extract_labeled_block,
 };
 impl TradingMemoryLog {
+    /// Rotate memory blocks, dropping oldest resolved entries when over limit.
     pub fn apply_rotation(&self, blocks: Vec<String>) -> Vec<String> {
         if self.max_entries == 0 {
             return blocks;
@@ -34,6 +35,7 @@ impl TradingMemoryLog {
         kept
     }
 
+    /// Parse a memory entry from its text representation.
     pub fn parse_entry(raw: &str) -> Option<MemoryEntry> {
         let trimmed = raw.trim();
         if trimmed.is_empty() {
@@ -200,6 +202,7 @@ impl TradingMemoryLog {
         })
     }
 
+    /// Format a memory entry with summary, risks, rationale, and reflection.
     pub fn format_full_entry(entry: &MemoryEntry) -> String {
         let decision_body = if !entry.summary.trim().is_empty() {
             let mut lines = vec![format!(
@@ -266,6 +269,7 @@ impl TradingMemoryLog {
         )
     }
 
+    /// Format only the reflection/lesson portion of a memory entry.
     pub fn format_reflection_only(entry: &MemoryEntry) -> String {
         let lesson = Self::format_structured_reflection_snapshot(&entry.structured_reflection)
             .filter(|value| !value.trim().is_empty())
@@ -295,6 +299,7 @@ impl TradingMemoryLog {
         )
     }
 
+    /// Create a highlight summary from a memory entry.
     pub fn highlight_from_entry(
         entry: &MemoryEntry,
         same_ticker: bool,
@@ -336,6 +341,7 @@ impl TradingMemoryLog {
     }
 }
 impl TradingMemoryLog {
+    /// Format a structured risk assessment into a readable text snapshot.
     pub fn format_structured_risk_snapshot(risk: &StructuredRiskAssessment) -> String {
         let mut parts = Vec::new();
         if !risk.decision_blocking_gaps.is_empty() {
@@ -356,6 +362,7 @@ impl TradingMemoryLog {
         parts.join("\n")
     }
 
+    /// Format a structured reflection into a readable text snapshot.
     pub fn format_structured_reflection_snapshot(
         reflection: &StructuredReflection,
     ) -> Option<String> {
@@ -378,6 +385,7 @@ impl TradingMemoryLog {
         (!parts.is_empty()).then(|| parts.join("\n"))
     }
 
+    /// Remove structured field prefixes from memory text for clean display.
     pub fn sanitize_memory_text(text: &str) -> String {
         text.lines()
             .map(str::trim)
@@ -404,6 +412,7 @@ impl TradingMemoryLog {
             .to_string()
     }
 
+    /// Convert structured risk text into human-readable bullet points.
     pub fn humanize_memory_risk(text: &str) -> String {
         let mut parts = Vec::new();
         let normalized = text.replace('\n', " ");

@@ -116,6 +116,7 @@ pub fn summarize_entries(entries: &[MemoryEntry]) -> serde_json::Value {
     })
 }
 
+/// Group entries by a key function and compute per-group summaries.
 pub fn group_summary<F>(entries: &[MemoryEntry], key_fn: F) -> serde_json::Value
 where
     F: Fn(&MemoryEntry) -> String,
@@ -135,6 +136,7 @@ where
     serde_json::Value::Object(output)
 }
 
+/// Check if a realized call matches the expected outcome for its rating.
 pub fn realized_call_hit(rating: &str, raw_return: f64, alpha_return: f64) -> bool {
     match rating {
         "Buy" => raw_return > 0.0 && alpha_return > 0.0,
@@ -146,6 +148,7 @@ pub fn realized_call_hit(rating: &str, raw_return: f64, alpha_return: f64) -> bo
     }
 }
 
+/// Bucket a score into labeled ranges based on cutoff values.
 pub fn bucket_score(score: Option<i32>, cutoffs: &[i32]) -> String {
     let Some(score) = score else {
         return "unknown".to_string();
@@ -163,6 +166,7 @@ pub fn bucket_score(score: Option<i32>, cutoffs: &[i32]) -> String {
     }
 }
 
+/// Bucket a signed score into labeled ranges.
 pub fn bucket_signed_score(score: Option<i32>, cutoffs: &[i32]) -> String {
     let Some(score) = score else {
         return "unknown".to_string();
@@ -180,6 +184,7 @@ pub fn bucket_signed_score(score: Option<i32>, cutoffs: &[i32]) -> String {
     }
 }
 
+/// Suggest a calibration profile based on historical memory entries.
 pub fn suggested_calibration_profile(entries: &[MemoryEntry]) -> serde_json::Value {
     let profile = derive_calibration_profile(entries);
     json!({
@@ -192,6 +197,7 @@ pub fn suggested_calibration_profile(entries: &[MemoryEntry]) -> serde_json::Val
     })
 }
 
+/// Derive optimal calibration profile by grid search over thresholds.
 pub fn derive_calibration_profile(entries: &[MemoryEntry]) -> CalibrationProfile {
     if entries.len() < 12 {
         return CalibrationProfile::default();
@@ -252,6 +258,7 @@ pub fn derive_calibration_profile(entries: &[MemoryEntry]) -> CalibrationProfile
     best_profile
 }
 
+/// Score a calibration profile candidate by hit rate, alpha, and coverage.
 pub fn evaluate_profile_candidate(
     entries: &[MemoryEntry],
     min_confidence_score: i32,
@@ -301,6 +308,7 @@ pub fn evaluate_profile_candidate(
     hit_rate * 0.55 + avg_alpha * 4.0 + coverage_rate * 0.15
 }
 
+/// Update for a memory entry's realized outcome (return, holding days, reflection).
 #[derive(Clone, Debug)]
 pub struct MemoryOutcomeUpdate {
     pub ticker: String,
@@ -314,6 +322,7 @@ pub struct MemoryOutcomeUpdate {
 use super::{MemoryQuery, TradingMemoryLog};
 
 impl TradingMemoryLog {
+    /// Build match statistics from resolved (non-pending) memory entries.
     pub fn build_stats_from_resolved_entries(entries: &[MemoryEntry]) -> SetupMatchStats {
         if entries.is_empty() {
             return SetupMatchStats::default();
@@ -363,6 +372,7 @@ impl TradingMemoryLog {
         }
     }
 
+    /// Fallback: compute match stats from same-ticker or same-market entries.
     pub async fn fallback_resolved_match_stats(
         &self,
         query: &MemoryQuery,
@@ -402,6 +412,7 @@ impl TradingMemoryLog {
         Ok(stats)
     }
 
+    /// Get effective setup match stats with fallback to broader queries.
     pub async fn effective_setup_match_stats(
         &self,
         query: &MemoryQuery,

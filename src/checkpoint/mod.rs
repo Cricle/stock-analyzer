@@ -14,6 +14,7 @@ use sha2::{Digest, Sha256};
 
 use crate::AnalysisResult;
 
+/// Checkpoint store for resumable analysis tasks.
 #[derive(Clone)]
 pub struct TaskCheckpointStore {
     inner: Arc<dyn crate::CheckpointStore>,
@@ -21,6 +22,7 @@ pub struct TaskCheckpointStore {
     graph_checkpoints: Arc<tokio::sync::RwLock<std::collections::HashMap<String, GraphCheckpoint>>>,
 }
 
+/// A persisted checkpoint snapshot for an analysis task.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TaskCheckpoint {
     pub task_id: String,
@@ -32,6 +34,7 @@ pub struct TaskCheckpoint {
     pub step: i64,
 }
 
+/// Record of a checkpoint write operation.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CheckpointWrite {
     pub stage: String,
@@ -41,6 +44,7 @@ pub struct CheckpointWrite {
 }
 
 impl TaskCheckpointStore {
+    /// Create a new checkpoint store wrapping a trait-based backend.
     pub fn new(inner: Arc<dyn crate::CheckpointStore>) -> Self {
         Self {
             inner,
@@ -48,6 +52,7 @@ impl TaskCheckpointStore {
         }
     }
 
+    /// Save a checkpoint to the store.
     pub async fn save(&self, checkpoint: &TaskCheckpoint) -> anyhow::Result<()> {
         let step_name = format!("{}:{}", checkpoint.stage, checkpoint.node);
         // Convert TaskCheckpoint to AnalysisCheckpoint for the trait
@@ -65,6 +70,7 @@ impl TaskCheckpointStore {
             .await
     }
 
+    /// Load the latest checkpoint for a task.
     pub async fn load(
         &self,
         task_id: &str,
@@ -83,6 +89,7 @@ impl TaskCheckpointStore {
         }
     }
 
+    /// Clear all checkpoints for a task.
     pub async fn clear(
         &self,
         task_id: &str,
@@ -92,6 +99,7 @@ impl TaskCheckpointStore {
         self.inner.delete_checkpoints(task_id).await
     }
 
+    /// Get the latest checkpoint step number for a task.
     pub async fn checkpoint_step(
         &self,
         task_id: &str,
@@ -104,6 +112,7 @@ impl TaskCheckpointStore {
             .map(|item| item.step))
     }
 
+    /// Clear in-memory graph runtime checkpoints for a task.
     pub async fn clear_graph_runtime(
         &self,
         task_id: &str,
@@ -117,6 +126,7 @@ impl TaskCheckpointStore {
         Ok(())
     }
 
+    /// Load checkpoint write history for a task.
     pub async fn load_writes(
         &self,
         task_id: &str,
@@ -137,12 +147,14 @@ impl TaskCheckpointStore {
             .collect())
     }
 
+    /// Get a graph-compatible checkpointer backed by this store.
     pub fn graph_checkpointer(&self, _symbol: &str) -> anyhow::Result<Arc<dyn Checkpointer>> {
         Ok(Arc::new(InMemoryGraphCheckpointer {
             checkpoints: self.graph_checkpoints.clone(),
         }))
     }
 
+    /// Compute a deterministic thread ID from task/symbol/date.
     pub fn thread_id(task_id: &str, symbol: &str, analysis_date: &str) -> String {
         let mut hasher = Sha256::new();
         hasher.update(format!(
@@ -206,6 +218,7 @@ impl Checkpointer for InMemoryGraphCheckpointer {
     }
 }
 
+/// Convert first 8 bytes to a 16-character hex string.
 pub fn hex_16(bytes: &[u8]) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut out = String::with_capacity(16);

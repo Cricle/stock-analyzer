@@ -1,4 +1,5 @@
 
+/// Direction score breakdown by dimension (market, fundamentals, news, sentiment).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct DirectionBreakdown {
     #[serde(default)]
@@ -17,6 +18,7 @@ pub struct DirectionBreakdown {
     pub implied_rating: LocalText,
 }
 
+/// A score dimension with min/max range and rationale.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SignedScoreDimension {
     pub score: i32,
@@ -25,6 +27,7 @@ pub struct SignedScoreDimension {
     pub rationale: LocalText,
 }
 
+/// Action score breakdown by dimension (alignment, execution levels, sizing, etc.).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ActionBreakdown {
     #[serde(default)]
@@ -41,6 +44,7 @@ pub struct ActionBreakdown {
     pub total_score: i32,
 }
 
+/// A named section in the report (key, title, content).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ReportSection {
     pub key: String,
@@ -48,6 +52,7 @@ pub struct ReportSection {
     pub content: String,
 }
 
+/// Action guides for different audiences (holders, buyers, watchers).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ReportActionGuides {
     #[serde(default)]

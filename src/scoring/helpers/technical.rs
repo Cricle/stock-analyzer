@@ -1,3 +1,4 @@
+/// Select the first analyst matching any of the candidate keys.
 fn select_analyst<'a>(
     result: &'a AnalysisResult,
     candidates: &[&str],
@@ -5,6 +6,7 @@ fn select_analyst<'a>(
     result.graph.analysts.iter().find(|item| analyst_matches(item, candidates))
 }
 
+/// Check if an analyst node matches any of the candidate identifiers.
 pub fn analyst_matches(item: &AgentReportNode, candidates: &[&str]) -> bool {
     let key = normalized_key(&item.key);
     let title = normalized_key(&item.title);
@@ -29,6 +31,7 @@ pub fn analyst_matches(item: &AgentReportNode, candidates: &[&str]) -> bool {
     })
 }
 
+/// Match analyst by semantic alias (e.g., "market" matches Chinese title containing "市场").
 pub fn matches_semantic_alias(candidate: &str, key: &str, title: &str, agent: &str) -> bool {
     // Prefer structured key/agent matching; fall back to Chinese title matching
     // only when key and agent are empty (legacy data).
@@ -50,6 +53,7 @@ pub fn matches_semantic_alias(candidate: &str, key: &str, title: &str, agent: &s
     }
 }
 
+/// Normalize a key for comparison (lowercase, alphanumeric + CJK only).
 pub fn normalized_key(value: &str) -> String {
     value
         .trim()
@@ -59,6 +63,7 @@ pub fn normalized_key(value: &str) -> String {
         .collect()
 }
 
+/// Check if a character is in the CJK Unified Ideographs range.
 pub fn is_cjk(ch: char) -> bool {
     matches!(
         ch as u32,
@@ -73,6 +78,7 @@ pub fn is_cjk(ch: char) -> bool {
     )
 }
 
+/// Average evidence point count across analysts.
 pub fn average_evidence_density(analysts: &[AgentReportNode]) -> f64 {
     if analysts.is_empty() {
         return 0.0;
@@ -84,6 +90,7 @@ pub fn average_evidence_density(analysts: &[AgentReportNode]) -> f64 {
         / analysts.len() as f64
 }
 
+/// Check if both entry and stop-loss levels are present (execution boundary complete).
 pub fn has_execution_boundary(
     trader_plan: &StructuredTraderPlan,
     portfolio_decision: &StructuredPortfolioDecision,
@@ -108,6 +115,7 @@ pub fn has_execution_boundary(
         && !portfolio_decision.time_horizon.trim().is_empty()
 }
 
+/// Score probability quality based on how close probabilities sum to 1.0.
 pub fn analyst_probability_quality(analyst: Option<&AgentReportNode>) -> i32 {
     let Some(analyst) = analyst else {
         return 0;
@@ -125,10 +133,12 @@ pub fn analyst_probability_quality(analyst: Option<&AgentReportNode>) -> i32 {
     }
 }
 
+/// Net probability (up - down) clamped to [-1, 1].
 pub fn analyst_net_probability(analyst: &AgentReportNode) -> f64 {
     (analyst.up_probability - analyst.down_probability).clamp(-1.0, 1.0)
 }
 
+/// Convert net probability to a bounded integer score.
 pub fn score_analyst_net(analyst: Option<&AgentReportNode>, max_abs: i32) -> i32 {
     analyst
         .map(|item| ((analyst_net_probability(item) * max_abs as f64).round()) as i32)
@@ -136,6 +146,7 @@ pub fn score_analyst_net(analyst: Option<&AgentReportNode>, max_abs: i32) -> i32
         .clamp(-max_abs, max_abs)
 }
 
+/// Apply directional bias from a rating to a magnitude.
 pub fn rating_bias(rating: &Rating, magnitude: i32) -> i32 {
     match rating {
         Rating::Buy => magnitude,
@@ -146,6 +157,7 @@ pub fn rating_bias(rating: &Rating, magnitude: i32) -> i32 {
     }
 }
 
+/// Map a direction score (0-100) to a rating.
 pub fn map_direction_score_to_rating(score: i32) -> Rating {
     match score {
         60..=100 => Rating::Buy,
@@ -156,6 +168,7 @@ pub fn map_direction_score_to_rating(score: i32) -> Rating {
     }
 }
 
+/// Map a direction score to an evidence quality score (-2 to +2).
 pub fn direction_score_to_evidence_score(score: i32) -> i32 {
     match score {
         60..=100 => 2,
@@ -170,6 +183,7 @@ fn rating_to_score(rating: &Rating) -> i32 {
     rating.to_score()
 }
 
+/// Convert a numeric score (-2 to +2) to a rating.
 pub fn score_to_rating(score: i32) -> Rating {
     match score {
         2 => Rating::Buy,

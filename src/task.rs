@@ -17,6 +17,7 @@ pub enum TaskStatus {
 }
 
 impl TaskStatus {
+    /// Convert to string representation.
     pub fn as_str(&self) -> &'static str {
         match self {
             TaskStatus::Pending => "pending",
@@ -28,6 +29,7 @@ impl TaskStatus {
     }
 }
 
+/// Parse task status from string.
 impl std::str::FromStr for TaskStatus {
     type Err = anyhow::Error;
 
@@ -51,6 +53,7 @@ pub struct AnalysisStep {
     pub status: StepStatus,
 }
 
+/// Status of an individual analysis pipeline step.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StepStatus {
@@ -138,6 +141,7 @@ pub struct PersistedTask {
 }
 
 impl PersistedTask {
+    /// Get the status as a string slice.
     pub fn status_string(&self) -> &str {
         self.status.as_str()
     }

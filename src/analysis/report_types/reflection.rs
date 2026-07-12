@@ -1,4 +1,5 @@
 
+/// A scenario path within an action guide (trigger, action, risk boundary).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ActionScenarioPath {
     #[serde(default)]
@@ -25,6 +26,7 @@ pub struct ActionScenarioPath {
     pub sizing_blocked: bool,
 }
 
+/// Structured research plan with recommendation, confidence, and risk assessment.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StructuredResearchPlan {
     #[serde(default, deserialize_with = "deserialize_local_text_or_string")]
@@ -47,6 +49,7 @@ pub struct StructuredResearchPlan {
     pub markdown: String,
 }
 
+/// Structured trader plan with entry, stop, target, and position sizing.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StructuredTraderPlan {
     #[serde(default, deserialize_with = "deserialize_local_text_or_string")]

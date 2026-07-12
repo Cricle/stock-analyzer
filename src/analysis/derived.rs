@@ -18,18 +18,22 @@ impl AnalysisResult {
         None
     }
 
+    /// Get the structured research plan from agent state.
     pub(crate) fn structured_research_plan(&self) -> StructuredResearchPlan {
         self.agent_state.structured_research_plan.clone()
     }
 
+    /// Get the structured trader plan from agent state.
     pub(crate) fn structured_trader_plan(&self) -> StructuredTraderPlan {
         self.agent_state.structured_trader_plan.clone()
     }
 
+    /// Get the structured portfolio decision from agent state.
     pub(crate) fn structured_portfolio_decision(&self) -> StructuredPortfolioDecision {
         self.agent_state.structured_portfolio_decision.clone()
     }
 
+    /// Get the executive summary, falling back to research rationale.
     pub fn derived_summary(&self) -> String {
         let portfolio_decision = self.structured_portfolio_decision();
         if !portfolio_decision.executive_summary.trim().is_empty() {
@@ -47,6 +51,7 @@ impl AnalysisResult {
         }
     }
 
+    /// Get the recommendation, falling back to research plan or "Hold".
     pub fn derived_recommendation(&self) -> String {
         let portfolio_decision = self.structured_portfolio_decision();
         match portfolio_decision.rating {

@@ -12,6 +12,7 @@ pub trait HasConfidence {
     }
 }
 
+/// LLM-generated role report (analyst, researcher, etc.) with probabilities.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GeneratedRoleReport {
     pub key: String,
@@ -35,6 +36,7 @@ impl HasConfidence for GeneratedRoleReport {
     }
 }
 
+/// A single tool call requested by the LLM.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ToolCall {
     pub tool_name: String,
@@ -42,6 +44,7 @@ pub struct ToolCall {
     pub tool_arguments: Value,
 }
 
+/// LLM-generated analyst decision with action, reasoning, and optional tool calls.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GeneratedAnalystDecision {
     pub action: String,
@@ -53,6 +56,7 @@ pub struct GeneratedAnalystDecision {
     pub tool_calls: Vec<ToolCall>,
 }
 
+/// LLM-generated debate turn with speaker, stance, and evidence.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GeneratedDebateTurn {
     pub speaker: String,
@@ -69,6 +73,7 @@ impl HasConfidence for GeneratedDebateTurn {
     }
 }
 
+/// LLM-generated research manager output with recommendation and evidence ladder.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GeneratedResearchManager {
     pub recommendation: String,
@@ -90,6 +95,7 @@ impl HasConfidence for GeneratedResearchManager {
     }
 }
 
+/// LLM-generated trader decision with entry/stop/target and execution checklist.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GeneratedTraderDecision {
     pub action: String,
@@ -116,6 +122,7 @@ pub struct GeneratedTraderDecision {
     pub time_stop_reason: Option<String>,
 }
 
+/// LLM-generated portfolio-level decision with rating, thesis, and scenario paths.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GeneratedPortfolioDecision {
     pub rating: String,
@@ -155,6 +162,7 @@ impl HasConfidence for GeneratedPortfolioDecision {
     }
 }
 
+/// LLM-generated scenario path with trigger, action, and risk boundary.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct GeneratedScenarioPath {
     #[serde(default)]
@@ -173,6 +181,7 @@ pub struct GeneratedScenarioPath {
     pub stop_level: String,
 }
 
+/// LLM-generated self-reflection on strongest/weakest parts and lessons learned.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct GeneratedReflection {
     #[serde(default)]
@@ -183,6 +192,7 @@ pub struct GeneratedReflection {
     pub next_lesson_for_next_run: String,
 }
 
+/// LLM-generated evidence gap classification (tolerable, manageable, blocking).
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct GeneratedMissingEvidenceLadder {
     #[serde(default)]

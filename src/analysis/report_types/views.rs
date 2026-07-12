@@ -106,6 +106,7 @@ pub struct ProfitRiskView {
     pub trade_summary: String,
 }
 
+/// IC (Investment Committee) navigator view with verdict, path, and conditions.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct IcNavigatorView {
     #[serde(default, deserialize_with = "deserialize_local_text_or_string")]
@@ -128,6 +129,7 @@ pub struct IcNavigatorView {
     pub responsibility: LocalText,
 }
 
+/// Weighted signal resolution combining volume, momentum, and overbought signals.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SignalResolution {
     #[serde(default)]
@@ -142,6 +144,7 @@ pub struct SignalResolution {
     pub dominant_signal: String,
 }
 
+/// IC discipline view with state, signals, and price levels.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct IcDisciplineView {
     #[serde(default, deserialize_with = "deserialize_local_text_or_string")]
@@ -180,6 +183,7 @@ pub struct IcDisciplineView {
     pub signal_resolution: SignalResolution,
 }
 
+/// Organized view of technical indicators by category with conclusions.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TechnicalIndicatorView {
     #[serde(default)]
@@ -188,6 +192,7 @@ pub struct TechnicalIndicatorView {
     pub conclusions: Vec<TechnicalIndicatorConclusion>,
 }
 
+/// A category of technical indicators (e.g., trend, momentum, volume).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TechnicalIndicatorCategory {
     #[serde(default)]
@@ -200,6 +205,7 @@ pub struct TechnicalIndicatorCategory {
     pub indicators: Vec<TechnicalIndicatorItem>,
 }
 
+/// A single technical indicator with value, signal, and interpretation.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TechnicalIndicatorItem {
     #[serde(default)]
@@ -216,6 +222,7 @@ pub struct TechnicalIndicatorItem {
     pub signal_attribute: String,
 }
 
+/// A conclusion drawn from technical indicator analysis.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TechnicalIndicatorConclusion {
     #[serde(default)]
@@ -226,6 +233,7 @@ pub struct TechnicalIndicatorConclusion {
     pub evidence_keys: Vec<String>,
 }
 
+/// A single evidence card in the report (metric, direction, strength).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ReportEvidenceCard {
     #[serde(default)]
@@ -246,6 +254,7 @@ pub struct ReportEvidenceCard {
     pub claim: LocalText,
 }
 
+/// A structured news insight with impact analysis and interpretation.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct NewsInsight {
     #[serde(default)]
@@ -274,6 +283,7 @@ pub struct NewsInsight {
     pub published_before_analysis: bool,
 }
 
+/// A named risk control with probability, impact, and defense action.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RiskControl {
     #[serde(default)]

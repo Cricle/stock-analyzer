@@ -94,6 +94,7 @@ pub struct StockPickRequest {
     pub history_retrieval: Option<bool>,
 }
 
+/// Multi-factor breakdown for a stock pick (momentum, quality, value, etc.).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickFactorBreakdown {
     #[serde(default)]
@@ -118,6 +119,7 @@ pub struct StockPickFactorBreakdown {
     pub total: f64,
 }
 
+/// Market data snapshot for a stock pick (price, volume, returns).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickMarketSnapshot {
     #[serde(default)]
@@ -134,6 +136,7 @@ pub struct StockPickMarketSnapshot {
     pub volume_ratio: Option<f64>,
 }
 
+/// Technical indicator snapshot for a stock pick.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickTechnicalSnapshot {
     #[serde(default)]
@@ -172,6 +175,7 @@ pub struct StockPickTechnicalSnapshot {
     pub vwma: Option<f64>,
 }
 
+/// Fundamental data snapshot for a stock pick (financials, valuation).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickFundamentalSnapshot {
     #[serde(default)]
@@ -198,6 +202,7 @@ pub struct StockPickFundamentalSnapshot {
     pub leverage: Option<f64>,
 }
 
+/// News coverage snapshot for a stock pick.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickNewsSnapshot {
     #[serde(default)]
@@ -218,6 +223,7 @@ pub struct StockPickNewsSnapshot {
     pub headline_titles: Vec<String>,
 }
 
+/// Historical pattern match snapshot for a stock pick.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickHistoryMatchSnapshot {
     #[serde(default)]
@@ -236,6 +242,7 @@ pub struct StockPickHistoryMatchSnapshot {
     pub top_matches: Vec<String>,
 }
 
+/// Risk flag snapshot for a stock pick.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickRiskSnapshot {
     #[serde(default)]
@@ -250,6 +257,7 @@ pub struct StockPickRiskSnapshot {
     pub signal_codes: Vec<String>,
 }
 
+/// Data quality and completeness snapshot for a stock pick.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickDataQualitySnapshot {
     #[serde(default)]

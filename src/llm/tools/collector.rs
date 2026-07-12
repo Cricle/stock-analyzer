@@ -79,6 +79,7 @@ impl Default for AnalysisDataCollector {
 }
 
 impl AnalysisDataCollector {
+    /// Create a new empty collector.
     pub fn new() -> Self {
         Self {
             inner: Arc::new(RwLock::new(AnalysisDataInner::default())),
@@ -87,80 +88,98 @@ impl AnalysisDataCollector {
 
     // === Rating & Confidence ===
 
+    /// Set the buy/hold/sell rating.
     pub fn set_rating(&self, rating: impl Into<String>) {
         self.inner.write().expect("lock").rating = Some(rating.into());
     }
 
+    /// Set confidence score (0–100, clamped).
     pub fn set_confidence(&self, confidence: f64) {
         self.inner.write().expect("lock").confidence = Some(confidence.clamp(0.0, 100.0));
     }
 
+    /// Set the recommended action label.
     pub fn set_action(&self, action: impl Into<String>) {
         self.inner.write().expect("lock").action = Some(action.into());
     }
 
     // === Price Levels ===
 
+    /// Set the suggested entry price.
     pub fn set_entry_price(&self, price: f64) {
         self.inner.write().expect("lock").entry_price = Some(price);
     }
 
+    /// Set the stop-loss price level.
     pub fn set_stop_loss(&self, price: f64) {
         self.inner.write().expect("lock").stop_loss = Some(price);
     }
 
+    /// Set the target price level.
     pub fn set_target_price(&self, price: f64) {
         self.inner.write().expect("lock").target_price = Some(price);
     }
 
+    /// Set the confirmation price level.
     pub fn set_confirmation_level(&self, price: f64) {
         self.inner.write().expect("lock").confirmation_level = Some(price);
     }
 
+    /// Set the invalidation price level.
     pub fn set_invalidation_level(&self, price: f64) {
         self.inner.write().expect("lock").invalidation_level = Some(price);
     }
 
+    /// Set the reward-to-risk ratio.
     pub fn set_risk_reward_ratio(&self, ratio: f64) {
         self.inner.write().expect("lock").risk_reward_ratio = Some(ratio);
     }
 
     // === Text Fields ===
 
+    /// Set the executive summary text.
     pub fn set_executive_summary(&self, value: impl Into<String>) {
         self.inner.write().expect("lock").executive_summary = Some(value.into());
     }
 
+    /// Set the investment thesis text.
     pub fn set_investment_thesis(&self, value: impl Into<String>) {
         self.inner.write().expect("lock").investment_thesis = Some(value.into());
     }
 
+    /// Set the rationale text.
     pub fn set_rationale(&self, value: impl Into<String>) {
         self.inner.write().expect("lock").rationale = Some(value.into());
     }
 
+    /// Set the risk assessment text.
     pub fn set_risk_assessment(&self, value: impl Into<String>) {
         self.inner.write().expect("lock").risk_assessment = Some(value.into());
     }
 
+    /// Set the summary text.
     pub fn set_summary(&self, value: impl Into<String>) {
         self.inner.write().expect("lock").summary = Some(value.into());
     }
 
+    /// Set the detail text.
     pub fn set_detail(&self, value: impl Into<String>) {
         self.inner.write().expect("lock").detail = Some(value.into());
     }
 
+    /// Set the strategic actions text.
     pub fn set_strategic_actions(&self, value: impl Into<String>) {
         self.inner.write().expect("lock").strategic_actions = Some(value.into());
     }
 
+    /// Set the trader plan text.
     pub fn set_trader_plan(&self, value: impl Into<String>) {
         self.inner.write().expect("lock").trader_plan = Some(value.into());
     }
 
     // === Evidence & Lists ===
 
+    /// Append an evidence point to the list.
     pub fn add_evidence_point(&self, value: impl Into<String>) {
         self.inner
             .write()
@@ -169,6 +188,7 @@ impl AnalysisDataCollector {
             .push(value.into());
     }
 
+    /// Append a key risk to the list.
     pub fn add_key_risk(&self, value: impl Into<String>) {
         self.inner
             .write()
@@ -177,6 +197,7 @@ impl AnalysisDataCollector {
             .push(value.into());
     }
 
+    /// Append a trigger to the execution checklist.
     pub fn add_trigger(&self, value: impl Into<String>) {
         self.inner
             .write()
@@ -185,6 +206,7 @@ impl AnalysisDataCollector {
             .push(value.into());
     }
 
+    /// Append a next step to the list.
     pub fn add_next_step(&self, value: impl Into<String>) {
         self.inner
             .write()
@@ -193,6 +215,7 @@ impl AnalysisDataCollector {
             .push(value.into());
     }
 
+    /// Append a blocking evidence gap.
     pub fn add_blocking_gap(&self, value: impl Into<String>) {
         self.inner
             .write()
@@ -201,6 +224,7 @@ impl AnalysisDataCollector {
             .push(value.into());
     }
 
+    /// Append a tolerable evidence gap.
     pub fn add_tolerable_gap(&self, value: impl Into<String>) {
         self.inner
             .write()
@@ -209,6 +233,7 @@ impl AnalysisDataCollector {
             .push(value.into());
     }
 
+    /// Append a manageable evidence gap.
     pub fn add_manageable_gap(&self, value: impl Into<String>) {
         self.inner
             .write()
@@ -217,6 +242,7 @@ impl AnalysisDataCollector {
             .push(value.into());
     }
 
+    /// Append a key number to the list.
     pub fn add_key_number(&self, value: impl Into<String>) {
         self.inner
             .write()
@@ -225,6 +251,7 @@ impl AnalysisDataCollector {
             .push(value.into());
     }
 
+    /// Append a reference citation.
     pub fn add_reference(&self, value: impl Into<String>) {
         self.inner
             .write()
@@ -235,6 +262,7 @@ impl AnalysisDataCollector {
 
     // === Probability ===
 
+    /// Set directional probabilities (auto-normalized to sum to 1.0).
     pub fn set_probability(&self, up: f64, down: f64, sideways: f64) {
         let total = up + down + sideways;
         if total > 0.0 {
@@ -247,6 +275,7 @@ impl AnalysisDataCollector {
 
     // === Scores ===
 
+    /// Set a named score dimension (e.g., "momentum", "value").
     pub fn set_score(&self, dimension: impl Into<String>, score: f64) {
         self.inner
             .write()
@@ -257,20 +286,24 @@ impl AnalysisDataCollector {
 
     // === Scenario Paths ===
 
+    /// Append a scenario path (trigger → action → risk boundary).
     pub fn add_scenario_path(&self, path: ScenarioPathData) {
         self.inner.write().expect("lock").scenario_paths.push(path);
     }
 
     // === Meta ===
 
+    /// Set the time horizon (e.g., "2-4 weeks").
     pub fn set_time_horizon(&self, value: impl Into<String>) {
         self.inner.write().expect("lock").time_horizon = Some(value.into());
     }
 
+    /// Set the position sizing guidance.
     pub fn set_position_sizing(&self, value: impl Into<String>) {
         self.inner.write().expect("lock").position_sizing = Some(value.into());
     }
 
+    /// Set a time-based stop with deadline and reason.
     pub fn set_time_stop(&self, deadline: impl Into<String>, reason: impl Into<String>) {
         self.inner.write().expect("lock").time_stop = Some(TimeStopData {
             deadline: deadline.into(),
@@ -278,10 +311,12 @@ impl AnalysisDataCollector {
         });
     }
 
+    /// Set the self-reflection data.
     pub fn set_reflection(&self, data: ReflectionData) {
         self.inner.write().expect("lock").reflection = Some(data);
     }
 
+    /// Set the accounting scope hypothesis.
     pub fn set_accounting_scope_hypothesis(&self, value: impl Into<String>) {
         self.inner
             .write()
@@ -291,14 +326,17 @@ impl AnalysisDataCollector {
 
     // === Debate Fields ===
 
+    /// Set the debate speaker name.
     pub fn set_speaker(&self, value: impl Into<String>) {
         self.inner.write().expect("lock").speaker = Some(value.into());
     }
 
+    /// Set the debate stance (bull/bear/neutral).
     pub fn set_stance(&self, value: impl Into<String>) {
         self.inner.write().expect("lock").stance = Some(value.into());
     }
 
+    /// Set the debate response text.
     pub fn set_response(&self, value: impl Into<String>) {
         self.inner.write().expect("lock").response = Some(value.into());
     }
@@ -357,7 +395,10 @@ impl AnalysisDataCollector {
     }
 }
 
-/// Final analysis data collected from tool calls.
+/// Final analysis data collected from LLM tool calls.
+///
+/// Contains all structured fields: rating, price levels, text summaries,
+/// evidence lists, probabilities, scores, scenario paths, and debate fields.
 #[derive(Clone, Debug, Default)]
 pub struct AnalysisData {
     pub rating: String,

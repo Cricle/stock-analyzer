@@ -93,6 +93,7 @@ pub struct DailyGuidanceReport {
     pub metadata: GuidanceMetadata,
 }
 
+/// Market sentiment score with label and drivers.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MarketSentiment {
     pub score: i32,
@@ -101,6 +102,7 @@ pub struct MarketSentiment {
     pub drivers: Vec<String>,
 }
 
+/// A news item in the guidance report.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct GuidanceNewsItem {
     pub title: String,
@@ -112,6 +114,7 @@ pub struct GuidanceNewsItem {
     pub affected_entities: Vec<String>,
 }
 
+/// Sector highlight with direction and key driver.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SectorHighlight {
     pub sector_name: String,
@@ -128,6 +131,7 @@ pub struct PriceLevel {
     pub significance: String,
 }
 
+/// Stock-specific guidance with action, rationale, and key levels.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockGuidance {
     pub symbol: String,
@@ -151,6 +155,7 @@ pub struct StockGuidance {
     pub key_levels: Vec<PriceLevel>,
 }
 
+/// Historical pattern insight from memory.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct HistoricalInsight {
     pub pattern_type: String,
@@ -160,6 +165,7 @@ pub struct HistoricalInsight {
     pub source: String,
 }
 
+/// Risk alert with severity, category, and mitigation.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RiskAlert {
     pub severity: String,

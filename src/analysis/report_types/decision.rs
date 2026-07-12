@@ -54,30 +54,36 @@ impl<'de> serde::Deserialize<'de> for LocalText {
 }
 
 impl LocalText {
+    /// Create a new `LocalText` with just a key (no parameters).
     pub fn new(key: impl Into<String>) -> Self {
         Self { key: key.into(), params: serde_json::Map::new() }
     }
 
+    /// Add a JSON value parameter.
     pub fn with_param(mut self, k: impl Into<String>, v: serde_json::Value) -> Self {
         self.params.insert(k.into(), v);
         self
     }
 
+    /// Add a string parameter.
     pub fn with_str(mut self, k: impl Into<String>, v: impl Into<String>) -> Self {
         self.params.insert(k.into(), serde_json::Value::String(v.into()));
         self
     }
 
+    /// Add an f64 parameter.
     pub fn with_f64(mut self, k: impl Into<String>, v: f64) -> Self {
         self.params.insert(k.into(), serde_json::json!(v));
         self
     }
 
+    /// Add an i32 parameter.
     pub fn with_i32(mut self, k: impl Into<String>, v: i32) -> Self {
         self.params.insert(k.into(), serde_json::json!(v));
         self
     }
 
+    /// Add a boolean parameter.
     pub fn with_bool(mut self, k: impl Into<String>, v: bool) -> Self {
         self.params.insert(k.into(), serde_json::json!(v));
         self
@@ -111,10 +117,12 @@ impl PartialEq for LocalText {
 impl Eq for LocalText {}
 
 impl LocalText {
+    /// Get the i18n key as a string slice.
     pub fn as_str(&self) -> &str {
         &self.key
     }
 
+    /// Get the "value" param if present, otherwise fall back to the key.
     pub fn value_str(&self) -> &str {
         self.params
             .get("value")
@@ -122,26 +130,32 @@ impl LocalText {
             .unwrap_or(self.key.as_str())
     }
 
+    /// Whether the key is empty.
     pub fn is_empty(&self) -> bool {
         self.key.is_empty()
     }
 
+    /// Trim whitespace from the key.
     pub fn trim(&self) -> &str {
         self.key.trim()
     }
 
+    /// Split the key by a pattern.
     pub fn split<'a, 'b>(&'a self, pat: &'b str) -> std::str::Split<'a, &'b str> {
         self.key.split(pat)
     }
 
+    /// Check if the key contains a pattern.
     pub fn contains(&self, pat: &str) -> bool {
         self.key.contains(pat)
     }
 
+    /// Check if the key starts with a pattern.
     pub fn starts_with(&self, pat: &str) -> bool {
         self.key.starts_with(pat)
     }
 
+    /// Convert the key to ASCII lowercase.
     pub fn to_ascii_lowercase(&self) -> String {
         self.key.to_ascii_lowercase()
     }
@@ -163,6 +177,7 @@ pub enum Rating {
 }
 
 impl Rating {
+    /// Parse a rating from a string (case-insensitive).
     pub fn parse(s: &str) -> Self {
         match s.trim().to_ascii_lowercase().as_str() {
             "buy" => Self::Buy,
@@ -174,18 +189,22 @@ impl Rating {
         }
     }
 
+    /// Whether the rating is bullish (Buy or Overweight).
     pub fn is_bullish(&self) -> bool {
         matches!(self, Self::Buy | Self::Overweight)
     }
 
+    /// Whether the rating is bearish (Sell or Underweight).
     pub fn is_bearish(&self) -> bool {
         matches!(self, Self::Sell | Self::Underweight)
     }
 
+    /// Whether the rating is neutral (Hold or Unknown).
     pub fn is_neutral(&self) -> bool {
         matches!(self, Self::Hold | Self::Unknown)
     }
 
+    /// Apply directional bias to a magnitude value.
     pub fn bias(&self, magnitude: i32) -> i32 {
         match self {
             Self::Buy => magnitude,
@@ -196,6 +215,7 @@ impl Rating {
         }
     }
 
+    /// Convert to numeric score (-2 to +2).
     pub fn to_score(&self) -> i32 {
         match self {
             Self::Buy => 2,
@@ -206,6 +226,7 @@ impl Rating {
         }
     }
 
+    /// Map to a coarse action group (Buy/Hold/Sell).
     pub fn to_action_group(&self) -> &'static str {
         match self {
             Self::Buy | Self::Overweight => "Buy",
@@ -253,6 +274,7 @@ pub enum CoreResearchCall {
     SellOnBreak,
 }
 
+/// Decision mode indicating how the decision was reached.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionMode {
@@ -262,6 +284,7 @@ pub enum DecisionMode {
     Blocked,
 }
 
+/// Multi-dimensional confidence profile for a decision.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ConfidenceProfile {
     #[serde(default)]
@@ -278,6 +301,7 @@ pub struct ConfidenceProfile {
     pub methodology: LocalText,
 }
 
+/// Whether all execution boundary fields are present and valid.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ExecutionReadiness {
     #[serde(default)]
@@ -292,6 +316,7 @@ pub struct ExecutionReadiness {
     pub forced_hold_reason: LocalText,
 }
 
+/// Directional view (bullish, neutral, bearish).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionViewDirection {
@@ -301,6 +326,7 @@ pub enum DecisionViewDirection {
     Bearish,
 }
 
+/// Execution state of the decision (ready, conditional, watchlist, blocked).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionExecutionState {
@@ -311,6 +337,7 @@ pub enum DecisionExecutionState {
     Blocked,
 }
 
+/// Specific action recommended by the decision engine.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionAction {
@@ -324,6 +351,7 @@ pub enum DecisionAction {
     Exit,
 }
 
+/// Risk bias of the action (add, keep, reduce, no trade).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionActionBias {
@@ -334,6 +362,7 @@ pub enum DecisionActionBias {
     NoTrade,
 }
 
+/// Confidence band (high, medium, low).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionConfidenceBand {
@@ -343,6 +372,7 @@ pub enum DecisionConfidenceBand {
     Low,
 }
 
+/// Trading timeframe (short-term, swing, position).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionTimeframe {
@@ -353,6 +383,7 @@ pub enum DecisionTimeframe {
     Unknown,
 }
 
+/// Price target type (point, range, conditional, open).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionTargetType {
@@ -364,6 +395,7 @@ pub enum DecisionTargetType {
     Unknown,
 }
 
+/// State of the investment thesis (intact, improving, weakening, broken).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ThesisState {
@@ -374,6 +406,7 @@ pub enum ThesisState {
     Broken,
 }
 
+/// Unified decision view with direction, action, levels, paths, and sizing.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct DecisionView {
     #[serde(default)]

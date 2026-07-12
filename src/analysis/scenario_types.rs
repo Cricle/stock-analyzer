@@ -10,6 +10,7 @@ pub enum AnalysisScenarioMarket {
 }
 
 impl AnalysisScenarioMarket {
+    /// Parse market type from a string (supports Chinese and English names).
     pub fn from_market_type(market_type: &str) -> Self {
         match market_type.trim().to_ascii_lowercase().as_str() {
             "a股" | "a_share" | "a-share" | "cn" | "china" => Self::AShare,
@@ -19,6 +20,7 @@ impl AnalysisScenarioMarket {
         }
     }
 
+    /// Get the canonical key string (e.g., "a_share", "us_equity").
     pub fn key(self) -> &'static str {
         match self {
             Self::AShare => "a_share",
@@ -28,6 +30,7 @@ impl AnalysisScenarioMarket {
         }
     }
 
+    /// Get the human-readable label (Chinese).
     pub fn label(self) -> &'static str {
         match self {
             Self::AShare => "A股",
@@ -37,14 +40,17 @@ impl AnalysisScenarioMarket {
         }
     }
 
+    /// Whether this market supports company-specific news fetching.
     pub fn supports_company_news(self) -> bool {
         !matches!(self, Self::Unknown)
     }
 
+    /// Whether this market supports global news fetching.
     pub fn supports_global_news(self) -> bool {
         !matches!(self, Self::Unknown)
     }
 
+    /// Whether this market supports insider transaction data.
     pub fn supports_insider_transactions(self) -> bool {
         !matches!(self, Self::Unknown)
     }
@@ -74,6 +80,7 @@ impl Default for AnalysisScenarioContext {
 }
 
 impl AnalysisScenarioContext {
+    /// Build context from a market type string.
     pub fn from_market_type(market_type: &str) -> Self {
         let market = AnalysisScenarioMarket::from_market_type(market_type);
         Self {
@@ -161,6 +168,7 @@ pub struct AnalysisScenarioData {
 }
 
 impl AnalysisScenarioData {
+    /// Append a data-quality issue to the scenario.
     pub fn add_issue(
         &mut self,
         domain: impl Into<String>,

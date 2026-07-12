@@ -83,6 +83,7 @@ pub struct StockPickSelectionDiagnostics {
     pub override_count: usize,
 }
 
+/// Summary of evidence coverage during stock picking.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickEvidenceCoverageSummary {
     #[serde(default)]
@@ -95,6 +96,7 @@ pub struct StockPickEvidenceCoverageSummary {
     pub history_records_matched: usize,
 }
 
+/// Summary of storage writes during stock picking.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickStorageWriteSummary {
     #[serde(default)]
@@ -103,6 +105,7 @@ pub struct StockPickStorageWriteSummary {
     pub vector_points_written: usize,
 }
 
+/// Failure information when stock picking encounters an error.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickFailureInfo {
     #[serde(default)]
@@ -111,6 +114,7 @@ pub struct StockPickFailureInfo {
     pub message: String,
 }
 
+/// A cached analysis result available for reuse.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AnalysisReuseCandidate {
     #[serde(default)]
@@ -139,6 +143,7 @@ pub struct AnalysisReuseCandidate {
     pub semantic_matches: Vec<AnalysisReuseSemanticMatch>,
 }
 
+/// A semantically similar past analysis for reuse consideration.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AnalysisReuseSemanticMatch {
     #[serde(default)]
@@ -151,6 +156,7 @@ pub struct AnalysisReuseSemanticMatch {
     pub summary: String,
 }
 
+/// Response from the stock-picking pipeline with picks and diagnostics.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickResponse {
     pub market: String,
@@ -184,6 +190,7 @@ pub struct StockPickResponse {
     pub failure: Option<StockPickFailureInfo>,
 }
 
+/// A persisted stock-pick run with request, result, and metadata.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StockPickRunRecord {
     pub id: String,
@@ -199,6 +206,7 @@ pub struct StockPickRunRecord {
     pub updated_at: String,
 }
 
+/// Objective quality assessment for a stock pick.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickObjectiveAssessment {
     #[serde(default)]
@@ -215,6 +223,7 @@ pub struct StockPickObjectiveAssessment {
     pub breakdown: StockPickObjectiveBreakdown,
 }
 
+/// Dimension breakdown of objective assessment scores.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickObjectiveBreakdown {
     #[serde(default)]
@@ -231,6 +240,7 @@ pub struct StockPickObjectiveBreakdown {
     pub total_score: i32,
 }
 
+/// Aggregate objective assessment overview across all picks.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickObjectiveOverview {
     #[serde(default)]
@@ -249,12 +259,14 @@ pub struct StockPickObjectiveOverview {
     pub distribution: Vec<StockPickObjectiveBucket>,
 }
 
+/// A score distribution bucket (label + count).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickObjectiveBucket {
     pub label: String,
     pub count: usize,
 }
 
+/// Complete analysis result with report, graph, agent state, and artifacts.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AnalysisResult {
     pub task_id: String,

@@ -59,6 +59,7 @@ pub struct TaskRunParams {
 }
 
 impl TaskRunParams {
+    /// Create minimal params for a reflection-only run (no LLM, no market data).
     pub fn for_reflection(analysis_date: String, language: &str) -> Self {
         Self {
             market_type: "unknown".to_string(),
@@ -78,6 +79,7 @@ impl TaskRunParams {
         }
     }
 
+    /// Create reflection params that inherit LLM configuration from another run.
     pub fn for_reflection_with_llm(
         analysis_date: String,
         language: &str,
@@ -307,6 +309,7 @@ impl TaskManager {
         Ok(())
     }
 
+    /// Build the cache key for analysis reuse checks.
     pub fn analysis_reuse_cache_key(
         owner_username: &str,
         symbol: &str,
@@ -595,6 +598,7 @@ impl TaskManager {
     }
 }
 
+/// Seconds remaining until the next local midnight (minimum 1).
 pub fn seconds_until_local_midnight() -> i64 {
     let now = Local::now();
     let next_day = now.date_naive() + Duration::days(1);

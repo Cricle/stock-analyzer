@@ -1,4 +1,5 @@
 
+/// Calibration bias — direction and magnitude adjustments.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CalibrationBias {
     #[serde(default, deserialize_with = "deserialize_local_text_or_string")]
@@ -9,6 +10,7 @@ pub struct CalibrationBias {
     pub rationale: LocalText,
 }
 
+/// Diagnostic items collected during report generation.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ReportDiagnostics {
     #[serde(default)]
@@ -21,6 +23,7 @@ pub struct ReportDiagnostics {
     pub availability: Vec<ReportDiagnosticItem>,
 }
 
+/// A single diagnostic item with code, severity, and message.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ReportDiagnosticItem {
     #[serde(default)]
@@ -39,6 +42,7 @@ pub struct ReportDiagnosticItem {
     pub elevated_to_execution_blocking_gap: bool,
 }
 
+/// Snapshot of reference facts used in the report.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ReportReferenceSnapshot {
     #[serde(default)]
@@ -67,6 +71,7 @@ pub struct ReferenceFactItem {
     pub summary: String,
 }
 
+/// Historical calibration statistics (sample count, hit rate, avg return).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct HistoricalCalibrationStats {
     #[serde(default)]

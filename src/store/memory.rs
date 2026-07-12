@@ -19,6 +19,7 @@ use crate::{
 // InMemoryAnalysisStore
 // ---------------------------------------------------------------------------
 
+/// In-memory implementation of [`AnalysisStore`] for testing and single-process use.
 #[derive(Clone)]
 pub struct InMemoryAnalysisStore {
     tasks: Arc<RwLock<HashMap<String, PersistedTask>>>,
@@ -27,6 +28,7 @@ pub struct InMemoryAnalysisStore {
 }
 
 impl InMemoryAnalysisStore {
+    /// Create a new empty store.
     pub fn new() -> Self {
         Self {
             tasks: Arc::new(RwLock::new(HashMap::new())),
@@ -179,12 +181,14 @@ struct CacheValue {
     expires_at: Option<std::time::Instant>,
 }
 
+/// In-memory implementation of [`CacheStore`] with TTL support.
 #[derive(Clone)]
 pub struct InMemoryCacheStore {
     entries: Arc<RwLock<HashMap<String, CacheValue>>>,
 }
 
 impl InMemoryCacheStore {
+    /// Create a new empty cache store.
     pub fn new() -> Self {
         Self {
             entries: Arc::new(RwLock::new(HashMap::new())),
@@ -265,12 +269,14 @@ impl CacheStore for InMemoryCacheStore {
 // InMemoryCheckpointStore
 // ---------------------------------------------------------------------------
 
+/// In-memory implementation of [`CheckpointStore`].
 #[derive(Clone)]
 pub struct InMemoryCheckpointStore {
     checkpoints: Arc<RwLock<HashMap<String, StoredCheckpoint>>>,
 }
 
 impl InMemoryCheckpointStore {
+    /// Create a new empty checkpoint store.
     pub fn new() -> Self {
         Self {
             checkpoints: Arc::new(RwLock::new(HashMap::new())),
@@ -335,12 +341,14 @@ impl CheckpointStore for InMemoryCheckpointStore {
 // InMemoryGuidanceStore
 // ---------------------------------------------------------------------------
 
+/// In-memory implementation of [`GuidanceStore`].
 #[derive(Clone)]
 pub struct InMemoryGuidanceStore {
     rules: Arc<RwLock<HashMap<String, GuidanceRule>>>,
 }
 
 impl InMemoryGuidanceStore {
+    /// Create a new empty guidance store.
     pub fn new() -> Self {
         Self {
             rules: Arc::new(RwLock::new(HashMap::new())),

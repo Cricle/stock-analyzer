@@ -40,23 +40,34 @@
 
 // ── Base modules ──
 
+/// Application configuration (scoring weights, API keys, etc.).
 pub mod config;
+/// Environment variable helpers for runtime configuration.
 pub mod env_config;
+/// LLM provider configuration models.
 pub mod llm_config;
+/// Shared types and utilities used across modules.
 pub mod shared;
+/// Central orchestrator for analysis task lifecycle.
 pub mod task_manager;
+/// OpenTelemetry metrics and tracing utilities.
 pub mod telemetry;
 
+/// Analysis checkpoint persistence for resumable tasks.
 pub mod checkpoint;
+/// LLM client, prompts, and tool-call infrastructure.
 pub mod llm;
+/// Trading memory system (vector search, cross-collection retrieval).
 pub mod memory;
 
 // ── Data module ──
 
+/// Market data fetching and caching via akshare-rs.
 pub mod data;
 
 // ── Type re-exports (from akshare) ──
 
+/// Re-exported types from akshare-rs for convenience.
 pub mod types {
     pub use akshare::provider::market_client::DataFetchDiagnosis;
     pub use akshare::provider::market_client::normalized_news_date;
@@ -70,21 +81,30 @@ pub mod types {
 
 // ── Models ──
 
+/// Analysis pipeline: types, report generation, derived fields, and scenarios.
 pub mod analysis;
+/// Technical indicator calculations (SMA, EMA, RSI, MACD, etc.).
 pub mod indicators;
 mod noop_stores;
+/// Storage trait definitions and in-memory implementations.
 pub mod store;
+/// Task status, events, and persistence models.
 pub mod task;
+/// JSON value normalization and probability clamping utilities.
 pub mod value_utils;
 
+/// Scoring system: direction, confidence, action, and calibration.
 pub mod scoring;
 /// Backward-compatibility alias: `stock_analyzer::score` → `stock_analyzer::scoring`.
 pub use scoring as score;
 
 // ── Feature modules ──
 
+/// Daily market guidance report generation.
 pub mod guide;
+/// Stock picking and screening pipeline.
 pub mod pick;
+/// Report rendering (markdown, charts, action guides).
 pub mod report;
 
 // ── Re-exports ──
@@ -163,6 +183,9 @@ pub use types::{
 //
 // TAR references `stock_analyzer::engine::*` which maps to the top-level modules.
 
+/// Backward-compatibility module mapping to top-level crate modules.
+///
+/// TAR references `stock_analyzer::engine::*` which resolves here.
 pub mod engine {
     pub use crate::checkpoint;
     pub use crate::data;
@@ -176,6 +199,7 @@ pub mod engine {
 
     /// Stub for qlib_import (not present in this version).
     pub mod qlib_import {
+        /// Placeholder init function — always returns an error.
         pub async fn run_init_from_env(_data_dir: &str) -> anyhow::Result<serde_json::Value> {
             anyhow::bail!("qlib_import is not available in this version of stock-analyzer")
         }
@@ -186,6 +210,7 @@ pub mod engine {
 //
 // TAR references `stock_analyzer::models::*` which maps to the crate root re-exports.
 
+/// Backward-compatibility module — re-exports everything from the crate root.
 pub mod models {
     pub use crate::*;
 }

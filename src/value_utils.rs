@@ -1,5 +1,9 @@
 use serde_json::Value;
 
+/// Normalize a JSON value to a probability in [0.0, 1.0].
+///
+/// Handles numbers, percentage strings ("75%"), arrays (first non-zero),
+/// and objects (looks for keys like "probability", "confidence", etc.).
 pub fn normalize_probability(value: &Value) -> f64 {
     match value {
         Value::Number(number) => number.as_f64().map(clamp_probability).unwrap_or(0.0),
@@ -51,6 +55,9 @@ pub fn normalize_probability(value: &Value) -> f64 {
     }
 }
 
+/// Convert any JSON value to a human-readable string.
+///
+/// Objects are rendered as `key: value` lines; arrays as newline-joined items.
 pub fn normalize_value(value: &Value) -> String {
     match value {
         Value::Null => String::new(),
@@ -76,6 +83,7 @@ fn normalize_inline_value(value: &Value) -> String {
     normalize_inline_value_with_sep(value, ", ")
 }
 
+/// Convert a JSON value to a compact inline string with a custom separator.
 pub fn normalize_inline_value_with_sep(value: &Value, sep: &str) -> String {
     match value {
         Value::Null => String::new(),
@@ -97,6 +105,7 @@ pub fn normalize_inline_value_with_sep(value: &Value, sep: &str) -> String {
     }
 }
 
+/// Clamp a value to the [0.0, 1.0] probability range.
 pub fn clamp_probability(value: f64) -> f64 {
     value.clamp(0.0, 1.0)
 }

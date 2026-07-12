@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Configuration for an LLM provider (base URL, models, pricing, etc.).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LlmProviderConfig {
     pub id: String,

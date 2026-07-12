@@ -1,4 +1,5 @@
 
+/// Market chart data with candles, indicators, and overlays.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ReportMarketChart {
     #[serde(default)]
@@ -25,6 +26,7 @@ pub struct ReportMarketChart {
     pub trend_lines: Vec<TrendLine>,
 }
 
+/// A single candle in the report chart.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ReportCandle {
     #[serde(default)]
@@ -51,6 +53,7 @@ pub struct ReportCandle {
     pub turnover_pct: f64,
 }
 
+/// A chart overlay (e.g., support/resistance level).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ChartOverlay {
     #[serde(default)]

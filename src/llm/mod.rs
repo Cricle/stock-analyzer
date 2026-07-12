@@ -42,6 +42,7 @@ pub struct LlmConfig {
     pub provider_type: String,
 }
 
+/// HTTP client for LLM API calls (OpenAI-compatible and Anthropic).
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct LlmClient {
     #[zeroize(skip)]
@@ -59,6 +60,7 @@ pub struct LlmClient {
     pub provider_type: String,
 }
 
+/// Accumulated LLM usage metrics across all requests.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LlmUsageAccumulator {
     pub total_requests: i64,
@@ -68,6 +70,7 @@ pub struct LlmUsageAccumulator {
     pub by_model: BTreeMap<String, LlmUsageModelAccumulator>,
 }
 
+/// Per-model LLM usage metrics.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LlmUsageModelAccumulator {
     pub requests: i64,
@@ -97,6 +100,7 @@ impl LlmClient {
         }
     }
 
+    /// Create an OpenAI-compatible LLM client.
     pub fn openai_compatible(
         http: reqwest_middleware::ClientWithMiddleware,
         base_url: &str,
@@ -115,6 +119,7 @@ impl LlmClient {
         }
     }
 
+    /// Create an Anthropic LLM client.
     pub fn anthropic(
         http: reqwest_middleware::ClientWithMiddleware,
         base_url: &str,
@@ -133,6 +138,7 @@ impl LlmClient {
         }
     }
 
+    /// Clone with a different model name (if provided and non-empty).
     pub fn with_model(&self, model: Option<&str>) -> Self {
         let mut next = self.clone();
         if let Some(model) = model.map(str::trim).filter(|value| !value.is_empty()) {
@@ -141,6 +147,7 @@ impl LlmClient {
         next
     }
 
+    /// Clone with a different base URL (if provided and non-empty).
     pub fn with_base_url(&self, base_url: Option<&str>) -> Self {
         let mut next = self.clone();
         if let Some(base_url) = base_url.map(str::trim).filter(|value| !value.is_empty()) {
@@ -149,6 +156,7 @@ impl LlmClient {
         next
     }
 
+    /// Clone with a different API key (if provided and non-empty).
     pub fn with_api_key(&self, api_key: Option<&str>) -> Self {
         let mut next = self.clone();
         if let Some(api_key) = api_key.map(str::trim).filter(|value| !value.is_empty()) {
@@ -157,6 +165,7 @@ impl LlmClient {
         next
     }
 
+    /// Generate a text completion, routing to the appropriate provider.
     #[tracing::instrument(skip_all, fields(model = %self.model, provider = %self.provider_type, prompt_len = prompt.len()))]
     pub async fn generate(&self, prompt: &str) -> anyhow::Result<String> {
         match self.provider_type.as_str() {
@@ -165,6 +174,7 @@ impl LlmClient {
         }
     }
 
+    /// Verify LLM connectivity with a lightweight request.
     pub async fn healthcheck(
         &self,
         base_url: &str,
@@ -228,6 +238,7 @@ impl LlmClient {
         Some(client)
     }
 
+    /// Get accumulated token usage summary.
     pub async fn usage_summary(&self) -> crate::LlmTokenUsageSummary {
         let tracker = self
             .usage_tracker

@@ -43,9 +43,10 @@ pub fn role_report_probabilities(
 
     if let (Some(up_value), Some(down_value), Some(sideways_value)) =
         (valid_up.clone(), valid_down.clone(), valid_sideways.clone())
-        && !is_uniform_distribution(&up_value, &down_value, &sideways_value) {
-            return (up_value, down_value, sideways_value);
-        }
+        && !is_uniform_distribution(&up_value, &down_value, &sideways_value)
+    {
+        return (up_value, down_value, sideways_value);
+    }
 
     // No text-based fallback — return LLM values or neutral defaults.
     (

@@ -136,17 +136,18 @@ impl TaskManager {
         let mut tags = Vec::new();
 
         if let Some(quote) = quote
-            && quote.close > 0.0 {
-                let hundred = 100.0;
-                let intraday_change = ((quote.close - quote.open) / quote.close.abs()) * hundred;
-                let intraday_range = ((quote.high - quote.low) / quote.close.abs()) * hundred;
-                if intraday_change >= 2.0 || (quote.close > quote.open && intraday_range >= 3.5) {
-                    tags.push("trend_confirmed".to_string());
-                }
-                if intraday_range >= 4.5 {
-                    tags.push("event_driven".to_string());
-                }
+            && quote.close > 0.0
+        {
+            let hundred = 100.0;
+            let intraday_change = ((quote.close - quote.open) / quote.close.abs()) * hundred;
+            let intraday_range = ((quote.high - quote.low) / quote.close.abs()) * hundred;
+            if intraday_change >= 2.0 || (quote.close > quote.open && intraday_range >= 3.5) {
+                tags.push("trend_confirmed".to_string());
             }
+            if intraday_range >= 4.5 {
+                tags.push("event_driven".to_string());
+            }
+        }
 
         if let Some(fundamentals) = fundamentals {
             let market_cap = fundamentals.market_cap.unwrap_or_default();

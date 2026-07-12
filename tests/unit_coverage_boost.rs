@@ -38,10 +38,22 @@ fn safe_ticker_component_empty_fails() {
 
 #[test]
 fn task_status_as_str() {
-    assert_eq!(stock_analyzer::task::TaskStatus::Pending.as_str(), "pending");
-    assert_eq!(stock_analyzer::task::TaskStatus::Running.as_str(), "running");
-    assert_eq!(stock_analyzer::task::TaskStatus::Completed.as_str(), "completed");
-    assert_eq!(stock_analyzer::task::TaskStatus::Cancelled.as_str(), "cancelled");
+    assert_eq!(
+        stock_analyzer::task::TaskStatus::Pending.as_str(),
+        "pending"
+    );
+    assert_eq!(
+        stock_analyzer::task::TaskStatus::Running.as_str(),
+        "running"
+    );
+    assert_eq!(
+        stock_analyzer::task::TaskStatus::Completed.as_str(),
+        "completed"
+    );
+    assert_eq!(
+        stock_analyzer::task::TaskStatus::Cancelled.as_str(),
+        "cancelled"
+    );
     assert_eq!(stock_analyzer::task::TaskStatus::Failed.as_str(), "failed");
 }
 
@@ -56,7 +68,11 @@ fn task_status_from_str_roundtrip() {
 
 #[test]
 fn task_status_from_str_invalid() {
-    assert!("unknown".parse::<stock_analyzer::task::TaskStatus>().is_err());
+    assert!(
+        "unknown"
+            .parse::<stock_analyzer::task::TaskStatus>()
+            .is_err()
+    );
     assert!("".parse::<stock_analyzer::task::TaskStatus>().is_err());
 }
 
@@ -99,7 +115,10 @@ fn score_weights_invalid_sum() {
 
 #[test]
 fn score_label_mapping() {
-    assert_eq!(stock_analyzer::scoring::types::score_label(85), "strong_buy");
+    assert_eq!(
+        stock_analyzer::scoring::types::score_label(85),
+        "strong_buy"
+    );
     assert_eq!(stock_analyzer::scoring::types::score_label(70), "buy");
     assert_eq!(stock_analyzer::scoring::types::score_label(55), "neutral");
     assert_eq!(stock_analyzer::scoring::types::score_label(35), "cautious");
@@ -371,7 +390,8 @@ fn weighted_total_balanced() {
         reason: String::new(),
         reliability: stock_analyzer::scoring::ScoreReliability::High,
     };
-    let total = stock_analyzer::scoring::scorer::weighted_total(&weights, &tech, &fund, &sent, &llm);
+    let total =
+        stock_analyzer::scoring::scorer::weighted_total(&weights, &tech, &fund, &sent, &llm);
     assert!((70..=80).contains(&total), "expected ~75, got {total}");
 }
 
@@ -436,30 +456,66 @@ fn format_valuation_line_negative_value() {
 
 #[test]
 fn stock_pick_objective_grade_a() {
-    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(85), "A");
-    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(95), "A");
-    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(100), "A");
+    assert_eq!(
+        stock_analyzer::pick::objective::stock_pick_objective_grade(85),
+        "A"
+    );
+    assert_eq!(
+        stock_analyzer::pick::objective::stock_pick_objective_grade(95),
+        "A"
+    );
+    assert_eq!(
+        stock_analyzer::pick::objective::stock_pick_objective_grade(100),
+        "A"
+    );
 }
 
 #[test]
 fn stock_pick_objective_grade_b() {
-    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(75), "B");
-    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(80), "B");
-    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(84), "B");
+    assert_eq!(
+        stock_analyzer::pick::objective::stock_pick_objective_grade(75),
+        "B"
+    );
+    assert_eq!(
+        stock_analyzer::pick::objective::stock_pick_objective_grade(80),
+        "B"
+    );
+    assert_eq!(
+        stock_analyzer::pick::objective::stock_pick_objective_grade(84),
+        "B"
+    );
 }
 
 #[test]
 fn stock_pick_objective_grade_c() {
-    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(60), "C");
-    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(70), "C");
-    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(74), "C");
+    assert_eq!(
+        stock_analyzer::pick::objective::stock_pick_objective_grade(60),
+        "C"
+    );
+    assert_eq!(
+        stock_analyzer::pick::objective::stock_pick_objective_grade(70),
+        "C"
+    );
+    assert_eq!(
+        stock_analyzer::pick::objective::stock_pick_objective_grade(74),
+        "C"
+    );
 }
 
 #[test]
 fn stock_pick_objective_grade_d() {
-    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(0), "D");
-    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(50), "D");
-    assert_eq!(stock_analyzer::pick::objective::stock_pick_objective_grade(59), "D");
+    assert_eq!(
+        stock_analyzer::pick::objective::stock_pick_objective_grade(0),
+        "D"
+    );
+    assert_eq!(
+        stock_analyzer::pick::objective::stock_pick_objective_grade(50),
+        "D"
+    );
+    assert_eq!(
+        stock_analyzer::pick::objective::stock_pick_objective_grade(59),
+        "D"
+    );
 }
 
 // =========================================================================
@@ -639,15 +695,21 @@ fn market_kind_from_value_us() {
 #[test]
 fn market_display_label_all() {
     assert_eq!(
-        stock_analyzer::pick::pipeline::filter::market_display_label(stock_analyzer::data::MarketKind::AShare),
+        stock_analyzer::pick::pipeline::filter::market_display_label(
+            stock_analyzer::data::MarketKind::AShare
+        ),
         "A-share"
     );
     assert_eq!(
-        stock_analyzer::pick::pipeline::filter::market_display_label(stock_analyzer::data::MarketKind::HongKong),
+        stock_analyzer::pick::pipeline::filter::market_display_label(
+            stock_analyzer::data::MarketKind::HongKong
+        ),
         "HK"
     );
     assert_eq!(
-        stock_analyzer::pick::pipeline::filter::market_display_label(stock_analyzer::data::MarketKind::UsEquity),
+        stock_analyzer::pick::pipeline::filter::market_display_label(
+            stock_analyzer::data::MarketKind::UsEquity
+        ),
         "US"
     );
 }
@@ -655,11 +717,15 @@ fn market_display_label_all() {
 #[test]
 fn market_search_label_all() {
     assert_eq!(
-        stock_analyzer::pick::pipeline::filter::market_search_label(stock_analyzer::data::MarketKind::AShare),
+        stock_analyzer::pick::pipeline::filter::market_search_label(
+            stock_analyzer::data::MarketKind::AShare
+        ),
         "A-share"
     );
     assert_eq!(
-        stock_analyzer::pick::pipeline::filter::market_search_label(stock_analyzer::data::MarketKind::HongKong),
+        stock_analyzer::pick::pipeline::filter::market_search_label(
+            stock_analyzer::data::MarketKind::HongKong
+        ),
         "HK"
     );
 }
@@ -667,15 +733,21 @@ fn market_search_label_all() {
 #[test]
 fn market_exchange_code_all() {
     assert_eq!(
-        stock_analyzer::pick::pipeline::filter::market_exchange_code(stock_analyzer::data::MarketKind::AShare),
+        stock_analyzer::pick::pipeline::filter::market_exchange_code(
+            stock_analyzer::data::MarketKind::AShare
+        ),
         "CN"
     );
     assert_eq!(
-        stock_analyzer::pick::pipeline::filter::market_exchange_code(stock_analyzer::data::MarketKind::HongKong),
+        stock_analyzer::pick::pipeline::filter::market_exchange_code(
+            stock_analyzer::data::MarketKind::HongKong
+        ),
         "HK"
     );
     assert_eq!(
-        stock_analyzer::pick::pipeline::filter::market_exchange_code(stock_analyzer::data::MarketKind::UsEquity),
+        stock_analyzer::pick::pipeline::filter::market_exchange_code(
+            stock_analyzer::data::MarketKind::UsEquity
+        ),
         "US"
     );
 }
@@ -754,9 +826,15 @@ fn extract_labeled_block_empty_text() {
 
 #[test]
 fn realized_call_hit_buy() {
-    assert!(stock_analyzer::memory::stats::realized_call_hit("Buy", 0.05, 0.03));
-    assert!(!stock_analyzer::memory::stats::realized_call_hit("Buy", -0.05, 0.03));
-    assert!(!stock_analyzer::memory::stats::realized_call_hit("Buy", 0.05, -0.03));
+    assert!(stock_analyzer::memory::stats::realized_call_hit(
+        "Buy", 0.05, 0.03
+    ));
+    assert!(!stock_analyzer::memory::stats::realized_call_hit(
+        "Buy", -0.05, 0.03
+    ));
+    assert!(!stock_analyzer::memory::stats::realized_call_hit(
+        "Buy", 0.05, -0.03
+    ));
 }
 
 #[test]
@@ -775,8 +853,12 @@ fn realized_call_hit_overweight() {
 
 #[test]
 fn realized_call_hit_hold() {
-    assert!(stock_analyzer::memory::stats::realized_call_hit("Hold", 0.02, 0.01));
-    assert!(!stock_analyzer::memory::stats::realized_call_hit("Hold", 0.10, 0.10));
+    assert!(stock_analyzer::memory::stats::realized_call_hit(
+        "Hold", 0.02, 0.01
+    ));
+    assert!(!stock_analyzer::memory::stats::realized_call_hit(
+        "Hold", 0.10, 0.10
+    ));
 }
 
 #[test]
@@ -795,13 +877,19 @@ fn realized_call_hit_underweight() {
 
 #[test]
 fn realized_call_hit_sell() {
-    assert!(stock_analyzer::memory::stats::realized_call_hit("Sell", -0.05, -0.03));
-    assert!(!stock_analyzer::memory::stats::realized_call_hit("Sell", 0.05, -0.03));
+    assert!(stock_analyzer::memory::stats::realized_call_hit(
+        "Sell", -0.05, -0.03
+    ));
+    assert!(!stock_analyzer::memory::stats::realized_call_hit(
+        "Sell", 0.05, -0.03
+    ));
 }
 
 #[test]
 fn realized_call_hit_unknown() {
-    assert!(!stock_analyzer::memory::stats::realized_call_hit("Unknown", 0.05, 0.03));
+    assert!(!stock_analyzer::memory::stats::realized_call_hit(
+        "Unknown", 0.05, 0.03
+    ));
 }
 
 // =========================================================================
@@ -906,7 +994,8 @@ fn summarize_entries_with_data() {
 #[test]
 fn derive_calibration_profile_insufficient() {
     use stock_analyzer::memory::MemoryEntry;
-    let entries: Vec<stock_analyzer::memory::MemoryEntry> = (0..5).map(|_| MemoryEntry::default()).collect();
+    let entries: Vec<stock_analyzer::memory::MemoryEntry> =
+        (0..5).map(|_| MemoryEntry::default()).collect();
     let profile = stock_analyzer::memory::stats::derive_calibration_profile(&entries);
     assert_eq!(profile.sample_count, 0);
 }
@@ -1122,8 +1211,13 @@ fn report_stage_variants() {
 
 #[test]
 fn news_items_to_evidence_records_empty() {
-    let records =
-        stock_analyzer::pick::pipeline::rank::news_items_to_evidence_records("AAPL", "美股", "tech", &[], &[]);
+    let records = stock_analyzer::pick::pipeline::rank::news_items_to_evidence_records(
+        "AAPL",
+        "美股",
+        "tech",
+        &[],
+        &[],
+    );
     assert!(records.is_empty());
 }
 
@@ -1193,8 +1287,12 @@ fn hash_embed_text_normalized() {
 
 #[test]
 fn format_memory_parts_empty() {
-    let parts =
-        stock_analyzer::memory::format_memory_parts(&[], &[], |e| e.ticker.clone(), |e| e.ticker.clone());
+    let parts = stock_analyzer::memory::format_memory_parts(
+        &[],
+        &[],
+        |e| e.ticker.clone(),
+        |e| e.ticker.clone(),
+    );
     assert!(parts.is_empty());
 }
 
@@ -1205,16 +1303,21 @@ fn format_memory_parts_same_only() {
         ticker: "AAPL".to_string(),
         ..MemoryEntry::default()
     }];
-    let parts =
-        stock_analyzer::memory::format_memory_parts(&entries, &[], |e| e.ticker.clone(), |e| e.ticker.clone());
+    let parts = stock_analyzer::memory::format_memory_parts(
+        &entries,
+        &[],
+        |e| e.ticker.clone(),
+        |e| e.ticker.clone(),
+    );
     assert!(!parts.is_empty());
     assert!(parts[0].contains("AAPL"));
 }
 
 #[test]
 fn build_highlights_empty() {
-    let (same, cross) =
-        stock_analyzer::memory::build_highlights(&[], &[], |_, _| stock_analyzer::HistoricalMemoryHighlight::default());
+    let (same, cross) = stock_analyzer::memory::build_highlights(&[], &[], |_, _| {
+        stock_analyzer::HistoricalMemoryHighlight::default()
+    });
     assert!(same.is_empty());
     assert!(cross.is_empty());
 }
@@ -1581,7 +1684,8 @@ fn weighted_total_all_zero() {
         reason: String::new(),
         reliability: stock_analyzer::scoring::ScoreReliability::High,
     };
-    let total = stock_analyzer::scoring::scorer::weighted_total(&weights, &zero, &zero, &zero, &zero);
+    let total =
+        stock_analyzer::scoring::scorer::weighted_total(&weights, &zero, &zero, &zero, &zero);
     assert_eq!(total, 0);
 }
 
@@ -1593,8 +1697,9 @@ fn weighted_total_all_hundred() {
         reason: String::new(),
         reliability: stock_analyzer::scoring::ScoreReliability::High,
     };
-    let total =
-        stock_analyzer::scoring::scorer::weighted_total(&weights, &hundred, &hundred, &hundred, &hundred);
+    let total = stock_analyzer::scoring::scorer::weighted_total(
+        &weights, &hundred, &hundred, &hundred, &hundred,
+    );
     assert_eq!(total, 100);
 }
 
@@ -1633,7 +1738,10 @@ fn dimension_score_construction() {
 #[test]
 fn score_weights_label_mapping() {
     assert_eq!(stock_analyzer::scoring::types::score_label(0), "avoid");
-    assert_eq!(stock_analyzer::scoring::types::score_label(100), "strong_buy");
+    assert_eq!(
+        stock_analyzer::scoring::types::score_label(100),
+        "strong_buy"
+    );
 }
 
 // =========================================================================
@@ -1697,7 +1805,8 @@ fn diagnosis_issue_error() {
 
 #[test]
 fn diagnosis_issue_warning() {
-    let issue = stock_analyzer::llm::parse::DiagnosisIssue::warning("quality", "field2", "message2");
+    let issue =
+        stock_analyzer::llm::parse::DiagnosisIssue::warning("quality", "field2", "message2");
     assert!(matches!(
         issue.severity,
         stock_analyzer::llm::parse::IssueSeverity::Warning
@@ -1876,18 +1985,39 @@ fn rating_to_score() {
 
 #[test]
 fn rating_to_action_group() {
-    assert_eq!(stock_analyzer::analysis::Rating::Buy.to_action_group(), "Buy");
-    assert_eq!(stock_analyzer::analysis::Rating::Overweight.to_action_group(), "Buy");
-    assert_eq!(stock_analyzer::analysis::Rating::Hold.to_action_group(), "Hold");
-    assert_eq!(stock_analyzer::analysis::Rating::Sell.to_action_group(), "Sell");
-    assert_eq!(stock_analyzer::analysis::Rating::Underweight.to_action_group(), "Sell");
+    assert_eq!(
+        stock_analyzer::analysis::Rating::Buy.to_action_group(),
+        "Buy"
+    );
+    assert_eq!(
+        stock_analyzer::analysis::Rating::Overweight.to_action_group(),
+        "Buy"
+    );
+    assert_eq!(
+        stock_analyzer::analysis::Rating::Hold.to_action_group(),
+        "Hold"
+    );
+    assert_eq!(
+        stock_analyzer::analysis::Rating::Sell.to_action_group(),
+        "Sell"
+    );
+    assert_eq!(
+        stock_analyzer::analysis::Rating::Underweight.to_action_group(),
+        "Sell"
+    );
 }
 
 #[test]
 fn rating_display() {
     assert_eq!(format!("{}", stock_analyzer::analysis::Rating::Buy), "Buy");
-    assert_eq!(format!("{}", stock_analyzer::analysis::Rating::Hold), "Hold");
-    assert_eq!(format!("{}", stock_analyzer::analysis::Rating::Sell), "Sell");
+    assert_eq!(
+        format!("{}", stock_analyzer::analysis::Rating::Hold),
+        "Hold"
+    );
+    assert_eq!(
+        format!("{}", stock_analyzer::analysis::Rating::Sell),
+        "Sell"
+    );
 }
 
 #[test]
@@ -1970,7 +2100,8 @@ fn tokenize_gap_match_text_empty() {
 #[test]
 fn score_related_gap_match_basic() {
     let base = vec!["missing".to_string(), "fundamentals".to_string()];
-    let score = stock_analyzer::analysis::score_related_gap_match(&base, "missing fundamentals data");
+    let score =
+        stock_analyzer::analysis::score_related_gap_match(&base, "missing fundamentals data");
     assert_eq!(score, 2);
 }
 
@@ -2067,76 +2198,76 @@ fn is_zero_value_other() {
 
 #[test]
 fn is_uniform_distribution_yes() {
-    assert!(stock_analyzer::llm::generated::helpers::is_uniform_distribution(
-        &serde_json::json!(0.333),
-        &serde_json::json!(0.333),
-        &serde_json::json!(0.333),
-    ));
+    assert!(
+        stock_analyzer::llm::generated::helpers::is_uniform_distribution(
+            &serde_json::json!(0.333),
+            &serde_json::json!(0.333),
+            &serde_json::json!(0.333),
+        )
+    );
 }
 
 #[test]
 fn is_uniform_distribution_no() {
-    assert!(!stock_analyzer::llm::generated::helpers::is_uniform_distribution(
-        &serde_json::json!(0.6),
-        &serde_json::json!(0.3),
-        &serde_json::json!(0.1),
-    ));
+    assert!(
+        !stock_analyzer::llm::generated::helpers::is_uniform_distribution(
+            &serde_json::json!(0.6),
+            &serde_json::json!(0.3),
+            &serde_json::json!(0.1),
+        )
+    );
 }
 
 #[test]
 fn is_meaningful_value_various() {
-    assert!(!stock_analyzer::llm::generated::helpers::is_meaningful_value(
-        &serde_json::json!(null)
-    ));
-    assert!(!stock_analyzer::llm::generated::helpers::is_meaningful_value(
-        &serde_json::json!("")
-    ));
-    assert!(!stock_analyzer::llm::generated::helpers::is_meaningful_value(
-        &serde_json::json!("  ")
-    ));
-    assert!(stock_analyzer::llm::generated::helpers::is_meaningful_value(
-        &serde_json::json!("hello")
-    ));
-    assert!(stock_analyzer::llm::generated::helpers::is_meaningful_value(
-        &serde_json::json!(42)
-    ));
-    assert!(stock_analyzer::llm::generated::helpers::is_meaningful_value(
-        &serde_json::json!(true)
-    ));
-    assert!(stock_analyzer::llm::generated::helpers::is_meaningful_value(
-        &serde_json::json!([1, 2])
-    ));
-    assert!(stock_analyzer::llm::generated::helpers::is_meaningful_value(
-        &serde_json::json!({"a": 1})
-    ));
-    assert!(!stock_analyzer::llm::generated::helpers::is_meaningful_value(
-        &serde_json::json!([])
-    ));
-    assert!(!stock_analyzer::llm::generated::helpers::is_meaningful_value(
-        &serde_json::json!({})
-    ));
+    assert!(
+        !stock_analyzer::llm::generated::helpers::is_meaningful_value(&serde_json::json!(null))
+    );
+    assert!(!stock_analyzer::llm::generated::helpers::is_meaningful_value(&serde_json::json!("")));
+    assert!(
+        !stock_analyzer::llm::generated::helpers::is_meaningful_value(&serde_json::json!("  "))
+    );
+    assert!(
+        stock_analyzer::llm::generated::helpers::is_meaningful_value(&serde_json::json!("hello"))
+    );
+    assert!(stock_analyzer::llm::generated::helpers::is_meaningful_value(&serde_json::json!(42)));
+    assert!(stock_analyzer::llm::generated::helpers::is_meaningful_value(&serde_json::json!(true)));
+    assert!(
+        stock_analyzer::llm::generated::helpers::is_meaningful_value(&serde_json::json!([1, 2]))
+    );
+    assert!(
+        stock_analyzer::llm::generated::helpers::is_meaningful_value(&serde_json::json!({"a": 1}))
+    );
+    assert!(!stock_analyzer::llm::generated::helpers::is_meaningful_value(&serde_json::json!([])));
+    assert!(!stock_analyzer::llm::generated::helpers::is_meaningful_value(&serde_json::json!({})));
 }
 
 #[test]
 fn meaningful_value_some() {
     assert!(
-        stock_analyzer::llm::generated::helpers::meaningful_value(Some(serde_json::json!("test"))).is_some()
+        stock_analyzer::llm::generated::helpers::meaningful_value(Some(serde_json::json!("test")))
+            .is_some()
     );
-    assert!(stock_analyzer::llm::generated::helpers::meaningful_value(Some(serde_json::json!(null))).is_none());
+    assert!(
+        stock_analyzer::llm::generated::helpers::meaningful_value(Some(serde_json::json!(null)))
+            .is_none()
+    );
     assert!(stock_analyzer::llm::generated::helpers::meaningful_value(None).is_none());
 }
 
 #[test]
 fn extract_object_value_basic() {
     let obj = serde_json::json!({"name": "test", "value": 42});
-    let result = stock_analyzer::llm::generated::helpers::extract_object_value(Some(&obj), &["name"]);
+    let result =
+        stock_analyzer::llm::generated::helpers::extract_object_value(Some(&obj), &["name"]);
     assert_eq!(result, Some(serde_json::json!("test")));
 }
 
 #[test]
 fn extract_object_value_missing_key() {
     let obj = serde_json::json!({"name": "test"});
-    let result = stock_analyzer::llm::generated::helpers::extract_object_value(Some(&obj), &["missing"]);
+    let result =
+        stock_analyzer::llm::generated::helpers::extract_object_value(Some(&obj), &["missing"]);
     assert!(result.is_none());
 }
 
@@ -2149,21 +2280,24 @@ fn extract_object_value_none() {
 #[test]
 fn extract_object_value_not_object() {
     let val = serde_json::json!("not an object");
-    let result = stock_analyzer::llm::generated::helpers::extract_object_value(Some(&val), &["key"]);
+    let result =
+        stock_analyzer::llm::generated::helpers::extract_object_value(Some(&val), &["key"]);
     assert!(result.is_none());
 }
 
 #[test]
 fn extract_object_string_list_basic() {
     let obj = serde_json::json!({"tags": ["a", "b", "c"]});
-    let result = stock_analyzer::llm::generated::helpers::extract_object_string_list(Some(&obj), &["tags"]);
+    let result =
+        stock_analyzer::llm::generated::helpers::extract_object_string_list(Some(&obj), &["tags"]);
     assert_eq!(result, vec!["a", "b", "c"]);
 }
 
 #[test]
 fn extract_object_string_list_missing() {
     let obj = serde_json::json!({"other": "value"});
-    let result = stock_analyzer::llm::generated::helpers::extract_object_string_list(Some(&obj), &["tags"]);
+    let result =
+        stock_analyzer::llm::generated::helpers::extract_object_string_list(Some(&obj), &["tags"]);
     assert!(result.is_empty());
 }
 
@@ -2197,9 +2331,18 @@ fn split_list_like_text_empty() {
 
 #[test]
 fn skip_json_whitespace_basic() {
-    assert_eq!(stock_analyzer::llm::parse::skip_json_whitespace("  hello", 0), 2);
-    assert_eq!(stock_analyzer::llm::parse::skip_json_whitespace("hello", 0), 0);
-    assert_eq!(stock_analyzer::llm::parse::skip_json_whitespace("\t\n  x", 0), 4);
+    assert_eq!(
+        stock_analyzer::llm::parse::skip_json_whitespace("  hello", 0),
+        2
+    );
+    assert_eq!(
+        stock_analyzer::llm::parse::skip_json_whitespace("hello", 0),
+        0
+    );
+    assert_eq!(
+        stock_analyzer::llm::parse::skip_json_whitespace("\t\n  x", 0),
+        4
+    );
 }
 
 #[test]
@@ -2241,7 +2384,10 @@ fn find_json_value_end_object() {
 
 #[test]
 fn find_json_value_end_array() {
-    assert_eq!(stock_analyzer::llm::parse::find_json_value_end("[1,2,3]", 0), Some(6));
+    assert_eq!(
+        stock_analyzer::llm::parse::find_json_value_end("[1,2,3]", 0),
+        Some(6)
+    );
 }
 
 #[test]
@@ -2252,7 +2398,8 @@ fn find_json_value_end_number() {
 
 #[test]
 fn decode_json_string_literal_basic() {
-    let result = stock_analyzer::llm::parse::decode_json_string_literal(r#""hello world""#).unwrap();
+    let result =
+        stock_analyzer::llm::parse::decode_json_string_literal(r#""hello world""#).unwrap();
     assert_eq!(result, "hello world");
 }
 

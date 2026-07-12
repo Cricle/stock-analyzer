@@ -1,5 +1,5 @@
-use stock_analyzer::llm::tools::{AnalysisDataCollector, execute_tool_call};
 use serde_json::json;
+use stock_analyzer::llm::tools::{AnalysisDataCollector, execute_tool_call};
 
 #[test]
 fn test_all_rating_tools() {

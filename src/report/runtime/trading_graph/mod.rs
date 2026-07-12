@@ -49,7 +49,7 @@ fn analyst_already_completed(result: &AnalysisResult, analyst_key: &str) -> bool
         return false;
     }
     // Also verify report content is non-empty to handle stale checkpoint resume
-    
+
     match analyst_key {
         "market" => !result.agent_state.market_report.trim().is_empty(),
         "sentiment" | "social" => !result.agent_state.sentiment_report.trim().is_empty(),

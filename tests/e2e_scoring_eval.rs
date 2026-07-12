@@ -8,7 +8,10 @@ use stock_analyzer::score::dimensions::{
 use stock_analyzer::score::types::score_label;
 
 /// Build a TechnicalInput from real market data.
-async fn build_technical_input(client: &stock_analyzer::MarketDataClient, symbol: &str) -> TechnicalInput {
+async fn build_technical_input(
+    client: &stock_analyzer::MarketDataClient,
+    symbol: &str,
+) -> TechnicalInput {
     let candles = client
         .fetch_candles(symbol, "qfq", 200)
         .await
@@ -99,7 +102,10 @@ fn compute_ema(closes: &[f64], period: usize) -> Option<f64> {
 }
 
 /// Build a FundamentalInput from real market data.
-async fn build_fundamental_input(client: &stock_analyzer::MarketDataClient, symbol: &str) -> FundamentalInput {
+async fn build_fundamental_input(
+    client: &stock_analyzer::MarketDataClient,
+    symbol: &str,
+) -> FundamentalInput {
     let fund = client.fetch_fundamentals(symbol).await.ok();
 
     FundamentalInput {

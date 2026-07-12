@@ -1,3 +1,4 @@
+use serde_json::json;
 use stock_analyzer::analysis::is_publishable_summary_reference;
 use stock_analyzer::analysis::{
     TechnicalValues, derive_action_guides, derive_memory_reference_facts, derive_news_diagnostics,
@@ -14,7 +15,6 @@ use stock_analyzer::{
     StructuredPortfolioDecision, StructuredReflection, StructuredResearchPlan,
     StructuredRiskAssessment, StructuredTraderPlan, TechnicalIndicatorConclusion, ToolObservation,
 };
-use serde_json::json;
 
 // ===== tests from setup_news.rs =====
 

@@ -122,7 +122,6 @@ pub(crate) enum OverrideActionKind {
     Lower,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub(crate) struct GeneratedOverrideAction {
     pub(crate) symbol: String,
@@ -141,7 +140,6 @@ pub(crate) enum AgreementLevel {
     Partial,
     Disagree,
 }
-
 
 impl std::fmt::Display for AgreementLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -289,9 +287,10 @@ pub(crate) fn parse_generated_stock_pick(
     let mut candidates = vec![trimmed.to_string()];
     if let Some(start) = trimmed.find('{')
         && let Some(end) = trimmed.rfind('}')
-            && start < end {
-                candidates.push(trimmed[start..=end].trim().to_string());
-            }
+        && start < end
+    {
+        candidates.push(trimmed[start..=end].trim().to_string());
+    }
 
     let mut last_error = None;
     for candidate in candidates {

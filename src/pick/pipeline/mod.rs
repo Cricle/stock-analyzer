@@ -222,12 +222,7 @@ pub async fn run(
         }
         indexed_evidence_records += deduped_records.len();
         candidate.news = dedupe_news_items(filter_relevant_news(
-            candidate
-                .news
-                .iter()
-                .cloned()
-                .chain(search_items)
-                .collect(),
+            candidate.news.iter().cloned().chain(search_items).collect(),
             &candidate.symbol,
             &candidate.name,
         ));
@@ -287,37 +282,39 @@ pub async fn run(
     if let Some(ref mem) = memory_log {
         // Get cross-ticker lessons for this market
         if let Ok(lessons) = mem.cross_ticker_lessons(&request.market, &[], 3).await
-            && !lessons.is_empty() {
-                let lessons_text = lessons
-                    .iter()
-                    .map(|l| format!("- {} (rating: {})", l.summary, l.rating))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                memory_context_parts.push(format!("Cross-ticker lessons:\n{}", lessons_text));
-            }
+            && !lessons.is_empty()
+        {
+            let lessons_text = lessons
+                .iter()
+                .map(|l| format!("- {} (rating: {})", l.summary, l.rating))
+                .collect::<Vec<_>>()
+                .join("\n");
+            memory_context_parts.push(format!("Cross-ticker lessons:\n{}", lessons_text));
+        }
 
         // For top candidates, get past context
         for candidate in preselected.iter().take(3) {
             if let Ok(bundle) = mem.past_context_bundle_async(&candidate.symbol, 3, 2).await
-                && bundle.same_ticker_count > 0 {
-                    let highlights_text = bundle
-                        .same_ticker_highlights
-                        .iter()
-                        .take(2)
-                        .map(|h| {
-                            format!(
-                                "{}: {}",
-                                h.ticker,
-                                h.summary.chars().take(80).collect::<String>()
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join("; ");
-                    memory_context_parts.push(format!(
-                        "Past analysis for {}: {} entries. {}",
-                        candidate.symbol, bundle.same_ticker_count, highlights_text
-                    ));
-                }
+                && bundle.same_ticker_count > 0
+            {
+                let highlights_text = bundle
+                    .same_ticker_highlights
+                    .iter()
+                    .take(2)
+                    .map(|h| {
+                        format!(
+                            "{}: {}",
+                            h.ticker,
+                            h.summary.chars().take(80).collect::<String>()
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                memory_context_parts.push(format!(
+                    "Past analysis for {}: {} entries. {}",
+                    candidate.symbol, bundle.same_ticker_count, highlights_text
+                ));
+            }
         }
     }
 
@@ -444,51 +441,58 @@ pub async fn run(
             let atr = item.technical_snapshot.atr;
             // Validate price fields are numeric, reset if free text
             if let Some(ref ep) = pick.entry_price
-                && ep.parse::<f64>().is_err() && !ep.contains('-') {
-                    pick.entry_price = None;
-                }
+                && ep.parse::<f64>().is_err()
+                && !ep.contains('-')
+            {
+                pick.entry_price = None;
+            }
             if let Some(ref sl) = pick.stop_loss
-                && sl.parse::<f64>().is_err() {
-                    pick.stop_loss = None;
-                }
+                && sl.parse::<f64>().is_err()
+            {
+                pick.stop_loss = None;
+            }
             if let Some(ref tp) = pick.target_price
-                && tp.parse::<f64>().is_err() && !tp.contains('-') {
-                    pick.target_price = None;
-                }
+                && tp.parse::<f64>().is_err()
+                && !tp.contains('-')
+            {
+                pick.target_price = None;
+            }
             if pick.entry_price.is_none()
-                && let Some(price) = current_price {
-                    pick.entry_price = Some(format!("{:.2}", price));
-                }
+                && let Some(price) = current_price
+            {
+                pick.entry_price = Some(format!("{:.2}", price));
+            }
             if pick.stop_loss.is_none()
                 && let Some(entry_str) = &pick.entry_price
-                    && let Ok(entry) = entry_str.parse::<f64>() {
-                        let stop = if let Some(atr_val) = atr {
-                            entry - 2.0 * atr_val
-                        } else {
-                            entry * 0.95
-                        };
-                        // Cap stop loss at 10% below entry
-                        let max_stop = entry * 0.90;
-                        pick.stop_loss = Some(format!("{:.2}", stop.max(max_stop).max(0.01)));
-                    }
+                && let Ok(entry) = entry_str.parse::<f64>()
+            {
+                let stop = if let Some(atr_val) = atr {
+                    entry - 2.0 * atr_val
+                } else {
+                    entry * 0.95
+                };
+                // Cap stop loss at 10% below entry
+                let max_stop = entry * 0.90;
+                pick.stop_loss = Some(format!("{:.2}", stop.max(max_stop).max(0.01)));
+            }
             if pick.target_price.is_none()
                 && let (Some(entry_str), Some(stop_str)) = (&pick.entry_price, &pick.stop_loss)
-                    && let (Ok(entry), Ok(stop)) =
-                        (entry_str.parse::<f64>(), stop_str.parse::<f64>())
-                    {
-                        let risk = (entry - stop).abs();
-                        if risk > 0.0 {
-                            let target = entry + 3.0 * risk;
-                            pick.target_price = Some(format!("{:.2}", target));
-                        }
-                    }
+                && let (Ok(entry), Ok(stop)) = (entry_str.parse::<f64>(), stop_str.parse::<f64>())
+            {
+                let risk = (entry - stop).abs();
+                if risk > 0.0 {
+                    let target = entry + 3.0 * risk;
+                    pick.target_price = Some(format!("{:.2}", target));
+                }
+            }
             if pick.holding_period.is_none() {
                 pick.holding_period = Some("2-4 weeks".to_string());
             }
             if pick.exit_triggers.is_empty()
-                && let Some(stop_str) = &pick.stop_loss {
-                    pick.exit_triggers.push(format!("break below {}", stop_str));
-                }
+                && let Some(stop_str) = &pick.stop_loss
+            {
+                pick.exit_triggers.push(format!("break below {}", stop_str));
+            }
             pick.objective_assessment = evaluate_stock_pick_objective_assessment(&pick, &item);
             pick.priority_rank = stock_pick_priority_rank(&pick);
             pick.priority_label = stock_pick_priority_label(pick.priority_rank).to_string();

@@ -1,7 +1,7 @@
 #![allow(clippy::approx_constant)]
 
-use stock_analyzer::llm::parse::*;
 use serde_json::json;
+use stock_analyzer::llm::parse::*;
 
 // --- text_or_default ---
 

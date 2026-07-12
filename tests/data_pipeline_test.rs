@@ -1,8 +1,8 @@
+use std::time::Duration;
 use stock_analyzer::data::FundamentalsSnapshot;
 use stock_analyzer::data::cache::DataCacheLayer;
 use stock_analyzer::data::pipeline::{DataPipelineConfig, ParallelExecutor};
 use stock_analyzer::data::validator::DataValidator;
-use std::time::Duration;
 
 #[test]
 fn test_cache_set_and_get() {

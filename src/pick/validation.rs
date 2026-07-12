@@ -107,22 +107,24 @@ pub fn validate_pick(
     // Check stop loss is below entry for long positions
     if let (Some(entry_str), Some(stop_str)) = (&pick.entry_price, &pick.stop_loss)
         && let (Some(entry), Some(stop)) = (parse_price(entry_str), parse_price(stop_str))
-            && stop >= entry {
-                issues.push("stop_loss must be below entry_price for long positions".to_string());
-            }
+        && stop >= entry
+    {
+        issues.push("stop_loss must be below entry_price for long positions".to_string());
+    }
 
     // Check stop loss percentage
     if let (Some(entry_str), Some(stop_str)) = (&pick.entry_price, &pick.stop_loss)
         && let (Some(entry), Some(stop)) = (parse_price(entry_str), parse_price(stop_str))
-            && entry > 0.0 {
-                let stop_pct = ((entry - stop) / entry * 100.0).abs();
-                if stop_pct > config.max_stop_loss_pct {
-                    issues.push(format!(
-                        "stop loss percentage {:.1}% exceeds maximum {:.1}%",
-                        stop_pct, config.max_stop_loss_pct
-                    ));
-                }
-            }
+        && entry > 0.0
+    {
+        let stop_pct = ((entry - stop) / entry * 100.0).abs();
+        if stop_pct > config.max_stop_loss_pct {
+            issues.push(format!(
+                "stop loss percentage {:.1}% exceeds maximum {:.1}%",
+                stop_pct, config.max_stop_loss_pct
+            ));
+        }
+    }
 
     let is_valid = issues.is_empty();
 
@@ -151,50 +153,56 @@ pub fn apply_defaults(pick: &mut GeneratedStockPickItem, candidate: &EnrichedCan
 
     // Validate entry_price is numeric, reset to None if it's free text
     if let Some(ref ep) = pick.entry_price
-        && !is_valid_price_string(ep) {
-            pick.entry_price = None;
-        }
+        && !is_valid_price_string(ep)
+    {
+        pick.entry_price = None;
+    }
     // Validate stop_loss is numeric
     if let Some(ref sl) = pick.stop_loss
-        && !is_valid_price_string(sl) {
-            pick.stop_loss = None;
-        }
+        && !is_valid_price_string(sl)
+    {
+        pick.stop_loss = None;
+    }
     // Validate target_price is numeric
     if let Some(ref tp) = pick.target_price
-        && !is_valid_price_string(tp) {
-            pick.target_price = None;
-        }
+        && !is_valid_price_string(tp)
+    {
+        pick.target_price = None;
+    }
 
     // Default entry price: current price
     if pick.entry_price.is_none()
-        && let Some(price) = current_price {
-            pick.entry_price = Some(format!("{:.2}", price));
-        }
+        && let Some(price) = current_price
+    {
+        pick.entry_price = Some(format!("{:.2}", price));
+    }
 
     // Default stop loss: 2 * ATR below entry, or 5% below entry if ATR unavailable
     // Cap at 10% below entry to avoid extreme stops on high-ATR low-price stocks
     if pick.stop_loss.is_none()
         && let Some(entry_str) = &pick.entry_price
-            && let Some(entry) = parse_price(entry_str) {
-                let stop = if let Some(atr_val) = atr {
-                    entry - 2.0 * atr_val
-                } else {
-                    entry * 0.95
-                };
-                let max_stop = entry * 0.90;
-                pick.stop_loss = Some(format!("{:.2}", stop.max(max_stop).max(0.01)));
-            }
+        && let Some(entry) = parse_price(entry_str)
+    {
+        let stop = if let Some(atr_val) = atr {
+            entry - 2.0 * atr_val
+        } else {
+            entry * 0.95
+        };
+        let max_stop = entry * 0.90;
+        pick.stop_loss = Some(format!("{:.2}", stop.max(max_stop).max(0.01)));
+    }
 
     // Default target price: 3:1 R/R from entry/stop
     if pick.target_price.is_none()
         && let (Some(entry_str), Some(stop_str)) = (&pick.entry_price, &pick.stop_loss)
-            && let (Some(entry), Some(stop)) = (parse_price(entry_str), parse_price(stop_str)) {
-                let risk = (entry - stop).abs();
-                if risk > 0.0 {
-                    let target = entry + 3.0 * risk;
-                    pick.target_price = Some(format!("{:.2}", target));
-                }
-            }
+        && let (Some(entry), Some(stop)) = (parse_price(entry_str), parse_price(stop_str))
+    {
+        let risk = (entry - stop).abs();
+        if risk > 0.0 {
+            let target = entry + 3.0 * risk;
+            pick.target_price = Some(format!("{:.2}", target));
+        }
+    }
 
     // Default holding period based on strategy
     if pick.holding_period.is_none() {
@@ -203,9 +211,10 @@ pub fn apply_defaults(pick: &mut GeneratedStockPickItem, candidate: &EnrichedCan
 
     // Default exit triggers
     if pick.exit_triggers.is_empty()
-        && let Some(stop_str) = &pick.stop_loss {
-            pick.exit_triggers.push(format!("break below {}", stop_str));
-        }
+        && let Some(stop_str) = &pick.stop_loss
+    {
+        pick.exit_triggers.push(format!("break below {}", stop_str));
+    }
 }
 
 /// Validate and enhance picks, rejecting those that fail quality gates.

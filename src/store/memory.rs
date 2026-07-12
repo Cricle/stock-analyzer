@@ -209,9 +209,10 @@ impl CacheStore for InMemoryCacheStore {
         match entries.get(key) {
             Some(entry) => {
                 if let Some(exp) = entry.expires_at
-                    && std::time::Instant::now() > exp {
-                        return Ok(None);
-                    }
+                    && std::time::Instant::now() > exp
+                {
+                    return Ok(None);
+                }
                 Ok(Some(entry.data.clone()))
             }
             None => Ok(None),
@@ -241,9 +242,10 @@ impl CacheStore for InMemoryCacheStore {
         match entries.get(key) {
             Some(entry) => {
                 if let Some(exp) = entry.expires_at
-                    && std::time::Instant::now() > exp {
-                        return Ok(false);
-                    }
+                    && std::time::Instant::now() > exp
+                {
+                    return Ok(false);
+                }
                 Ok(true)
             }
             None => Ok(false),

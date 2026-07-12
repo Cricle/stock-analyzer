@@ -116,13 +116,16 @@ fn setup_llm_client() -> Option<stock_analyzer::llm::LlmClient> {
 async fn setup_task_manager() -> Option<(stock_analyzer::TaskManager, tempfile::TempDir)> {
     enable_debug_mode();
     let data_dir = tempfile::tempdir().unwrap();
-    let analysis_store: Arc<dyn stock_analyzer::AnalysisStore> = Arc::new(InMemoryAnalysisStore::new());
+    let analysis_store: Arc<dyn stock_analyzer::AnalysisStore> =
+        Arc::new(InMemoryAnalysisStore::new());
     let cache_store: Arc<dyn stock_analyzer::CacheStore> = Arc::new(InMemoryCacheStore::new());
-    let checkpoint_inner: Arc<dyn stock_analyzer::CheckpointStore> = Arc::new(InMemoryCheckpointStore::new());
+    let checkpoint_inner: Arc<dyn stock_analyzer::CheckpointStore> =
+        Arc::new(InMemoryCheckpointStore::new());
     let checkpoint_store = stock_analyzer::checkpoint::TaskCheckpointStore::new(checkpoint_inner);
     let market_data = stock_analyzer::MarketDataClient::new().await.unwrap();
     let memory_log =
-        stock_analyzer::memory::TradingMemoryLog::new(data_dir.path().to_str().unwrap(), 100).unwrap();
+        stock_analyzer::memory::TradingMemoryLog::new(data_dir.path().to_str().unwrap(), 100)
+            .unwrap();
     let telemetry = stock_analyzer::telemetry::init_telemetry();
     let llm = setup_llm_client()?;
 

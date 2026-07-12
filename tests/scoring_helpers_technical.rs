@@ -1,4 +1,6 @@
-use stock_analyzer::analysis::{AgentReportNode, Rating, StructuredPortfolioDecision, StructuredTraderPlan};
+use stock_analyzer::analysis::{
+    AgentReportNode, Rating, StructuredPortfolioDecision, StructuredTraderPlan,
+};
 use stock_analyzer::scoring::{
     analyst_matches, analyst_net_probability, analyst_probability_quality,
     average_evidence_density, direction_score_to_evidence_score, has_execution_boundary, is_cjk,

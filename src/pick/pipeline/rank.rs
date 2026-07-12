@@ -64,10 +64,9 @@ pub fn filter_relevant_news(items: Vec<NewsItem>, symbol: &str, name: &str) -> V
                 if matches >= 2 {
                     return true;
                 }
-            } else if name_tokens.len() == 1
-                && combined.contains(name_tokens[0].as_str()) {
-                    return true;
-                }
+            } else if name_tokens.len() == 1 && combined.contains(name_tokens[0].as_str()) {
+                return true;
+            }
             false
         })
         .collect()

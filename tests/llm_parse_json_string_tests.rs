@@ -1,9 +1,9 @@
+use serde_json::Value;
 use stock_analyzer::llm::parse::{
     decode_json_string_literal, extract_json_value_before_known_field,
     extract_relaxed_json_string_field, extract_simple_json_string_field, find_json_string_end,
     find_json_value_end, normalize_relaxed_json_string, skip_json_whitespace,
 };
-use serde_json::Value;
 
 // --- skip_json_whitespace ---
 

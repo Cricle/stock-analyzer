@@ -277,26 +277,31 @@ pub fn format_fundamental_metrics(sd: &crate::AnalysisScenarioData) -> String {
         }
     }
     if let (Some(mc), Some(eq)) = (f.market_cap, f.stockholders_equity_usd)
-        && eq.abs() > 0.0 {
-            lines.push(format!("PB Ratio: {:.2}", mc / eq));
-        }
+        && eq.abs() > 0.0
+    {
+        lines.push(format!("PB Ratio: {:.2}", mc / eq));
+    }
     if let (Some(gp), Some(rev)) = (f.gross_profit_usd, f.revenues_usd)
-        && rev.abs() > 0.0 {
-            lines.push(format!("Gross Margin: {:.1}%", gp / rev * hundred));
-        }
+        && rev.abs() > 0.0
+    {
+        lines.push(format!("Gross Margin: {:.1}%", gp / rev * hundred));
+    }
     if let (Some(ni), Some(rev)) = (f.net_income_usd, f.revenues_usd)
-        && rev.abs() > 0.0 {
-            lines.push(format!("Net Margin: {:.1}%", ni / rev * hundred));
-        }
+        && rev.abs() > 0.0
+    {
+        lines.push(format!("Net Margin: {:.1}%", ni / rev * hundred));
+    }
     if let (Some(oi), Some(rev)) = (f.operating_income_usd, f.revenues_usd)
-        && rev.abs() > 0.0 {
-            lines.push(format!("Operating Margin: {:.1}%", oi / rev * hundred));
-        }
+        && rev.abs() > 0.0
+    {
+        lines.push(format!("Operating Margin: {:.1}%", oi / rev * hundred));
+    }
     if let (Some(mc), Some(shares)) = (f.market_cap, f.shares_outstanding)
-        && shares > 0 {
-            lines.push(format!("Market Cap: {:.0}", mc));
-            lines.push(format!("Shares Outstanding: {}", shares));
-        }
+        && shares > 0
+    {
+        lines.push(format!("Market Cap: {:.0}", mc));
+        lines.push(format!("Shares Outstanding: {}", shares));
+    }
     if lines.is_empty() {
         String::new()
     } else {

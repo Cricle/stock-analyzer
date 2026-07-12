@@ -359,26 +359,29 @@ mod snapshots {
         }
         // ISO / GDELT style: "YYYY-MM-DD ..." or "YYYY-MM-DDTHH:MM:SS"
         if let Some(date_part) = trimmed.get(..10)
-            && let Ok(d) = NaiveDate::parse_from_str(date_part, "%Y-%m-%d") {
-                return Some(d);
-            }
+            && let Ok(d) = NaiveDate::parse_from_str(date_part, "%Y-%m-%d")
+        {
+            return Some(d);
+        }
         // US style: "M/D/YYYY" or "MM/DD/YYYY"
         if let Ok(d) = NaiveDate::parse_from_str(trimmed, "%m/%d/%Y") {
             return Some(d);
         }
         // US style with time: "M/D/YYYY HH:MM:SS"
         if let Some(date_part) = trimmed.split_whitespace().next()
-            && let Ok(d) = NaiveDate::parse_from_str(date_part, "%m/%d/%Y") {
-                return Some(d);
-            }
+            && let Ok(d) = NaiveDate::parse_from_str(date_part, "%m/%d/%Y")
+        {
+            return Some(d);
+        }
         // Dotted: "YYYY.MM.DD"
         if let Ok(d) = NaiveDate::parse_from_str(trimmed, "%Y.%m.%d") {
             return Some(d);
         }
         if let Some(date_part) = trimmed.split_whitespace().next()
-            && let Ok(d) = NaiveDate::parse_from_str(date_part, "%Y.%m.%d") {
-                return Some(d);
-            }
+            && let Ok(d) = NaiveDate::parse_from_str(date_part, "%Y.%m.%d")
+        {
+            return Some(d);
+        }
         // Long format: "Aug 10, 2020" / "January 5, 2024"
         if let Ok(d) = NaiveDate::parse_from_str(trimmed, "%b %d, %Y") {
             return Some(d);
@@ -389,24 +392,25 @@ mod snapshots {
         // Try parsing a relative date string like "2 hours ago", "3 days ago"
         let lower = trimmed.to_ascii_lowercase();
         if let Some((amount_str, rest)) = lower.split_once(' ')
-            && let Ok(amount) = amount_str.parse::<i64>() {
-                let now = Utc::now().date_naive();
-                if rest.starts_with("minute")
-                    || rest.starts_with("min")
-                    || rest.starts_with("hour")
-                    || rest.starts_with("hr")
-                {
-                    return Some(now);
-                } else if rest.starts_with("day") {
-                    return Some(now - chrono::Duration::days(amount));
-                } else if rest.starts_with("week") {
-                    return Some(now - chrono::Duration::weeks(amount));
-                } else if rest.starts_with("month") {
-                    return Some(now - chrono::Duration::days(amount * 30));
-                } else if rest.starts_with("year") {
-                    return Some(now - chrono::Duration::days(amount * 365));
-                }
+            && let Ok(amount) = amount_str.parse::<i64>()
+        {
+            let now = Utc::now().date_naive();
+            if rest.starts_with("minute")
+                || rest.starts_with("min")
+                || rest.starts_with("hour")
+                || rest.starts_with("hr")
+            {
+                return Some(now);
+            } else if rest.starts_with("day") {
+                return Some(now - chrono::Duration::days(amount));
+            } else if rest.starts_with("week") {
+                return Some(now - chrono::Duration::weeks(amount));
+            } else if rest.starts_with("month") {
+                return Some(now - chrono::Duration::days(amount * 30));
+            } else if rest.starts_with("year") {
+                return Some(now - chrono::Duration::days(amount * 365));
             }
+        }
         if lower == "today" {
             return Some(Utc::now().date_naive());
         }

@@ -46,9 +46,10 @@ impl DailyGuidanceGenerator {
             }
             if guidance.stock_name.is_empty()
                 && let Some(fund) = fund_map.get(guidance.symbol.as_str())
-                    && !fund.company_name.is_empty() {
-                        guidance.stock_name = fund.company_name.clone();
-                    }
+                && !fund.company_name.is_empty()
+            {
+                guidance.stock_name = fund.company_name.clone();
+            }
         }
     }
 

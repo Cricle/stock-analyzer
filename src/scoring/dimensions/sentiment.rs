@@ -51,6 +51,7 @@ struct SentimentResponse {
     reason: String,
 }
 
+/// Parse an LLM sentiment response JSON into a dimension score.
 pub fn parse_sentiment_response(content: &str) -> DimensionScore {
     let json_str = content
         .trim()

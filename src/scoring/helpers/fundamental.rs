@@ -1,7 +1,9 @@
+/// Convert a boolean to Chinese "是"/"否" text.
 pub fn bool_text(value: bool) -> &'static str {
     if value { "是" } else { "否" }
 }
 
+/// Count numeric tokens with 2-5 integer digits (price-like levels) in text.
 pub fn count_numeric_levels(text: &str) -> i32 {
     numeric_tokens(text)
         .into_iter()
@@ -17,6 +19,7 @@ pub fn count_numeric_levels(text: &str) -> i32 {
         .count() as i32
 }
 
+/// Count YYYY-MM-DD or YYYY/MM/DD date patterns in text.
 pub fn count_numeric_dates(text: &str) -> i32 {
     text.split_whitespace()
         .filter(|token| {
@@ -27,12 +30,14 @@ pub fn count_numeric_dates(text: &str) -> i32 {
         .count() as i32
 }
 
+/// Parse the first numeric token from text as an f64.
 pub fn parse_first_number(text: &str) -> Option<f64> {
     numeric_tokens(text)
         .into_iter()
         .find_map(|token| token.parse::<f64>().ok())
 }
 
+/// Parse a position percentage from text, normalizing 0-1 and 0-100 ranges.
 pub fn parse_position_percentage(text: &str) -> Option<f64> {
     let value = parse_first_number(text)?;
     if text.chars().any(|ch| ch == '%') {
@@ -46,6 +51,7 @@ pub fn parse_position_percentage(text: &str) -> Option<f64> {
     }
 }
 
+/// Extract all numeric tokens (integers and decimals) from text.
 pub fn numeric_tokens(text: &str) -> Vec<String> {
     let mut tokens = Vec::new();
     let mut current = String::new();
@@ -68,6 +74,7 @@ pub fn numeric_tokens(text: &str) -> Vec<String> {
     tokens
 }
 
+/// Check if a token looks like a YYYY-MM-DD or YYYY/MM/DD date.
 pub fn looks_like_ymd_date(token: &str) -> bool {
     let separator = if token.contains('-') {
         '-'

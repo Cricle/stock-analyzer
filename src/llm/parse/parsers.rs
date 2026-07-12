@@ -1,3 +1,4 @@
+/// Parse raw LLM text into a `GeneratedResearchManager`, validating quality.
 pub fn parse_generated_research_manager(
     content: &str,
 ) -> anyhow::Result<GeneratedResearchManager> {
@@ -6,6 +7,7 @@ pub fn parse_generated_research_manager(
     Ok(parsed)
 }
 
+/// Parse raw LLM text into a `GeneratedPortfolioDecision`, validating quality.
 pub fn parse_generated_portfolio_decision(
     content: &str,
 ) -> anyhow::Result<GeneratedPortfolioDecision> {
@@ -14,6 +16,7 @@ pub fn parse_generated_portfolio_decision(
     Ok(parsed)
 }
 
+/// Parse raw LLM text into a `GeneratedAnalystDecision`, normalizing legacy formats.
 pub fn parse_generated_analyst_decision(
     content: &str,
 ) -> anyhow::Result<GeneratedAnalystDecision> {
@@ -34,6 +37,7 @@ pub fn parse_generated_analyst_decision(
     Ok(parsed)
 }
 
+/// Parse raw LLM text into a `GeneratedDebateTurn`, falling back to lenient parsing on failure.
 pub fn parse_generated_debate_turn(content: &str) -> anyhow::Result<GeneratedDebateTurn> {
     match parse_object_candidates_value(content, GeneratedDebateTurn::from_value) {
         Ok(parsed) => {
@@ -44,6 +48,7 @@ pub fn parse_generated_debate_turn(content: &str) -> anyhow::Result<GeneratedDeb
     }
 }
 
+/// Parse raw LLM text into a `GeneratedTraderDecision`, validating quality.
 pub fn parse_generated_trader_decision(
     content: &str,
 ) -> anyhow::Result<GeneratedTraderDecision> {

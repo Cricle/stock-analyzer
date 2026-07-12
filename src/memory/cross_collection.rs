@@ -5,12 +5,14 @@ use crate::guide::GuidanceStore;
 use crate::pick::StockPickHistoryStore;
 
 #[derive(Clone)]
+/// Cross-collection searcher spanning memory, guidance, and stock pick stores.
 pub struct CrossCollectionSearcher {
     pub memory: TradingMemoryLog,
     pub guidance: GuidanceStore,
     pub(crate) stock_pick: StockPickHistoryStore,
 }
 
+/// A single search result from cross-collection retrieval.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CrossCollectionResult {
     pub source: String,
@@ -23,6 +25,7 @@ pub struct CrossCollectionResult {
 }
 
 impl CrossCollectionSearcher {
+    /// Create a new cross-collection searcher from a trading memory log.
     pub fn new(memory: TradingMemoryLog) -> Self {
         Self {
             memory,

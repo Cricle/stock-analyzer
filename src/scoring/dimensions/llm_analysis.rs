@@ -17,6 +17,7 @@ pub struct LlmAnalysisInput {
     pub period_return_pct: Option<f64>,
 }
 
+/// Score LLM analysis quality from confidence, technical, history, news, and market signals.
 pub fn score_llm_analysis(input: &LlmAnalysisInput) -> DimensionScore {
     let signals = [
         signal_llm(input.confidence, input.objective_final_score),

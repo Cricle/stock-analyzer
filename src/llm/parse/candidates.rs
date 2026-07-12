@@ -1,3 +1,4 @@
+/// Parse a JSON value from LLM content using multiple candidate extraction strategies.
 fn parse_object_candidates_value<R>(content: &str, mapper: fn(Value) -> R) -> anyhow::Result<R> {
     let candidates = candidate_variants(content);
 
@@ -17,6 +18,7 @@ fn parse_object_candidates_value<R>(content: &str, mapper: fn(Value) -> R) -> an
     )
 }
 
+/// Attempt lenient parsing of a debate turn from raw LLM content.
 fn parse_generated_debate_turn_lenient(content: &str) -> Option<GeneratedDebateTurn> {
     for candidate in candidate_variants(content) {
         if let Some(parsed) = parse_generated_debate_turn_lenient_candidate(&candidate) {
@@ -26,6 +28,7 @@ fn parse_generated_debate_turn_lenient(content: &str) -> Option<GeneratedDebateT
     None
 }
 
+/// Parse a debate turn from a single JSON candidate using relaxed field extraction.
 fn parse_generated_debate_turn_lenient_candidate(content: &str) -> Option<GeneratedDebateTurn> {
     let speaker = extract_simple_json_string_field(content, "speaker")
         .filter(|value| !value.is_empty())
@@ -120,6 +123,7 @@ pub fn sanitize_json_control_chars(content: &str) -> String {
     String::from_utf8(out).unwrap_or_else(|_| content.to_string())
 }
 
+/// Generate multiple JSON candidate strings from LLM content (sanitized, unfenced, repaired).
 pub fn candidate_variants(content: &str) -> Vec<String> {
     let trimmed = content.trim();
     let sanitized = sanitize_json_control_chars(trimmed);

@@ -1,3 +1,4 @@
+/// Severity level for LLM output quality diagnosis issues.
 #[derive(Clone, Debug)]
 pub enum IssueSeverity {
     Error,
@@ -5,6 +6,7 @@ pub enum IssueSeverity {
     Info,
 }
 
+/// A single diagnostic issue found during LLM output validation.
 #[derive(Clone, Debug)]
 pub struct DiagnosisIssue {
     pub severity: IssueSeverity,
@@ -14,6 +16,7 @@ pub struct DiagnosisIssue {
 }
 
 impl DiagnosisIssue {
+    /// Create an error-severity diagnosis issue.
     pub fn error(
         category: impl Into<String>,
         field: impl Into<String>,
@@ -27,6 +30,7 @@ impl DiagnosisIssue {
         }
     }
 
+    /// Create a warning-severity diagnosis issue.
     pub fn warning(
         category: impl Into<String>,
         field: impl Into<String>,
@@ -40,6 +44,7 @@ impl DiagnosisIssue {
         }
     }
 
+    /// Create an info-severity diagnosis issue.
     pub fn info(
         category: impl Into<String>,
         field: impl Into<String>,

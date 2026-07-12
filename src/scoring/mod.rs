@@ -5,9 +5,9 @@
 //!
 //! # Key Types
 //!
-//! - [`StockScore`] — Final composite score with breakdown
-//! - [`ScoreWeights`] — Configurable weights per dimension
-//! - [`DimensionScore`] — Individual dimension scoring result
+//! - `StockScore` — Final composite score with breakdown
+//! - `ScoreWeights` — Configurable weights per dimension
+//! - `DimensionScore` — Individual dimension scoring result
 
 use crate::{
     ActionBreakdown, AgentReportNode, AnalysisResult, ConfidenceBreakdown, ConfidenceCap,

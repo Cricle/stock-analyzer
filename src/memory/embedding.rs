@@ -136,6 +136,7 @@ impl TradingMemoryLog {
         super::hash_embed_text(text, dimension)
     }
 
+    /// Embed text into a float vector, using local model or falling back to hash embedding.
     pub fn embed_text(&self, text: &str) -> Vec<f32> {
         #[cfg(feature = "local-rag-embeddings")]
         {

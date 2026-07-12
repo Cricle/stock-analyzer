@@ -1,5 +1,6 @@
 use crate::scoring::score_types::DimensionScore;
 
+/// Input data for fundamental analysis scoring.
 pub struct FundamentalInput {
     pub pe_like: Option<f64>,
     pub ps_like: Option<f64>,
@@ -10,6 +11,7 @@ pub struct FundamentalInput {
     pub net_income_usd: Option<f64>,
 }
 
+/// Score fundamental quality from PE, ROE, leverage, and revenue metrics.
 pub fn score_fundamental(input: &FundamentalInput) -> DimensionScore {
     let mut total: f64 = 0.0;
     let mut weight_sum: f64 = 0.0;

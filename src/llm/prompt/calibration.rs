@@ -44,6 +44,7 @@ impl Default for ConfidenceCalibration {
 }
 
 impl LlmClient {
+    /// Generate a calibration memo summarizing historical setup data for the LLM prompt.
     pub fn calibration_memo(
         memory_context: &crate::MemoryContextSnapshot,
         market_type: &str,

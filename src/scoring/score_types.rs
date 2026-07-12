@@ -69,6 +69,7 @@ impl Default for ScoreWeights {
 }
 
 impl ScoreWeights {
+    /// Validate that scoring weights sum to 100.
     pub fn validate(&self) -> anyhow::Result<()> {
         let sum = self.technical as u16
             + self.fundamental as u16

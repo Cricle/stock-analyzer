@@ -12,6 +12,7 @@ pub struct DataQualityReport {
 }
 
 impl DataQualityReport {
+    /// Create a default data quality report.
     pub fn new() -> Self {
         Self::default()
     }

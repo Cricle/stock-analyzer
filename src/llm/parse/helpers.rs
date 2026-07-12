@@ -1,3 +1,4 @@
+/// Extract a text value from JSON, returning default if absent or empty.
 pub fn text_or_default(value: Option<Value>, default: &str) -> String {
     value
         .map(|value| normalize_value(&value))
@@ -5,6 +6,7 @@ pub fn text_or_default(value: Option<Value>, default: &str) -> String {
         .unwrap_or_else(|| default.to_string())
 }
 
+/// Return the first non-empty text from a list of optional JSON values.
 pub fn first_non_empty(values: &[Option<&Value>], default: &str) -> String {
     values
         .iter()
@@ -14,6 +16,7 @@ pub fn first_non_empty(values: &[Option<&Value>], default: &str) -> String {
         .unwrap_or_else(|| default.to_string())
 }
 
+/// Parse a JSON value into a string list, splitting on newlines and semicolons.
 pub fn string_list_or_default(value: Option<Value>, defaults: &[&str]) -> Vec<String> {
     match value {
         Some(Value::Array(items)) => {
@@ -50,6 +53,7 @@ fn normalize_inline_value(value: &Value) -> String {
     crate::value_utils::normalize_inline_value_with_sep(value, "; ")
 }
 
+/// Extract a numeric value from JSON, handling numbers, strings, arrays, and objects.
 pub fn normalize_numeric(value: &Value) -> Option<f64> {
     match value {
         Value::Number(number) => number.as_f64(),
@@ -67,6 +71,7 @@ pub fn normalize_numeric(value: &Value) -> Option<f64> {
     }
 }
 
+/// Normalize up/down/sideways probability triplet to sum to 1.0.
 pub fn normalize_probability_triplet(
     up: &Value,
     down: &Value,
@@ -89,6 +94,7 @@ pub fn normalize_probability_triplet(
     (up, down, (sideways + drift).clamp(0.0, 1.0))
 }
 
+/// Parse the first numeric token from a text string, skipping non-numeric prefixes.
 pub fn parse_first_numeric_token(text: &str) -> Option<f64> {
     let trimmed = text.trim();
     if trimmed.is_empty() {
@@ -138,6 +144,7 @@ pub fn parse_first_numeric_token(text: &str) -> Option<f64> {
 
 pub use crate::value_utils::normalize_value;
 
+/// Check if text matches a known default/placeholder LLM response.
 pub fn is_default_text(value: &str) -> bool {
     matches!(
         value,

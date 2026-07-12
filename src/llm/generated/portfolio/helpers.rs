@@ -5,6 +5,7 @@ impl GeneratedPortfolioDecision {
             .and_then(parse::normalize_numeric)
     }
 
+    /// Render the portfolio decision as a formatted markdown document with all sections.
     pub fn rendered_decision(&self) -> String {
         let mut parts = vec![
             "# Portfolio Manager Decision".to_string(),
@@ -96,6 +97,7 @@ impl GeneratedPortfolioDecision {
         parts.join("\n")
     }
 
+    /// Render the post-decision reflection, falling back to a default if absent.
     pub fn rendered_reflection(&self) -> String {
         self.reflection
             .as_ref()
@@ -111,6 +113,7 @@ impl GeneratedPortfolioDecision {
             })
     }
 
+    /// Parse a `GeneratedPortfolioDecision` from a JSON value, extracting all fields with fallbacks.
     pub(crate) fn from_value(raw: Value) -> Self {
         let object = raw.as_object();
         let field = |key: &str| object.and_then(|map| map.get(key)).cloned();

@@ -15,6 +15,7 @@ impl GeneratedTraderDecision {
         self.stop_loss.as_ref().and_then(parse::normalize_numeric)
     }
 
+    /// Render the trader execution proposal as a formatted markdown document.
     pub fn rendered_proposal(&self) -> String {
         let mut parts = vec![
             "# Trader Execution Plan".to_string(),

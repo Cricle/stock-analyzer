@@ -94,6 +94,7 @@ pub async fn score_stock_pick(
     }
 }
 
+/// Compute weighted total score from dimension scores and weights.
 pub fn weighted_total(
     w: &ScoreWeights,
     technical: &crate::scoring::score_types::DimensionScore,

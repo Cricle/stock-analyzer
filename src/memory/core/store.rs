@@ -8,6 +8,7 @@ use super::super::stats::MemoryOutcomeUpdate;
 use super::super::{ENTRY_SEPARATOR, MemoryEntry, ResearchMemoryRecord};
 
 impl super::super::TradingMemoryLog {
+    /// Create a new trading memory log, initializing the data directory and RAG config.
     pub fn new(data_dir: &str, max_entries: usize) -> anyhow::Result<Self> {
         let base = PathBuf::from(data_dir).join("memory");
         fs::create_dir_all(&base)

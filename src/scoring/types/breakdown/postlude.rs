@@ -1,4 +1,5 @@
 
+/// Evaluate the final confidence score with breakdown and applied caps.
 pub fn evaluate_confidence_score(
     result: &AnalysisResult,
     caps_config: &crate::scoring::config::ConfidenceCapsConfig,

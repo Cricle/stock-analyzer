@@ -7,10 +7,12 @@ mod task_status;
 
 use crate::{AnalysisParameters, AnalysisUserContext};
 
+/// Normalize a language option, defaulting to zh-CN.
 pub fn normalize_language(_value: Option<&str>) -> String {
     "zh-CN".to_string()
 }
 
+/// Normalize an option value against an allowed list, returning the default if not matched.
 pub fn normalize_option(value: Option<&str>, allowed: &[&str], default_value: &str) -> String {
     let candidate = value.unwrap_or_default().trim().to_ascii_lowercase();
     allowed

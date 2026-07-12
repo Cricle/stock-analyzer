@@ -1,3 +1,4 @@
+/// Strip markdown code fences and return the inner content.
 pub fn strip_code_fence(content: &str) -> Option<&str> {
     let fenced = content.strip_prefix("```")?;
     let index = fenced.find('\n')?;
@@ -6,12 +7,14 @@ pub fn strip_code_fence(content: &str) -> Option<&str> {
     Some(body[..end].trim())
 }
 
+/// Extract the outermost JSON object from text by matching `{` and `}`.
 pub fn slice_outer_json_object(content: &str) -> Option<&str> {
     let start = content.find('{')?;
     let end = content.rfind('}')?;
     (start < end).then_some(content[start..=end].trim())
 }
 
+/// Slice the first complete JSON value (object, array, string, number, bool, null) from text.
 pub fn slice_first_complete_json_value(content: &str) -> Option<&str> {
     let bytes = content.as_bytes();
     let start = bytes.iter().position(|byte| {
@@ -155,6 +158,7 @@ pub fn repair_bracket_confusion(content: &str) -> Option<String> {
     changed.then_some(result)
 }
 
+/// Attempt to repair common LLM JSON malformations (bracket confusion, adjacent strings, misquoted keys).
 pub fn repair_common_malformed_json_variants(content: &str) -> Option<String> {
     let mut repaired = content.to_string();
     let mut changed = false;

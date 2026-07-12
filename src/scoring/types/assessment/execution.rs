@@ -102,6 +102,7 @@ fn derive_historical_calibration(
     }
 }
 
+/// Evaluate direction score from portfolio decision rating and debate/analyst signals.
 pub fn evaluate_direction_score(result: &AnalysisResult, tech_indicators: &TechnicalIndicatorView) -> DirectionAssessment {
     let recommendation = result.structured_portfolio_decision().rating.clone();
     // When the LLM outputs Hold/Unknown, consider debate results AND all analyst
@@ -177,6 +178,7 @@ pub fn evaluate_direction_score(result: &AnalysisResult, tech_indicators: &Techn
     }
 }
 
+/// Evaluate action score from direction, confidence, and execution readiness.
 pub fn evaluate_action_score(
     result: &AnalysisResult,
     trader_plan: &StructuredTraderPlan,
@@ -215,6 +217,7 @@ pub fn evaluate_action_score(
     }
 }
 
+/// Calibrate final recommendation using historical performance profile.
 pub fn calibrate_recommendation_with_profile(
     raw_llm_recommendation: &str,
     direction_score: i32,

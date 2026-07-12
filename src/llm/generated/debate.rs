@@ -25,6 +25,7 @@ impl GeneratedDebateTurn {
 }
 
 impl GeneratedResearchManager {
+    /// Render the research plan as a formatted markdown document.
     pub fn rendered_plan(&self) -> String {
         [
             "# Research Plan".to_string(),

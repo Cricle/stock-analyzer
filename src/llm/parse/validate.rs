@@ -1,3 +1,4 @@
+/// Validate a parsed research manager, returning issues for missing or placeholder fields.
 pub fn validate_research_manager(parsed: &super::GeneratedResearchManager, raw: &str) -> Vec<DiagnosisIssue> {
     let mut issues = Vec::new();
     if parsed.recommendation == "Unknown" {
@@ -36,6 +37,7 @@ pub fn validate_research_manager(parsed: &super::GeneratedResearchManager, raw: 
     issues
 }
 
+/// Validate a parsed analyst decision, returning issues for missing or placeholder fields.
 pub fn validate_analyst_decision(parsed: &super::GeneratedAnalystDecision, raw: &str) -> Vec<DiagnosisIssue> {
     let mut issues = Vec::new();
     if is_default_text(&parsed.reasoning) {
@@ -70,6 +72,7 @@ pub fn validate_analyst_decision(parsed: &super::GeneratedAnalystDecision, raw: 
     issues
 }
 
+/// Validate a parsed debate turn, returning issues for missing or placeholder fields.
 pub fn validate_debate_turn(parsed: &super::GeneratedDebateTurn, raw: &str) -> Vec<DiagnosisIssue> {
     let mut issues = Vec::new();
     if is_default_text(&parsed.response) {
@@ -102,6 +105,7 @@ pub fn validate_debate_turn(parsed: &super::GeneratedDebateTurn, raw: &str) -> V
     issues
 }
 
+/// Validate a parsed trader decision, checking required directional fields.
 pub fn validate_trader_decision(parsed: &super::GeneratedTraderDecision, raw: &str) -> Vec<DiagnosisIssue> {
     let mut issues = Vec::new();
     if parsed.action == "Unknown" {
@@ -158,6 +162,7 @@ pub fn validate_trader_decision(parsed: &super::GeneratedTraderDecision, raw: &s
     issues
 }
 
+/// Validate a parsed portfolio decision, checking required directional fields.
 pub fn validate_portfolio_decision(parsed: &super::GeneratedPortfolioDecision, raw: &str) -> Vec<DiagnosisIssue> {
     let mut issues = Vec::new();
     if is_default_text(&parsed.executive_summary) {

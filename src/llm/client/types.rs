@@ -90,6 +90,7 @@ pub struct ChatMessageResponse {
 }
 
 impl ChatMessageResponse {
+    /// Extract the text content from this response message, handling string, array, and refusal formats.
     pub fn content_text(&self) -> String {
         if let Some(content) = &self.content {
             match content {
@@ -148,18 +149,21 @@ impl ChatMessageResponse {
 }
 
 #[derive(Debug, Deserialize)]
+/// Anthropic API response wrapper with content blocks and usage stats.
 pub struct AnthropicResponse {
     pub content: Vec<AnthropicContentBlock>,
     pub usage: AnthropicUsage,
 }
 
 #[derive(Debug, Deserialize)]
+/// Single content block from an Anthropic API response.
 pub struct AnthropicContentBlock {
     #[serde(default)]
     pub text: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+/// Token usage statistics from an Anthropic API response.
 pub struct AnthropicUsage {
     #[serde(default)]
     pub input_tokens: Option<i64>,

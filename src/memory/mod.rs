@@ -6,9 +6,9 @@
 //!
 //! # Key Types
 //!
-//! - [`TradingMemoryLog`] — Main memory store with vector search
-//! - [`MemoryEntry`] — Individual memory record
-//! - [`RagConfig`] — Embedding backend configuration
+//! - `TradingMemoryLog` — Main memory store with vector search
+//! - `MemoryEntry` — Individual memory record
+//! - `RagConfig` — Embedding backend configuration
 
 use std::path::PathBuf;
 

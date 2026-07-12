@@ -1,3 +1,4 @@
+/// Extract incremental text from a streaming SSE chunk (OpenAI-compatible format).
 pub fn extract_stream_delta_text(value: &Value) -> String {
     let mut parts = Vec::new();
 

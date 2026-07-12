@@ -39,6 +39,7 @@ pub use fallback::FallbackFundamentalsClient;
 pub struct RedisCacheStore;
 
 impl RedisCacheStore {
+    /// Create a stub Redis cache store (no-op in this version).
     pub fn new<T>(_conn: T) -> Self {
         Self
     }

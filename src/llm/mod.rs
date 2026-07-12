@@ -5,16 +5,16 @@
 //!
 //! # Key Types
 //!
-//! - [`LlmClient`] — HTTP client for LLM API calls
-//! - [`LlmConfig`] — Provider configuration (URL, API key, model)
+//! - `LlmClient` — HTTP client for LLM API calls
+//! - `LlmConfig` — Provider configuration (URL, API key, model)
 //!
 //! # Sub-modules
 //!
-//! - [`client`] — Core HTTP client implementation
-//! - [`parse`] — Response parsing and extraction
-//! - [`prompt`] — Prompt templates and parameter types
-//! - [`retry`] — Retry logic with exponential backoff
-//! - [`tools`] — Function calling tool definitions
+//! - `client` — Core HTTP client implementation
+//! - `parse` — Response parsing and extraction
+//! - `prompt` — Prompt templates and parameter types
+//! - `retry` — Retry logic with exponential backoff
+//! - `tools` — Function calling tool definitions
 
 use std::{collections::BTreeMap, sync::Arc};
 

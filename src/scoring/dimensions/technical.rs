@@ -16,6 +16,7 @@ pub struct TechnicalInput {
     pub latest_positive: bool,
 }
 
+/// Score technical quality from RSI, MACD, volume, and return signals.
 pub fn score_technical(input: &TechnicalInput) -> DimensionScore {
     let mut total: f64 = 0.0;
     let mut weight_sum: f64 = 0.0;

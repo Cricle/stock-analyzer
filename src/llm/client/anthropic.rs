@@ -158,6 +158,7 @@ impl LlmClient {
     }
 }
 
+/// Check if an error is retryable (timeouts, rate limits, server errors).
 pub fn is_retryable_llm_error(error: &anyhow::Error) -> bool {
     error.chain().any(|cause| {
         let text = cause.to_string();

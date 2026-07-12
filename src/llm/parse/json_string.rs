@@ -1,3 +1,4 @@
+/// Advance past ASCII whitespace starting at the given index.
 pub fn skip_json_whitespace(content: &str, mut index: usize) -> usize {
     let bytes = content.as_bytes();
     while let Some(byte) = bytes.get(index) {
@@ -9,6 +10,7 @@ pub fn skip_json_whitespace(content: &str, mut index: usize) -> usize {
     index
 }
 
+/// Find the closing `"` of a JSON string starting at the opening `"`, respecting escapes.
 pub fn find_json_string_end(content: &str, start: usize) -> Option<usize> {
     let bytes = content.as_bytes();
     if bytes.get(start).copied()? != b'"' {
@@ -31,6 +33,7 @@ pub fn find_json_string_end(content: &str, start: usize) -> Option<usize> {
     None
 }
 
+/// Find the end index of a JSON value (string, object, array, or primitive) starting at `start`.
 pub fn find_json_value_end(content: &str, start: usize) -> Option<usize> {
     let bytes = content.as_bytes();
     match bytes.get(start).copied()? {
@@ -90,10 +93,12 @@ pub fn find_json_value_end(content: &str, start: usize) -> Option<usize> {
     }
 }
 
+/// Decode a JSON string literal (with escape sequences) into a plain string.
 pub fn decode_json_string_literal(literal: &str) -> anyhow::Result<String> {
     serde_json::from_str::<String>(literal).map_err(Into::into)
 }
 
+/// Extract a simple string field value from raw JSON text by key name.
 pub fn extract_simple_json_string_field(content: &str, field: &str) -> Option<String> {
     let key = format!("\"{field}\"");
     let start = content.find(&key)?;
@@ -104,6 +109,7 @@ pub fn extract_simple_json_string_field(content: &str, field: &str) -> Option<St
     decode_json_string_literal(&content[value_start..=value_end]).ok()
 }
 
+/// Extract a string field value from malformed JSON, bounded by the next known field key.
 pub fn extract_relaxed_json_string_field(
     content: &str,
     field: &str,
@@ -130,6 +136,7 @@ pub fn extract_relaxed_json_string_field(
     Some(normalize_relaxed_json_string(raw))
 }
 
+/// Extract a JSON value that appears before a known next-field key in raw text.
 pub fn extract_json_value_before_known_field(
     content: &str,
     field: &str,
@@ -165,6 +172,7 @@ pub fn extract_json_value_before_known_field(
     serde_json::from_str::<Value>(value_slice).ok()
 }
 
+/// Normalize a relaxed JSON string by unescaping common escape sequences.
 pub fn normalize_relaxed_json_string(raw: &str) -> String {
     let trimmed = raw.trim().trim_end_matches('"').trim_end();
     trimmed

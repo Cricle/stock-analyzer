@@ -1,4 +1,4 @@
-
+/// A single stock pick from the picking pipeline.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickItem {
     pub symbol: String,
@@ -70,6 +70,7 @@ pub struct StockPickItem {
     pub evidence_quality_score: i32,
 }
 
+/// Diagnostics for how a stock pick was selected.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StockPickSelectionDiagnostics {
     #[serde(default)]

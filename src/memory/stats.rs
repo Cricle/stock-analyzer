@@ -6,6 +6,7 @@ use serde_json::json;
 use super::MemoryEntry;
 use crate::{CalibrationProfile, StructuredReflection, StructuredRiskAssessment};
 
+/// Statistics for setup tag matches in historical memory.
 #[derive(Clone, Debug, Default)]
 pub struct SetupMatchStats {
     pub total_match_count: usize,
@@ -20,6 +21,7 @@ pub struct SetupMatchStats {
     pub neutral_match_count: usize,
 }
 
+/// Payload deserialized from vector store memory entries.
 #[derive(Debug, Deserialize)]
 pub struct VectorMemoryPayload {
     pub ticker: String,
@@ -50,6 +52,7 @@ pub struct VectorMemoryPayload {
     pub user_id: Option<String>,
 }
 
+/// Extract a labeled block from structured text (e.g., "META:\n...").
 pub fn extract_labeled_block<'a>(text: &'a str, label: &str) -> Option<&'a str> {
     let marker = format!("{label}:\n");
     let start = text.find(&marker)? + marker.len();
@@ -67,6 +70,7 @@ pub fn extract_labeled_block<'a>(text: &'a str, label: &str) -> Option<&'a str> 
     Some(&rest[..end])
 }
 
+/// Compute summary statistics from memory entries (hit rate, avg returns, etc.).
 pub fn summarize_entries(entries: &[MemoryEntry]) -> serde_json::Value {
     if entries.is_empty() {
         return json!({

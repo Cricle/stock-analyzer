@@ -12,6 +12,7 @@ pub struct I18nText {
 }
 
 impl I18nText {
+    /// Create a new I18nText with just a key (no parameters).
     pub fn new(key: impl Into<String>) -> Self {
         Self {
             key: key.into(),
@@ -19,6 +20,7 @@ impl I18nText {
         }
     }
 
+    /// Add a parameter to the i18n text.
     pub fn with_param(
         mut self,
         name: impl Into<String>,
@@ -50,6 +52,7 @@ pub enum GuidanceMarket {
 }
 
 impl GuidanceMarket {
+    /// Convert to string representation.
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::AShare => "a_share",
@@ -59,6 +62,7 @@ impl GuidanceMarket {
         }
     }
 
+    /// Parse from string, defaulting to `All` for unknown values.
     pub fn from_str(s: &str) -> Self {
         match s.trim().to_ascii_lowercase().as_str() {
             "a_share" | "a-share" | "cn" | "ashare" => Self::AShare,

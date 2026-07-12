@@ -1,3 +1,4 @@
+/// Request to start a single stock analysis.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SingleAnalysisRequest {
     pub symbol: Option<String>,
@@ -9,6 +10,7 @@ pub struct SingleAnalysisRequest {
     pub force_refresh: bool,
 }
 
+/// Request to record the outcome of a completed analysis.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AnalysisOutcomeRequest {
     pub ticker: String,
@@ -17,6 +19,7 @@ pub struct AnalysisOutcomeRequest {
     pub benchmark_return: f64,
 }
 
+/// Request to check if a cached analysis result exists.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AnalysisReuseCheckRequest {
     #[serde(default)]
@@ -27,11 +30,13 @@ pub struct AnalysisReuseCheckRequest {
     pub parameters: Option<AnalysisParameters>,
 }
 
+/// Request to resume a paused analysis task.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ResumeAnalysisRequest {
     pub task_id: String,
 }
 
+/// Optional parameters for an analysis request.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[derive(Default)]
 pub struct AnalysisParameters {
@@ -63,6 +68,7 @@ pub struct AnalysisParameters {
 }
 
 
+/// Request to run the stock-picking pipeline.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StockPickRequest {
     pub market: String,

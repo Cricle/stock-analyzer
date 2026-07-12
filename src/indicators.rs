@@ -37,6 +37,7 @@ impl CandleLike for crate::data::CandlePoint {
     }
 }
 
+/// Simple Moving Average over the last `period` candles.
 pub fn sma<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     if candles.len() < period {
         return None;
@@ -45,6 +46,7 @@ pub fn sma<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     Some(slice.iter().map(|c| c.close()).sum::<f64>() / period as f64)
 }
 
+/// Exponential Moving Average over the last `period` candles.
 pub fn ema<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     if candles.len() < period {
         return None;
@@ -57,6 +59,7 @@ pub fn ema<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     Some(ema)
 }
 
+/// EMA series — returns all EMA values from the first valid window.
 pub fn ema_series<C: CandleLike>(candles: &[C], period: usize) -> Option<Vec<f64>> {
     if candles.len() < period {
         return None;
@@ -72,6 +75,7 @@ pub fn ema_series<C: CandleLike>(candles: &[C], period: usize) -> Option<Vec<f64
     Some(values)
 }
 
+/// EMA on raw f64 values (not candles).
 pub fn ema_values(values: &[f64], period: usize) -> Option<Vec<f64>> {
     if values.len() < period {
         return None;
@@ -87,6 +91,7 @@ pub fn ema_values(values: &[f64], period: usize) -> Option<Vec<f64>> {
     Some(out)
 }
 
+/// Relative Strength Index (RSI) over the last `period` candles.
 pub fn rsi<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     if candles.len() <= period {
         return None;
@@ -108,6 +113,7 @@ pub fn rsi<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     Some(100.0 - 100.0 / (1.0 + rs))
 }
 
+/// Average True Range (ATR) over the last `period` candles.
 pub fn atr<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     if candles.len() <= period {
         return None;
@@ -127,6 +133,7 @@ pub fn atr<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     Some(slice.iter().sum::<f64>() / slice.len() as f64)
 }
 
+/// Volume-Weighted Moving Average over the last `period` candles.
 pub fn vwma<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     if candles.len() < period {
         return None;
@@ -145,6 +152,7 @@ pub fn vwma<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     )
 }
 
+/// Bollinger Bands — returns (middle, upper, lower) using 2 standard deviations.
 pub fn bollinger<C: CandleLike>(candles: &[C], period: usize) -> Option<(f64, f64, f64)> {
     let mid = sma(candles, period)?;
     let slice = &candles[candles.len() - period..];
@@ -160,6 +168,7 @@ pub fn bollinger<C: CandleLike>(candles: &[C], period: usize) -> Option<(f64, f6
     Some((mid, mid + stddev * 2.0, mid - stddev * 2.0))
 }
 
+/// MACD — returns (macd_line, signal_line, histogram).
 pub fn macd<C: CandleLike>(candles: &[C]) -> Option<(f64, f64, f64)> {
     if candles.len() < 35 {
         return None;
@@ -178,6 +187,7 @@ pub fn macd<C: CandleLike>(candles: &[C]) -> Option<(f64, f64, f64)> {
     Some((macd, signal_last, macd - signal_last))
 }
 
+/// KDJ oscillator — returns (K, D, J) values.
 pub fn kdj<C: CandleLike>(candles: &[C], period: usize) -> Option<(f64, f64, f64)> {
     if candles.len() < period {
         return None;
@@ -204,6 +214,7 @@ pub fn kdj<C: CandleLike>(candles: &[C], period: usize) -> Option<(f64, f64, f64
     Some((k, d, j))
 }
 
+/// Commodity Channel Index (CCI) over the last `period` candles.
 pub fn cci<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     if candles.len() < period {
         return None;
@@ -222,6 +233,7 @@ pub fn cci<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     Some((last - ma) / (0.015 * mean_deviation))
 }
 
+/// Williams %R over the last `period` candles.
 pub fn wr<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     if candles.len() < period {
         return None;
@@ -239,6 +251,7 @@ pub fn wr<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     Some(((high - close) / (high - low)) * -100.0)
 }
 
+/// Average Directional Index (ADX) over the last `period` candles.
 pub fn adx<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     if candles.len() <= period + 1 {
         return None;
@@ -277,6 +290,7 @@ pub fn adx<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     (!slice.is_empty()).then_some(slice.iter().sum::<f64>() / slice.len() as f64)
 }
 
+/// On-Balance Volume (OBV) — returns (current_obv, obv_change).
 pub fn obv<C: CandleLike>(candles: &[C]) -> Option<(f64, f64)> {
     if candles.len() < 2 {
         return None;
@@ -296,6 +310,7 @@ pub fn obv<C: CandleLike>(candles: &[C]) -> Option<(f64, f64)> {
     Some((obv, obv - prev_obv))
 }
 
+/// Volume-Weighted Average Price (VWAP) over the last `period` candles.
 pub fn vwap<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     if candles.len() < period {
         return None;
@@ -319,6 +334,7 @@ pub fn vwap<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     )
 }
 
+/// Volume ratio — last candle volume / average volume over `period`.
 pub fn candle_volume_ratio<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     if candles.len() < period + 1 {
         return None;

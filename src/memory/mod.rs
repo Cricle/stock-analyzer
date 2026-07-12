@@ -1,3 +1,15 @@
+//! Trading memory system — RAG-based historical analysis retrieval.
+//!
+//! Stores past analysis results, reflections, and market highlights
+//! for semantic search via vector embeddings. Supports both local
+//! (fastembed) and remote embedding backends.
+//!
+//! # Key Types
+//!
+//! - [`TradingMemoryLog`] — Main memory store with vector search
+//! - [`MemoryEntry`] — Individual memory record
+//! - [`RagConfig`] — Embedding backend configuration
+
 use std::path::PathBuf;
 
 #[cfg(feature = "local-rag-embeddings")]

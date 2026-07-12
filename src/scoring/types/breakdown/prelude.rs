@@ -7,6 +7,7 @@ pub const CROSS_AGENT_CONSISTENCY_MAX: i32 = 25;
 pub const RISK_CLARITY_MAX: i32 = 15;
 pub const CATALYST_VACUUM_FLOOR: i32 = 3;
 
+/// Final confidence score with breakdown and applied caps.
 pub struct ConfidenceAssessment {
     pub final_score: i32,
     pub breakdown: ConfidenceBreakdown,
@@ -14,16 +15,19 @@ pub struct ConfidenceAssessment {
     pub caps: Vec<ConfidenceCap>,
 }
 
+/// Final direction score with component breakdown.
 pub struct DirectionAssessment {
     pub final_score: i32,
     pub breakdown: DirectionBreakdown,
 }
 
+/// Final action score with component breakdown.
 pub struct ActionAssessment {
     pub final_score: i32,
     pub breakdown: ActionBreakdown,
 }
 
+/// Calibrated recommendation — rating, action, and narrative text.
 pub struct RecommendationCalibration {
     pub final_rating: String,
     pub final_action: String,
@@ -31,6 +35,7 @@ pub struct RecommendationCalibration {
     pub decision_narrative: LocalText,
 }
 
+/// Thresholds for calibrating recommendations based on historical performance.
 #[derive(Clone, Debug)]
 pub struct CalibrationProfile {
     pub min_confidence_score: i32,

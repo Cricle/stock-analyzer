@@ -22,6 +22,7 @@ pub struct SaConfig {
     pub confidence_caps: Option<ConfidenceCapsSection>,
 }
 
+/// Scoring configuration — dimension weights and sentiment limits.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ScoringSection {
     #[serde(default)]
@@ -30,6 +31,7 @@ pub struct ScoringSection {
     pub sentiment_news_limit: Option<usize>,
 }
 
+/// Per-dimension weight overrides (0–100).
 #[derive(Debug, Clone, Deserialize)]
 pub struct ScoringWeightsSection {
     pub technical: Option<u8>,
@@ -38,12 +40,14 @@ pub struct ScoringWeightsSection {
     pub llm_analysis: Option<u8>,
 }
 
+/// Third-party API keys used by data providers.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ApiKeysSection {
     #[serde(default)]
     pub finnhub: Vec<String>,
 }
 
+/// Per-scenario confidence score caps — penalize thin evidence or missing data.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ConfidenceCapsSection {
     pub missing_core_data: Option<i32>,

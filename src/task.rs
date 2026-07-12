@@ -5,6 +5,7 @@ use super::analysis::{
     AnalysisResult, LlmTokenUsageSummary, ReportStageState, SingleAnalysisRequest,
 };
 
+/// Lifecycle status of an analysis task.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum TaskStatus {
@@ -42,6 +43,7 @@ impl std::str::FromStr for TaskStatus {
     }
 }
 
+/// A single step within an analysis task pipeline.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AnalysisStep {
     pub name: String,
@@ -58,6 +60,7 @@ pub enum StepStatus {
     Error,
 }
 
+/// Full status snapshot of a running or completed analysis task.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TaskStatusResponse {
     pub task_id: String,
@@ -85,6 +88,7 @@ pub struct TaskStatusResponse {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+/// Pipeline stage of a multi-stage analysis result.
 pub enum ResultStage {
     Overview,
     Analysts,
@@ -96,6 +100,7 @@ pub enum ResultStage {
     Complete,
 }
 
+/// SSE event emitted during task progress updates.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TaskEvent {
     pub event_type: String,
@@ -110,6 +115,7 @@ pub struct TaskEvent {
     pub llm_token_usage: LlmTokenUsageSummary,
 }
 
+/// Analysis task persisted to the database.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PersistedTask {
     pub task_id: String,

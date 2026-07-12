@@ -1,3 +1,14 @@
+//! Stock scoring system — multi-dimensional assessment of stock candidates.
+//!
+//! Combines technical indicators, fundamental metrics, sentiment signals,
+//! and LLM analysis into a unified score with confidence calibration.
+//!
+//! # Key Types
+//!
+//! - [`StockScore`] — Final composite score with breakdown
+//! - [`ScoreWeights`] — Configurable weights per dimension
+//! - [`DimensionScore`] — Individual dimension scoring result
+
 use crate::{
     ActionBreakdown, AgentReportNode, AnalysisResult, ConfidenceBreakdown, ConfidenceCap,
     ConfidenceProfile, DirectionBreakdown, LocalText, Rating, ReportDiagnosticItem, ScoreDimension,

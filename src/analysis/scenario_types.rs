@@ -1,3 +1,4 @@
+/// Market classification for analysis scenarios.
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AnalysisScenarioMarket {
@@ -49,6 +50,7 @@ impl AnalysisScenarioMarket {
     }
 }
 
+/// Derived context for a market scenario — capabilities and labels.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AnalysisScenarioContext {
     #[serde(default)]
@@ -85,6 +87,7 @@ impl AnalysisScenarioContext {
     }
 }
 
+/// A data-quality or capability issue detected during scenario resolution.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AnalysisScenarioIssue {
     #[serde(default)]
@@ -97,6 +100,7 @@ pub struct AnalysisScenarioIssue {
     pub message: String,
 }
 
+/// Prefetched data status for an analysis scenario.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AnalysisScenarioData {
     #[serde(default)]

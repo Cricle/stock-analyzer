@@ -2,7 +2,7 @@
 
 [package]
 name = "stock-analyzer"
-version = "0.1.14"
+version = "0.1.15"
 edition = "2024"
 license = "MIT"
 description = "Stock analysis engine — CLI & MCP server for market guidance, stock selection, and analysis reports"
@@ -23,7 +23,7 @@ mcp = ["rmcp"]
 
 [dependencies]
 # External data
-akshare = { version = "0.1.13", features = ["market-client"] }
+akshare = { version = "0.1.14", features = ["market-client"] }
 
 # Core
 adk-graph = { version = "0.8.0" }

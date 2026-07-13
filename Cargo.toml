@@ -23,7 +23,7 @@ mcp = ["rmcp"]
 
 [dependencies]
 # External data
-akshare = { version = "0.1.13", features = ["market-client"] }
+akshare = { path = "/root/github/akshare-rs/crates/akshare", features = ["market-client"] }
 
 # Core
 adk-graph = { version = "0.8.0" }
@@ -39,7 +39,6 @@ futures = "0.3"
 hex = "0.4"
 opentelemetry = "0.28"
 regex = "1"
-encoding_rs = "0.8"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 reqwest-middleware = { version = "0.4", features = ["json"] }
 rmcp = { version = "1.8", features = ["server", "transport-io", "transport-streamable-http-server", "schemars", "macros"], optional = true }

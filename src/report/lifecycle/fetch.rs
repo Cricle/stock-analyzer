@@ -97,10 +97,18 @@ impl TaskManager {
                 symbol = %task.symbol,
                 "primary fundamentals missing for US equity, trying fallback sources"
             );
-            let fallback_client = crate::data::FallbackFundamentalsClient::new(
-                crate::env_config::fallback_finnhub_api_keys(),
-            );
-            fundamentals = fallback_client.fetch(&task.symbol).await;
+            fundamentals = self
+                .market_data
+                .fetch_us_fundamentals_yahoo(&task.symbol)
+                .await
+                .ok();
+            if fundamentals.is_none() {
+                fundamentals = self
+                    .market_data
+                    .fetch_us_fundamentals_finnhub(&task.symbol)
+                    .await
+                    .ok();
+            }
         }
 
         let mut news_items = _news_items.unwrap_or_default();
@@ -110,83 +118,25 @@ impl TaskManager {
             && crate::AnalysisScenarioMarket::from_market_type(&task.market_type)
                 == crate::AnalysisScenarioMarket::UsEquity
         {
-            let finnhub_keys = crate::env_config::fallback_finnhub_api_keys();
-            if !finnhub_keys.is_empty() {
-                let http = reqwest::Client::builder()
-                    .timeout(std::time::Duration::from_secs(10))
-                    .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
-                    .build()
-                    .expect("Failed to build reqwest client");
-                let news_start_date = news_start.as_deref().unwrap_or(&task.analysis_date);
-                for api_key in &finnhub_keys {
-                    let url = format!(
-                        "https://finnhub.io/api/v1/company-news?symbol={}&from={}&to={}&token={}",
-                        task.symbol, news_start_date, task.analysis_date, api_key
+            let news_start_date = news_start.as_deref().unwrap_or(&task.analysis_date);
+            match self
+                .market_data
+                .fetch_us_news_finnhub(&task.symbol, news_start_date, &task.analysis_date)
+                .await
+            {
+                Ok(items) if !items.is_empty() => {
+                    tracing::info!(
+                        symbol = %task.symbol,
+                        count = items.len(),
+                        "Finnhub company news fallback succeeded"
                     );
-                    match http.get(&url).send().await {
-                        Ok(resp) if resp.status().is_success() => {
-                            if let Ok(articles) = resp.json::<Vec<serde_json::Value>>().await {
-                                let items: Vec<crate::data::NewsItem> = articles
-                                    .into_iter()
-                                    .filter_map(|item| {
-                                        let headline = item.get("headline")?.as_str()?;
-                                        if headline.is_empty() {
-                                            return None;
-                                        }
-                                        Some(crate::data::NewsItem {
-                                            published_at: item
-                                                .get("datetime")
-                                                .and_then(|v| v.as_i64())
-                                                .map(|ts| {
-                                                    chrono::DateTime::from_timestamp(ts, 0)
-                                                        .map(|dt| dt.format("%Y-%m-%d").to_string())
-                                                        .unwrap_or_default()
-                                                })
-                                                .unwrap_or_default(),
-                                            title: headline.to_string(),
-                                            summary: item
-                                                .get("summary")
-                                                .and_then(|v| v.as_str())
-                                                .unwrap_or("")
-                                                .to_string(),
-                                            source: item
-                                                .get("source")
-                                                .and_then(|v| v.as_str())
-                                                .unwrap_or("Finnhub")
-                                                .to_string(),
-                                            url: item
-                                                .get("url")
-                                                .and_then(|v| v.as_str())
-                                                .map(|s| s.to_string()),
-                                        })
-                                    })
-                                    .collect();
-                                if !items.is_empty() {
-                                    tracing::info!(
-                                        symbol = %task.symbol,
-                                        count = items.len(),
-                                        "Finnhub company news fallback succeeded"
-                                    );
-                                    news_items = items;
-                                    break;
-                                }
-                            }
-                        }
-                        Ok(resp) => {
-                            tracing::debug!(
-                                symbol = %task.symbol,
-                                status = %resp.status(),
-                                "Finnhub company news request failed"
-                            );
-                        }
-                        Err(e) => {
-                            tracing::debug!(
-                                symbol = %task.symbol,
-                                error = %e,
-                                "Finnhub company news request error"
-                            );
-                        }
-                    }
+                    news_items = items;
+                }
+                Ok(_) => {
+                    tracing::debug!(symbol = %task.symbol, "Finnhub company news returned no items");
+                }
+                Err(e) => {
+                    tracing::debug!(symbol = %task.symbol, error = %e, "Finnhub company news fallback failed");
                 }
             }
         }

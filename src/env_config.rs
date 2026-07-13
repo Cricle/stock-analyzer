@@ -39,25 +39,3 @@ pub fn fundamentals_fallback_enabled() -> bool {
         .map(|v| env_flag_value(&v))
         .unwrap_or(true)
 }
-
-/// Finnhub API keys for fallback fundamentals fetching.
-/// Priority: FALLBACK_FINNHUB_API_KEYS env var > config.toml \[api_keys\] finnhub.
-pub fn fallback_finnhub_api_keys() -> Vec<String> {
-    // Env var takes priority
-    if let Ok(val) = std::env::var("FALLBACK_FINNHUB_API_KEYS") {
-        let keys: Vec<String> = val
-            .split(',')
-            .map(|k| k.trim().to_string())
-            .filter(|k| !k.is_empty())
-            .collect();
-        if !keys.is_empty() {
-            return keys;
-        }
-    }
-    // Fall back to config.toml [api_keys] finnhub
-    let cfg = crate::config::SaConfig::load();
-    cfg.api_keys
-        .as_ref()
-        .map(|ak| ak.finnhub.clone())
-        .unwrap_or_default()
-}

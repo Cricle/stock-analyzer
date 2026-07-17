@@ -192,6 +192,18 @@ pub fn apply_defaults(pick: &mut GeneratedStockPickItem, candidate: &EnrichedCan
         pick.stop_loss = Some(format!("{:.2}", stop.max(max_stop).max(0.01)));
     }
 
+    // Reset stop loss if it's too far from entry (> 10%)
+    if let (Some(entry_str), Some(stop_str)) = (&pick.entry_price, &pick.stop_loss)
+        && let (Some(entry), Some(stop)) = (parse_price(entry_str), parse_price(stop_str))
+        && entry > 0.0
+    {
+        let stop_pct = ((entry - stop) / entry * 100.0).abs();
+        if stop_pct > 10.0 {
+            let max_stop = entry * 0.90;
+            pick.stop_loss = Some(format!("{:.2}", max_stop.max(0.01)));
+        }
+    }
+
     // Default target price: 3:1 R/R from entry/stop
     if pick.target_price.is_none()
         && let (Some(entry_str), Some(stop_str)) = (&pick.entry_price, &pick.stop_loss)
@@ -201,6 +213,18 @@ pub fn apply_defaults(pick: &mut GeneratedStockPickItem, candidate: &EnrichedCan
         if risk > 0.0 {
             let target = entry + 3.0 * risk;
             pick.target_price = Some(format!("{:.2}", target));
+        }
+    }
+
+    // Reset target price if R/R ratio is too low (< 1.5)
+    if let (Some(entry_str), Some(stop_str), Some(target_str)) = (&pick.entry_price, &pick.stop_loss, &pick.target_price)
+        && let (Some(entry), Some(stop), Some(target)) = (parse_price(entry_str), parse_price(stop_str), parse_price(target_str))
+    {
+        let risk = (entry - stop).abs();
+        let reward = (target - entry).abs();
+        if risk > 0.0 && reward / risk < 1.5 {
+            let new_target = entry + 3.0 * risk;
+            pick.target_price = Some(format!("{:.2}", new_target));
         }
     }
 

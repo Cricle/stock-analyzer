@@ -269,6 +269,14 @@ impl LlmClient {
             - `confirmation_level`, `target_reference`, `target_condition`, `position_sizing`: provide when evidence supports them; null/empty is acceptable.\n\
             - `entry_price` and `stop_loss` MUST be different numeric values.\n\
             CONFIRMATION SIMPLICITY RULE: `confirmation_level` must be ONE primary price level with at most ONE supporting condition. Format: \"PRICE (INDICATOR) — brief condition\". Do NOT chain multiple indicator conditions (MACD, KDJ, RSI, etc.) into confirmation_level — those belong in `execution_trigger_checklist` as separate items.\n\
+            NOISE FILTER RULE: When `confirmation_level` is within 2xATR(14) of the current price, intraday price noise can falsely trigger it. In such cases, confirmation MUST require DAILY CLOSE above the level (not just intraday touch), plus volume >= 1.5x 20-day average. Format confirmation_level as: \"PRICE — daily close above with volume >= 1.5x 20d avg\". Do NOT use intraday-only confirmation when the level is within 2xATR of current price.\n\
+            CONFIRMATION DISTANCE RULE (MANDATORY): confirmation_level MUST be at least 2xATR(14) from current_price. This is a hard constraint, not advisory. If the nearest technical level (SMA, Bollinger, resistance) is within 2xATR of current price, you MUST NOT use it as confirmation. Instead, set confirmation_level to indicate deferral and in execution_trigger_checklist state that confirmation requires price to first pull back and then establish a new breakout level with volume. Example: if current=212, ATR=7, and Bollinger upper=214, do NOT set confirmation=214 because it is only 0.3xATR away and will trigger on noise.\n\
+            HOLDING DISCIPLINE RULE: When entry_price and confirmation_level are different levels, define explicit holding rules in `trader_plan` for the zone between them:\n\
+            (1) If price moves from entry toward confirmation: hold the position, do NOT add, do NOT take early profit.\n\
+            (2) If price touches confirmation_level but does NOT close above it with volume: do NOT treat as confirmed — wait for the next trading day's close.\n\
+            (3) If price closes above confirmation_level with volume >= 1.5x 20d avg: confirmation triggered, may add.\n\
+            (4) If price falls back below entry_price after entry: exit or reduce position (capital preservation).\n\
+            The position between entry and confirmation is an \"observation position\", not a \"trend position\" — do not let unrealized P&L influence the decision.\n\
             `execution_trigger_checklist` must be a concise array of 2-6 concrete execution triggers when the action is conditional or Hold.\n\
             `blocking_gaps` must be a concise array of concrete missing proof points that still block execution.",
             instrument = Self::instrument_context(params.symbol, params.market_type),

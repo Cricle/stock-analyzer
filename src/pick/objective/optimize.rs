@@ -17,11 +17,27 @@ pub(crate) fn build_prompt(
         .iter()
         .enumerate()
         .map(|(index, item)| {
+            let news_headlines = item
+                .news_snapshot
+                .headline_titles
+                .iter()
+                .take(5)
+                .map(|h| format!("  - {}", h))
+                .collect::<Vec<_>>()
+                .join("\n");
+            let evidence_lines = item
+                .evidence_records
+                .iter()
+                .take(5)
+                .map(|e| format!("  - [{}] {}", e.source, e.title))
+                .collect::<Vec<_>>()
+                .join("\n");
             format!(
-                "Candidate {}\nSymbol: {}\nName: {}\nFactor Total: {:.2}\nMarket Snapshot: price={:?}, change_pct={:?}, period_return_pct={:?}, volume_ratio={:?}\nTechnical Snapshot: rsi={:?}, macd_hist={:?}, ema10={:?}, sma50={:?}, sma200={:?}, atr={:?}, adx={:?}\nFundamental Snapshot: market_cap={:?}, pe_like={:?}, ps_like={:?}, roe={:?}, leverage={:?}\nNews Snapshot: deep_items={}, unique_sources={}, latest_published_at={}\nHistory Snapshot: samples={}, hit_rate={:?}, avg_alpha={:?}\nRisk Flags: {}\nData Gaps: {}\n",
+                "Candidate {}\nSymbol: {}\nName: {}\nIndustry: {}\nFactor Total: {:.2}\nMarket Snapshot: price={:?}, change_pct={:?}, period_return_pct={:?}, volume_ratio={:?}\nTechnical Snapshot: rsi={:?}, macd_hist={:?}, ema10={:?}, sma50={:?}, sma200={:?}, atr={:?}, adx={:?}\nFundamental Snapshot: market_cap={:?}, pe_like={:?}, ps_like={:?}, roe={:?}, leverage={:?}\nNews Snapshot: deep_items={}, unique_sources={}, latest_published_at={}\nHistory Snapshot: samples={}, hit_rate={:?}, avg_alpha={:?}\nRisk Flags: {}\nData Gaps: {}\nRecent News:\n{}\nEvidence:\n{}\n",
                 index + 1,
                 item.symbol,
                 item.name,
+                item.fundamental_snapshot.industry,
                 item.factor.total,
                 item.market_snapshot.current_price,
                 item.market_snapshot.latest_change_pct,
@@ -54,6 +70,16 @@ pub(crate) fn build_prompt(
                     "none".to_string()
                 } else {
                     item.data_quality_snapshot.gaps.join(", ")
+                },
+                if news_headlines.is_empty() {
+                    "  - unavailable".to_string()
+                } else {
+                    news_headlines
+                },
+                if evidence_lines.is_empty() {
+                    "  - unavailable".to_string()
+                } else {
+                    evidence_lines
                 }
             )
         })
@@ -101,7 +127,11 @@ pub(crate) fn build_prompt(
          {rejected_block}\n\n\
          ## Phase 2: Your Independent Picks\n\
          Select your top picks from the candidates above based purely on the evidence.\n\
-         For each pick, write a substantive thesis grounded in specific data points.\n\
+         For each pick, write a SUBSTANTIVE thesis (at least 2-3 sentences) grounded in specific data points:\n\
+         - Reference specific technical indicators (RSI, MACD, EMA crossovers)\n\
+         - Cite recent news headlines or evidence that support the thesis\n\
+         - Mention fundamental metrics (PE, ROE, market cap) when relevant\n\
+         - Explain WHY this stock is worth picking, not just WHAT it is\n\
          If the evidence suggests a candidate is weaker than its position implies, lower its confidence or remove it.\n\
          If a rejected or lower-ranked candidate has strong evidence, consider promoting it.\n\n\
          ## Phase 3: Compare with System Ranking\n\

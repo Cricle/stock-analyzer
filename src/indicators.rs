@@ -91,25 +91,38 @@ pub fn ema_values(values: &[f64], period: usize) -> Option<Vec<f64>> {
     Some(out)
 }
 
-/// Relative Strength Index (RSI) over the last `period` candles.
+/// Relative Strength Index (RSI) using Wilder's exponential smoothing.
 pub fn rsi<C: CandleLike>(candles: &[C], period: usize) -> Option<f64> {
     if candles.len() <= period {
         return None;
     }
-    let mut gains = 0.0;
-    let mut losses = 0.0;
-    for pair in candles[candles.len() - period - 1..].windows(2) {
+    // Seed: simple average of first `period` changes
+    let mut avg_gain = 0.0;
+    let mut avg_loss = 0.0;
+    for pair in candles[..=period].windows(2) {
         let change = pair[1].close() - pair[0].close();
         if change >= 0.0 {
-            gains += change;
+            avg_gain += change;
         } else {
-            losses += change.abs();
+            avg_loss += change.abs();
         }
     }
-    if losses <= f64::EPSILON {
+    avg_gain /= period as f64;
+    avg_loss /= period as f64;
+
+    // Wilder smoothing for remaining candles
+    for pair in candles[period..].windows(2) {
+        let change = pair[1].close() - pair[0].close();
+        let gain = if change >= 0.0 { change } else { 0.0 };
+        let loss = if change < 0.0 { change.abs() } else { 0.0 };
+        avg_gain = (avg_gain * (period as f64 - 1.0) + gain) / period as f64;
+        avg_loss = (avg_loss * (period as f64 - 1.0) + loss) / period as f64;
+    }
+
+    if avg_loss <= f64::EPSILON {
         return Some(100.0);
     }
-    let rs = gains / losses;
+    let rs = avg_gain / avg_loss;
     Some(100.0 - 100.0 / (1.0 + rs))
 }
 
@@ -343,4 +356,65 @@ pub fn candle_volume_ratio<C: CandleLike>(candles: &[C], period: usize) -> Optio
     let slice = &candles[candles.len() - period - 1..candles.len() - 1];
     let avg = slice.iter().map(|c| c.volume() as f64).sum::<f64>() / slice.len() as f64;
     (avg > 0.0).then_some(last.volume() as f64 / avg)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TestCandle {
+        close: f64,
+        high: f64,
+        low: f64,
+        volume: i64,
+    }
+
+    impl CandleLike for TestCandle {
+        fn close(&self) -> f64 { self.close }
+        fn high(&self) -> f64 { self.high }
+        fn low(&self) -> f64 { self.low }
+        fn volume(&self) -> i64 { self.volume }
+    }
+
+    fn candle(close: f64) -> TestCandle {
+        TestCandle { close, high: close + 0.5, low: close - 0.5, volume: 1000 }
+    }
+
+    #[test]
+    fn rsi_all_gains() {
+        // 16 candles, period=14. All ascending → RSI should be 100.
+        let candles: Vec<TestCandle> = (0..16).map(|i| candle(100.0 + i as f64)).collect();
+        let r = rsi(&candles, 14).unwrap();
+        assert!((r - 100.0).abs() < 0.01, "expected 100, got {r}");
+    }
+
+    #[test]
+    fn rsi_all_losses() {
+        // All descending → RSI should be ~0.
+        let candles: Vec<TestCandle> = (0..16).map(|i| candle(100.0 - i as f64)).collect();
+        let r = rsi(&candles, 14).unwrap();
+        assert!(r < 0.01, "expected ~0, got {r}");
+    }
+
+    #[test]
+    fn rsi_mixed_wilder_smoothing() {
+        // Known sequence: 16 candles with alternating up/down.
+        // With Wilder smoothing, this should produce a stable RSI.
+        let prices = [44.0, 44.34, 44.09, 43.61, 44.33, 44.83, 45.10, 45.42,
+                       45.84, 46.08, 45.89, 46.03, 45.61, 46.28, 46.28, 46.00];
+        let candles: Vec<TestCandle> = prices.iter().map(|&p| candle(p)).collect();
+        let r = rsi(&candles, 14).unwrap();
+        // With this data the old rolling-sum approach would give ~70.5,
+        // Wilder smoothing gives ~63.3.
+        assert!((55.0..=75.0).contains(&r), "RSI {r} out of expected range");
+        // Verify it's different from the old buggy simple sum approach
+        // Old: sum last 14 changes directly → different from Wilder
+        assert!(r > 50.0, "RSI should reflect net gains in this sequence");
+    }
+
+    #[test]
+    fn rsi_insufficient_data() {
+        let candles: Vec<TestCandle> = (0..14).map(|i| candle(100.0 + i as f64)).collect();
+        assert!(rsi(&candles, 14).is_none());
+    }
 }

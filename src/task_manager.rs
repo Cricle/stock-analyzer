@@ -512,11 +512,12 @@ impl TaskManager {
             .await
     }
 
-    /// Resume a paused/failed task.
+    /// Resume a pending/failed/cancelled task.
     pub async fn resume_task(&self, task_id: &str) -> anyhow::Result<bool> {
         if let Some(mut task) = self.analysis_store.get_task(task_id).await? {
             if task.status == crate::TaskStatus::Failed
                 || task.status == crate::TaskStatus::Cancelled
+                || task.status == crate::TaskStatus::Pending
             {
                 task.status = crate::TaskStatus::Running;
                 task.updated_at = Utc::now();

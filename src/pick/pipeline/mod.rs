@@ -338,12 +338,29 @@ pub async fn run(
             prompt, guidance_context
         )
     };
+    tracing::info!(prompt_len = enriched_prompt.len(), "calling LLM for stock picks");
     let content = llm_client
         .generate(&enriched_prompt)
         .await
         .context("failed to generate stock picks")?;
+    tracing::info!(content_len = content.len(), "LLM stock pick raw output received");
     let generated = parse_generated_stock_pick(&content)
         .with_context(|| format!("failed to parse stock pick JSON: {content}"))?;
+    tracing::info!(
+        pick_count = generated.picks.len(),
+        summary = %generated.summary,
+        "LLM stock pick parsed"
+    );
+    for pick in &generated.picks {
+        tracing::info!(
+            symbol = %pick.symbol,
+            thesis_key = %pick.thesis.key,
+            thesis_params = ?pick.thesis.params,
+            catalysts_count = pick.catalysts.len(),
+            risks_count = pick.risks.len(),
+            "parsed LLM stock pick"
+        );
+    }
 
     // Validate and enhance picks with actionable defaults
     let quality_gate = PickQualityGate::default();
@@ -386,12 +403,15 @@ pub async fn run(
                     .unwrap_or((55.0 + item.factor.total * 0.35).clamp(0.0, 100.0)),
                 thesis: explanation
                     .map(|value| value.thesis.clone())
+                    .filter(|t| !t.key.trim().is_empty())
                     .unwrap_or_else(|| default_thesis(&item)),
                 catalysts: explanation
                     .map(|value| value.catalysts.clone())
+                    .filter(|c| !c.is_empty())
                     .unwrap_or_else(|| default_catalysts(&item)),
                 risks: explanation
                     .map(|value| value.risks.clone())
+                    .filter(|r| !r.is_empty())
                     .unwrap_or_else(|| default_risks(&item)),
                 evidence_points: explanation
                     .map(|value| value.evidence_points.clone())

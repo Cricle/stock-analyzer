@@ -12,6 +12,17 @@ Data fetching is delegated to [akshare-rs](https://github.com/Cricle/akshare-rs)
 
 Output is always JSON. Use `--lang zh` or `--lang en` to resolve i18n keys into display text.
 
+## Quality System
+
+Stock picks now include comprehensive quality assessment:
+
+- **8-dimension objective scoring** (0-100 scale)
+- **Data provenance tracking** (source, timestamp, confidence)
+- **Quality tier classification** (ProductionReady/ReviewRequired/DataInsufficient)
+- **Automatic enrichment retry** for insufficient picks
+
+See `docs/quality-system.md` for details.
+
 ## Install
 
 Download from [Releases](https://github.com/Cricle/stock-analyzer/releases), install from crates.io, or build from source:

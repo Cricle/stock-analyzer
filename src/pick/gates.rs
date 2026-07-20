@@ -1,3 +1,8 @@
+//! Quality gate types and helpers (future work).
+//!
+//! Pre-LLM data quality gates are planned but not yet implemented.
+//! This module retains types and helpers that may be used when gates are added.
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -41,14 +46,6 @@ fn check_critical_fields(
     } else {
         Err(missing)
     }
-}
-
-// Stub for integration with pipeline - will be implemented in Task 4
-pub async fn apply_quality_gates<T>(
-    candidates: Vec<T>,
-    _market_data: &crate::data::MarketDataClient,
-) -> (Vec<T>, Vec<QualityGateRejection>) {
-    (candidates, vec![])
 }
 
 #[cfg(test)]

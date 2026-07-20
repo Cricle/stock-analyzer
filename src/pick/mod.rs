@@ -26,7 +26,7 @@ pub mod provenance;
 pub use provenance::{DataProvenance, ProvenanceSnapshot};
 
 pub mod gates;
-pub use gates::{QualityGateRejection, apply_quality_gates};
+pub use gates::QualityGateRejection;
 
 pub mod reasoning;
 pub use reasoning::{
@@ -37,6 +37,4 @@ pub mod completeness;
 pub use completeness::{CriticalFieldCompleteness, score_critical_field_completeness};
 
 pub mod enrichment;
-pub use enrichment::{
-    EnrichmentAttempt, StockPickQualityTier, attempt_enrichment, classify_quality_tier,
-};
+pub use enrichment::{EnrichmentAttempt, StockPickQualityTier, classify_quality_tier};

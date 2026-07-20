@@ -1,4 +1,10 @@
 //! Quality tier classification and enrichment attempt tracking.
+//!
+//! This module provides:
+//! - Quality tier classification (actively used)
+//! - EnrichmentAttempt struct (used in StockPickItem)
+//!
+//! Enrichment retry logic is planned but not yet implemented (future work).
 
 use crate::StockPickObjectiveAssessment;
 use schemars::JsonSchema;
@@ -43,21 +49,6 @@ pub fn classify_quality_tier(assessment: &StockPickObjectiveAssessment) -> Stock
         StockPickQualityTier::ReviewRequired
     } else {
         StockPickQualityTier::DataInsufficient
-    }
-}
-
-/// Attempt to enrich a stock pick with missing data (stub for pipeline integration).
-pub async fn attempt_enrichment(
-    _pick: &mut crate::StockPickItem,
-    _candidate: &mut crate::pick::EnrichedCandidate,
-    _market_data: &crate::data::MarketDataClient,
-    _llm_client: &crate::llm::LlmClient,
-) -> EnrichmentAttempt {
-    EnrichmentAttempt {
-        attempted_at: chrono::Utc::now().to_rfc3339(),
-        target_fields: vec![],
-        success: false,
-        error: Some("not implemented".to_string()),
     }
 }
 

@@ -538,26 +538,6 @@ pub async fn run(
         })
         .collect::<Vec<_>>();
 
-    // Attempt enrichment for insufficient picks (stub for now)
-    let mut picks = picks;
-    for pick in &mut picks {
-        if matches!(
-            pick.quality_tier,
-            crate::pick::enrichment::StockPickQualityTier::DataInsufficient
-        ) {
-            tracing::info!(
-                "Pick {} classified as DataInsufficient, enrichment not yet implemented",
-                pick.symbol
-            );
-            pick.enrichment_attempt = Some(crate::pick::enrichment::EnrichmentAttempt {
-                attempted_at: chrono::Utc::now().to_rfc3339(),
-                target_fields: vec![],
-                success: false,
-                error: Some("enrichment not implemented".to_string()),
-            });
-        }
-    }
-
     // Filter out picks that are not ready (missing market_cap or low objective score)
     let picks: Vec<_> = picks
         .into_iter()

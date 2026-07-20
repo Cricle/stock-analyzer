@@ -1,13 +1,23 @@
 # Stock Pick Quality System
 
+## Implementation Status
+
+**Implemented:**
+- Layer 2: Data Provenance Tracking (full implementation with scoring)
+- Layer 3: Enhanced Objective Assessment (8-dimension scoring, 0-100 scale)
+
+**Future Work:**
+- Layer 1: Pre-LLM Data Quality Gates (types and helpers present, integration pending)
+- Layer 4: Enrichment Retry (EnrichmentAttempt struct present, retry logic pending)
+
 ## Overview
 
 The quality system adds 4 layers to the stock pick pipeline:
 
-1. **Pre-LLM Data Quality Gates** - Reject candidates missing critical data
-2. **Data Provenance Tracking** - Track source, timestamp, confidence for all data
-3. **Enhanced Objective Assessment** - 8-dimension scoring (0-100 scale)
-4. **Quality Tiers & Enrichment** - Classify picks, retry for insufficient data
+1. **Pre-LLM Data Quality Gates** - Reject candidates missing critical data (FUTURE WORK)
+2. **Data Provenance Tracking** - Track source, timestamp, confidence for all data (IMPLEMENTED)
+3. **Enhanced Objective Assessment** - 8-dimension scoring (0-100 scale) (IMPLEMENTED)
+4. **Quality Tiers & Enrichment** - Classify picks, retry for insufficient data (PARTIAL: classification implemented, retry is future work)
 
 ## Quality Tiers
 

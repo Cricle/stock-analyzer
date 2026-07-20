@@ -14,12 +14,13 @@ Output is always JSON. Use `--lang zh` or `--lang en` to resolve i18n keys into 
 
 ## Quality System
 
-Stock picks now include comprehensive quality assessment:
+Stock picks include comprehensive quality assessment with provenance and objective scoring:
 
-- **8-dimension objective scoring** (0-100 scale)
-- **Data provenance tracking** (source, timestamp, confidence)
-- **Quality tier classification** (ProductionReady/ReviewRequired/DataInsufficient)
-- **Automatic enrichment retry** for insufficient picks
+- **Data provenance tracking** — source, timestamp, confidence for all data inputs
+- **8-dimension objective scoring** — 0-100 scale assessment across data completeness, market validation, reasoning structure, risk balance, evidence density, provenance quality, consistency, and critical fields
+- **Quality tier classification** — ProductionReady/ReviewRequired/DataInsufficient based on scores
+
+**Planned enhancements:** Pre-LLM data quality gates and automatic enrichment retry for insufficient picks.
 
 See `docs/quality-system.md` for details.
 

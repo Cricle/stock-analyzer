@@ -24,3 +24,6 @@ pub use validation::{PickQualityGate, PickValidation, apply_defaults, validate_p
 
 pub mod provenance;
 pub use provenance::{DataProvenance, ProvenanceSnapshot};
+
+pub mod gates;
+pub use gates::{QualityGateRejection, apply_quality_gates};

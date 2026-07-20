@@ -111,6 +111,8 @@ async fn light_enrich_candidate(
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "Unknown".to_string());
 
+    let analyst_consensus = None;
+
     let mut item = EnrichedCandidate {
         symbol: candidate.symbol.clone(),
         name: company_name,
@@ -122,6 +124,7 @@ async fn light_enrich_candidate(
         market_cap,
         theme_key: infer_theme_key(&candidate.name, fundamentals.as_ref(), &[]),
         fundamentals,
+        analyst_consensus,
         news: Vec::new(),
         evidence_records: Vec::new(),
         candles,
@@ -136,6 +139,7 @@ async fn light_enrich_candidate(
         pass_filter: true,
         rejected_reasons: Vec::new(),
         description: String::new(),
+        provenance: crate::pick::provenance::ProvenanceSnapshot::default(),
     };
     refresh_candidate_state(&mut item);
     item
@@ -317,6 +321,13 @@ mod snapshots {
             (Some(mc), Some(rev)) => Some(mc / rev),
             _ => None,
         };
+        let pb_like = match (
+            f.market_cap.filter(|v| *v > 0.0),
+            f.stockholders_equity_usd.filter(|value| *value > 0.0),
+        ) {
+            (Some(mc), Some(eq)) => Some(mc / eq),
+            _ => None,
+        };
         let roe = match (
             f.net_income_usd,
             f.stockholders_equity_usd.filter(|value| *value > 0.0),
@@ -340,11 +351,13 @@ mod snapshots {
             market_cap: f.market_cap.or(item.market_cap),
             revenues_usd: f.revenues_usd,
             net_income_usd: f.net_income_usd,
+            net_income_quarterly_usd: None,
             free_cash_flow_usd: f.free_cash_flow_usd,
             total_debt_usd: f.total_debt_usd,
             cash_and_equivalents_usd: f.cash_and_equivalents_usd,
             pe_like,
             ps_like,
+            pb_like,
             roe,
             leverage,
         }

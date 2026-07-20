@@ -68,6 +68,8 @@ pub struct StockPickItem {
     pub rejection_risk_flags: Vec<String>,
     #[serde(default)]
     pub evidence_quality_score: i32,
+    #[serde(default)]
+    pub provenance_snapshot: crate::pick::provenance::ProvenanceSnapshot,
 }
 
 /// Diagnostics for how a stock pick was selected.

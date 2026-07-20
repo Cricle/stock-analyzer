@@ -455,6 +455,7 @@ pub async fn run(
                 selection_reason_codes,
                 rejection_risk_flags,
                 evidence_quality_score,
+                provenance_snapshot: item.provenance.clone(),
             };
             // Apply actionable field defaults if LLM didn't provide them
             let current_price = item.price.or(item.market_snapshot.current_price);

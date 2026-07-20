@@ -6,6 +6,7 @@ use crate::data::FundamentalsSnapshot;
 use crate::data::NewsItem;
 use crate::guide::I18nText;
 use crate::llm;
+use crate::pick::provenance::ProvenanceSnapshot;
 use crate::{
     StockPickDataQualitySnapshot, StockPickFundamentalSnapshot, StockPickHistoryMatchSnapshot,
     StockPickMarketSnapshot, StockPickNewsSnapshot, StockPickRiskSnapshot,
@@ -65,6 +66,7 @@ pub struct EnrichedCandidate {
     pub market_cap: Option<f64>,
     pub theme_key: String,
     pub fundamentals: Option<FundamentalsSnapshot>,
+    pub analyst_consensus: Option<()>,
     pub news: Vec<NewsItem>,
     pub evidence_records: Vec<CandidateEvidenceRecord>,
     pub candles: Vec<crate::data::CandlePoint>,
@@ -79,6 +81,7 @@ pub struct EnrichedCandidate {
     pub pass_filter: bool,
     pub rejected_reasons: Vec<String>,
     pub description: String,
+    pub provenance: ProvenanceSnapshot,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

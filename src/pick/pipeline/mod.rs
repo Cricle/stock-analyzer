@@ -174,6 +174,12 @@ pub async fn run(
     };
 
     let mut enriched = enrich_candidates(market_data, &candidates, deep_candidate_limit).await;
+
+    // Build provenance for each enriched candidate
+    for candidate in &mut enriched {
+        candidate.provenance = build_candidate_provenance(candidate, &analysis_date);
+    }
+
     score_candidates(&mut enriched);
 
     let filtered = enriched
@@ -523,12 +529,27 @@ pub async fn run(
                 pick.exit_triggers.push(format!("break below {}", stop_str));
             }
             pick.objective_assessment = evaluate_stock_pick_objective_assessment(&pick, &item);
+            pick.quality_tier = crate::pick::enrichment::classify_quality_tier(&pick.objective_assessment);
             pick.priority_rank = stock_pick_priority_rank(&pick);
             pick.priority_label = stock_pick_priority_label(pick.priority_rank).to_string();
             pick.sort_key = stock_pick_sort_key(&pick);
             pick
         })
         .collect::<Vec<_>>();
+
+    // Attempt enrichment for insufficient picks (stub for now)
+    let mut picks = picks;
+    for pick in &mut picks {
+        if matches!(pick.quality_tier, crate::pick::enrichment::StockPickQualityTier::DataInsufficient) {
+            tracing::info!("Pick {} classified as DataInsufficient, enrichment not yet implemented", pick.symbol);
+            pick.enrichment_attempt = Some(crate::pick::enrichment::EnrichmentAttempt {
+                attempted_at: chrono::Utc::now().to_rfc3339(),
+                target_fields: vec![],
+                success: false,
+                error: Some("enrichment not implemented".to_string()),
+            });
+        }
+    }
 
     // Filter out picks that are not ready (missing market_cap or low objective score)
     let picks: Vec<_> = picks
@@ -735,4 +756,58 @@ pub async fn run(
     }
 
     Ok(response)
+}
+
+fn build_candidate_provenance(
+    candidate: &crate::pick::EnrichedCandidate,
+    analysis_date: &str,
+) -> crate::pick::ProvenanceSnapshot {
+    use crate::pick::{DataProvenance, ProvenanceSnapshot};
+
+    let market_data = if candidate.price.is_some() || candidate.market_cap.is_some() {
+        Some(DataProvenance {
+            source: "market_data_client".to_string(),
+            fetched_at: analysis_date.to_string(),
+            confidence: 0.9,
+            field_coverage: vec!["price".to_string(), "market_cap".to_string()],
+        })
+    } else {
+        None
+    };
+
+    let fundamentals = candidate.fundamentals.as_ref().map(|_| DataProvenance {
+        source: "fundamentals_provider".to_string(),
+        fetched_at: analysis_date.to_string(),
+        confidence: 0.85,
+        field_coverage: vec!["income".to_string(), "balance".to_string()],
+    });
+
+    let technicals = if !candidate.candles.is_empty() {
+        Some(DataProvenance {
+            source: "computed_from_candles".to_string(),
+            fetched_at: analysis_date.to_string(),
+            confidence: (candidate.candles.len() as f64 / 30.0).min(1.0),
+            field_coverage: vec!["rsi".to_string(), "macd".to_string()],
+        })
+    } else {
+        None
+    };
+
+    let news = if !candidate.news.is_empty() {
+        Some(DataProvenance {
+            source: "news_provider".to_string(),
+            fetched_at: analysis_date.to_string(),
+            confidence: (candidate.news.len() as f64 / 5.0).min(1.0),
+            field_coverage: vec!["articles".to_string()],
+        })
+    } else {
+        None
+    };
+
+    ProvenanceSnapshot {
+        market_data,
+        fundamentals,
+        technicals,
+        news,
+    }
 }

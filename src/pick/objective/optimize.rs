@@ -32,8 +32,9 @@ pub(crate) fn build_prompt(
                 .map(|e| format!("  - [{}] {}", e.source, e.title))
                 .collect::<Vec<_>>()
                 .join("\n");
+            let analyst_block = "unavailable".to_string();
             format!(
-                "Candidate {}\nSymbol: {}\nName: {}\nIndustry: {}\nFactor Total: {:.2}\nMarket Snapshot: price={:?}, change_pct={:?}, period_return_pct={:?}, volume_ratio={:?}\nTechnical Snapshot: rsi={:?}, macd_hist={:?}, ema10={:?}, sma50={:?}, sma200={:?}, atr={:?}, adx={:?}\nFundamental Snapshot: market_cap={:?}, pe_like={:?}, ps_like={:?}, roe={:?}, leverage={:?}\nNews Snapshot: deep_items={}, unique_sources={}, latest_published_at={}\nHistory Snapshot: samples={}, hit_rate={:?}, avg_alpha={:?}\nRisk Flags: {}\nData Gaps: {}\nRecent News:\n{}\nEvidence:\n{}\n",
+                "Candidate {}\nSymbol: {}\nName: {}\nIndustry: {}\nFactor Total: {:.2}\nMarket Snapshot: price={:?}, change_pct={:?}, period_return_pct={:?}, volume_ratio={:?}\nTechnical Snapshot: rsi={:?}, macd_hist={:?}, ema10={:?}, sma50={:?}, sma200={:?}, atr={:?}, adx={:?}\nFundamental Snapshot: market_cap={:?}, pe_like={:?} (annualized), ps_like={:?}, pb_like={:?}, roe={:?} (latest quarter), leverage={:?}\nAnalyst Consensus: {}\nNews Snapshot: deep_items={}, unique_sources={}, latest_published_at={}\nHistory Snapshot: samples={}, hit_rate={:?}, avg_alpha={:?}\nRisk Flags: {}\nData Gaps: {}\nRecent News:\n{}\nEvidence:\n{}\n",
                 index + 1,
                 item.symbol,
                 item.name,
@@ -53,8 +54,10 @@ pub(crate) fn build_prompt(
                 item.fundamental_snapshot.market_cap,
                 item.fundamental_snapshot.pe_like,
                 item.fundamental_snapshot.ps_like,
+                item.fundamental_snapshot.pb_like,
                 item.fundamental_snapshot.roe,
                 item.fundamental_snapshot.leverage,
+                analyst_block,
                 item.news_snapshot.deep_item_count,
                 item.news_snapshot.unique_source_count,
                 item.news_snapshot.latest_published_at,
@@ -125,12 +128,26 @@ pub(crate) fn build_prompt(
          {valuation_block}\n\
          Filtered or rejected candidates:\n\
          {rejected_block}\n\n\
+         ## Industry-Specific Valuation Rules\n\
+         - Banks & Financial Institutions: PB (price-to-book) is the PRIMARY valuation anchor, NOT PE. \
+           PB < 1.0 means trading below book value — typical for banks. Compare PB to historical range and peers. \
+           ROE matters more than PE for banks: sustainable ROE above cost of equity supports premium PB.\n\
+         - Asset-Heavy Industries (real estate, utilities): Use PB alongside PE. Asset values drive valuation.\n\
+         - Growth / Tech: PE and PS are primary. PB is less relevant for asset-light models.\n\
+         - Dividends: When a stock announces dividends with yield > 2%, treat as a MATERIAL catalyst (cash return to shareholders), NOT routine disclosure. \
+           Large buybacks (>1% of shares) are similarly material.\n\
+         - Institutional Targets: When analyst consensus target prices are available, reference them as a benchmark. \
+           Your target should not wildly diverge from institutional consensus without strong justification.\n\
+         - Technical Indicator Honesty: Describe indicators ACCURATELY, not optimistically. \
+           When MACD histogram absolute value < 0.1, say \"MACD near zero, momentum weak/converging\" — NOT \"positive and sustained\". \
+           When RSI is 45-55, say \"RSI near 50, balanced\" — NOT \"bullish momentum\". \
+           Match description intensity to actual indicator magnitude.\n\n\
          ## Phase 2: Your Independent Picks\n\
          Select your top picks from the candidates above based purely on the evidence.\n\
          For each pick, write a SUBSTANTIVE thesis (at least 2-3 sentences) grounded in specific data points:\n\
          - Reference specific technical indicators (RSI, MACD, EMA crossovers)\n\
          - Cite recent news headlines or evidence that support the thesis\n\
-         - Mention fundamental metrics (PE, ROE, market cap) when relevant\n\
+         - Mention fundamental metrics appropriate to the industry (PE/PS for growth, PB for banks/assets, ROE for profitability)\n\
          - Explain WHY this stock is worth picking, not just WHAT it is\n\
          If the evidence suggests a candidate is weaker than its position implies, lower its confidence or remove it.\n\
          If a rejected or lower-ranked candidate has strong evidence, consider promoting it.\n\n\
@@ -148,7 +165,9 @@ pub(crate) fn build_prompt(
          For EACH pick, you MUST provide actionable trading guidance with TECHNICAL DERIVATION:\n\
          - entry_price: Specific price or price range for entry (e.g., \"150.00\" or \"150-155\"). MUST cite technical basis: support level, EMA, VWAP, or consolidation zone.\n\
          - stop_loss: Specific stop-loss price (e.g., \"145.00\"). MUST explain why this level (below support, ATR-based, or % risk).\n\
-         - target_price: Realistic price target with justification (e.g., \"175.00 based on resistance\"). MUST cite resistance level or measured move.\n\
+         - target_price: Realistic price target with justification. MUST cite resistance level, measured move, OR institutional consensus target. \
+           When institutional targets are available in evidence, your target MUST NOT be below the most conservative institutional target unless you have strong technical evidence for a lower level. \
+           State the institutional range if available.\n\
          - holding_period: Expected holding period (e.g., \"2-4 weeks\", \"1-3 months\")\n\
          - exit_triggers: Specific conditions that would trigger exit (e.g., [\"break below 145\", \"earnings miss\"])\n\n\
          Required JSON schema:\n\
@@ -220,6 +239,17 @@ pub(crate) fn default_thesis(item: &EnrichedCandidate) -> I18nText {
     }
     if let Some(change_pct) = item.change_pct {
         thesis = thesis.with_param("change_pct", change_pct);
+    }
+
+    // Add valuation context
+    if let Some(pe) = item.fundamental_snapshot.pe_like {
+        thesis = thesis.with_param("pe_like", pe);
+    }
+    if let Some(pb) = item.fundamental_snapshot.pb_like {
+        thesis = thesis.with_param("pb_like", pb);
+    }
+    if let Some(roe) = item.fundamental_snapshot.roe {
+        thesis = thesis.with_param("roe", roe);
     }
 
     // Add news context

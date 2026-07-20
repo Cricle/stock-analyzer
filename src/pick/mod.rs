@@ -26,7 +26,7 @@ pub mod provenance;
 pub use provenance::{DataProvenance, ProvenanceSnapshot};
 
 pub mod gates;
-pub use gates::QualityGateRejection;
+pub use gates::{QualityGateRejection, apply_quality_gates};
 
 pub mod reasoning;
 pub use reasoning::{

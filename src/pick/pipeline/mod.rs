@@ -180,6 +180,28 @@ pub async fn run(
         candidate.provenance = build_candidate_provenance(candidate, &analysis_date);
     }
 
+    // Gate only candidates whose baseline market data has been fetched, while
+    // still rejecting them before any LLM selection work begins.
+    let (mut enriched, gate_rejections) =
+        crate::pick::gates::apply_quality_gates(enriched, &analysis_date);
+    if !gate_rejections.is_empty() {
+        tracing::info!(
+            "Quality gates rejected {} candidates: {}",
+            gate_rejections.len(),
+            gate_rejections
+                .iter()
+                .map(|r| format!("{}({})", r.symbol, r.missing_fields.join(",")))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+    if enriched.is_empty() {
+        anyhow::bail!(
+            "all candidates rejected by quality gates for market {}",
+            request.market
+        );
+    }
+
     score_candidates(&mut enriched);
 
     let filtered = enriched
@@ -387,6 +409,7 @@ pub async fn run(
         .iter()
         .map(|item| (item.symbol.clone(), item.clone()))
         .collect::<HashMap<_, _>>();
+    let mut selected_candidates = selected_map.clone();
     let explanation_map = generated
         .picks
         .into_iter()
@@ -394,7 +417,7 @@ pub async fn run(
         .collect::<HashMap<_, _>>();
 
     let deep_evaluated_count = preselected.len();
-    let picks = preselected
+    let mut picks = preselected
         .into_iter()
         .map(|item| {
             let explanation = explanation_map.get(&item.symbol);
@@ -538,6 +561,31 @@ pub async fn run(
         })
         .collect::<Vec<_>>();
 
+    let mut enriched_count = 0usize;
+    for pick in &mut picks {
+        if matches!(
+            pick.quality_tier,
+            crate::pick::enrichment::StockPickQualityTier::DataInsufficient
+        ) && pick.enrichment_attempt.is_none()
+            && let Some(candidate) = selected_candidates.get_mut(&pick.symbol)
+        {
+            let attempt =
+                crate::pick::enrichment::attempt_enrichment(candidate, market_data, &analysis_date)
+                    .await;
+            if attempt.success {
+                enriched_count += 1;
+            }
+            refresh_pick_from_candidate(pick, candidate);
+            pick.enrichment_attempt = Some(attempt);
+        }
+    }
+    if enriched_count > 0 {
+        tracing::info!(
+            enriched_count,
+            "enrichment retry recovered data-insufficient picks"
+        );
+    }
+
     // Filter out picks that are not ready (missing market_cap or low objective score)
     let picks: Vec<_> = picks
         .into_iter()
@@ -635,6 +683,11 @@ pub async fn run(
         .collect::<Vec<_>>();
 
     let mut rejected_symbols = explicit_rejected;
+    rejected_symbols.extend(
+        gate_rejections
+            .into_iter()
+            .map(|rejection| rejection.symbol),
+    );
     rejected_symbols.extend(filtered_rejected);
     rejected_symbols.extend(residual_rejected);
     rejected_symbols.sort();
@@ -796,5 +849,129 @@ fn build_candidate_provenance(
         fundamentals,
         technicals,
         news,
+    }
+}
+
+fn refresh_pick_from_candidate(pick: &mut StockPickItem, candidate: &EnrichedCandidate) {
+    pick.price = candidate.price;
+    pick.change_pct = candidate.change_pct;
+    pick.market_cap = candidate.market_cap;
+    pick.factor_breakdown = StockPickFactorBreakdown {
+        momentum: candidate.factor.momentum,
+        quality: candidate.factor.quality,
+        value: candidate.factor.value,
+        profitability: candidate.factor.profitability,
+        risk: candidate.factor.risk,
+        event: candidate.factor.event,
+        evidence: candidate.factor.evidence,
+        history: candidate.factor.history,
+        penalty: candidate.factor.penalty,
+        total: candidate.factor.total,
+    };
+    pick.market_snapshot = candidate.market_snapshot.clone();
+    pick.technical_snapshot = candidate.technical_snapshot.clone();
+    pick.fundamental_snapshot = candidate.fundamental_snapshot.clone();
+    pick.news_snapshot = candidate.news_snapshot.clone();
+    pick.history_match_snapshot = candidate.history_match_snapshot.clone();
+    pick.risk_snapshot = candidate.risk_snapshot.clone();
+    pick.data_quality_snapshot = candidate.data_quality_snapshot.clone();
+    pick.provenance_snapshot = candidate.provenance.clone();
+    pick.objective_assessment = evaluate_stock_pick_objective_assessment(pick, candidate);
+    pick.quality_tier = crate::pick::enrichment::classify_quality_tier(&pick.objective_assessment);
+    pick.priority_rank = stock_pick_priority_rank(pick);
+    pick.priority_label = stock_pick_priority_label(pick.priority_rank).to_string();
+    pick.sort_key = stock_pick_sort_key(pick);
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::data::{CandlePoint, FundamentalsSnapshot};
+    use crate::pick::provenance::ProvenanceSnapshot;
+    use crate::pick::types::{EnrichedCandidate, FactorBreakdown};
+
+    fn make_candle() -> CandlePoint {
+        CandlePoint {
+            trade_date: "2026-07-20".to_string(),
+            open: 100.0,
+            close: 101.0,
+            high: 102.0,
+            low: 99.0,
+            volume: 1000000,
+            amount: 100000000.0,
+            amplitude_pct: 3.0,
+            change_pct: 1.0,
+            change_amount: 1.0,
+            turnover_pct: 2.0,
+        }
+    }
+
+    #[test]
+    fn test_pipeline_applies_quality_gates() {
+        let pool = vec![
+            EnrichedCandidate {
+                symbol: "VALID".to_string(),
+                name: "Valid Stock".to_string(),
+                market: "US".to_string(),
+                exchange: "NASDAQ".to_string(),
+                industry: "Technology".to_string(),
+                price: Some(100.0),
+                change_pct: Some(1.5),
+                market_cap: Some(1_000_000_000.0),
+                theme_key: "tech".to_string(),
+                fundamentals: Some(FundamentalsSnapshot::default()),
+                analyst_consensus: None,
+                news: vec![],
+                evidence_records: vec![],
+                candles: vec![make_candle(); 5],
+                technical_snapshot: Default::default(),
+                market_snapshot: Default::default(),
+                fundamental_snapshot: Default::default(),
+                news_snapshot: Default::default(),
+                history_match_snapshot: Default::default(),
+                risk_snapshot: Default::default(),
+                data_quality_snapshot: Default::default(),
+                factor: FactorBreakdown::default(),
+                pass_filter: true,
+                rejected_reasons: vec![],
+                description: String::new(),
+                provenance: ProvenanceSnapshot::default(),
+            },
+            EnrichedCandidate {
+                symbol: "INVALID".to_string(),
+                name: "Invalid Stock".to_string(),
+                market: "US".to_string(),
+                exchange: "NASDAQ".to_string(),
+                industry: "Technology".to_string(),
+                price: Some(0.0), // Invalid price
+                change_pct: None,
+                market_cap: None, // Missing market cap
+                theme_key: "tech".to_string(),
+                fundamentals: None, // Missing fundamentals
+                analyst_consensus: None,
+                news: vec![],
+                evidence_records: vec![],
+                candles: vec![],
+                technical_snapshot: Default::default(),
+                market_snapshot: Default::default(),
+                fundamental_snapshot: Default::default(),
+                news_snapshot: Default::default(),
+                history_match_snapshot: Default::default(),
+                risk_snapshot: Default::default(),
+                data_quality_snapshot: Default::default(),
+                factor: FactorBreakdown::default(),
+                pass_filter: true,
+                rejected_reasons: vec![],
+                description: String::new(),
+                provenance: ProvenanceSnapshot::default(),
+            },
+        ];
+
+        let analysis_date = "2026-07-20";
+        let (passed, rejected) = crate::pick::gates::apply_quality_gates(pool, analysis_date);
+
+        assert_eq!(passed.len(), 1);
+        assert_eq!(passed[0].symbol, "VALID");
+        assert_eq!(rejected.len(), 1);
+        assert_eq!(rejected[0].symbol, "INVALID");
     }
 }

@@ -33,7 +33,10 @@ fn check_critical_fields(candidate: &EnrichedCandidate) -> Result<(), Vec<String
     }
 
     if candidate.candles.len() < 5 {
-        missing.push(format!("candles (has {}, need ≥5)", candidate.candles.len()));
+        missing.push(format!(
+            "candles (has {}, need ≥5)",
+            candidate.candles.len()
+        ));
     }
 
     if missing.is_empty() {
@@ -84,12 +87,12 @@ pub fn apply_quality_gates(
 mod tests {
     use super::*;
     use crate::data::{CandlePoint, FundamentalsSnapshot};
-    use crate::pick::types::{EnrichedCandidate, FactorBreakdown};
     use crate::pick::provenance::ProvenanceSnapshot;
+    use crate::pick::types::{EnrichedCandidate, FactorBreakdown};
     use crate::{
-        StockPickDataQualitySnapshot, StockPickFundamentalSnapshot,
-        StockPickHistoryMatchSnapshot, StockPickMarketSnapshot, StockPickNewsSnapshot,
-        StockPickRiskSnapshot, StockPickTechnicalSnapshot,
+        StockPickDataQualitySnapshot, StockPickFundamentalSnapshot, StockPickHistoryMatchSnapshot,
+        StockPickMarketSnapshot, StockPickNewsSnapshot, StockPickRiskSnapshot,
+        StockPickTechnicalSnapshot,
     };
 
     fn make_candle() -> CandlePoint {
@@ -123,7 +126,13 @@ mod tests {
             analyst_consensus: None,
             news: vec![],
             evidence_records: vec![],
-            candles: vec![make_candle(), make_candle(), make_candle(), make_candle(), make_candle()],
+            candles: vec![
+                make_candle(),
+                make_candle(),
+                make_candle(),
+                make_candle(),
+                make_candle(),
+            ],
             technical_snapshot: StockPickTechnicalSnapshot::default(),
             market_snapshot: StockPickMarketSnapshot::default(),
             fundamental_snapshot: StockPickFundamentalSnapshot::default(),
@@ -214,14 +223,22 @@ mod tests {
         assert_eq!(rejected.len(), 1);
         assert_eq!(rejected[0].missing_fields.len(), 4);
         assert!(rejected[0].missing_fields.contains(&"price".to_string()));
-        assert!(rejected[0].missing_fields.contains(&"market_cap".to_string()));
-        assert!(rejected[0]
-            .missing_fields
-            .contains(&"fundamentals".to_string()));
-        assert!(rejected[0]
-            .missing_fields
-            .iter()
-            .any(|s| s.contains("candles")));
+        assert!(
+            rejected[0]
+                .missing_fields
+                .contains(&"market_cap".to_string())
+        );
+        assert!(
+            rejected[0]
+                .missing_fields
+                .contains(&"fundamentals".to_string())
+        );
+        assert!(
+            rejected[0]
+                .missing_fields
+                .iter()
+                .any(|s| s.contains("candles"))
+        );
     }
 
     #[test]

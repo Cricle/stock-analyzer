@@ -2,28 +2,49 @@
 
 ## Implementation Status
 
-**Implemented:**
-- Layer 2: Data Provenance Tracking (full implementation with scoring)
-- Layer 3: Enhanced Objective Assessment (8-dimension scoring, 0-100 scale)
+All four layers are implemented.
 
-**Future Work:**
-- Layer 1: Pre-LLM Data Quality Gates (types and helpers present, integration pending)
-- Layer 4: Enrichment Retry (EnrichmentAttempt struct present, retry logic pending)
+- Layer 1: Pre-LLM Data Quality Gates
+- Layer 2: Data Provenance Tracking
+- Layer 3: Enhanced Objective Assessment
+- Layer 4: Quality Tiers and Enrichment Retry
 
 ## Overview
 
 The quality system adds 4 layers to the stock pick pipeline:
 
-1. **Pre-LLM Data Quality Gates** - Reject candidates missing critical data (FUTURE WORK)
+1. **Pre-LLM Data Quality Gates** - Reject candidates missing critical data after baseline data enrichment and before LLM selection
 2. **Data Provenance Tracking** - Track source, timestamp, confidence for all data (IMPLEMENTED)
 3. **Enhanced Objective Assessment** - 8-dimension scoring (0-100 scale) (IMPLEMENTED)
-4. **Quality Tiers & Enrichment** - Classify picks, retry for insufficient data (PARTIAL: classification implemented, retry is future work)
+4. **Quality Tiers & Enrichment** - Classify picks and retry recoverable data gaps once for DataInsufficient picks
 
 ## Quality Tiers
 
 - **ProductionReady** (score ≥80, no major violations): Ready for use
 - **ReviewRequired** (score 60-79): Minor gaps, needs review
-- **DataInsufficient** (score <60): Missing critical data, enrichment attempted
+- **DataInsufficient** (score <60): Missing critical data; recoverable gaps receive one enrichment attempt
+
+## Pre-LLM Gates
+
+After the pipeline fetches baseline quote, fundamental, and candle data, it rejects candidates that lack:
+
+- a positive price
+- a positive market capitalization
+- a fundamentals snapshot
+- at least five candles
+
+Each rejection records the symbol and exact missing fields. Rejected symbols are returned in the pipeline response diagnostics; no LLM selection work is performed for them.
+
+## Enrichment Retry
+
+Only picks classified as `DataInsufficient` are eligible. The pipeline performs at most one retry per pick and only for missing recoverable sources:
+
+- market data
+- fundamentals
+- technical candles
+- news
+
+The resulting `enrichment_attempt` records the timestamp, targeted fields, obtained fields, remaining gaps, success flag, and any provider errors. A retry refreshes the candidate snapshots, provenance, objective assessment, tier, and priority. Reasoning-only gaps are not retried, and a failed retry never fails the entire stock-pick run.
 
 ## Objective Assessment Dimensions
 

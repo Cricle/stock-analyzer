@@ -145,7 +145,7 @@ async fn light_enrich_candidate(
     item
 }
 
-fn refresh_candidate_state(item: &mut EnrichedCandidate) {
+pub(crate) fn refresh_candidate_state(item: &mut EnrichedCandidate) {
     item.market_snapshot = snapshots::build_market_snapshot(item);
     item.technical_snapshot = snapshots::build_technical_snapshot(&item.candles);
     item.fundamental_snapshot = snapshots::build_fundamental_snapshot(item);

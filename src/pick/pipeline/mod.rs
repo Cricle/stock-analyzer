@@ -529,7 +529,8 @@ pub async fn run(
                 pick.exit_triggers.push(format!("break below {}", stop_str));
             }
             pick.objective_assessment = evaluate_stock_pick_objective_assessment(&pick, &item);
-            pick.quality_tier = crate::pick::enrichment::classify_quality_tier(&pick.objective_assessment);
+            pick.quality_tier =
+                crate::pick::enrichment::classify_quality_tier(&pick.objective_assessment);
             pick.priority_rank = stock_pick_priority_rank(&pick);
             pick.priority_label = stock_pick_priority_label(pick.priority_rank).to_string();
             pick.sort_key = stock_pick_sort_key(&pick);
@@ -540,8 +541,14 @@ pub async fn run(
     // Attempt enrichment for insufficient picks (stub for now)
     let mut picks = picks;
     for pick in &mut picks {
-        if matches!(pick.quality_tier, crate::pick::enrichment::StockPickQualityTier::DataInsufficient) {
-            tracing::info!("Pick {} classified as DataInsufficient, enrichment not yet implemented", pick.symbol);
+        if matches!(
+            pick.quality_tier,
+            crate::pick::enrichment::StockPickQualityTier::DataInsufficient
+        ) {
+            tracing::info!(
+                "Pick {} classified as DataInsufficient, enrichment not yet implemented",
+                pick.symbol
+            );
             pick.enrichment_attempt = Some(crate::pick::enrichment::EnrichmentAttempt {
                 attempted_at: chrono::Utc::now().to_rfc3339(),
                 target_fields: vec![],

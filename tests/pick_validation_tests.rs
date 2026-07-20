@@ -20,6 +20,7 @@ fn make_candidate(price: Option<f64>, atr: Option<f64>) -> EnrichedCandidate {
         market_cap: Some(1e9),
         theme_key: "tech".to_string(),
         fundamentals: None,
+        analyst_consensus: None,
         news: vec![],
         evidence_records: vec![],
         candles: vec![],
@@ -34,6 +35,7 @@ fn make_candidate(price: Option<f64>, atr: Option<f64>) -> EnrichedCandidate {
         pass_filter: true,
         rejected_reasons: vec![],
         description: String::new(),
+        provenance: Default::default(),
     }
 }
 

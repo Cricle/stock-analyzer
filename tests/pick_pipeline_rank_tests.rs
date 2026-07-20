@@ -38,6 +38,7 @@ fn make_enriched_candidate(
         market_cap: Some(1_000_000_000.0),
         theme_key: "tech".to_string(),
         fundamentals: None,
+        analyst_consensus: None,
         news: Vec::new(),
         evidence_records: (0..evidence_len)
             .map(|i| CandidateEvidenceRecord {
@@ -68,6 +69,7 @@ fn make_enriched_candidate(
         pass_filter: true,
         rejected_reasons: Vec::new(),
         description: String::new(),
+        provenance: Default::default(),
     }
 }
 

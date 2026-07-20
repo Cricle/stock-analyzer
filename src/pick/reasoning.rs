@@ -105,13 +105,13 @@ pub fn validate_reasoning_consistency(
             let lower = all_text.to_lowercase();
 
             let (expected, is_consistent) = if lower.contains("overbought") {
-                ("RSI > 70".to_string(), rsi.map_or(false, |v| v > 70.0))
+                ("RSI > 70".to_string(), rsi.is_some_and(|v| v > 70.0))
             } else if lower.contains("oversold") {
-                ("RSI < 30".to_string(), rsi.map_or(false, |v| v < 30.0))
+                ("RSI < 30".to_string(), rsi.is_some_and(|v| v < 30.0))
             } else {
                 (
                     "RSI overbought (>70) or oversold (<30)".to_string(),
-                    rsi.map_or(false, |v| v > 70.0 || v < 30.0),
+                    rsi.is_some_and(|v| !(30.0..=70.0).contains(&v)),
                 )
             };
 
@@ -182,7 +182,7 @@ pub fn validate_reasoning_consistency(
         if claim.contains("Profitable") {
             let net_income = candidate.fundamental_snapshot.net_income_usd;
 
-            let is_consistent = net_income.map_or(false, |v| v > 0.0);
+            let is_consistent = net_income.is_some_and(|v| v > 0.0);
 
             if !is_consistent && net_income.is_some() {
                 major_violations += 1;
@@ -228,7 +228,7 @@ pub fn validate_reasoning_consistency(
         if claim.contains("Undervalued") {
             let pe_like = candidate.fundamental_snapshot.pe_like;
 
-            let is_consistent = pe_like.map_or(false, |v| v > 0.0 && v < 20.0);
+            let is_consistent = pe_like.is_some_and(|v| v > 0.0 && v < 20.0);
 
             if !is_consistent && pe_like.is_some() {
                 minor_violations += 1;

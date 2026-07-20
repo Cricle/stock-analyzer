@@ -51,6 +51,7 @@ fn make_candidate(
         market_cap: Some(5_000_000_000.0),
         theme_key: "tech".to_string(),
         fundamentals: fundamentals.clone(),
+        analyst_consensus: None,
         news: (0..news_len)
             .map(|i| NewsItem {
                 published_at: format!("2024-01-{:02}", i + 1),
@@ -87,6 +88,7 @@ fn make_candidate(
         pass_filter: true,
         rejected_reasons: Vec::new(),
         description: String::new(),
+        provenance: Default::default(),
     }
 }
 

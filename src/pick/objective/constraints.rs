@@ -160,7 +160,7 @@ pub fn evaluate_stock_pick_objective_assessment(
         score: completeness_result.score,
         max_score: 20,
         rationale: LocalText::new("pick_critical_field_completeness_rationale")
-            .with_str("missing", &completeness_result.missing_fields.join(", ")),
+            .with_str("missing", completeness_result.missing_fields.join(", ")),
     };
 
     // Calculate raw total (max 160)
@@ -764,12 +764,12 @@ fn normalize_market(value: &str) -> MarketKind {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pick::types::{EnrichedCandidate, FactorBreakdown};
     use crate::pick::provenance::ProvenanceSnapshot;
+    use crate::pick::types::{EnrichedCandidate, FactorBreakdown};
     use crate::{
-        StockPickDataQualitySnapshot, StockPickFundamentalSnapshot,
-        StockPickHistoryMatchSnapshot, StockPickMarketSnapshot, StockPickNewsSnapshot,
-        StockPickRiskSnapshot, StockPickTechnicalSnapshot,
+        StockPickDataQualitySnapshot, StockPickFundamentalSnapshot, StockPickHistoryMatchSnapshot,
+        StockPickMarketSnapshot, StockPickNewsSnapshot, StockPickRiskSnapshot,
+        StockPickTechnicalSnapshot,
     };
 
     fn create_full_test_pick() -> StockPickItem {
@@ -797,7 +797,9 @@ mod tests {
             change_pct: Some(2.0),
             market_cap: Some(1_000_000_000.0),
             entry_price: Some("100.00".to_string()),
-            entry_rationale: Some("Entry at 100 based on RSI support and breakout confirmation".to_string()),
+            entry_rationale: Some(
+                "Entry at 100 based on RSI support and breakout confirmation".to_string(),
+            ),
             stop_loss: Some("95.00".to_string()),
             stop_rationale: Some("Stop loss at 95 based on recent swing low".to_string()),
             target_price: Some("120.00".to_string()),

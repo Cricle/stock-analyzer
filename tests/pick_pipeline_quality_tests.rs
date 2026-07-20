@@ -1,7 +1,7 @@
+use stock_analyzer::StockPickRequest;
 use stock_analyzer::data::MarketDataClient;
 use stock_analyzer::llm::LlmClient;
 use stock_analyzer::pick::{StockPickQualityTier, run as run_pick_pipeline};
-use stock_analyzer::StockPickRequest;
 
 #[tokio::test]
 #[ignore]
@@ -48,12 +48,7 @@ async fn test_pipeline_with_quality_system() {
 
     // Verify all picks have quality assessment
     for (i, pick) in response.picks.iter().enumerate() {
-        println!(
-            "\nPick {}: {} ({})",
-            i + 1,
-            pick.symbol,
-            pick.name
-        );
+        println!("\nPick {}: {} ({})", i + 1, pick.symbol, pick.name);
         println!("  Final score: {}", pick.objective_assessment.final_score);
         println!("  Quality tier: {:?}", pick.quality_tier);
         println!("  Ready flag: {}", pick.objective_assessment.ready);
@@ -117,7 +112,10 @@ async fn test_quality_tier_classification() {
     println!("\n=== Quality Tier Classification Test ===");
 
     // At least one pick should have a tier assigned
-    assert!(!result.picks.is_empty(), "Should generate at least one pick");
+    assert!(
+        !result.picks.is_empty(),
+        "Should generate at least one pick"
+    );
 
     for (i, pick) in result.picks.iter().enumerate() {
         println!(
@@ -196,13 +194,19 @@ async fn test_reasoning_consistency_validation() {
 
     println!("\n=== Reasoning Consistency Validation Test ===");
 
-    assert!(!result.picks.is_empty(), "Should generate at least one pick");
+    assert!(
+        !result.picks.is_empty(),
+        "Should generate at least one pick"
+    );
     let pick = &result.picks[0];
 
     println!("Pick: {} ({})", pick.symbol, pick.name);
     println!(
         "Reasoning consistency score: {}",
-        pick.objective_assessment.breakdown.reasoning_consistency.score
+        pick.objective_assessment
+            .breakdown
+            .reasoning_consistency
+            .score
     );
     println!(
         "Reasoning consistency rationale: {}",
@@ -215,11 +219,19 @@ async fn test_reasoning_consistency_validation() {
 
     // Reasoning consistency dimension should be scored
     assert!(
-        pick.objective_assessment.breakdown.reasoning_consistency.score >= 0,
+        pick.objective_assessment
+            .breakdown
+            .reasoning_consistency
+            .score
+            >= 0,
         "Reasoning consistency score should be non-negative"
     );
     assert!(
-        pick.objective_assessment.breakdown.reasoning_consistency.score <= 20,
+        pick.objective_assessment
+            .breakdown
+            .reasoning_consistency
+            .score
+            <= 20,
         "Reasoning consistency score should not exceed 20 (max for this dimension)"
     );
 

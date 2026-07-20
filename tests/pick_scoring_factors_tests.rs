@@ -51,6 +51,7 @@ fn make_enriched(
         market_cap,
         theme_key: "tech".to_string(),
         fundamentals,
+        analyst_consensus: None,
         news: Vec::new(),
         evidence_records: Vec::new(),
         candles,
@@ -65,6 +66,7 @@ fn make_enriched(
         pass_filter: true,
         rejected_reasons: Vec::new(),
         description: String::new(),
+        provenance: Default::default(),
     }
 }
 

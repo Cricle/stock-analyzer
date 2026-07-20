@@ -168,7 +168,7 @@ mod tests {
         };
 
         let score = score_provenance(&snapshot);
-        assert!(score >= 0 && score <= 20);
+        assert!((0..=20).contains(&score));
     }
 
     #[test]

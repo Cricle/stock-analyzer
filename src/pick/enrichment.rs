@@ -5,20 +5,15 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Quality tier classification for stock picks based on objective assessment.
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Default)]
 pub enum StockPickQualityTier {
     /// Score >= 80, no major violations, ready flag is true
     ProductionReady,
     /// Score >= 60 or has issues preventing production readiness
     ReviewRequired,
     /// Score < 60 or insufficient data
+    #[default]
     DataInsufficient,
-}
-
-impl Default for StockPickQualityTier {
-    fn default() -> Self {
-        Self::DataInsufficient
-    }
 }
 
 /// Record of an enrichment attempt to improve data quality.

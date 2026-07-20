@@ -370,14 +370,27 @@ mod tests {
     }
 
     impl CandleLike for TestCandle {
-        fn close(&self) -> f64 { self.close }
-        fn high(&self) -> f64 { self.high }
-        fn low(&self) -> f64 { self.low }
-        fn volume(&self) -> i64 { self.volume }
+        fn close(&self) -> f64 {
+            self.close
+        }
+        fn high(&self) -> f64 {
+            self.high
+        }
+        fn low(&self) -> f64 {
+            self.low
+        }
+        fn volume(&self) -> i64 {
+            self.volume
+        }
     }
 
     fn candle(close: f64) -> TestCandle {
-        TestCandle { close, high: close + 0.5, low: close - 0.5, volume: 1000 }
+        TestCandle {
+            close,
+            high: close + 0.5,
+            low: close - 0.5,
+            volume: 1000,
+        }
     }
 
     #[test]
@@ -400,8 +413,10 @@ mod tests {
     fn rsi_mixed_wilder_smoothing() {
         // Known sequence: 16 candles with alternating up/down.
         // With Wilder smoothing, this should produce a stable RSI.
-        let prices = [44.0, 44.34, 44.09, 43.61, 44.33, 44.83, 45.10, 45.42,
-                       45.84, 46.08, 45.89, 46.03, 45.61, 46.28, 46.28, 46.00];
+        let prices = [
+            44.0, 44.34, 44.09, 43.61, 44.33, 44.83, 45.10, 45.42, 45.84, 46.08, 45.89, 46.03,
+            45.61, 46.28, 46.28, 46.00,
+        ];
         let candles: Vec<TestCandle> = prices.iter().map(|&p| candle(p)).collect();
         let r = rsi(&candles, 14).unwrap();
         // With this data the old rolling-sum approach would give ~70.5,

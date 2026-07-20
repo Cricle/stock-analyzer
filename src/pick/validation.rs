@@ -217,8 +217,13 @@ pub fn apply_defaults(pick: &mut GeneratedStockPickItem, candidate: &EnrichedCan
     }
 
     // Reset target price if R/R ratio is too low (< 1.5)
-    if let (Some(entry_str), Some(stop_str), Some(target_str)) = (&pick.entry_price, &pick.stop_loss, &pick.target_price)
-        && let (Some(entry), Some(stop), Some(target)) = (parse_price(entry_str), parse_price(stop_str), parse_price(target_str))
+    if let (Some(entry_str), Some(stop_str), Some(target_str)) =
+        (&pick.entry_price, &pick.stop_loss, &pick.target_price)
+        && let (Some(entry), Some(stop), Some(target)) = (
+            parse_price(entry_str),
+            parse_price(stop_str),
+            parse_price(target_str),
+        )
     {
         let risk = (entry - stop).abs();
         let reward = (target - entry).abs();

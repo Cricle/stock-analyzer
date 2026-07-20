@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::StockPickItem;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RationaleQuality {
@@ -53,7 +53,10 @@ pub fn score_critical_field_completeness(pick: &StockPickItem) -> CriticalFieldC
     let mut missing = Vec::new();
 
     // Entry + rationale
-    let has_entry = pick.entry_price.as_ref().is_some_and(|s| !s.trim().is_empty());
+    let has_entry = pick
+        .entry_price
+        .as_ref()
+        .is_some_and(|s| !s.trim().is_empty());
     let entry_rationale = pick.entry_rationale.as_deref().unwrap_or("");
     let entry_quality = assess_rationale_quality(entry_rationale);
     let has_entry_with_rationale = has_entry && entry_quality != RationaleQuality::Insufficient;
@@ -65,7 +68,10 @@ pub fn score_critical_field_completeness(pick: &StockPickItem) -> CriticalFieldC
     }
 
     // Stop + rationale
-    let has_stop = pick.stop_loss.as_ref().is_some_and(|s| !s.trim().is_empty());
+    let has_stop = pick
+        .stop_loss
+        .as_ref()
+        .is_some_and(|s| !s.trim().is_empty());
     let stop_rationale = pick.stop_rationale.as_deref().unwrap_or("");
     let stop_quality = assess_rationale_quality(stop_rationale);
     let has_stop_with_rationale = has_stop && stop_quality != RationaleQuality::Insufficient;
@@ -77,7 +83,10 @@ pub fn score_critical_field_completeness(pick: &StockPickItem) -> CriticalFieldC
     }
 
     // Target + rationale
-    let has_target = pick.target_price.as_ref().is_some_and(|s| !s.trim().is_empty());
+    let has_target = pick
+        .target_price
+        .as_ref()
+        .is_some_and(|s| !s.trim().is_empty());
     let target_rationale = pick.target_rationale.as_deref().unwrap_or("");
     let target_quality = assess_rationale_quality(target_rationale);
     let has_target_with_rationale = has_target && target_quality != RationaleQuality::Insufficient;
@@ -90,11 +99,16 @@ pub fn score_critical_field_completeness(pick: &StockPickItem) -> CriticalFieldC
 
     // Catalysts with timing
     let has_catalysts = !pick.catalysts.is_empty();
-    let has_timing = has_catalysts && pick.catalysts.iter().any(|c| {
-        let text = c.key.to_lowercase();
-        text.contains("week") || text.contains("month") || text.contains("quarter")
-            || text.contains("next") || text.contains("upcoming") || text.contains("soon")
-    });
+    let has_timing = has_catalysts
+        && pick.catalysts.iter().any(|c| {
+            let text = c.key.to_lowercase();
+            text.contains("week")
+                || text.contains("month")
+                || text.contains("quarter")
+                || text.contains("next")
+                || text.contains("upcoming")
+                || text.contains("soon")
+        });
     let has_catalysts_with_timing = has_catalysts && has_timing;
 
     if has_catalysts_with_timing {

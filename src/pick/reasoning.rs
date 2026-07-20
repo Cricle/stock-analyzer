@@ -1,8 +1,8 @@
 //! Reasoning consistency validation — verifies LLM claims match actual data.
 
-use serde::{Deserialize, Serialize};
 use crate::StockPickItem;
 use crate::pick::types::EnrichedCandidate;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ReasoningConsistencyCheck {
@@ -29,7 +29,9 @@ fn parse_technical_claims(text: &str) -> Vec<String> {
     if lower.contains("rsi") && (lower.contains("overbought") || lower.contains("oversold")) {
         claims.push("RSI overbought/oversold".to_string());
     }
-    if lower.contains("macd") && (lower.contains("golden") || lower.contains("bullish") || lower.contains("cross")) {
+    if lower.contains("macd")
+        && (lower.contains("golden") || lower.contains("bullish") || lower.contains("cross"))
+    {
         claims.push("MACD cross".to_string());
     }
     if lower.contains("bollinger") {
@@ -107,8 +109,10 @@ pub fn validate_reasoning_consistency(
             } else if lower.contains("oversold") {
                 ("RSI < 30".to_string(), rsi.map_or(false, |v| v < 30.0))
             } else {
-                ("RSI overbought (>70) or oversold (<30)".to_string(),
-                 rsi.map_or(false, |v| v > 70.0 || v < 30.0))
+                (
+                    "RSI overbought (>70) or oversold (<30)".to_string(),
+                    rsi.map_or(false, |v| v > 70.0 || v < 30.0),
+                )
             };
 
             if !is_consistent && rsi.is_some() {
@@ -120,7 +124,11 @@ pub fn validate_reasoning_consistency(
                 expected_condition: expected,
                 actual_value: rsi,
                 is_consistent,
-                severity: if is_consistent { "info".to_string() } else { "major".to_string() },
+                severity: if is_consistent {
+                    "info".to_string()
+                } else {
+                    "major".to_string()
+                },
             });
         }
 
@@ -143,7 +151,11 @@ pub fn validate_reasoning_consistency(
                 expected_condition: "MACD > Signal".to_string(),
                 actual_value: macd,
                 is_consistent,
-                severity: if is_consistent { "info".to_string() } else { "minor".to_string() },
+                severity: if is_consistent {
+                    "info".to_string()
+                } else {
+                    "minor".to_string()
+                },
             });
         }
     }
@@ -181,7 +193,11 @@ pub fn validate_reasoning_consistency(
                 expected_condition: "Net income > 0".to_string(),
                 actual_value: net_income,
                 is_consistent,
-                severity: if is_consistent { "info".to_string() } else { "major".to_string() },
+                severity: if is_consistent {
+                    "info".to_string()
+                } else {
+                    "major".to_string()
+                },
             });
         }
 
@@ -201,7 +217,11 @@ pub fn validate_reasoning_consistency(
                 expected_condition: "Revenue data available".to_string(),
                 actual_value: revenues,
                 is_consistent,
-                severity: if is_consistent { "info".to_string() } else { "minor".to_string() },
+                severity: if is_consistent {
+                    "info".to_string()
+                } else {
+                    "minor".to_string()
+                },
             });
         }
 
@@ -219,7 +239,11 @@ pub fn validate_reasoning_consistency(
                 expected_condition: "P/E-like ratio < 20".to_string(),
                 actual_value: pe_like,
                 is_consistent,
-                severity: if is_consistent { "info".to_string() } else { "minor".to_string() },
+                severity: if is_consistent {
+                    "info".to_string()
+                } else {
+                    "minor".to_string()
+                },
             });
         }
     }
@@ -241,13 +265,13 @@ pub fn validate_reasoning_consistency(
 mod tests {
     use super::*;
     use crate::guide::I18nText;
+    use crate::pick::provenance::ProvenanceSnapshot;
+    use crate::pick::types::{EnrichedCandidate, FactorBreakdown};
     use crate::{
         StockPickDataQualitySnapshot, StockPickFundamentalSnapshot, StockPickHistoryMatchSnapshot,
         StockPickMarketSnapshot, StockPickNewsSnapshot, StockPickRiskSnapshot,
         StockPickTechnicalSnapshot,
     };
-    use crate::pick::types::{EnrichedCandidate, FactorBreakdown};
-    use crate::pick::provenance::ProvenanceSnapshot;
 
     fn create_test_pick_with_claim(claim: &str) -> StockPickItem {
         StockPickItem {

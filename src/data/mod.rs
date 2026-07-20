@@ -15,8 +15,8 @@ pub use akshare::provider::market_client::DataConfig;
 
 // Re-export data types from akshare-rs
 pub use akshare::types::{
-    BillboardEntry, CandlePoint, CapitalFlowPoint, FundamentalsSnapshot,
-    MarketKind, NewsItem, QuoteSnapshot,
+    BillboardEntry, CandlePoint, CapitalFlowPoint, FundamentalsSnapshot, MarketKind, NewsItem,
+    QuoteSnapshot,
 };
 
 // Re-export stock feature types from akshare-rs

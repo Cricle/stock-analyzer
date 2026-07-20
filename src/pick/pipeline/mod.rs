@@ -338,12 +338,18 @@ pub async fn run(
             prompt, guidance_context
         )
     };
-    tracing::info!(prompt_len = enriched_prompt.len(), "calling LLM for stock picks");
+    tracing::info!(
+        prompt_len = enriched_prompt.len(),
+        "calling LLM for stock picks"
+    );
     let content = llm_client
         .generate(&enriched_prompt)
         .await
         .context("failed to generate stock picks")?;
-    tracing::info!(content_len = content.len(), "LLM stock pick raw output received");
+    tracing::info!(
+        content_len = content.len(),
+        "LLM stock pick raw output received"
+    );
     let generated = parse_generated_stock_pick(&content)
         .with_context(|| format!("failed to parse stock pick JSON: {content}"))?;
     tracing::info!(

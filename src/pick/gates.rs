@@ -57,26 +57,14 @@ mod tests {
 
     #[test]
     fn test_check_critical_fields_pass() {
-        let result = check_critical_fields(
-            "AAPL",
-            Some(100.0),
-            Some(1_000_000_000.0),
-            true,
-            20,
-        );
+        let result = check_critical_fields("AAPL", Some(100.0), Some(1_000_000_000.0), true, 20);
 
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_check_critical_fields_fail_no_price() {
-        let result = check_critical_fields(
-            "AAPL",
-            None,
-            Some(1_000_000_000.0),
-            true,
-            20,
-        );
+        let result = check_critical_fields("AAPL", None, Some(1_000_000_000.0), true, 20);
 
         assert!(result.is_err());
         let missing = result.unwrap_err();
@@ -85,13 +73,7 @@ mod tests {
 
     #[test]
     fn test_check_critical_fields_fail_zero_price() {
-        let result = check_critical_fields(
-            "AAPL",
-            Some(0.0),
-            Some(1_000_000_000.0),
-            true,
-            20,
-        );
+        let result = check_critical_fields("AAPL", Some(0.0), Some(1_000_000_000.0), true, 20);
 
         assert!(result.is_err());
         let missing = result.unwrap_err();
@@ -100,13 +82,7 @@ mod tests {
 
     #[test]
     fn test_check_critical_fields_fail_no_market_cap() {
-        let result = check_critical_fields(
-            "AAPL",
-            Some(100.0),
-            None,
-            true,
-            20,
-        );
+        let result = check_critical_fields("AAPL", Some(100.0), None, true, 20);
 
         assert!(result.is_err());
         let missing = result.unwrap_err();
@@ -115,13 +91,7 @@ mod tests {
 
     #[test]
     fn test_check_critical_fields_fail_no_fundamentals() {
-        let result = check_critical_fields(
-            "AAPL",
-            Some(100.0),
-            Some(1_000_000_000.0),
-            false,
-            20,
-        );
+        let result = check_critical_fields("AAPL", Some(100.0), Some(1_000_000_000.0), false, 20);
 
         assert!(result.is_err());
         let missing = result.unwrap_err();
@@ -130,13 +100,7 @@ mod tests {
 
     #[test]
     fn test_check_critical_fields_fail_insufficient_candles() {
-        let result = check_critical_fields(
-            "AAPL",
-            Some(100.0),
-            Some(1_000_000_000.0),
-            true,
-            4,
-        );
+        let result = check_critical_fields("AAPL", Some(100.0), Some(1_000_000_000.0), true, 4);
 
         assert!(result.is_err());
         let missing = result.unwrap_err();
@@ -145,13 +109,7 @@ mod tests {
 
     #[test]
     fn test_check_critical_fields_fail_multiple() {
-        let result = check_critical_fields(
-            "AAPL",
-            None,
-            None,
-            false,
-            0,
-        );
+        let result = check_critical_fields("AAPL", None, None, false, 0);
 
         assert!(result.is_err());
         let missing = result.unwrap_err();

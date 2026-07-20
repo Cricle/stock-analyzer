@@ -29,10 +29,14 @@ pub mod gates;
 pub use gates::{QualityGateRejection, apply_quality_gates};
 
 pub mod reasoning;
-pub use reasoning::{ReasoningConsistencyCheck, ReasoningConsistencyReport, validate_reasoning_consistency};
+pub use reasoning::{
+    ReasoningConsistencyCheck, ReasoningConsistencyReport, validate_reasoning_consistency,
+};
 
 pub mod completeness;
 pub use completeness::{CriticalFieldCompleteness, score_critical_field_completeness};
 
 pub mod enrichment;
-pub use enrichment::{StockPickQualityTier, EnrichmentAttempt, classify_quality_tier, attempt_enrichment};
+pub use enrichment::{
+    EnrichmentAttempt, StockPickQualityTier, attempt_enrichment, classify_quality_tier,
+};

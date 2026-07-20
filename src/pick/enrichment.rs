@@ -1,8 +1,8 @@
 //! Quality tier classification and enrichment attempt tracking.
 
+use crate::StockPickObjectiveAssessment;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use crate::StockPickObjectiveAssessment;
 
 /// Quality tier classification for stock picks based on objective assessment.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
@@ -37,7 +37,9 @@ pub struct EnrichmentAttempt {
 /// Classify a stock pick into a quality tier based on objective assessment.
 pub fn classify_quality_tier(assessment: &StockPickObjectiveAssessment) -> StockPickQualityTier {
     let score = assessment.final_score;
-    let has_major_violations = assessment.gaps.iter()
+    let has_major_violations = assessment
+        .gaps
+        .iter()
         .any(|g| g.starts_with("reasoning_violation:"));
 
     if score >= 80 && !has_major_violations && assessment.ready {

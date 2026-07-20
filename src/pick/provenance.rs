@@ -170,4 +170,28 @@ mod tests {
         let score = score_provenance(&snapshot);
         assert!(score >= 0 && score <= 20);
     }
+
+    #[test]
+    fn test_provenance_empty_snapshot() {
+        let snapshot = ProvenanceSnapshot::default();
+        let score = score_provenance(&snapshot);
+        assert_eq!(score, 0);
+    }
+
+    #[test]
+    fn test_provenance_stale_data() {
+        let old_date = "2020-01-01T00:00:00Z";
+        let snapshot = ProvenanceSnapshot {
+            market_data: Some(DataProvenance {
+                source: "tushare".to_string(),
+                fetched_at: old_date.to_string(),
+                confidence: 0.9,
+                field_coverage: vec!["price".to_string()],
+            }),
+            ..Default::default()
+        };
+        let score = score_provenance(&snapshot);
+        // Stale data should get low freshness score
+        assert!(score < 15);
+    }
 }

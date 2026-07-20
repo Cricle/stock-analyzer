@@ -346,4 +346,31 @@ mod tests {
         assert!(report.major_violations > 0);
         assert!(report.consistency_score < 20);
     }
+
+    #[test]
+    fn test_reasoning_no_claims() {
+        let pick = create_test_pick_with_claim("Generic investment thesis");
+        let candidate = create_test_candidate_with_rsi(50.0);
+
+        let report = validate_reasoning_consistency(&pick, &candidate);
+        assert_eq!(report.major_violations, 0);
+        assert!(report.consistency_score >= 15); // Neutral score
+    }
+
+    #[test]
+    fn test_reasoning_multiple_violations() {
+        let mut pick = create_test_pick_with_claim("RSI overbought and MACD bullish cross");
+        pick.evidence_points = vec![
+            "RSI overbought".to_string(),
+            "MACD bullish cross".to_string(),
+        ];
+
+        let mut candidate = create_test_candidate_with_rsi(45.0); // RSI not overbought
+        candidate.technical_snapshot.macd = Some(0.5);
+        candidate.technical_snapshot.macd_signal = Some(1.0); // MACD not bullish
+
+        let report = validate_reasoning_consistency(&pick, &candidate);
+        assert!(report.major_violations >= 1); // At least RSI violation
+        assert!(report.consistency_score < 15);
+    }
 }

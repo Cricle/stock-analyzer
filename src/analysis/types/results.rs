@@ -70,6 +70,10 @@ pub struct StockPickItem {
     pub evidence_quality_score: i32,
     #[serde(default)]
     pub provenance_snapshot: crate::pick::provenance::ProvenanceSnapshot,
+    #[serde(default)]
+    pub quality_tier: crate::pick::enrichment::StockPickQualityTier,
+    #[serde(default)]
+    pub enrichment_attempt: Option<crate::pick::enrichment::EnrichmentAttempt>,
 }
 
 /// Diagnostics for how a stock pick was selected.

@@ -456,6 +456,8 @@ pub async fn run(
                 rejection_risk_flags,
                 evidence_quality_score,
                 provenance_snapshot: item.provenance.clone(),
+                quality_tier: crate::pick::enrichment::StockPickQualityTier::default(),
+                enrichment_attempt: None,
             };
             // Apply actionable field defaults if LLM didn't provide them
             let current_price = item.price.or(item.market_snapshot.current_price);

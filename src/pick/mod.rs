@@ -33,3 +33,6 @@ pub use reasoning::{ReasoningConsistencyCheck, ReasoningConsistencyReport, valid
 
 pub mod completeness;
 pub use completeness::{CriticalFieldCompleteness, score_critical_field_completeness};
+
+pub mod enrichment;
+pub use enrichment::{StockPickQualityTier, EnrichmentAttempt, classify_quality_tier, attempt_enrichment};

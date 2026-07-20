@@ -130,33 +130,88 @@ pub fn evaluate_stock_pick_objective_assessment(
     pick: &StockPickItem,
     item: &EnrichedCandidate,
 ) -> StockPickObjectiveAssessment {
+    // Existing 5 dimensions (unchanged)
     let data_completeness = score_pick_data_completeness(pick, item);
     let market_validation = score_pick_market_validation(pick, item);
     let reasoning_structure = score_pick_reasoning_structure(pick);
     let risk_balance = score_pick_risk_balance(pick, item);
     let evidence_density = score_pick_evidence_density(pick, item);
-    let total_score = [
+
+    // NEW: 3 additional dimensions
+    let data_provenance_score = crate::pick::provenance::score_provenance(&item.provenance);
+    let data_provenance = ScoreDimension {
+        score: data_provenance_score,
+        max_score: 20,
+        rationale: LocalText::new("pick_data_provenance_rationale")
+            .with_i32("score", data_provenance_score),
+    };
+
+    let reasoning_report = crate::pick::reasoning::validate_reasoning_consistency(pick, item);
+    let reasoning_consistency = ScoreDimension {
+        score: reasoning_report.consistency_score,
+        max_score: 20,
+        rationale: LocalText::new("pick_reasoning_consistency_rationale")
+            .with_i32("major_violations", reasoning_report.major_violations as i32)
+            .with_i32("minor_violations", reasoning_report.minor_violations as i32),
+    };
+
+    let completeness_result = crate::pick::completeness::score_critical_field_completeness(pick);
+    let critical_field_completeness = ScoreDimension {
+        score: completeness_result.score,
+        max_score: 20,
+        rationale: LocalText::new("pick_critical_field_completeness_rationale")
+            .with_str("missing", &completeness_result.missing_fields.join(", ")),
+    };
+
+    // Calculate raw total (max 160)
+    let raw_total = [
         data_completeness.score,
         market_validation.score,
         reasoning_structure.score,
         risk_balance.score,
         evidence_density.score,
+        data_provenance.score,
+        reasoning_consistency.score,
+        critical_field_completeness.score,
     ]
     .into_iter()
     .sum::<i32>();
+
+    // Normalize to 100
+    let normalized_score = ((raw_total as f64 / 160.0) * 100.0).round() as i32;
+
+    // Apply existing cap logic
     let applied_cap = stock_pick_objective_cap(pick, item);
-    let final_score = total_score.clamp(0, applied_cap);
+    let final_score = normalized_score.clamp(0, applied_cap);
+
     let grade = stock_pick_objective_grade(final_score);
-    let gaps = stock_pick_objective_gaps(pick, item);
-    // Require market_cap for "ready" status - stocks without fundamental data
-    // should not be recommended
+
+    // Enhanced gaps with reasoning violations
+    let mut gaps = stock_pick_objective_gaps(pick, item);
+    for check in &reasoning_report.checks {
+        if check.severity == "major" {
+            gaps.push(format!("reasoning_violation: {}", check.claim));
+        }
+    }
+    gaps.extend(
+        completeness_result
+            .missing_fields
+            .iter()
+            .map(|f| format!("missing_{}", f)),
+    );
+
+    // Ready criteria: enhanced with reasoning validation
     let has_market_cap = pick.market_cap.is_some()
         || item
             .fundamentals
             .as_ref()
             .and_then(|f| f.market_cap)
             .is_some();
-    let ready = final_score >= 75 && gaps.len() <= 2 && has_market_cap;
+    let ready = final_score >= 80
+        && gaps.len() <= 2
+        && has_market_cap
+        && reasoning_report.major_violations == 0;
+
     let headline = stock_pick_objective_headline(final_score, ready, &gaps);
 
     StockPickObjectiveAssessment {
@@ -171,6 +226,9 @@ pub fn evaluate_stock_pick_objective_assessment(
             reasoning_structure,
             risk_balance,
             evidence_density,
+            data_provenance,
+            reasoning_consistency,
+            critical_field_completeness,
             total_score: final_score,
         },
     }
@@ -700,5 +758,105 @@ fn normalize_market(value: &str) -> MarketKind {
         "a" | "a-share" | "a_share" | "ashare" | "cn" | "china" | "a股" => MarketKind::AShare,
         "hk" | "hkex" | "hongkong" | "hong_kong" | "港股" => MarketKind::HongKong,
         _ => MarketKind::UsEquity,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pick::types::{EnrichedCandidate, FactorBreakdown};
+    use crate::pick::provenance::ProvenanceSnapshot;
+    use crate::{
+        StockPickDataQualitySnapshot, StockPickFundamentalSnapshot,
+        StockPickHistoryMatchSnapshot, StockPickMarketSnapshot, StockPickNewsSnapshot,
+        StockPickRiskSnapshot, StockPickTechnicalSnapshot,
+    };
+
+    fn create_full_test_pick() -> StockPickItem {
+        StockPickItem {
+            symbol: "TEST".to_string(),
+            name: "Test Stock".to_string(),
+            market: "US".to_string(),
+            thesis: crate::guide::I18nText::new("Strong technical setup with RSI support"),
+            catalysts: vec![
+                crate::guide::I18nText::new("Earnings report next week"),
+                crate::guide::I18nText::new("Product launch"),
+            ],
+            risks: vec![
+                crate::guide::I18nText::new("Market volatility"),
+                crate::guide::I18nText::new("Regulatory concerns"),
+            ],
+            evidence_points: vec![
+                "RSI at 35".to_string(),
+                "MACD golden cross".to_string(),
+                "Volume surge".to_string(),
+                "Positive news sentiment".to_string(),
+            ],
+            confidence: 75.0,
+            price: Some(100.0),
+            change_pct: Some(2.0),
+            market_cap: Some(1_000_000_000.0),
+            entry_price: Some("100.00".to_string()),
+            entry_rationale: Some("Entry at 100 based on RSI support and breakout confirmation".to_string()),
+            stop_loss: Some("95.00".to_string()),
+            stop_rationale: Some("Stop loss at 95 based on recent swing low".to_string()),
+            target_price: Some("120.00".to_string()),
+            target_rationale: Some("Target price 120 based on measured move".to_string()),
+            holding_period: Some("3-6 months".to_string()),
+            exit_triggers: vec!["Break below support".to_string()],
+            ..Default::default()
+        }
+    }
+
+    fn create_full_test_candidate() -> EnrichedCandidate {
+        EnrichedCandidate {
+            symbol: "TEST".to_string(),
+            name: "Test Stock".to_string(),
+            market: "US".to_string(),
+            exchange: "NASDAQ".to_string(),
+            industry: "Technology".to_string(),
+            price: Some(100.0),
+            change_pct: Some(2.0),
+            market_cap: Some(1_000_000_000.0),
+            theme_key: "test".to_string(),
+            fundamentals: None,
+            analyst_consensus: None,
+            news: vec![],
+            evidence_records: vec![],
+            candles: vec![],
+            technical_snapshot: StockPickTechnicalSnapshot::default(),
+            market_snapshot: StockPickMarketSnapshot::default(),
+            fundamental_snapshot: StockPickFundamentalSnapshot::default(),
+            news_snapshot: StockPickNewsSnapshot::default(),
+            history_match_snapshot: StockPickHistoryMatchSnapshot::default(),
+            risk_snapshot: StockPickRiskSnapshot::default(),
+            data_quality_snapshot: StockPickDataQualitySnapshot::default(),
+            factor: FactorBreakdown::default(),
+            pass_filter: true,
+            rejected_reasons: vec![],
+            description: "Test candidate".to_string(),
+            provenance: ProvenanceSnapshot::default(),
+        }
+    }
+
+    #[test]
+    fn test_evaluate_assessment_8_dimensions() {
+        let pick = create_full_test_pick();
+        let candidate = create_full_test_candidate();
+
+        let assessment = evaluate_stock_pick_objective_assessment(&pick, &candidate);
+
+        // Verify all 8 dimensions present
+        assert!(assessment.breakdown.data_completeness.score >= 0);
+        assert!(assessment.breakdown.market_validation.score >= 0);
+        assert!(assessment.breakdown.reasoning_structure.score >= 0);
+        assert!(assessment.breakdown.risk_balance.score >= 0);
+        assert!(assessment.breakdown.evidence_density.score >= 0);
+        assert!(assessment.breakdown.data_provenance.score >= 0);
+        assert!(assessment.breakdown.reasoning_consistency.score >= 0);
+        assert!(assessment.breakdown.critical_field_completeness.score >= 0);
+
+        // Total should be normalized to 0-100
+        assert!(assessment.final_score >= 0 && assessment.final_score <= 100);
     }
 }

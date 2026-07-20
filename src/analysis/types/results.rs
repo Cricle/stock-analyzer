@@ -243,6 +243,12 @@ pub struct StockPickObjectiveBreakdown {
     #[serde(default)]
     pub evidence_density: ScoreDimension,
     #[serde(default)]
+    pub data_provenance: ScoreDimension,
+    #[serde(default)]
+    pub reasoning_consistency: ScoreDimension,
+    #[serde(default)]
+    pub critical_field_completeness: ScoreDimension,
+    #[serde(default)]
     pub total_score: i32,
 }
 

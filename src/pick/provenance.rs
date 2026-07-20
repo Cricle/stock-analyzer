@@ -26,7 +26,7 @@ fn score_source_quality(source: &str) -> i32 {
     }
 }
 
-/// Score data freshness: <24h = 5, <=7d = 3, <=30d = 1, older = 0
+/// Score data freshness: <24h = 5, <7d = 3, <30d = 1, older = 0
 fn score_freshness(fetched_at: &str) -> i32 {
     let Ok(fetched) = chrono::DateTime::parse_from_rfc3339(fetched_at) else {
         return 0;
@@ -36,9 +36,9 @@ fn score_freshness(fetched_at: &str) -> i32 {
 
     if age.num_hours() < 24 {
         5
-    } else if age.num_days() <= 7 {
+    } else if age.num_days() < 7 {
         3
-    } else if age.num_days() <= 30 {
+    } else if age.num_days() < 30 {
         1
     } else {
         0
@@ -149,7 +149,7 @@ mod tests {
         let month_old = (now - chrono::Duration::days(31)).to_rfc3339();
 
         assert_eq!(score_freshness(&fresh), 5);
-        assert_eq!(score_freshness(&week_old), 3);
+        assert_eq!(score_freshness(&week_old), 1); // 7 days = boundary, scores 1 not 3
         assert_eq!(score_freshness(&month_old), 0);
     }
 

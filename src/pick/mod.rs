@@ -30,3 +30,6 @@ pub use gates::{QualityGateRejection, apply_quality_gates};
 
 pub mod reasoning;
 pub use reasoning::{ReasoningConsistencyCheck, ReasoningConsistencyReport, validate_reasoning_consistency};
+
+pub mod completeness;
+pub use completeness::{CriticalFieldCompleteness, score_critical_field_completeness};

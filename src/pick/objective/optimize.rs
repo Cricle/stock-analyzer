@@ -34,7 +34,7 @@ pub(crate) fn build_prompt(
                 .join("\n");
             let analyst_block = "unavailable".to_string();
             format!(
-                "Candidate {}\nSymbol: {}\nName: {}\nIndustry: {}\nFactor Total: {:.2}\nMarket Snapshot: price={:?}, change_pct={:?}, period_return_pct={:?}, volume_ratio={:?}\nTechnical Snapshot: rsi={:?}, macd_hist={:?}, ema10={:?}, sma50={:?}, sma200={:?}, atr={:?}, adx={:?}\nFundamental Snapshot: market_cap={:?}, pe_like={:?} (annualized), ps_like={:?}, pb_like={:?}, roe={:?} (latest quarter), leverage={:?}\nAnalyst Consensus: {}\nNews Snapshot: deep_items={}, unique_sources={}, latest_published_at={}\nHistory Snapshot: samples={}, hit_rate={:?}, avg_alpha={:?}\nRisk Flags: {}\nData Gaps: {}\nRecent News:\n{}\nEvidence:\n{}\n",
+                "Candidate {}\nSymbol: {}\nName: {}\nIndustry: {}\nFactor Total: {:.2}\nMarket Snapshot: price={:?}, change_pct={:?}, period_return_pct={:?}, volume_ratio={:?}\nTechnical Snapshot: rsi={:?}, macd_hist={:?}, ema10={:?}, sma50={:?}, sma200={:?}, atr={:?}, adx={:?}\nFundamental Snapshot: market_cap={:?}, pe_like={:?} (annualized), ps_like={:?}, roe={:?} (latest quarter), leverage={:?}\nAnalyst Consensus: {}\nNews Snapshot: deep_items={}, unique_sources={}, latest_published_at={}\nHistory Snapshot: samples={}, hit_rate={:?}, avg_alpha={:?}\nRisk Flags: {}\nData Gaps: {}\nRecent News:\n{}\nEvidence:\n{}\n",
                 index + 1,
                 item.symbol,
                 item.name,
@@ -54,7 +54,6 @@ pub(crate) fn build_prompt(
                 item.fundamental_snapshot.market_cap,
                 item.fundamental_snapshot.pe_like,
                 item.fundamental_snapshot.ps_like,
-                item.fundamental_snapshot.pb_like,
                 item.fundamental_snapshot.roe,
                 item.fundamental_snapshot.leverage,
                 analyst_block,
@@ -244,9 +243,6 @@ pub(crate) fn default_thesis(item: &EnrichedCandidate) -> I18nText {
     // Add valuation context
     if let Some(pe) = item.fundamental_snapshot.pe_like {
         thesis = thesis.with_param("pe_like", pe);
-    }
-    if let Some(pb) = item.fundamental_snapshot.pb_like {
-        thesis = thesis.with_param("pb_like", pb);
     }
     if let Some(roe) = item.fundamental_snapshot.roe {
         thesis = thesis.with_param("roe", roe);

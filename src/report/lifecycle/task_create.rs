@@ -97,6 +97,12 @@ impl TaskManager {
             message: "Task submitted".to_string(),
             error_message: None,
             llm_token_usage: crate::LlmTokenUsageSummary::default(),
+            quality_gate_json: None,
+            charge_state: "uncharged".to_string(),
+            charge_ledger_id: None,
+            refund_ledger_id: None,
+            retry_of_task_id: None,
+            logical_request_id: None,
             created_at: now,
             updated_at: now,
         };

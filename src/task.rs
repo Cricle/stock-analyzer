@@ -149,8 +149,24 @@ pub struct PersistedTask {
     pub message: String,
     pub error_message: Option<String>,
     pub llm_token_usage: LlmTokenUsageSummary,
+    #[serde(default)]
+    pub quality_gate_json: Option<serde_json::Value>,
+    #[serde(default = "default_charge_state")]
+    pub charge_state: String,
+    #[serde(default)]
+    pub charge_ledger_id: Option<String>,
+    #[serde(default)]
+    pub refund_ledger_id: Option<String>,
+    #[serde(default)]
+    pub retry_of_task_id: Option<String>,
+    #[serde(default)]
+    pub logical_request_id: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+fn default_charge_state() -> String {
+    "uncharged".to_string()
 }
 
 impl PersistedTask {

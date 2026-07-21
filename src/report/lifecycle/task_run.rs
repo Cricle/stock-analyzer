@@ -119,7 +119,7 @@ impl TaskManager {
         let is_resume_with_data = result.artifacts.resumed_from_step > 0
             && result.artifacts.scenario_data.quote.is_some();
 
-        let (quote, fundamentals, news_items, market_chart, news_start);
+        let (quote, fundamentals, news_items, market_chart, news_start, quality_gate);
 
         let _hydration_span = tracing::info_span!(
             "analysis.market_data_hydration",
@@ -144,29 +144,20 @@ impl TaskManager {
                 .company_news_start_date
                 .clone();
             market_chart = result.artifacts.market_chart.clone();
+            quality_gate = super::ReportQualityGate::from_acquired_data(
+                &quote,
+                &market_chart.candles,
+                &fundamentals,
+                &news_items,
+                Default::default(),
+                Utc::now(),
+            );
         } else {
             // Fresh run — fetch market data via helpers
             let news_start_val = analysis_news_start(&task.analysis_date);
             news_start = news_start_val.clone();
 
             let core_data = self.fetch_core_market_data(&task, news_start_val).await;
-            if !core_data.quality_gate.passed {
-                let summary = core_data.quality_gate.summary();
-                result.artifacts.scenario_data.fetch_diagnosis = core_data.fetch_diagnosis;
-                self.analysis_store.save_result(&task_id, &result).await?;
-                self.update_task(
-                    &task_id,
-                    TaskStatus::BlockedData,
-                    100,
-                    "Data quality blocked",
-                    "Critical report evidence could not be acquired",
-                    "Analysis blocked before LLM execution",
-                    Some(summary),
-                )
-                .await?;
-                self.running_tasks.write().await.remove(&task_id);
-                return Ok(());
-            }
             self.fetch_enrichment_and_store(&task, &mut result).await;
 
             result.artifacts.scenario_data.fetch_diagnosis = core_data.fetch_diagnosis;
@@ -177,7 +168,25 @@ impl TaskManager {
             fundamentals = core_data.fundamentals;
             news_items = core_data.news_items;
             market_chart = core_data.market_chart;
-        } // end else (fresh run)
+            quality_gate = core_data.quality_gate;
+        }
+
+        if !quality_gate.passed {
+            let summary = quality_gate.summary();
+            self.analysis_store.save_result(&task_id, &result).await?;
+            self.update_task(
+                &task_id,
+                TaskStatus::BlockedData,
+                100,
+                "Data quality blocked",
+                "Critical report evidence could not be acquired",
+                "Analysis blocked before LLM execution",
+                Some(summary),
+            )
+            .await?;
+            self.running_tasks.write().await.remove(&task_id);
+            return Ok(());
+        }
 
         // Calculate data quality scores
         let validator = crate::data::validator::DataValidator;

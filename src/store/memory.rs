@@ -47,10 +47,11 @@ impl Default for InMemoryAnalysisStore {
 #[async_trait]
 impl AnalysisStore for InMemoryAnalysisStore {
     async fn insert_task(&self, task: &PersistedTask) -> anyhow::Result<()> {
-        self.tasks
-            .write()
-            .await
-            .insert(task.task_id.clone(), task.clone());
+        let mut tasks = self.tasks.write().await;
+        if tasks.contains_key(&task.task_id) {
+            anyhow::bail!("analysis task already exists");
+        }
+        tasks.insert(task.task_id.clone(), task.clone());
         Ok(())
     }
 
@@ -109,6 +110,22 @@ impl AnalysisStore for InMemoryAnalysisStore {
                 && t.status == TaskStatus::Completed
         });
         Ok(found.map(|t| t.task_id.clone()))
+    }
+
+    async fn find_cached_task_for_owner(
+        &self,
+        owner_username: &str,
+        symbol: &str,
+        analysis_date: &str,
+    ) -> anyhow::Result<Option<String>> {
+        let tasks = self.tasks.read().await;
+        let found = tasks.values().find(|task| {
+            task.owner_username == owner_username
+                && task.symbol == symbol
+                && task.analysis_date == analysis_date
+                && task.status == TaskStatus::Completed
+        });
+        Ok(found.map(|task| task.task_id.clone()))
     }
 
     async fn save_result(&self, task_id: &str, result: &AnalysisResult) -> anyhow::Result<()> {

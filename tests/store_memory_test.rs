@@ -144,6 +144,43 @@ async fn analysis_store_find_cached_task_not_found() {
 }
 
 #[tokio::test]
+async fn analysis_store_cache_lookup_is_scoped_to_the_owner() {
+    let store = InMemoryAnalysisStore::new();
+    let mut alice_task = make_task("alice-completed", "AAPL", TaskStatus::Completed);
+    alice_task.owner_username = "alice".to_string();
+    store.insert_task(&alice_task).await.unwrap();
+
+    let found = store
+        .find_cached_task_for_owner("bob", "AAPL", "2026-01-01")
+        .await
+        .unwrap();
+
+    assert_eq!(found, None);
+}
+
+#[tokio::test]
+async fn analysis_store_rejects_duplicate_task_ids_without_overwriting_the_owner() {
+    let store = InMemoryAnalysisStore::new();
+    let mut alice_task = make_task("logical-retry", "AAPL", TaskStatus::Pending);
+    alice_task.owner_username = "alice".to_string();
+    store.insert_task(&alice_task).await.unwrap();
+
+    let mut bob_task = make_task("logical-retry", "AAPL", TaskStatus::Pending);
+    bob_task.owner_username = "bob".to_string();
+    assert!(store.insert_task(&bob_task).await.is_err());
+
+    assert_eq!(
+        store
+            .get_task("logical-retry")
+            .await
+            .unwrap()
+            .unwrap()
+            .owner_username,
+        "alice"
+    );
+}
+
+#[tokio::test]
 async fn analysis_store_save_and_load_result() {
     let store = InMemoryAnalysisStore::new();
     let result = AnalysisResult {

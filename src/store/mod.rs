@@ -112,6 +112,25 @@ pub trait AnalysisStore: Send + Sync {
         analysis_date: &str,
     ) -> anyhow::Result<Option<String>>;
 
+    /// Find a completed cached task only when it belongs to the requesting owner.
+    ///
+    /// Implementations with an owner index should override this method. The default is
+    /// deliberately conservative: it never returns a cross-owner task.
+    async fn find_cached_task_for_owner(
+        &self,
+        owner_username: &str,
+        symbol: &str,
+        analysis_date: &str,
+    ) -> anyhow::Result<Option<String>> {
+        let Some(task_id) = self.find_cached_task(symbol, analysis_date).await? else {
+            return Ok(None);
+        };
+        let task = self.get_task(&task_id).await?;
+        Ok(task
+            .filter(|task| task.owner_username == owner_username)
+            .map(|task| task.task_id))
+    }
+
     // --- Result management ---
 
     /// Save a completed analysis result.

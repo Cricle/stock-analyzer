@@ -35,8 +35,26 @@ impl TaskManager {
         requested_task_id: Option<String>,
         execute: bool,
     ) -> anyhow::Result<String> {
+        let (task_id, _) = self
+            .create_task_with_idempotency(owner_username, req, requested_task_id, execute)
+            .await?;
+        Ok(task_id)
+    }
+
+    /// Create a task with an optional caller-provided idempotency key.
+    ///
+    /// The task primary key is the concurrency boundary. A duplicate key is only reused when
+    /// it belongs to the same owner; no checkpoints or lifecycle state are changed in that case.
+    pub async fn create_task_with_idempotency(
+        &self,
+        owner_username: &str,
+        req: SingleAnalysisRequest,
+        requested_task_id: Option<String>,
+        execute: bool,
+    ) -> anyhow::Result<(String, bool)> {
+        let has_requested_task_id = requested_task_id.is_some();
         // Daily cache check — return existing completed task for same symbol+date
-        if !req.force_refresh {
+        if !req.force_refresh && requested_task_id.is_none() {
             let symbol = req
                 .symbol
                 .as_deref()
@@ -51,11 +69,11 @@ impl TaskManager {
                 && !analysis_date.is_empty()
                 && let Some(cached_id) = self
                     .analysis_store
-                    .find_cached_task(symbol, analysis_date)
+                    .find_cached_task_for_owner(owner_username, symbol, analysis_date)
                     .await?
             {
                 tracing::info!(symbol, analysis_date, cached_id, "returning cached report");
-                return Ok(cached_id);
+                return Ok((cached_id, false));
             }
         }
 
@@ -106,17 +124,29 @@ impl TaskManager {
             created_at: now,
             updated_at: now,
         };
-        let _ = self
-            .checkpoint_store
-            .clear(&task.task_id, &task.symbol, &task.analysis_date)
-            .await;
-        let _ = self
-            .checkpoint_store
-            .clear_graph_runtime(&task.task_id, &task.symbol, &task.analysis_date)
-            .await;
-        self.analysis_store.insert_task(&task).await?;
+        let inserted = match self.analysis_store.insert_task(&task).await {
+            Ok(()) => true,
+            Err(error) if has_requested_task_id => {
+                let existing = self.analysis_store.get_task(&task_id).await?;
+                if existing.is_some_and(|existing| existing.owner_username == task.owner_username) {
+                    return Ok((task_id, false));
+                }
+                return Err(error);
+            }
+            Err(error) => return Err(error),
+        };
+        if inserted {
+            let _ = self
+                .checkpoint_store
+                .clear(&task.task_id, &task.symbol, &task.analysis_date)
+                .await;
+            let _ = self
+                .checkpoint_store
+                .clear_graph_runtime(&task.task_id, &task.symbol, &task.analysis_date)
+                .await;
+        }
         if !execute {
-            return Ok(task_id);
+            return Ok((task_id, true));
         }
         let tx = self.broadcaster(&task_id).await;
         let spawned_task_id = task_id.clone();
@@ -137,6 +167,6 @@ impl TaskManager {
             .write()
             .await
             .insert(task_id.clone(), handle.abort_handle());
-        Ok(task_id)
+        Ok((task_id, true))
     }
 }

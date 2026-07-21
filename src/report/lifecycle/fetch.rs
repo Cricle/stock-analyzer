@@ -61,6 +61,33 @@ fn captured_attempts(attempts: &Arc<Mutex<Vec<serde_json::Value>>>) -> Vec<serde
 impl TaskManager {
     pub(super) const MARKET_DATA_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
 
+    /// Fetch and evaluate the execution-critical data gate without entering the LLM graph.
+    pub async fn preflight_task(&self, task_id: &str) -> anyhow::Result<ReportQualityGate> {
+        let mut task = self
+            .analysis_store
+            .get_task(task_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("task not found for preflight"))?;
+        let core_data = self
+            .fetch_core_market_data(&task, analysis_news_start(&task.analysis_date))
+            .await;
+        let quality_gate = core_data.quality_gate;
+
+        task.quality_gate_json = Some(serde_json::to_value(&quality_gate)?);
+        if !quality_gate.passed {
+            task.status = crate::TaskStatus::BlockedData;
+            task.progress = 0;
+            task.current_step_name = Self::blocked_data_step_name().to_string();
+            task.current_step_description =
+                "Data quality blocked before market analysis".to_string();
+            task.message = "Analysis blocked before LLM execution".to_string();
+            task.error_message = Some(quality_gate.summary());
+        }
+        task.updated_at = Utc::now();
+        self.analysis_store.update_task(&task).await?;
+        Ok(quality_gate)
+    }
+
     /// Create a ParallelExecutor for data fetching.
     pub fn create_data_executor(&self) -> crate::data::pipeline::ParallelExecutor {
         let mut config = crate::data::pipeline::DataPipelineConfig::default();

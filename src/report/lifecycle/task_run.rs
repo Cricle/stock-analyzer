@@ -170,7 +170,6 @@ impl TaskManager {
             news_start = news_start_val.clone();
 
             let core_data = self.fetch_core_market_data(&task, news_start_val).await;
-            self.fetch_enrichment_and_store(&task, &mut result).await;
 
             result.artifacts.scenario_data.fetch_diagnosis = core_data.fetch_diagnosis;
             result.artifacts.scenario_data.technical_summary =
@@ -200,6 +199,10 @@ impl TaskManager {
             .await?;
             self.running_tasks.write().await.remove(&task_id);
             return Ok(());
+        }
+
+        if !is_resume_with_data {
+            self.fetch_enrichment_and_store(&task, &mut result).await;
         }
 
         // Calculate data quality scores

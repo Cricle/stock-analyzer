@@ -95,6 +95,23 @@ impl DataProvenance {
         }
     }
 
+    pub fn from_attempts(
+        provider: impl Into<String>,
+        source_timestamp: Option<String>,
+        record_count: usize,
+        used_cache: bool,
+        attempts: Vec<serde_json::Value>,
+    ) -> Self {
+        Self {
+            provider: provider.into(),
+            fetched_at: Utc::now().to_rfc3339(),
+            source_timestamp,
+            record_count,
+            used_cache,
+            attempts,
+        }
+    }
+
     pub fn failed(provider: impl Into<String>, error: impl Into<String>) -> Self {
         let provider = provider.into();
         let mut provenance = Self {
@@ -166,7 +183,11 @@ impl ReportQualityGate {
                 gate.provenance
                     .iter()
                     .filter_map(|(domain, provenance)| {
-                        DataDomain::from_str(domain).map(|domain| (domain, provenance.clone()))
+                        DataDomain::from_str(domain).map(|domain| {
+                            let mut provenance = provenance.clone();
+                            provenance.used_cache = true;
+                            (domain, provenance)
+                        })
                     })
                     .collect()
             })

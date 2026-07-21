@@ -1,4 +1,9 @@
 use std::collections::BTreeMap;
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicUsize, Ordering},
+};
+use std::time::Instant;
 
 use chrono::Utc;
 
@@ -19,6 +24,36 @@ pub(super) struct CoreMarketData {
     pub(super) quality_gate: ReportQualityGate,
 }
 
+fn record_retry_attempt(
+    attempts: &Arc<Mutex<Vec<serde_json::Value>>>,
+    provider: &str,
+    success: bool,
+    error: Option<String>,
+    duration_ms: u64,
+    retry: usize,
+) {
+    let mut attempt = serde_json::json!({
+        "provider": provider,
+        "success": success,
+        "duration_ms": duration_ms,
+        "retry": retry,
+    });
+    if let Some(error) = error {
+        attempt["error"] = serde_json::Value::String(error);
+    }
+    attempts
+        .lock()
+        .expect("retry attempts mutex poisoned")
+        .push(attempt);
+}
+
+fn captured_attempts(attempts: &Arc<Mutex<Vec<serde_json::Value>>>) -> Vec<serde_json::Value> {
+    attempts
+        .lock()
+        .expect("retry attempts mutex poisoned")
+        .clone()
+}
+
 // ---------------------------------------------------------------------------
 // TaskManager impl — data fetching methods
 // ---------------------------------------------------------------------------
@@ -28,7 +63,14 @@ impl TaskManager {
 
     /// Create a ParallelExecutor for data fetching.
     pub fn create_data_executor(&self) -> crate::data::pipeline::ParallelExecutor {
-        let config = crate::data::pipeline::DataPipelineConfig::default();
+        let mut config = crate::data::pipeline::DataPipelineConfig::default();
+        if self.market_data.ak().mock_uri.is_some() {
+            config.quote_timeout_ms = 50;
+            config.fundamentals_timeout_ms = 50;
+            config.news_timeout_ms = 50;
+            config.candles_timeout_ms = 50;
+            config.retry_base_delay_ms = 1;
+        }
         let validator = crate::data::validator::DataValidator;
         crate::data::pipeline::ParallelExecutor::new(config, validator)
     }
@@ -46,20 +88,138 @@ impl TaskManager {
             .clamp(1, 5000);
         let executor = self.create_data_executor();
         let symbol = &task.symbol;
-        let (_quote_result, _fundamentals, _news_items, _candles_result) = tokio::join!(
+        let fundamentals_source = self.market_data.fundamentals_source(symbol).to_string();
+        let news_source = self.market_data.news_source(symbol).to_string();
+        let fundamentals_attempts = Arc::new(Mutex::new(Vec::new()));
+        let news_attempts = Arc::new(Mutex::new(Vec::new()));
+        let fundamentals_retries = Arc::new(AtomicUsize::new(0));
+        let news_retries = Arc::new(AtomicUsize::new(0));
+        let fundamentals_timeout = std::time::Duration::from_millis(
+            executor
+                .config()
+                .fundamentals_timeout_ms
+                .saturating_sub(1)
+                .max(1),
+        );
+        let news_timeout = std::time::Duration::from_millis(
+            executor.config().news_timeout_ms.saturating_sub(1).max(1),
+        );
+        let fundamentals_client = self.market_data.clone();
+        let news_client = self.market_data.clone();
+        let fundamentals_symbol = task.symbol.clone();
+        let news_symbol = task.symbol.clone();
+        let news_end_date = task.analysis_date.clone();
+        let (_quote_result, _fundamentals, _news_result, _candles_result) = tokio::join!(
             executor.fetch_with_retry("quote", || async {
                 Ok(self.market_data.fetch_quote_with_rotation(symbol).await)
             }),
-            executor.fetch_with_retry("fundamentals", || {
-                self.market_data.fetch_fundamentals(symbol)
+            executor.fetch_with_retry("fundamentals", {
+                let attempts = fundamentals_attempts.clone();
+                let retries = fundamentals_retries.clone();
+                let client = fundamentals_client.clone();
+                let symbol = fundamentals_symbol.clone();
+                let provider = fundamentals_source.clone();
+                move || {
+                    let attempts = attempts.clone();
+                    let client = client.clone();
+                    let symbol = symbol.clone();
+                    let provider = provider.clone();
+                    let retry = retries.fetch_add(1, Ordering::Relaxed) + 1;
+                    async move {
+                        let started_at = Instant::now();
+                        let result = tokio::time::timeout(
+                            fundamentals_timeout,
+                            client.fetch_fundamentals(&symbol),
+                        )
+                        .await
+                        .map_err(|_| anyhow::anyhow!("fundamentals fetch timed out"))
+                        .and_then(|result| result);
+                        record_retry_attempt(
+                            &attempts,
+                            &provider,
+                            result.is_ok(),
+                            result.as_ref().err().map(ToString::to_string),
+                            started_at.elapsed().as_millis() as u64,
+                            retry,
+                        );
+                        result
+                    }
+                }
             }),
-            executor.fetch_with_retry("news", || {
-                self.market_data.fetch_news(
-                    symbol,
-                    15,
-                    news_start.as_deref(),
-                    Some(&task.analysis_date),
-                )
+            executor.fetch_with_retry("news", {
+                let attempts = news_attempts.clone();
+                let retries = news_retries.clone();
+                let client = news_client.clone();
+                let symbol = news_symbol.clone();
+                let provider = news_source.clone();
+                let start_date = news_start.clone();
+                let end_date = news_end_date.clone();
+                move || {
+                    let attempts = attempts.clone();
+                    let client = client.clone();
+                    let symbol = symbol.clone();
+                    let provider = provider.clone();
+                    let start_date = start_date.clone();
+                    let end_date = end_date.clone();
+                    let retry = retries.fetch_add(1, Ordering::Relaxed) + 1;
+                    async move {
+                        let started_at = Instant::now();
+                        let result = tokio::time::timeout(
+                            news_timeout,
+                            client.fetch_news_with_diagnostics(
+                                &symbol,
+                                15,
+                                start_date.as_deref(),
+                                Some(&end_date),
+                            ),
+                        )
+                        .await
+                        .map_err(|_| anyhow::anyhow!("company news fetch timed out"))
+                        .and_then(|result| result);
+                        match &result {
+                            Ok(news) if !news.attempts.is_empty() => {
+                                for attempt in &news.attempts {
+                                    let mut value = serde_json::json!({
+                                        "provider": attempt.source,
+                                        "success": attempt.success,
+                                        "item_count": attempt.item_count,
+                                        "duration_ms": started_at.elapsed().as_millis() as u64,
+                                        "retry": retry,
+                                    });
+                                    if let Some(query) = &attempt.query {
+                                        value["query"] = serde_json::Value::String(query.clone());
+                                    }
+                                    if let Some(error) = &attempt.error {
+                                        value["error"] = serde_json::Value::String(error.clone());
+                                    }
+                                    attempts
+                                        .lock()
+                                        .expect("retry attempts mutex poisoned")
+                                        .push(value);
+                                }
+                            }
+                            Ok(news) => record_retry_attempt(
+                                &attempts,
+                                &provider,
+                                !news.items.is_empty(),
+                                news.items
+                                    .is_empty()
+                                    .then(|| "provider returned empty data".to_string()),
+                                started_at.elapsed().as_millis() as u64,
+                                retry,
+                            ),
+                            Err(error) => record_retry_attempt(
+                                &attempts,
+                                &provider,
+                                false,
+                                Some(error.to_string()),
+                                started_at.elapsed().as_millis() as u64,
+                                retry,
+                            ),
+                        }
+                        result
+                    }
+                }
             }),
             executor.fetch_with_retry("candles", || async {
                 Ok(self
@@ -90,11 +250,13 @@ impl TaskManager {
             );
         }
         let mut fundamentals = _fundamentals;
-        let mut fundamentals_provenance = if fundamentals.is_some() {
-            DataProvenance::successful("market_data", None, 1, false)
-        } else {
-            DataProvenance::failed("market_data", "primary fundamentals unavailable")
-        };
+        let mut fundamentals_provenance = DataProvenance::from_attempts(
+            fundamentals_source,
+            None,
+            usize::from(fundamentals.is_some()),
+            false,
+            captured_attempts(&fundamentals_attempts),
+        );
 
         // Fallback for US equity when primary fundamentals are missing
         if fundamentals.is_none()
@@ -142,17 +304,26 @@ impl TaskManager {
             }
         }
 
-        let mut news_items = _news_items.unwrap_or_default();
-        let mut news_provenance = if news_items.is_empty() {
-            DataProvenance::failed("market_data", "primary company news unavailable")
-        } else {
-            DataProvenance::successful(
-                "market_data",
-                news_items.first().map(|item| item.published_at.clone()),
-                news_items.len(),
-                false,
-            )
+        let (mut news_items, news_provider) = match _news_result {
+            Some(news) => {
+                let provider = news
+                    .attempts
+                    .iter()
+                    .rev()
+                    .find(|attempt| attempt.success)
+                    .map(|attempt| attempt.source.clone())
+                    .unwrap_or_else(|| news_source.clone());
+                (news.items, provider)
+            }
+            None => (Vec::new(), news_source.clone()),
         };
+        let mut news_provenance = DataProvenance::from_attempts(
+            news_provider,
+            news_items.first().map(|item| item.published_at.clone()),
+            news_items.len(),
+            false,
+            captured_attempts(&news_attempts),
+        );
 
         // Fallback for US equity when news is empty — try Finnhub company news
         if news_items.is_empty()

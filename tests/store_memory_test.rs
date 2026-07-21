@@ -32,6 +32,12 @@ fn make_task(id: &str, symbol: &str, status: TaskStatus) -> PersistedTask {
         message: String::new(),
         error_message: None,
         llm_token_usage: Default::default(),
+        quality_gate_json: None,
+        charge_state: "uncharged".to_string(),
+        charge_ledger_id: None,
+        refund_ledger_id: None,
+        retry_of_task_id: None,
+        logical_request_id: None,
         created_at: Utc::now(),
         updated_at: Utc::now(),
     }

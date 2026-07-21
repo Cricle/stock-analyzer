@@ -70,7 +70,7 @@ fn fallback_provider_is_preserved_as_provenance() {
 }
 
 #[test]
-fn empty_company_news_is_blocking() {
+fn empty_company_news_is_degraded_but_not_blocking() {
     let gate = evaluate_report_quality_gate(&ReportDataAvailability {
         quote: true,
         candle_count: 300,
@@ -79,7 +79,8 @@ fn empty_company_news_is_blocking() {
         provenance: BTreeMap::new(),
     });
 
-    assert_eq!(gate.blocking_domains, vec![DataDomain::CompanyNews]);
+    assert!(gate.passed);
+    assert!(gate.blocking_domains.is_empty());
 }
 
 #[test]
@@ -229,7 +230,6 @@ fn cached_data_without_persisted_provenance_is_conservatively_blocked() {
             DataDomain::Quote,
             DataDomain::Candles,
             DataDomain::Fundamentals,
-            DataDomain::CompanyNews,
         ]
     );
 }

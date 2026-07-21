@@ -290,14 +290,8 @@ fn evaluate_quality_gate(
     ) {
         blocking_domains.push(DataDomain::Fundamentals);
     }
-    if !domain_is_usable(
-        DataDomain::CompanyNews,
-        availability.company_news_count > 0,
-        &availability.provenance,
-        require_provenance,
-    ) {
-        blocking_domains.push(DataDomain::CompanyNews);
-    }
+    // News availability changes the confidence of the narrative, but must not
+    // prevent users from receiving an analysis backed by core market evidence.
 
     let provenance = availability
         .provenance

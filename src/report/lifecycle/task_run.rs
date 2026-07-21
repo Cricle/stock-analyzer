@@ -8,21 +8,6 @@ use super::{build_user_context, build_user_context_prompt};
 use crate::{AnalysisResult, PersistedTask, SingleAnalysisRequest, TaskEvent, TaskStatus};
 use crate::{TaskManager, TaskRunParams};
 
-fn quality_gate_blocks_execution(quality_gate: &super::ReportQualityGate) -> bool {
-    !quality_gate.passed
-}
-
-#[cfg(test)]
-mod tests {
-    use super::quality_gate_blocks_execution;
-    use crate::report::lifecycle::ReportQualityGate;
-
-    #[test]
-    fn failed_quality_gate_blocks_before_llm_execution() {
-        assert!(quality_gate_blocks_execution(&ReportQualityGate::default()));
-    }
-}
-
 // ---------------------------------------------------------------------------
 // TaskManager impl — task lifecycle methods
 // ---------------------------------------------------------------------------
@@ -198,7 +183,9 @@ impl TaskManager {
             quality_gate = core_data.quality_gate;
         }
 
-        if quality_gate_blocks_execution(&quality_gate) {
+        self.persist_quality_gate(&task_id, &quality_gate).await?;
+
+        if !quality_gate.passed {
             let summary = quality_gate.summary();
             self.analysis_store.save_result(&task_id, &result).await?;
             self.update_task(
@@ -488,6 +475,21 @@ impl TaskManager {
 }
 
 impl TaskManager {
+    async fn persist_quality_gate(
+        &self,
+        task_id: &str,
+        quality_gate: &super::ReportQualityGate,
+    ) -> anyhow::Result<()> {
+        let mut task = self
+            .analysis_store
+            .get_task(task_id)
+            .await?
+            .context("task not found while persisting quality gate")?;
+        task.quality_gate_json = Some(serde_json::to_value(quality_gate)?);
+        task.updated_at = Utc::now();
+        self.analysis_store.update_task(&task).await
+    }
+
     pub(super) async fn publish_failure(
         &self,
         task_id: &str,

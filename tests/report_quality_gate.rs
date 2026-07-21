@@ -1,9 +1,12 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use chrono::{Duration, Utc};
 
 use stock_analyzer::{
-    TaskStatus,
+    AnalysisResult, AnalysisStore, InMemoryAnalysisStore, InMemoryCacheStore,
+    InMemoryCheckpointStore, QuoteSnapshot, TaskRunParams, TaskStatus,
+    checkpoint::{TaskCheckpoint, TaskCheckpointStore},
     report::lifecycle::{
         DataDomain, DataProvenance, ReportDataAvailability, ReportQualityGate,
         evaluate_report_quality_gate,
@@ -209,6 +212,149 @@ fn persisted_quality_gate_is_recovered_from_fetch_diagnosis() {
 
     assert!(restored.passed);
     assert_eq!(restored.provenance["quote"].provider, "primary_quote");
+}
+
+#[test]
+fn resumed_gate_failure_persists_blocked_task_and_progress_event_before_llm() {
+    std::thread::Builder::new()
+        .name("quality-gate-lifecycle-test".to_string())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(|| {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+                .block_on(
+                    resumed_gate_failure_persists_blocked_task_and_progress_event_before_llm_async(
+                    ),
+                )
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+async fn resumed_gate_failure_persists_blocked_task_and_progress_event_before_llm_async() {
+    let data_dir = tempfile::tempdir().unwrap();
+    let analysis_store: Arc<dyn AnalysisStore> = Arc::new(InMemoryAnalysisStore::new());
+    let checkpoint_store = TaskCheckpointStore::new(Arc::new(InMemoryCheckpointStore::new()));
+    let manager = stock_analyzer::TaskManager::new(
+        analysis_store,
+        Arc::new(InMemoryCacheStore::new()),
+        None,
+        None,
+        stock_analyzer::MarketDataClient::new().await.unwrap(),
+        data_dir.path().to_str().unwrap().to_string(),
+        stock_analyzer::memory::TradingMemoryLog::new(data_dir.path().to_str().unwrap(), 10)
+            .unwrap(),
+        checkpoint_store,
+        1,
+        1,
+        stock_analyzer::telemetry::init_telemetry(),
+    )
+    .await
+    .unwrap();
+    let task_id = manager
+        .create_task_with_id(
+            "quality-gate-test",
+            stock_analyzer::SingleAnalysisRequest {
+                symbol: Some("AAPL".to_string()),
+                stock_code: None,
+                stock_name: Some("Apple".to_string()),
+                parameters: Some(stock_analyzer::AnalysisParameters {
+                    market_type: Some("US".to_string()),
+                    analysis_date: Some("2026-07-21".to_string()),
+                    ..Default::default()
+                }),
+                force_refresh: true,
+            },
+            Some("quality-gate-resume".to_string()),
+            false,
+        )
+        .await
+        .unwrap();
+    let task = manager
+        .analysis_store()
+        .get_task(&task_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut result: AnalysisResult = serde_json::from_value(serde_json::json!({
+        "task_id": task_id,
+        "report_id": "report-quality-gate-resume",
+        "symbol": "AAPL",
+        "stock_name": "Apple",
+        "analysis_date": "2026-07-21",
+        "market_type": "US",
+        "created_at": Utc::now().to_rfc3339(),
+    }))
+    .unwrap();
+    result.artifacts.scenario_data.quote = Some(QuoteSnapshot {
+        symbol: "AAPL".to_string(),
+        date: "2026-07-21".to_string(),
+        open: 200.0,
+        high: 202.0,
+        low: 199.0,
+        close: 201.0,
+        volume: 1_000,
+    });
+    manager
+        .checkpoint_store
+        .save(&TaskCheckpoint {
+            task_id: task_id.clone(),
+            symbol: task.symbol.clone(),
+            analysis_date: task.analysis_date.clone(),
+            stage: "market".to_string(),
+            node: "market".to_string(),
+            result,
+            step: 1,
+        })
+        .await
+        .unwrap();
+
+    let mut events = manager.subscribe(&task_id).await;
+    manager
+        .execute_existing_task(
+            task_id.clone(),
+            TaskRunParams::for_reflection("2026-07-21".to_string(), "en"),
+        )
+        .await
+        .unwrap();
+
+    let blocked_event = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            let event = events.recv().await.unwrap();
+            if event.status == TaskStatus::BlockedData {
+                return event;
+            }
+        }
+    })
+    .await
+    .expect("resumed gate failure should publish a terminal progress event");
+    let persisted_task = manager
+        .analysis_store()
+        .get_task(&task_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let persisted_gate: ReportQualityGate = serde_json::from_value(
+        persisted_task
+            .quality_gate_json
+            .clone()
+            .expect("evaluated quality gate should be persisted"),
+    )
+    .unwrap();
+
+    assert_eq!(persisted_task.status, TaskStatus::BlockedData);
+    assert!(persisted_task.status.is_terminal());
+    assert_eq!(blocked_event.status, TaskStatus::BlockedData);
+    assert_eq!(blocked_event.event_type, "progress_update");
+    assert!(!persisted_gate.passed);
+    assert!(
+        persisted_gate
+            .blocking_domains
+            .contains(&DataDomain::Fundamentals)
+    );
 }
 
 #[test]

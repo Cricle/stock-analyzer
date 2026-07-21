@@ -27,6 +27,16 @@ impl DataDomain {
             Self::CompanyNews => "company_news",
         }
     }
+
+    fn from_str(value: &str) -> Option<Self> {
+        match value {
+            "quote" => Some(Self::Quote),
+            "candles" => Some(Self::Candles),
+            "fundamentals" => Some(Self::Fundamentals),
+            "company_news" => Some(Self::CompanyNews),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -46,14 +56,17 @@ impl DataProvenance {
         record_count: usize,
         used_cache: bool,
     ) -> Self {
-        Self {
-            provider: provider.into(),
+        let provider = provider.into();
+        let mut provenance = Self {
+            provider: provider.clone(),
             fetched_at: Utc::now().to_rfc3339(),
             source_timestamp,
             record_count,
             used_cache,
             attempts: Vec::new(),
-        }
+        };
+        provenance.record_successful_attempt(provider);
+        provenance
     }
 
     pub fn from_diagnosis(
@@ -84,16 +97,29 @@ impl DataProvenance {
 
     pub fn failed(provider: impl Into<String>, error: impl Into<String>) -> Self {
         let provider = provider.into();
-        Self {
+        let mut provenance = Self {
             provider: provider.clone(),
             fetched_at: Utc::now().to_rfc3339(),
-            attempts: vec![serde_json::json!({
-                "provider": provider,
-                "success": false,
-                "error": error.into(),
-            })],
+            attempts: Vec::new(),
             ..Self::default()
-        }
+        };
+        provenance.record_failed_attempt(provider, error);
+        provenance
+    }
+
+    pub fn record_successful_attempt(&mut self, provider: impl Into<String>) {
+        self.attempts.push(serde_json::json!({
+            "provider": provider.into(),
+            "success": true,
+        }));
+    }
+
+    pub fn record_failed_attempt(&mut self, provider: impl Into<String>, error: impl Into<String>) {
+        self.attempts.push(serde_json::json!({
+            "provider": provider.into(),
+            "success": false,
+            "error": error.into(),
+        }));
     }
 }
 
@@ -117,6 +143,35 @@ pub struct ReportQualityGate {
 impl ReportQualityGate {
     pub fn from_availability(availability: ReportDataAvailability) -> Self {
         evaluate_report_quality_gate(&availability)
+    }
+
+    pub fn from_fetch_diagnosis(fetch_diagnosis: &[serde_json::Value]) -> Option<Self> {
+        fetch_diagnosis.iter().rev().find_map(|entry| {
+            entry
+                .get("passed")?
+                .as_bool()
+                .and_then(|_| entry.get("blocking_domains"))?
+                .as_array()?;
+            entry.get("provenance")?.as_object()?;
+            serde_json::from_value(entry.clone()).ok()
+        })
+    }
+
+    pub fn from_cached_availability(
+        mut availability: ReportDataAvailability,
+        persisted_gate: Option<&ReportQualityGate>,
+    ) -> Self {
+        availability.provenance = persisted_gate
+            .map(|gate| {
+                gate.provenance
+                    .iter()
+                    .filter_map(|(domain, provenance)| {
+                        DataDomain::from_str(domain).map(|domain| (domain, provenance.clone()))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        evaluate_quality_gate(&availability, true)
     }
 
     pub fn from_acquired_data(
@@ -155,11 +210,19 @@ impl ReportQualityGate {
 }
 
 pub fn evaluate_report_quality_gate(availability: &ReportDataAvailability) -> ReportQualityGate {
+    evaluate_quality_gate(availability, false)
+}
+
+fn evaluate_quality_gate(
+    availability: &ReportDataAvailability,
+    require_provenance: bool,
+) -> ReportQualityGate {
     let mut blocking_domains = Vec::new();
     if !domain_is_usable(
         DataDomain::Quote,
         availability.quote,
         &availability.provenance,
+        require_provenance,
     ) {
         blocking_domains.push(DataDomain::Quote);
     }
@@ -167,6 +230,7 @@ pub fn evaluate_report_quality_gate(availability: &ReportDataAvailability) -> Re
         DataDomain::Candles,
         availability.candle_count >= MINIMUM_CANDLE_COUNT,
         &availability.provenance,
+        require_provenance,
     ) {
         blocking_domains.push(DataDomain::Candles);
     }
@@ -174,6 +238,7 @@ pub fn evaluate_report_quality_gate(availability: &ReportDataAvailability) -> Re
         DataDomain::Fundamentals,
         availability.fundamentals,
         &availability.provenance,
+        require_provenance,
     ) {
         blocking_domains.push(DataDomain::Fundamentals);
     }
@@ -181,6 +246,7 @@ pub fn evaluate_report_quality_gate(availability: &ReportDataAvailability) -> Re
         DataDomain::CompanyNews,
         availability.company_news_count > 0,
         &availability.provenance,
+        require_provenance,
     ) {
         blocking_domains.push(DataDomain::CompanyNews);
     }
@@ -202,11 +268,13 @@ fn domain_is_usable(
     domain: DataDomain,
     available: bool,
     provenance: &BTreeMap<DataDomain, DataProvenance>,
+    require_provenance: bool,
 ) -> bool {
     available
-        && provenance.get(&domain).is_none_or(|source| {
+        && provenance.get(&domain).is_some_and(|source| {
             !source.used_cache || source_timestamp_is_fresh(source.source_timestamp.as_deref())
         })
+        || (available && !require_provenance && !provenance.contains_key(&domain))
 }
 
 fn source_timestamp_is_fresh(source_timestamp: Option<&str>) -> bool {

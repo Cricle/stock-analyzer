@@ -4,6 +4,30 @@ use crate::{
 };
 use crate::{TaskManager, TaskRunParams};
 
+#[cfg(test)]
+mod tests {
+    use super::TaskManager;
+    use crate::{StepStatus, TaskStatus};
+
+    #[test]
+    fn blocked_data_marks_the_pipeline_step_as_error() {
+        let steps = TaskManager::steps_for_progress(
+            0,
+            &TaskStatus::BlockedData,
+            TaskManager::blocked_data_step_name(),
+            None,
+            None,
+        );
+
+        assert!(matches!(steps[0].status, StepStatus::Error));
+        assert!(
+            steps[1..]
+                .iter()
+                .all(|step| matches!(step.status, StepStatus::Pending))
+        );
+    }
+}
+
 impl TaskManager {
     pub(super) async fn resolve_pending_entries(
         &self,

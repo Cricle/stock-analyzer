@@ -39,6 +39,10 @@ pub const TASK_STEPS: [(&str, &str, i32); 5] = [
     ),
 ];
 
+fn task_wait_is_terminal(status: &crate::TaskStatus) -> bool {
+    status.is_terminal()
+}
+
 /// Parameters for running an analysis task.
 #[derive(Clone)]
 pub struct TaskRunParams {
@@ -154,7 +158,28 @@ pub struct TaskManager {
     pub running_tasks: Arc<RwLock<HashMap<String, AbortHandle>>>,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::{TASK_STEPS, TaskManager, task_wait_is_terminal};
+    use crate::TaskStatus;
+
+    #[test]
+    fn wait_loops_stop_for_blocked_task_statuses() {
+        assert!(task_wait_is_terminal(&TaskStatus::BlockedData));
+        assert!(task_wait_is_terminal(&TaskStatus::BlockedLlm));
+    }
+
+    #[test]
+    fn blocked_data_uses_a_pipeline_step() {
+        assert_eq!(TaskManager::blocked_data_step_name(), TASK_STEPS[0].0);
+    }
+}
+
 impl TaskManager {
+    pub(crate) fn blocked_data_step_name() -> &'static str {
+        TASK_STEPS[0].0
+    }
+
     /// Create a new `TaskManager` with the provided configuration.
     pub async fn new(
         analysis_store: Arc<dyn crate::AnalysisStore>,
@@ -342,9 +367,8 @@ impl TaskManager {
                 .await?
                 .ok_or_else(|| anyhow::anyhow!("task {task_id} not found"))?;
 
-            match task.status {
-                crate::TaskStatus::Completed | crate::TaskStatus::Failed => return Ok(task),
-                _ => {}
+            if task_wait_is_terminal(&task.status) {
+                return Ok(task);
             }
 
             if std::time::Instant::now() > deadline {
@@ -375,10 +399,10 @@ impl TaskManager {
                 .await?
                 .ok_or_else(|| anyhow::anyhow!("task {task_id} not found"))?;
 
-            match task.status {
-                crate::TaskStatus::Completed | crate::TaskStatus::Failed => return Ok(task),
-                _ => on_progress(&task),
+            if task_wait_is_terminal(&task.status) {
+                return Ok(task);
             }
+            on_progress(&task);
 
             if std::time::Instant::now() > deadline {
                 return Ok(task);

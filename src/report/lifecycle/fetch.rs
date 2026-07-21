@@ -115,18 +115,11 @@ impl TaskManager {
                     fundamentals = Some(snapshot);
                     let mut fallback = DataProvenance::successful("yahoo", None, 1, false);
                     fallback.attempts = fundamentals_provenance.attempts;
-                    fallback.attempts.push(serde_json::json!({
-                        "provider": "yahoo",
-                        "success": true,
-                    }));
+                    fallback.record_successful_attempt("yahoo");
                     fundamentals_provenance = fallback;
                 }
                 Err(error) => {
-                    fundamentals_provenance.attempts.push(serde_json::json!({
-                        "provider": "yahoo",
-                        "success": false,
-                        "error": error.to_string(),
-                    }));
+                    fundamentals_provenance.record_failed_attempt("yahoo", error.to_string());
                 }
             }
             if fundamentals.is_none() {
@@ -139,18 +132,11 @@ impl TaskManager {
                         fundamentals = Some(snapshot);
                         let mut fallback = DataProvenance::successful("finnhub", None, 1, false);
                         fallback.attempts = fundamentals_provenance.attempts;
-                        fallback.attempts.push(serde_json::json!({
-                            "provider": "finnhub",
-                            "success": true,
-                        }));
+                        fallback.record_successful_attempt("finnhub");
                         fundamentals_provenance = fallback;
                     }
                     Err(error) => {
-                        fundamentals_provenance.attempts.push(serde_json::json!({
-                            "provider": "finnhub",
-                            "success": false,
-                            "error": error.to_string(),
-                        }));
+                        fundamentals_provenance.record_failed_attempt("finnhub", error.to_string());
                     }
                 }
             }
@@ -202,14 +188,11 @@ impl TaskManager {
                 }
                 Ok(_) => {
                     tracing::debug!(symbol = %task.symbol, "Finnhub company news returned no items");
+                    news_provenance.record_failed_attempt("finnhub", "empty response");
                 }
                 Err(e) => {
                     tracing::debug!(symbol = %task.symbol, error = %e, "Finnhub company news fallback failed");
-                    news_provenance.attempts.push(serde_json::json!({
-                        "provider": "finnhub",
-                        "success": false,
-                        "error": e.to_string(),
-                    }));
+                    news_provenance.record_failed_attempt("finnhub", e.to_string());
                 }
             }
         }

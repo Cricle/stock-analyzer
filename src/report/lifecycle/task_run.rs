@@ -8,6 +8,21 @@ use super::{build_user_context, build_user_context_prompt};
 use crate::{AnalysisResult, PersistedTask, SingleAnalysisRequest, TaskEvent, TaskStatus};
 use crate::{TaskManager, TaskRunParams};
 
+fn quality_gate_blocks_execution(quality_gate: &super::ReportQualityGate) -> bool {
+    !quality_gate.passed
+}
+
+#[cfg(test)]
+mod tests {
+    use super::quality_gate_blocks_execution;
+    use crate::report::lifecycle::ReportQualityGate;
+
+    #[test]
+    fn failed_quality_gate_blocks_before_llm_execution() {
+        assert!(quality_gate_blocks_execution(&ReportQualityGate::default()));
+    }
+}
+
 // ---------------------------------------------------------------------------
 // TaskManager impl — task lifecycle methods
 // ---------------------------------------------------------------------------
@@ -144,13 +159,25 @@ impl TaskManager {
                 .company_news_start_date
                 .clone();
             market_chart = result.artifacts.market_chart.clone();
-            quality_gate = super::ReportQualityGate::from_acquired_data(
-                &quote,
-                &market_chart.candles,
-                &fundamentals,
-                &news_items,
-                Default::default(),
-                Utc::now(),
+            let persisted_gate = super::ReportQualityGate::from_fetch_diagnosis(
+                &result.artifacts.scenario_data.fetch_diagnosis,
+            );
+            if persisted_gate.is_none() {
+                tracing::warn!(
+                    task_id = %task.task_id,
+                    symbol = %task.symbol,
+                    "resumed market data has no persisted quality-gate provenance"
+                );
+            }
+            quality_gate = super::ReportQualityGate::from_cached_availability(
+                super::ReportDataAvailability {
+                    quote: quote.is_some(),
+                    candle_count: market_chart.candles.len(),
+                    fundamentals: fundamentals.is_some(),
+                    company_news_count: news_items.len(),
+                    provenance: Default::default(),
+                },
+                persisted_gate.as_ref(),
             );
         } else {
             // Fresh run — fetch market data via helpers
@@ -171,15 +198,15 @@ impl TaskManager {
             quality_gate = core_data.quality_gate;
         }
 
-        if !quality_gate.passed {
+        if quality_gate_blocks_execution(&quality_gate) {
             let summary = quality_gate.summary();
             self.analysis_store.save_result(&task_id, &result).await?;
             self.update_task(
                 &task_id,
                 TaskStatus::BlockedData,
-                100,
-                "Data quality blocked",
-                "Critical report evidence could not be acquired",
+                0,
+                Self::blocked_data_step_name(),
+                "Data quality blocked before market analysis",
                 "Analysis blocked before LLM execution",
                 Some(summary),
             )

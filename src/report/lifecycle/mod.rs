@@ -10,6 +10,7 @@ pub use quality_gate::{
     DataDomain, DataProvenance, ReportDataAvailability, ReportQualityGate,
     evaluate_report_quality_gate,
 };
+pub use task_create::TaskCreationOutcome;
 
 use crate::{AnalysisParameters, AnalysisUserContext};
 

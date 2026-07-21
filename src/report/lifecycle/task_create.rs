@@ -5,6 +5,14 @@ use uuid::Uuid;
 use crate::TaskManager;
 use crate::{PersistedTask, SingleAnalysisRequest, TaskStatus};
 
+/// How an idempotent task-creation request resolved.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TaskCreationOutcome {
+    Created,
+    ReusedCompletedCache,
+    ReusedIdempotencyKey,
+}
+
 impl TaskManager {
     pub async fn create_task_and_run_blocking(
         &self,
@@ -51,7 +59,7 @@ impl TaskManager {
         req: SingleAnalysisRequest,
         requested_task_id: Option<String>,
         execute: bool,
-    ) -> anyhow::Result<(String, bool)> {
+    ) -> anyhow::Result<(String, TaskCreationOutcome)> {
         let has_requested_task_id = requested_task_id.is_some();
         // Daily cache check — return existing completed task for same symbol+date
         if !req.force_refresh && requested_task_id.is_none() {
@@ -73,7 +81,7 @@ impl TaskManager {
                     .await?
             {
                 tracing::info!(symbol, analysis_date, cached_id, "returning cached report");
-                return Ok((cached_id, false));
+                return Ok((cached_id, TaskCreationOutcome::ReusedCompletedCache));
             }
         }
 
@@ -129,7 +137,7 @@ impl TaskManager {
             Err(error) if has_requested_task_id => {
                 let existing = self.analysis_store.get_task(&task_id).await?;
                 if existing.is_some_and(|existing| existing.owner_username == task.owner_username) {
-                    return Ok((task_id, false));
+                    return Ok((task_id, TaskCreationOutcome::ReusedIdempotencyKey));
                 }
                 return Err(error);
             }
@@ -146,7 +154,7 @@ impl TaskManager {
                 .await;
         }
         if !execute {
-            return Ok((task_id, true));
+            return Ok((task_id, TaskCreationOutcome::Created));
         }
         let tx = self.broadcaster(&task_id).await;
         let spawned_task_id = task_id.clone();
@@ -158,7 +166,11 @@ impl TaskManager {
             if let Err(error) = this.run_task(spawned_task_id.clone(), task_params).await {
                 tracing::error!("task {} failed: {:?}", spawned_task_id, error);
                 let _ = this
-                    .publish_failure(&spawned_task_id, format!("Analysis task failed: {error:#}"))
+                    .publish_failure(
+                        &spawned_task_id,
+                        format!("Analysis task failed: {error:#}"),
+                        None,
+                    )
                     .await;
             }
             drop(tx);
@@ -167,6 +179,6 @@ impl TaskManager {
             .write()
             .await
             .insert(task_id.clone(), handle.abort_handle());
-        Ok((task_id, true))
+        Ok((task_id, TaskCreationOutcome::Created))
     }
 }

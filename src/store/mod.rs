@@ -91,6 +91,28 @@ pub trait AnalysisStore: Send + Sync {
     /// Update an existing task.
     async fn update_task(&self, task: &PersistedTask) -> anyhow::Result<()>;
 
+    /// Persist an execution-time quality gate without replacing unrelated lifecycle state.
+    async fn persist_task_quality_gate(
+        &self,
+        task_id: &str,
+        quality_gate_json: serde_json::Value,
+    ) -> anyhow::Result<()> {
+        let mut task = self
+            .get_task(task_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("task not found"))?;
+        task.quality_gate_json = Some(quality_gate_json);
+        task.updated_at = chrono::Utc::now();
+        self.update_task(&task).await
+    }
+
+    /// Refund a terminal analysis charge when the backing store owns billing.
+    ///
+    /// Stores without billing lifecycle state intentionally leave this as a no-op.
+    async fn refund_task_charge(&self, _task_id: &str, _reason: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+
     /// Get a task by ID.
     async fn get_task(&self, task_id: &str) -> anyhow::Result<Option<PersistedTask>>;
 

@@ -63,6 +63,20 @@ impl AnalysisStore for InMemoryAnalysisStore {
         Ok(())
     }
 
+    async fn persist_task_quality_gate(
+        &self,
+        task_id: &str,
+        quality_gate_json: serde_json::Value,
+    ) -> anyhow::Result<()> {
+        let mut tasks = self.tasks.write().await;
+        let task = tasks
+            .get_mut(task_id)
+            .ok_or_else(|| anyhow::anyhow!("task not found"))?;
+        task.quality_gate_json = Some(quality_gate_json);
+        task.updated_at = chrono::Utc::now();
+        Ok(())
+    }
+
     async fn get_task(&self, task_id: &str) -> anyhow::Result<Option<PersistedTask>> {
         Ok(self.tasks.read().await.get(task_id).cloned())
     }

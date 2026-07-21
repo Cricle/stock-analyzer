@@ -167,6 +167,7 @@ pub use scoring::{
     history_requires_caution, score_setup_direction_alignment,
 };
 
+pub use report::lifecycle::TaskCreationOutcome;
 pub use task_manager::TASK_STEPS;
 pub use task_manager::{TaskManager, TaskRunParams};
 pub use telemetry::{SharedTelemetry, TelemetryState};
@@ -187,6 +188,7 @@ pub use types::{
 ///
 /// TAR references `stock_analyzer::engine::*` which resolves here.
 pub mod engine {
+    pub use crate::TaskCreationOutcome;
     pub use crate::checkpoint;
     pub use crate::data;
     pub use crate::env_config as config;

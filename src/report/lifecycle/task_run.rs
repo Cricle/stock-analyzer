@@ -56,7 +56,7 @@ impl TaskManager {
             if let Err(error) = this.run_task(task_id.clone(), params).await {
                 tracing::error!("worker task {} failed: {:?}", task_id, error);
                 let _ = this
-                    .publish_failure(&task_id, format!("Analysis task failed: {error:#}"))
+                    .publish_failure(&task_id, format!("Analysis task failed: {error:#}"), None)
                     .await;
             }
         });
@@ -483,39 +483,37 @@ impl TaskManager {
         task_id: &str,
         quality_gate: &super::ReportQualityGate,
     ) -> anyhow::Result<()> {
-        let mut task = self
-            .analysis_store
-            .get_task(task_id)
-            .await?
-            .context("task not found while persisting quality gate")?;
-        task.quality_gate_json = Some(serde_json::to_value(quality_gate)?);
-        task.updated_at = Utc::now();
-        self.analysis_store.update_task(&task).await
+        self.analysis_store
+            .persist_task_quality_gate(task_id, serde_json::to_value(quality_gate)?)
+            .await
     }
 
     pub(super) async fn publish_failure(
         &self,
         task_id: &str,
         error_message: String,
+        failure_reason: Option<&'static str>,
     ) -> anyhow::Result<()> {
         let task = self.analysis_store.get_task(task_id).await?;
         let market_type = task
             .as_ref()
             .map(|task| task.market_type.clone())
             .unwrap_or_else(|| "unknown".to_string());
-        let reason = if error_message.to_ascii_lowercase().contains("timeout") {
-            "timeout"
-        } else if error_message.contains("worker") {
-            "worker_failure"
-        } else if error_message.contains("LLM")
-            || error_message.to_ascii_lowercase().contains("model")
-        {
-            "llm_failure"
-        } else if error_message.to_ascii_lowercase().contains("database") {
-            "database_failure"
-        } else {
-            "internal_error"
-        };
+        let reason = failure_reason.unwrap_or_else(|| {
+            if error_message.to_ascii_lowercase().contains("timeout") {
+                "timeout"
+            } else if error_message.contains("worker") {
+                "worker_failure"
+            } else if error_message.contains("LLM")
+                || error_message.to_ascii_lowercase().contains("model")
+            {
+                "llm_failure"
+            } else if error_message.to_ascii_lowercase().contains("database") {
+                "database_failure"
+            } else {
+                "internal_error"
+            }
+        });
         self.update_task(
             task_id,
             TaskStatus::Failed,
@@ -526,6 +524,9 @@ impl TaskManager {
             Some(error_message.clone()),
         )
         .await?;
+        self.analysis_store
+            .refund_task_charge(task_id, reason)
+            .await?;
         crate::telemetry::record_analysis_task_duration(
             &self.telemetry,
             "failed",
@@ -545,6 +546,35 @@ impl TaskManager {
         );
         self.running_tasks.write().await.remove(task_id);
         Ok(())
+    }
+
+    /// Mark a task as failed and refund its confirmed charge when applicable.
+    pub async fn mark_task_failed_and_refund(
+        &self,
+        task_id: &str,
+        error_message: String,
+        reason: &'static str,
+    ) -> anyhow::Result<()> {
+        self.publish_failure(task_id, error_message, Some(reason))
+            .await
+    }
+
+    /// Transition a task blocked by preflight data validation and publish its terminal event.
+    pub async fn mark_task_blocked_data(
+        &self,
+        task_id: &str,
+        error_message: String,
+    ) -> anyhow::Result<()> {
+        self.update_task(
+            task_id,
+            TaskStatus::BlockedData,
+            0,
+            Self::blocked_data_step_name(),
+            "Data quality blocked before market analysis",
+            "Analysis blocked before LLM execution",
+            Some(error_message),
+        )
+        .await
     }
 
     pub(crate) async fn update_task(

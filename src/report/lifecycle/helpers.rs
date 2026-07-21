@@ -227,7 +227,7 @@ impl TaskManager {
                             StepStatus::Pending
                         }
                     }
-                    TaskStatus::Failed => {
+                    TaskStatus::Failed | TaskStatus::BlockedData | TaskStatus::BlockedLlm => {
                         if current_step_name == name {
                             StepStatus::Error
                         } else if Self::step_completed(

@@ -98,14 +98,6 @@ impl TaskManager {
             owner_username = %task.owner_username,
             "analysis task started"
         );
-        if let Err(error) = self.resolve_pending_entries(&task.symbol, &params).await {
-            tracing::warn!(
-                "failed to resolve pending memory entries for {} before analysis: {:?}",
-                task.symbol,
-                error
-            );
-        }
-
         // Prepare result early so we can check for checkpoint resume data
         tracing::info!(
             task_id = %task.task_id,
@@ -158,6 +150,23 @@ impl TaskManager {
             news_start = news_start_val.clone();
 
             let core_data = self.fetch_core_market_data(&task, news_start_val).await;
+            if !core_data.quality_gate.passed {
+                let summary = core_data.quality_gate.summary();
+                result.artifacts.scenario_data.fetch_diagnosis = core_data.fetch_diagnosis;
+                self.analysis_store.save_result(&task_id, &result).await?;
+                self.update_task(
+                    &task_id,
+                    TaskStatus::BlockedData,
+                    100,
+                    "Data quality blocked",
+                    "Critical report evidence could not be acquired",
+                    "Analysis blocked before LLM execution",
+                    Some(summary),
+                )
+                .await?;
+                self.running_tasks.write().await.remove(&task_id);
+                return Ok(());
+            }
             self.fetch_enrichment_and_store(&task, &mut result).await;
 
             result.artifacts.scenario_data.fetch_diagnosis = core_data.fetch_diagnosis;
@@ -195,6 +204,14 @@ impl TaskManager {
             fundamentals_score = fundamentals_score,
             "data quality assessment"
         );
+
+        if let Err(error) = self.resolve_pending_entries(&task.symbol, &params).await {
+            tracing::warn!(
+                "failed to resolve pending memory entries for {} before analysis: {:?}",
+                task.symbol,
+                error
+            );
+        }
 
         let refined_memory_context = self
             .initial_memory_context(

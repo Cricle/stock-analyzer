@@ -14,6 +14,8 @@ pub enum TaskStatus {
     Completed,
     Cancelled,
     Failed,
+    BlockedData,
+    BlockedLlm,
 }
 
 impl TaskStatus {
@@ -25,7 +27,16 @@ impl TaskStatus {
             TaskStatus::Completed => "completed",
             TaskStatus::Cancelled => "cancelled",
             TaskStatus::Failed => "failed",
+            TaskStatus::BlockedData => "blocked_data",
+            TaskStatus::BlockedLlm => "blocked_llm",
         }
+    }
+
+    pub fn is_terminal(&self) -> bool {
+        matches!(
+            self,
+            Self::Completed | Self::Cancelled | Self::Failed | Self::BlockedData | Self::BlockedLlm
+        )
     }
 }
 
@@ -40,6 +51,8 @@ impl std::str::FromStr for TaskStatus {
             "completed" => Ok(TaskStatus::Completed),
             "cancelled" => Ok(TaskStatus::Cancelled),
             "failed" => Ok(TaskStatus::Failed),
+            "blocked_data" => Ok(TaskStatus::BlockedData),
+            "blocked_llm" => Ok(TaskStatus::BlockedLlm),
             _ => Err(anyhow::anyhow!("unknown task status: {s}")),
         }
     }

@@ -30,8 +30,7 @@ impl TaskManager {
         let mut result_stage = None;
         let mut report_stage_state = None;
         let mut result_data = None;
-        let include_result_snapshot =
-            matches!(task.status, TaskStatus::Completed | TaskStatus::Failed);
+        let include_result_snapshot = task.status.is_terminal();
         if include_result_snapshot
             && let Some(mut result) = self.analysis_store.get_result(task_id).await?
         {
@@ -41,9 +40,10 @@ impl TaskManager {
             result_data = Some(result);
         }
         let current_step_name = task.current_step_name.clone();
-        let elapsed_anchor = match task.status {
-            TaskStatus::Completed | TaskStatus::Cancelled | TaskStatus::Failed => task.updated_at,
-            _ => Utc::now(),
+        let elapsed_anchor = if task.status.is_terminal() {
+            task.updated_at
+        } else {
+            Utc::now()
         };
         Ok(Some(TaskStatusResponse {
             task_id: task.task_id.clone(),
@@ -61,9 +61,10 @@ impl TaskManager {
                 report_stage_state.as_ref(),
             ),
             elapsed_time: ((elapsed_anchor - task.created_at).num_seconds() as i32).max(0),
-            remaining_time: match task.status {
-                TaskStatus::Completed | TaskStatus::Cancelled | TaskStatus::Failed => 0,
-                _ => (100 - task.progress).max(0),
+            remaining_time: if task.status.is_terminal() {
+                0
+            } else {
+                (100 - task.progress).max(0)
             },
             estimated_total_time: 100,
             result_stage: match task.status {
@@ -122,10 +123,7 @@ impl TaskManager {
                 .map(|checkpoint| checkpoint.result);
         }
         if let Some(ref mut result) = result {
-            let is_terminal = matches!(
-                task.as_ref().map(|item| &item.status),
-                Some(TaskStatus::Completed) | Some(TaskStatus::Failed)
-            );
+            let is_terminal = task.as_ref().is_some_and(|item| item.status.is_terminal());
             if is_terminal {
                 result.sync_derived_fields();
             } else {

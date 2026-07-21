@@ -1,5 +1,8 @@
+use std::collections::BTreeMap;
+
 use chrono::Utc;
 
+use super::{DataDomain, DataProvenance, ReportQualityGate};
 use crate::{AnalysisResult, PersistedTask, TaskManager};
 
 // ---------------------------------------------------------------------------
@@ -13,6 +16,7 @@ pub(super) struct CoreMarketData {
     pub(super) news_items: Vec<crate::data::NewsItem>,
     pub(super) market_chart: crate::ReportMarketChart,
     pub(super) fetch_diagnosis: Vec<serde_json::Value>,
+    pub(super) quality_gate: ReportQualityGate,
 }
 
 // ---------------------------------------------------------------------------
@@ -86,6 +90,11 @@ impl TaskManager {
             );
         }
         let mut fundamentals = _fundamentals;
+        let mut fundamentals_provenance = if fundamentals.is_some() {
+            DataProvenance::successful("market_data", None, 1, false)
+        } else {
+            DataProvenance::failed("market_data", "primary fundamentals unavailable")
+        };
 
         // Fallback for US equity when primary fundamentals are missing
         if fundamentals.is_none()
@@ -97,21 +106,67 @@ impl TaskManager {
                 symbol = %task.symbol,
                 "primary fundamentals missing for US equity, trying fallback sources"
             );
-            fundamentals = self
+            match self
                 .market_data
                 .fetch_us_fundamentals_yahoo(&task.symbol)
                 .await
-                .ok();
+            {
+                Ok(snapshot) => {
+                    fundamentals = Some(snapshot);
+                    let mut fallback = DataProvenance::successful("yahoo", None, 1, false);
+                    fallback.attempts = fundamentals_provenance.attempts;
+                    fallback.attempts.push(serde_json::json!({
+                        "provider": "yahoo",
+                        "success": true,
+                    }));
+                    fundamentals_provenance = fallback;
+                }
+                Err(error) => {
+                    fundamentals_provenance.attempts.push(serde_json::json!({
+                        "provider": "yahoo",
+                        "success": false,
+                        "error": error.to_string(),
+                    }));
+                }
+            }
             if fundamentals.is_none() {
-                fundamentals = self
+                match self
                     .market_data
                     .fetch_us_fundamentals_finnhub(&task.symbol)
                     .await
-                    .ok();
+                {
+                    Ok(snapshot) => {
+                        fundamentals = Some(snapshot);
+                        let mut fallback = DataProvenance::successful("finnhub", None, 1, false);
+                        fallback.attempts = fundamentals_provenance.attempts;
+                        fallback.attempts.push(serde_json::json!({
+                            "provider": "finnhub",
+                            "success": true,
+                        }));
+                        fundamentals_provenance = fallback;
+                    }
+                    Err(error) => {
+                        fundamentals_provenance.attempts.push(serde_json::json!({
+                            "provider": "finnhub",
+                            "success": false,
+                            "error": error.to_string(),
+                        }));
+                    }
+                }
             }
         }
 
         let mut news_items = _news_items.unwrap_or_default();
+        let mut news_provenance = if news_items.is_empty() {
+            DataProvenance::failed("market_data", "primary company news unavailable")
+        } else {
+            DataProvenance::successful(
+                "market_data",
+                news_items.first().map(|item| item.published_at.clone()),
+                news_items.len(),
+                false,
+            )
+        };
 
         // Fallback for US equity when news is empty — try Finnhub company news
         if news_items.is_empty()
@@ -130,6 +185,19 @@ impl TaskManager {
                         count = items.len(),
                         "Finnhub company news fallback succeeded"
                     );
+                    let mut fallback = DataProvenance::successful(
+                        "finnhub",
+                        items.first().map(|item| item.published_at.clone()),
+                        items.len(),
+                        false,
+                    );
+                    fallback.attempts = news_provenance.attempts;
+                    fallback.attempts.push(serde_json::json!({
+                        "provider": "finnhub",
+                        "success": true,
+                        "item_count": items.len(),
+                    }));
+                    news_provenance = fallback;
                     news_items = items;
                 }
                 Ok(_) => {
@@ -137,6 +205,11 @@ impl TaskManager {
                 }
                 Err(e) => {
                     tracing::debug!(symbol = %task.symbol, error = %e, "Finnhub company news fallback failed");
+                    news_provenance.attempts.push(serde_json::json!({
+                        "provider": "finnhub",
+                        "success": false,
+                        "error": e.to_string(),
+                    }));
                 }
             }
         }
@@ -219,12 +292,44 @@ impl TaskManager {
         if !candles_diagnosis.attempts.is_empty() {
             fetch_diagnosis.push(serde_json::to_value(&candles_diagnosis).unwrap_or_default());
         }
+        let mut provenance = BTreeMap::new();
+        provenance.insert(
+            DataDomain::Quote,
+            DataProvenance::from_diagnosis(
+                &quote_diagnosis,
+                quote.as_ref().map(|snapshot| snapshot.date.clone()),
+                usize::from(quote.is_some()),
+            ),
+        );
+        provenance.insert(
+            DataDomain::Candles,
+            DataProvenance::from_diagnosis(
+                &candles_diagnosis,
+                market_chart
+                    .candles
+                    .last()
+                    .map(|candle| candle.trade_date.clone()),
+                market_chart.candles.len(),
+            ),
+        );
+        provenance.insert(DataDomain::Fundamentals, fundamentals_provenance);
+        provenance.insert(DataDomain::CompanyNews, news_provenance);
+        let quality_gate = ReportQualityGate::from_acquired_data(
+            &quote,
+            &market_chart.candles,
+            &fundamentals,
+            &news_items,
+            provenance,
+            Utc::now(),
+        );
+        fetch_diagnosis.push(serde_json::to_value(&quality_gate).unwrap_or_default());
         CoreMarketData {
             quote,
             fundamentals,
             news_items,
             market_chart,
             fetch_diagnosis,
+            quality_gate,
         }
     }
 

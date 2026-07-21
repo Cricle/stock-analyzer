@@ -1,9 +1,15 @@
 mod fetch;
 mod format;
 mod helpers;
+mod quality_gate;
 mod task_create;
 mod task_run;
 mod task_status;
+
+pub use quality_gate::{
+    DataDomain, DataProvenance, ReportDataAvailability, ReportQualityGate,
+    evaluate_report_quality_gate,
+};
 
 use crate::{AnalysisParameters, AnalysisUserContext};
 

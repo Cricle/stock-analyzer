@@ -119,11 +119,15 @@ fn resumed_data_marks_persisted_provenance_as_cache_backed() {
             ),
             (
                 DataDomain::Fundamentals,
-                DataProvenance::successful(
+                DataProvenance::from_attempts(
                     "primary_fundamentals",
-                    source_timestamp.clone(),
+                    None,
                     1,
                     false,
+                    vec![serde_json::json!({
+                        "provider": "primary_fundamentals",
+                        "success": true,
+                    })],
                 ),
             ),
             (
@@ -148,6 +152,11 @@ fn resumed_data_marks_persisted_provenance_as_cache_backed() {
     assert_eq!(restored.provenance["quote"].provider, "primary_quote");
     assert!(restored.provenance["quote"].used_cache);
     assert_eq!(restored.provenance["quote"].attempts.len(), 1);
+    assert!(
+        restored.provenance["fundamentals"]
+            .source_timestamp
+            .is_some()
+    );
 }
 
 #[test]

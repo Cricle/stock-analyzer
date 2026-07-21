@@ -57,10 +57,16 @@ impl DataProvenance {
         used_cache: bool,
     ) -> Self {
         let provider = provider.into();
+        let fetched_at = Utc::now().to_rfc3339();
         let mut provenance = Self {
             provider: provider.clone(),
-            fetched_at: Utc::now().to_rfc3339(),
-            source_timestamp,
+            source_timestamp: cache_validation_timestamp(
+                source_timestamp,
+                record_count,
+                used_cache,
+                &fetched_at,
+            ),
+            fetched_at,
             record_count,
             used_cache,
             attempts: Vec::new(),
@@ -81,10 +87,16 @@ impl DataProvenance {
             .find(|attempt| attempt.success)
             .map(|attempt| attempt.provider.clone())
             .unwrap_or_else(|| "unavailable".to_string());
+        let fetched_at = Utc::now().to_rfc3339();
         Self {
             provider,
-            fetched_at: Utc::now().to_rfc3339(),
-            source_timestamp,
+            source_timestamp: cache_validation_timestamp(
+                source_timestamp,
+                record_count,
+                diagnosis.used_stale_cache,
+                &fetched_at,
+            ),
+            fetched_at,
             record_count,
             used_cache: diagnosis.used_stale_cache,
             attempts: diagnosis
@@ -102,10 +114,16 @@ impl DataProvenance {
         used_cache: bool,
         attempts: Vec<serde_json::Value>,
     ) -> Self {
+        let fetched_at = Utc::now().to_rfc3339();
         Self {
             provider: provider.into(),
-            fetched_at: Utc::now().to_rfc3339(),
-            source_timestamp,
+            source_timestamp: cache_validation_timestamp(
+                source_timestamp,
+                record_count,
+                used_cache,
+                &fetched_at,
+            ),
+            fetched_at,
             record_count,
             used_cache,
             attempts,
@@ -138,6 +156,15 @@ impl DataProvenance {
             "error": error.into(),
         }));
     }
+}
+
+fn cache_validation_timestamp(
+    source_timestamp: Option<String>,
+    record_count: usize,
+    used_cache: bool,
+    fetched_at: &str,
+) -> Option<String> {
+    source_timestamp.or_else(|| (!used_cache && record_count > 0).then(|| fetched_at.to_string()))
 }
 
 #[derive(Clone, Debug, Default)]

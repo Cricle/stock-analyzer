@@ -39,7 +39,7 @@ fn derive_risk_controls(
     }
     for item in reliability.constraints.iter().take(3) {
         controls.push(RiskControl {
-            risk_name: LocalText::new("risk_name_evidence_gap"),
+            risk_name: LocalText::new("risk_name_evidence_gap").with_str("gap", item.to_string()),
             probability_pct: (100 - reliability.score).clamp(5, 80) as f64,
             impact: LocalText::new("risk_impact_evidence_gap").with_str("gap", item.to_string()),
             trigger: LocalText::new("risk_trigger_evidence_gap").with_str("gap", item.to_string()),

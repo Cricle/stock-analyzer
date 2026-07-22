@@ -1,5 +1,6 @@
 use stock_analyzer::analysis::{MemoryContextSnapshot, Rating};
 use stock_analyzer::analysis::{derive_calibration_bias, fallback_sizing_reference};
+use stock_analyzer::{CalibrationProfile, calibrate_recommendation_with_profile};
 
 #[test]
 fn derive_calibration_bias_misaligned() {
@@ -88,4 +89,21 @@ fn fallback_sizing_reference_whitespace_only() {
 fn fallback_sizing_reference_blocker_overrides_plan() {
     let result = fallback_sizing_reference("30%", &Rating::Buy, true);
     assert_eq!(result.key, "sizing_reference_blockers");
+}
+
+#[test]
+fn conditional_bearish_research_remains_underweight_when_execution_is_incomplete() {
+    let calibration = calibrate_recommendation_with_profile(
+        "Hold",
+        -40,
+        60,
+        60,
+        false,
+        &CalibrationProfile::default(),
+        0,
+        Some(1.5),
+    );
+
+    assert_eq!(calibration.final_rating, "Underweight");
+    assert_eq!(calibration.final_action, "Sell");
 }

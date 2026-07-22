@@ -130,6 +130,28 @@ impl LocalText {
             .unwrap_or(self.key.as_str())
     }
 
+    /// Render a deterministic backend fallback for legacy text-only sinks.
+    pub fn fallback_text(&self) -> String {
+        if self.key != "executive_summary_authoritative" {
+            return self.value_str().to_string();
+        }
+        let value = |key: &str| {
+            self.params
+                .get(key)
+                .map(|value| value.as_str().map(str::to_string).unwrap_or_else(|| value.to_string()))
+                .unwrap_or_else(|| "-".to_string())
+        };
+        format!(
+            "rating={}; confidence={}; confirmation={}; invalidation={}; target={}; reward/risk={}",
+            value("rating"),
+            value("confidence"),
+            value("confirmation"),
+            value("invalidation"),
+            value("target"),
+            value("reward_risk")
+        )
+    }
+
     /// Whether the key is empty.
     pub fn is_empty(&self) -> bool {
         self.key.is_empty()
@@ -344,6 +366,7 @@ pub enum DecisionAction {
     BuyNow,
     ProbePosition,
     WaitBreakout,
+    WaitBreakdown,
     WaitRetest,
     #[default]
     Hold,
@@ -488,4 +511,3 @@ pub struct DecisionView {
     #[serde(default)]
     pub wait_cost: LocalText,
 }
-

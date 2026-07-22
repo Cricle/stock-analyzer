@@ -1,4 +1,4 @@
-use crate::{AnalysisResult, DiagnosisIssue};
+use crate::{AnalysisResult, DecisionViewDirection, DiagnosisIssue};
 
 /// Severity of a consistency issue.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -82,9 +82,11 @@ pub fn extract_pct(s: &str) -> Option<f64> {
 /// Validate and fix probability fields. The directional trio
 /// (up+down+sideways) is normalized independently to ~100%.
 /// Risk probability is treated as an independent overlay metric
-/// and validated separately: clamped to [5, 95] and enforced >= downside.
+/// and validated separately: clamped to [5, 95] and enforced above the
+/// probability of the adverse price direction for the active trade.
 pub fn fix_probabilities(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
     let mut issues = Vec::new();
+    let is_bearish = result.report.decision_view.view == DecisionViewDirection::Bearish;
     let pv = &mut result.report.probability_view;
 
     // --- Check A: Directional trio sums to ~100% ---
@@ -150,20 +152,25 @@ pub fn fix_probabilities(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
         }
     }
 
-    // --- Check C: Risk >= downside (logical invariant) ---
+    // --- Check C: Risk >= adverse direction (logical invariant) ---
+    let adverse_probability = if is_bearish {
+        pv.upside_probability_pct
+    } else {
+        pv.downside_probability_pct
+    };
     if pv.risk_probability_pct > 0.0
-        && pv.downside_probability_pct > 0.0
-        && pv.risk_probability_pct < pv.downside_probability_pct
+        && adverse_probability > 0.0
+        && pv.risk_probability_pct < adverse_probability
     {
         let original_risk = pv.risk_probability_pct;
-        pv.risk_probability_pct = (pv.downside_probability_pct + 5.0).min(95.0);
+        pv.risk_probability_pct = (adverse_probability + 5.0).min(95.0);
 
         tracing::warn!(
             check = "fix_risk_invariant",
             original = original_risk,
             fixed = pv.risk_probability_pct,
-            downside = pv.downside_probability_pct,
-            "risk probability < downside, adjusted to downside + 5"
+            adverse_probability,
+            "risk probability below the adverse direction, adjusted to adverse + 5"
         );
 
         issues.push(make_issue(
@@ -172,7 +179,7 @@ pub fn fix_probabilities(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
             "probability_view.risk_probability_pct",
             &format!("{:.1}%", original_risk),
             &format!("{:.1}%", pv.risk_probability_pct),
-            "Risk probability was less than downside probability, adjusted to downside + 5%",
+            "Risk probability was below the adverse direction, adjusted to adverse + 5%",
         ));
     }
 
@@ -186,6 +193,7 @@ pub fn fix_probabilities(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
 /// If the trader plan's entry_price equals stop_loss, the stop is
 /// meaningless. Set stop = entry * 0.98 as a conservative default.
 pub fn fix_entry_stop(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
+    let is_bearish = result.report.decision_view.view == DecisionViewDirection::Bearish;
     let entry_str = result.report.trader_plan.entry_price.trim().to_string();
     let stop_str = result.report.trader_plan.stop_loss.trim().to_string();
 
@@ -209,7 +217,11 @@ pub fn fix_entry_stop(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
         return Vec::new();
     }
 
-    let new_stop = round_price(entry * 0.98);
+    let new_stop = if is_bearish {
+        round_price(entry * 1.02)
+    } else {
+        round_price(entry * 0.98)
+    };
     result.report.trader_plan.stop_loss = format!("{:.2}", new_stop);
 
     // Do NOT modify decision_view.invalidation_level here.
@@ -222,7 +234,7 @@ pub fn fix_entry_stop(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
         entry = entry,
         original_stop = stop,
         new_stop = new_stop,
-        "entry == stop-loss, adjusted stop to entry * 0.98"
+        "entry == stop-loss, adjusted stop in the adverse price direction"
     );
 
     vec![make_issue(
@@ -231,7 +243,7 @@ pub fn fix_entry_stop(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
         "trader_plan.stop_loss",
         &format!("{:.2}", entry),
         &format!("{:.2}", new_stop),
-        "Entry price equals stop-loss; adjusted stop to entry * 0.98",
+        "Entry price equals stop-loss; adjusted stop in the adverse price direction",
     )]
 }
 
@@ -242,6 +254,13 @@ pub fn fix_entry_stop(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
 /// If entry_price < invalidation_level, the risk control logic is inverted
 /// (buying below the stop). Lower invalidation to stop_loss or entry * 0.95.
 pub fn fix_entry_invalidation(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
+    // For a short execution plan the valid structure is target < entry < stop.
+    // `invalidation_level` is therefore intentionally above entry and must not
+    // be rewritten by this long-only consistency repair after report assembly.
+    if result.report.decision_view.view == DecisionViewDirection::Bearish {
+        return Vec::new();
+    }
+
     let entry_str = result
         .report
         .decision_view
@@ -306,8 +325,8 @@ pub fn fix_entry_invalidation(result: &mut AnalysisResult) -> Vec<DiagnosisIssue
 // Check 3: Risk:Reward ratio
 // ======================================================================
 
-/// R:R = (target - entry) / (entry - stop). If R:R < 1.5, widen the
-/// target to entry + 1.5 * (entry - stop).
+/// If R:R is below 1.5, extend the profit target in the direction of the
+/// established trade while preserving one canonical target across all views.
 pub fn fix_risk_reward(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
     let entry = parse_price(result.report.trader_plan.entry_price.trim());
     let stop = parse_price(result.report.trader_plan.stop_loss.trim());
@@ -336,12 +355,69 @@ pub fn fix_risk_reward(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
         return Vec::new();
     }
 
-    let new_target = round_price(entry + 1.5 * risk);
+    let is_bearish = result.report.decision_view.view == DecisionViewDirection::Bearish;
+    let new_target = if is_bearish {
+        round_price(entry - 1.5 * risk)
+    } else {
+        round_price(entry + 1.5 * risk)
+    };
     let new_rr = 1.5;
+    let target_text = format!("{:.2}", new_target);
 
     result.report.decision_view.target_reference =
-        crate::LocalText::new(format!("{:.2}", new_target));
-    result.report.trader_plan.target_reference = format!("{:.2}", new_target);
+        crate::LocalText::new("target_reference_value").with_str("value", target_text.clone());
+    result.report.decision_view.first_target = target_text.clone();
+    result.report.trader_plan.target_reference = target_text.clone();
+    result.report.portfolio_decision.price_target = target_text.clone();
+    result.report.portfolio_decision.target_reference = target_text.clone();
+    result.report.trader_plan.target_condition.clear();
+    result.report.portfolio_decision.target_condition.clear();
+    result.report.decision_view.target_condition =
+        crate::LocalText::new("target_condition_rr_calibrated")
+            .with_str("target", &target_text)
+            .with_f64("reward_risk", new_rr);
+    for guide in [
+        &mut result.report.action_guides.buyers,
+        &mut result.report.action_guides.holders,
+        &mut result.report.action_guides.watchers,
+    ] {
+        guide.target_reference = target_text.clone();
+    }
+    if is_bearish {
+        result.report.probability_view.upside_target = Some(stop);
+        result.report.probability_view.downside_target = Some(new_target);
+    } else {
+        result.report.probability_view.upside_target = Some(new_target);
+        result.report.probability_view.downside_target = Some(stop);
+    }
+    result.report.probability_view.profit_target = Some(new_target);
+    result.report.probability_view.stop_loss = Some(stop);
+    result.report.profit_risk.calc_target = Some(new_target);
+    result.report.profit_risk.calc_stop = Some(stop);
+    result.report.profit_risk.max_loss_reference = Some(stop);
+    result.report.profit_risk.reward_risk_ratio = Some(new_rr);
+    result.report.ic_discipline.reward_risk_ratio = Some(new_rr);
+    result.report.ic_discipline.invalidation_price = Some(stop);
+    let current = result.report.price_context.current_price.unwrap_or(entry);
+    if current > 0.0 {
+        let (upside_pct, downside_pct) = if is_bearish {
+            (
+                (stop > current).then_some((stop - current) / current * 100.0),
+                (new_target < current).then_some((current - new_target) / current * 100.0),
+            )
+        } else {
+            (
+                (new_target > current).then_some((new_target - current) / current * 100.0),
+                (stop < current).then_some((current - stop) / current * 100.0),
+            )
+        };
+        result.report.probability_view.upside_pct = upside_pct;
+        result.report.probability_view.downside_pct = downside_pct;
+        result.report.profit_risk.upside_pct = upside_pct;
+        result.report.profit_risk.downside_pct = downside_pct;
+        result.report.ic_discipline.upside_pct = upside_pct;
+        result.report.ic_discipline.downside_pct = downside_pct;
+    }
 
     tracing::warn!(
         check = "fix_risk_reward",
@@ -360,6 +436,6 @@ pub fn fix_risk_reward(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
         "target_reference",
         &format!("target={:.2}, R:R={:.2}", target, rr),
         &format!("target={:.2}, R:R={:.2}", new_target, new_rr),
-        "Risk:reward ratio below 1.5, widened target to entry + 1.5 * risk",
+        "Risk:reward ratio below 1.5, extended target in the trade direction",
     )]
 }

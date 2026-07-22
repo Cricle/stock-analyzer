@@ -69,6 +69,28 @@ fn derive_availability_diagnostics(result: &AnalysisResult) -> Vec<ReportDiagnos
                         ..Default::default()
                     });
                 }
+                let operating_cash_flow = object.get("operating_cash_flow").and_then(json_number);
+                let capital_expenditure = object.get("capital_expenditure").and_then(json_number);
+                let free_cash_flow = object.get("free_cash_flow").and_then(json_number);
+                if cashflow_snapshot_missing(
+                    operating_cash_flow,
+                    capital_expenditure,
+                    free_cash_flow,
+                ) {
+                    diagnostics.push(ReportDiagnosticItem {
+                        code: "fundamentals_cashflow_missing".to_string(),
+                        severity: "warning".to_string(),
+                        message: LocalText::new(
+                            "经营现金流、资本开支和自由现金流均未取得；不能据此判断现金消耗或融资需求，入场前须以同一财报期间的现金流量表补全。",
+                        ),
+                        details: vec![
+                            format!("analyst={}", state.key),
+                            format!("tool={}", observation.tool_name),
+                            "missing=operating_cash_flow,capital_expenditure,free_cash_flow".to_string(),
+                        ],
+                        ..Default::default()
+                    });
+                }
             }
 
             if !observation.success
@@ -274,6 +296,14 @@ fn json_number(value: &serde_json::Value) -> Option<f64> {
         serde_json::Value::String(text) => text.parse::<f64>().ok(),
         _ => None,
     }
+}
+
+pub fn cashflow_snapshot_missing(
+    operating_cash_flow: Option<f64>,
+    capital_expenditure: Option<f64>,
+    free_cash_flow: Option<f64>,
+) -> bool {
+    operating_cash_flow.is_none() && capital_expenditure.is_none() && free_cash_flow.is_none()
 }
 
 fn parse_first_numeric(value: &str) -> Option<f64> {

@@ -21,6 +21,7 @@ impl ConsistencyValidator {
         issues.extend(Self::fix_position_sizing(result));
         issues.extend(Self::fix_recommendation_consistency(result));
         issues.extend(Self::fill_missing_fields(result));
+        crate::analysis::refresh_authoritative_summary(&mut result.report);
         issues
     }
 

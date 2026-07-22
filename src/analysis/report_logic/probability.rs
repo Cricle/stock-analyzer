@@ -30,7 +30,7 @@ fn derive_probability_view(
     memory_context: &MemoryContextSnapshot,
     technical_indicators: &TechnicalIndicatorView,
     primary_target: Option<&str>,
-    entry_price: Option<f64>,
+    _entry_price: Option<f64>,
 ) -> ProbabilityView {
     let confidence = (confidence_score as f64 / 100.0).clamp(0.0, 1.0);
     let directional_bias = (direction_score as f64 / 100.0).clamp(-1.0, 1.0);
@@ -50,23 +50,23 @@ fn derive_probability_view(
     let scale = if total > 0.0 { 100.0 / total } else { 1.0 };
     let (upside, downside, sideways) =
         round_to_100(upside * scale, downside * scale, sideways * scale);
-    let risk_probability = (downside + (100.0 - confidence_score as f64) * 0.2).clamp(5.0, 90.0);
-    // Use entry_price for % calculations when available (more accurate R/R)
-    let current = entry_price
-        .filter(|v| v.is_finite() && *v > 0.0)
-        .or(price_context.current_price);
     let is_bearish = matches!(decision.view, DecisionViewDirection::Bearish);
-    // Use corrected invalidation_level when available (more accurate than raw invalidation_price)
+    let adverse_probability = if is_bearish { upside } else { downside };
+    let risk_probability =
+        (adverse_probability + (100.0 - confidence_score as f64) * 0.2).clamp(5.0, 90.0);
+    let current = price_context.current_price;
+    // Invalidation is always the stop loss after execution normalisation.
     let corrected_invalidation = parse_first_numeric(&decision.invalidation_level)
         .filter(|v| v.is_finite() && *v > 0.0);
     let (upside_target, downside_target) = if is_bearish {
-        // Bearish: upside = price falling (profit), downside = price rising (loss)
         let up = corrected_invalidation
             .or_else(|| parse_first_numeric(&decision.invalidation_price))
-            .or(price_context.low_price)
-            .filter(|value| value.is_finite() && *value > 0.0);
-        let down = parse_first_numeric(&decision.confirmation_price)
             .or(price_context.high_price)
+            .filter(|value| value.is_finite() && *value > 0.0);
+        let down = primary_target
+            .and_then(parse_first_numeric)
+            .or_else(|| parse_first_numeric(decision.target_reference.value_str()))
+            .or(price_context.low_price)
             .filter(|value| value.is_finite() && *value > 0.0);
         (up, down)
     } else {
@@ -82,22 +82,10 @@ fn derive_probability_view(
         (up, down)
     };
     let upside_pct = current.zip(upside_target).and_then(|(current, target)| {
-        if is_bearish {
-            // Bearish: profit is stock going DOWN (target < current)
-            (current > 0.0 && target < current).then_some(((current - target) / current) * 100.0)
-        } else {
-            // Bullish/Neutral: profit is stock going UP (target > current)
-            (current > 0.0 && target > current).then_some(((target - current) / current) * 100.0)
-        }
+        (current > 0.0 && target > current).then_some(((target - current) / current) * 100.0)
     });
     let downside_pct = current.zip(downside_target).and_then(|(current, target)| {
-        if is_bearish {
-            // Bearish: loss is stock going UP (stop > current)
-            (current > 0.0 && target > current).then_some(((target - current) / current) * 100.0)
-        } else {
-            // Bullish/Neutral: loss is stock going DOWN (stop < current)
-            (current > 0.0 && target < current).then_some(((current - target) / current) * 100.0)
-        }
+        (current > 0.0 && target < current).then_some(((current - target) / current) * 100.0)
     });
     let mut drivers = vec![
         ProbabilityDriver {
@@ -148,11 +136,11 @@ fn derive_probability_view(
         }
     }
 
-    // Direction-agnostic labels for clarity
-    // For bearish: profit_target = invalidation (lower), stop_loss = confirmation (higher)
-    // For bullish/neutral: profit_target = upside_target (higher), stop_loss = downside_target (lower)
-    let profit_target = upside_target;
-    let stop_loss = downside_target;
+    let (profit_target, stop_loss) = if is_bearish {
+        (downside_target, upside_target)
+    } else {
+        (upside_target, downside_target)
+    };
 
     ProbabilityView {
         upside_probability_pct: upside,
@@ -188,86 +176,30 @@ fn derive_profit_risk(
         probability.downside_pct,
         decision.target_reference.value_str()
     );
-    let reward_risk_ratio = probability
-        .upside_pct
-        .zip(probability.downside_pct)
-        .and_then(|(up, down)| (down > 0.0).then_some(up / down))
-        .or_else(|| {
-            let current = parse_first_numeric(&decision.current_price)
-                .or(price_context.current_price)?;
-            let target = primary_target
-                .and_then(parse_first_numeric)
-                .or_else(|| parse_first_numeric(decision.target_reference.value_str()))?;
-            // Use invalidation_level (corrected) instead of invalidation_price (raw LLM)
-            let corrected_invalidation = parse_first_numeric(&decision.invalidation_level)
-                .filter(|v| v.is_finite() && *v > 0.0);
-            if is_bearish {
-                // Bearish: target < current (profit down), stop = invalidation_price (loss up,
-                // synced to confirmation_price by enforce_price_consistency)
-                let stop = parse_first_numeric(&decision.invalidation_price)
-                    .or(price_context.high_price)?;
-                if current > 0.0 && stop > current && target < current {
-                    Some((current - target) / (stop - current))
-                } else {
-                    None
-                }
-            } else {
-                // Bullish/Neutral: target > current (profit up), stop = invalidation_price (loss down)
-                let stop = corrected_invalidation
-                    .or_else(|| parse_first_numeric(&decision.invalidation_price))
-                    .or(price_context.low_price)?;
-                if current > 0.0 && stop < current && target > current {
-                    Some((target - current) / (current - stop))
-                } else {
-                    None
-                }
-            }
-        });
-    let upside_pct = probability.upside_pct.or_else(|| {
-        let current = parse_first_numeric(&decision.current_price)
-            .or(price_context.current_price)?;
-        let target = primary_target
+    let calc_entry = entry_price
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .or_else(|| parse_first_numeric(&decision.current_price))
+        .or(price_context.current_price);
+    let calc_target = probability.profit_target.or_else(|| {
+        primary_target
             .and_then(parse_first_numeric)
-            .or_else(|| parse_first_numeric(decision.target_reference.value_str()))?;
-        if is_bearish {
-            // Bearish: profit is stock going DOWN
-            if current > 0.0 && target < current {
-                Some(((current - target) / current) * 100.0)
-            } else {
-                None
-            }
-        } else {
-            if current > 0.0 && target > current {
-                Some(((target - current) / current) * 100.0)
-            } else {
-                None
-            }
-        }
+            .or_else(|| parse_first_numeric(decision.target_reference.value_str()))
     });
-    let downside_pct = probability.downside_pct.or_else(|| {
-        let current = parse_first_numeric(&decision.current_price)
-            .or(price_context.current_price)?;
-        if is_bearish {
-            // Bearish: loss is stock going UP, stop = invalidation_price (above current,
-            // synced to confirmation_price by enforce_price_consistency).
-            let stop = parse_first_numeric(&decision.invalidation_price)
-                .or(price_context.high_price)?;
-            if current > 0.0 && stop > current {
-                Some(((stop - current) / current) * 100.0)
-            } else {
-                None
-            }
-        } else {
-            // Bullish: loss is stock going DOWN, stop = invalidation_price
-            let stop = parse_first_numeric(&decision.invalidation_price)
-                .or(price_context.low_price)?;
-            if current > 0.0 && stop < current {
-                Some(((current - stop) / current) * 100.0)
-            } else {
-                None
-            }
-        }
+    let calc_stop = probability.stop_loss.or_else(|| {
+        parse_first_numeric(&decision.invalidation_level)
+            .or_else(|| parse_first_numeric(&decision.invalidation_price))
     });
+    let reward_risk_ratio = match (calc_entry, calc_target, calc_stop) {
+        (Some(entry), Some(target), Some(stop)) if is_bearish && target < entry && entry < stop => {
+            Some((entry - target) / (stop - entry))
+        }
+        (Some(entry), Some(target), Some(stop)) if !is_bearish && stop < entry && entry < target => {
+            Some((target - entry) / (entry - stop))
+        }
+        _ => None,
+    };
+    let upside_pct = probability.upside_pct;
+    let downside_pct = probability.downside_pct;
     // Current-position ratio: uses confirmation_price as upside (pre-breakout),
     // vs post-breakout ratio which uses target_reference.
     // Direction-aware: for bearish, confirmation is below current (profit if falls),
@@ -302,49 +234,7 @@ fn derive_profit_risk(
             }
         }
     };
-    // For bearish views: target = invalidation (profit from falling), stop = confirmation (loss if rises)
-    // For bullish/neutral: target = upside_target (profit from rising), stop = invalidation (loss if falls)
-    let corrected_invalidation = parse_first_numeric(&decision.invalidation_level)
-        .filter(|v| v.is_finite() && *v > 0.0);
-    let confirmation_price = parse_first_numeric(&decision.confirmation_price)
-        .filter(|v| v.is_finite() && *v > 0.0);
-    let (calc_target, calc_stop) = if is_bearish {
-        // Bearish: profit target = invalidation (lower), stop = confirmation (higher)
-        (
-            corrected_invalidation
-                .or(probability.upside_target)
-                .or(price_context.low_price),
-            confirmation_price
-                .or(probability.downside_target)
-                .or(price_context.high_price),
-        )
-    } else {
-        // Bullish/neutral: profit target = upside (higher), stop = invalidation (lower)
-        (
-            probability.upside_target.or(price_context.high_price),
-            corrected_invalidation
-                .or(probability.downside_target)
-                .or(price_context.low_price),
-        )
-    };
-    // max_loss_reference: direction-aware stop loss level.
-    // Bearish: stop loss = confirmation_price (higher, loss if price rises).
-    // Non-bearish: stop loss = invalidation_level (lower, loss if price falls).
-    let max_loss_reference = if is_bearish {
-        parse_first_numeric(&decision.confirmation_price)
-            .filter(|v| v.is_finite() && *v > 0.0)
-            .or(price_context.high_price)
-    } else {
-        parse_first_numeric(&decision.invalidation_level)
-            .filter(|v| v.is_finite() && *v > 0.0)
-            .or_else(|| parse_first_numeric(&decision.invalidation_price))
-            .or(price_context.low_price)
-    };
-    // Compute calc_entry once
-    let calc_entry = entry_price
-        .filter(|v| v.is_finite() && *v > 0.0)
-        .or_else(|| parse_first_numeric(&decision.current_price))
-        .or(price_context.current_price);
+    let max_loss_reference = calc_stop;
 
     // Build explicit trade summary for evaluator clarity
     let trade_summary = if is_bearish && !matches!(decision.action, DecisionAction::Hold | DecisionAction::Reduce | DecisionAction::Exit) {
@@ -392,7 +282,14 @@ fn derive_profit_risk(
 }
 
 fn derive_ic_navigator(decision: &DecisionView, probability: &ProbabilityView) -> IcNavigatorView {
-    let can_act_now = matches!(decision.action, DecisionAction::BuyNow | DecisionAction::ProbePosition);
+    let is_bearish = matches!(decision.view, DecisionViewDirection::Bearish);
+    let can_act_now = matches!(
+        decision.action,
+        DecisionAction::BuyNow
+            | DecisionAction::ProbePosition
+            | DecisionAction::Reduce
+            | DecisionAction::Exit
+    );
     IcNavigatorView {
         verdict: LocalText::new(decision_action_code(&decision.action)),
         primary_path_key: if decision.primary_path_key.trim().is_empty() {
@@ -400,7 +297,11 @@ fn derive_ic_navigator(decision: &DecisionView, probability: &ProbabilityView) -
         } else {
             decision.primary_path_key.clone()
         },
-        path_probability_pct: probability.upside_probability_pct,
+        path_probability_pct: if is_bearish {
+            probability.downside_probability_pct
+        } else {
+            probability.upside_probability_pct
+        },
         confidence_band: match decision.confidence_band {
             DecisionConfidenceBand::High => "high",
             DecisionConfidenceBand::Medium => "medium",
@@ -433,35 +334,49 @@ fn derive_ic_discipline(
     let current_price = price_context.current_price;
     let is_bearish = matches!(decision.view, DecisionViewDirection::Bearish);
     let confirmation_price = parse_first_numeric(&decision.confirmation_price)
-        .or(probability.upside_target);
-    // For bearish: invalidation = confirmation_price (stop loss if price rises)
-    // For non-bearish: invalidation = invalidation_level (stop loss if price falls)
-    let invalidation_price = if is_bearish {
-        parse_first_numeric(&decision.confirmation_price)
-            .filter(|v| v.is_finite() && *v > 0.0)
-            .or(probability.downside_target)
-            .or(price_context.high_price)
-    } else {
-        parse_first_numeric(&decision.invalidation_level)
-            .filter(|v| v.is_finite() && *v > 0.0)
-            .or_else(|| parse_first_numeric(&decision.invalidation_price))
-            .or(probability.downside_target)
-            .or(price_context.low_price)
-    };
+        .or_else(|| parse_first_numeric(&decision.confirmation_level));
+    let invalidation_price = parse_first_numeric(&decision.invalidation_level)
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .or_else(|| parse_first_numeric(&decision.invalidation_price))
+        .or(if is_bearish {
+            probability.upside_target.or(price_context.high_price)
+        } else {
+            probability.downside_target.or(price_context.low_price)
+        });
     let confirmation_met = confirmation_price
         .zip(current_price)
-        .is_some_and(|(confirmation, current)| current >= confirmation);
+        .is_some_and(|(confirmation, current)| {
+            if is_bearish {
+                current <= confirmation
+            } else {
+                current >= confirmation
+            }
+        });
     let invalidation_broken = invalidation_price
         .zip(current_price)
-        .is_some_and(|(invalidation, current)| current <= invalidation);
+        .is_some_and(|(invalidation, current)| {
+            if is_bearish {
+                current >= invalidation
+            } else {
+                current <= invalidation
+            }
+        });
     let poor_reward_risk = reward_risk_ratio.is_none_or(|value| value < 0.5);
     let overheated_rsi = rsi.is_some_and(|value| value > 75.0);
     let confirmation_missing = !confirmation_met;
-    let risk_probability_high =
-        probability.risk_probability_pct > probability.upside_probability_pct + 10.0;
-    let severe_risk_probability =
-        probability.risk_probability_pct >= probability.upside_probability_pct + 25.0
-            && probability.downside_probability_pct >= probability.upside_probability_pct + 15.0;
+    let path_probability = if is_bearish {
+        probability.downside_probability_pct
+    } else {
+        probability.upside_probability_pct
+    };
+    let adverse_probability = if is_bearish {
+        probability.upside_probability_pct
+    } else {
+        probability.downside_probability_pct
+    };
+    let risk_probability_high = probability.risk_probability_pct > path_probability + 10.0;
+    let severe_risk_probability = probability.risk_probability_pct >= path_probability + 25.0
+        && adverse_probability >= path_probability + 15.0;
 
     let state = if invalidation_broken || severe_risk_probability {
         "must_defend"
@@ -506,8 +421,10 @@ fn derive_ic_discipline(
         "must_defend" => "defend_or_exit",
         "attack_allowed" => "allow_attack",
         "probe_watch" if decision.early_probe_allowed => "allow_small_probe",
+        "probe_watch" if is_bearish => "wait_breakdown_confirmation",
         "probe_watch" => "wait_breakout_confirmation",
         "no_attack" if overheated_rsi => "wait_cooling",
+        _ if is_bearish => "wait_breakdown_confirmation",
         _ => "wait_breakout_confirmation",
     };
 

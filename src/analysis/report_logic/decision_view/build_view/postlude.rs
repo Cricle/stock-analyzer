@@ -220,7 +220,7 @@ fn build_decision_view(
                 DecisionAction::Reduce
             }
         }
-        CoreResearchCall::SellOnBreak => DecisionAction::Hold,
+        CoreResearchCall::SellOnBreak => DecisionAction::WaitBreakdown,
         _ => DecisionAction::Hold,
     };
     let action_bias = match core_research_call {

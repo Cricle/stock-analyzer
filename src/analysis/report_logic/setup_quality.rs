@@ -109,24 +109,24 @@ pub fn collect_execution_blocking_gaps(
     for item in diagnostics.availability.iter().filter(|item| {
         item.severity.eq_ignore_ascii_case("error")
     }) {
-        let trimmed = item.message.trim();
-        if trimmed.is_empty() {
+        let code = item.code.trim();
+        if code.is_empty() {
             continue;
         }
-        if !gaps.iter().any(|existing: &String| existing == trimmed) {
-            gaps.push(trimmed.to_string());
+        if !gaps.iter().any(|existing: &String| existing == code) {
+            gaps.push(code.to_string());
         }
     }
     // Also check news diagnostics for elevated items (e.g. critically sparse coverage).
     for item in diagnostics.news.iter().filter(|item| {
         item.elevated_to_execution_blocking_gap
     }) {
-        let trimmed = item.message.trim();
-        if trimmed.is_empty() {
+        let code = item.code.trim();
+        if code.is_empty() {
             continue;
         }
-        if !gaps.iter().any(|existing: &String| existing == trimmed) {
-            gaps.push(trimmed.to_string());
+        if !gaps.iter().any(|existing: &String| existing == code) {
+            gaps.push(code.to_string());
         }
     }
     gaps
@@ -302,37 +302,13 @@ fn append_scenario_gap_narrative(
 }
 
 /// Compute Normalize_gap_to_i18n_key.
-pub fn normalize_gap_to_i18n_key(gap: &str) -> String {
-    let lower = gap.to_ascii_lowercase();
-    if lower.contains("cash flow") || lower.contains("现金流") {
-        return "setup_gap_cash_flow".into();
+pub fn normalize_gap_to_i18n_key(code: &str) -> String {
+    match code {
+        "fundamentals_cashflow_missing" | "cashflow_quality_unresolved" => "setup_gap_cash_flow".into(),
+        "hk_news_sparse" | "news_upstream_unavailable" | "news_source_concentration" | "news_fetch_coverage_weak" | "scenario_minimum_us_news_soft_gap" | "scenario_minimum_unknown_news_gap" => "setup_gap_news_coverage".into(),
+        "indicator_unavailable" => "setup_gap_technical_confirmation".into(),
+        "fundamentals_sparse" | "scenario_minimum_hk_fundamentals_soft_gap" | "scenario_minimum_us_fundamentals_soft_gap" | "fundamentals_period_mixed" => "setup_gap_earnings_data".into(),
+        "market_data_unavailable" | "missing_credentials" => "setup_gap_execution_boundary_incomplete".into(),
+        _ => "setup_gap_execution_boundary_incomplete".into(),
     }
-    if lower.contains("sentiment") || lower.contains("情绪") {
-        return "setup_gap_sentiment".into();
-    }
-    if lower.contains("news") || lower.contains("新闻") || lower.contains("资讯") {
-        return "setup_gap_news_coverage".into();
-    }
-    if lower.contains("volume") || lower.contains("成交量") {
-        return "setup_gap_volume_data".into();
-    }
-    if lower.contains("technical") || lower.contains("技术面") {
-        return "setup_gap_technical_confirmation".into();
-    }
-    if lower.contains("earnings") || lower.contains("财报") || lower.contains("盈利") {
-        return "setup_gap_earnings_data".into();
-    }
-    if lower.contains("capital flow") || lower.contains("资金流") {
-        return "setup_gap_capital_flow".into();
-    }
-    if lower.contains("insider") || lower.contains("内部人") || lower.contains("减持") || lower.contains("增持") {
-        return "setup_gap_insider_data".into();
-    }
-    if lower.contains("valuation") || lower.contains("估值") {
-        return "setup_gap_valuation_data".into();
-    }
-    if lower.contains("sector") || lower.contains("板块") || lower.contains("行业") {
-        return "setup_gap_sector_data".into();
-    }
-    "setup_gap_execution_boundary_incomplete".into()
 }

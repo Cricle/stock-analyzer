@@ -196,6 +196,10 @@ fn build_decision_action_line(
             let level = visible_confirmation_reference(portfolio_decision).unwrap_or_default();
             LocalText::new("action_wait_breakout").with_str("confirmation", level)
         }
+        DecisionAction::WaitBreakdown => {
+            let level = visible_confirmation_reference(portfolio_decision).unwrap_or_default();
+            LocalText::new("action_wait_breakdown").with_str("confirmation", level)
+        }
         DecisionAction::WaitRetest => LocalText::new("action_wait_retest"),
         DecisionAction::Reduce => LocalText::new("action_reduce"),
         DecisionAction::Exit => LocalText::new("action_exit"),

@@ -492,7 +492,7 @@ fn scenario_minimum_errors_become_execution_blocking_gaps() {
             .missing_evidence_ladder
             .blocking_gaps
             .iter()
-            .any(|item| item.contains("scenario_minimum_incomplete"))
+            .any(|item| item.contains("scenario_minimum"))
     );
 }
 
@@ -582,7 +582,7 @@ fn availability_diagnostics_include_related_gap_linkage() {
 }
 
 #[test]
-fn scenario_minimum_errors_are_injected_into_executive_summary() {
+fn scenario_minimum_errors_are_reflected_in_structured_executive_summary() {
     let mut result = AnalysisResult {
         task_id: "task-4".to_string(),
         report_id: "report-4".to_string(),
@@ -631,19 +631,14 @@ fn scenario_minimum_errors_are_injected_into_executive_summary() {
     };
 
     result.rebuild_report(&CalibrationProfile::default());
+    let summary = &result.report.portfolio_decision.executive_summary;
+    assert_eq!(summary.key, "executive_summary_authoritative");
     assert!(
-        result
-            .report
-            .portfolio_decision
-            .executive_summary
-            .contains("当前不能升级结论的直接原因是")
-    );
-    assert!(
-        result
-            .report
-            .portfolio_decision
-            .executive_summary
-            .contains("scenario_minimum_incomplete")
+        summary
+            .params
+            .get("blocker_count")
+            .and_then(serde_json::Value::as_i64)
+            .is_some_and(|count| count > 0)
     );
 }
 
@@ -686,4 +681,191 @@ fn authoritative_summary_skips_unpublishable_confirmation_and_target_fragments()
     assert!(!summary.contains("当前最值得盯住的确认位在"));
     assert!(!summary.contains("目标参考先看"));
     assert!(!summary.contains("若出现 若补齐数据后显示"));
+}
+
+fn bearish_report_fixture() -> AnalysisResult {
+    let candles = (0..252)
+        .map(|index| {
+            let close = 100.0 - index as f64 * (49.75 / 251.0);
+            CandlePoint {
+                trade_date: format!("2026-{:02}-{:02}", 1 + index / 28, 1 + index % 28),
+                open: close + 0.5,
+                close,
+                high: close + 1.0,
+                low: close - 1.0,
+                volume: 1_000_000 + index as i64 * 1_000,
+                amount: close * 1_000_000.0,
+                amplitude_pct: 2.0,
+                change_pct: -0.2,
+                change_amount: -0.2,
+                turnover_pct: 1.0,
+            }
+        })
+        .collect();
+
+    AnalysisResult {
+        task_id: "bearish-report".to_string(),
+        report_id: "bearish-report".to_string(),
+        symbol: "09868".to_string(),
+        stock_name: "XPeng".to_string(),
+        analysis_date: "2026-07-22".to_string(),
+        market_type: "港股".to_string(),
+        graph: Default::default(),
+        agent_state: AgentStateSnapshot {
+            structured_research_plan: StructuredResearchPlan {
+                recommendation: LocalText::new("Underweight"),
+                ..Default::default()
+            },
+            structured_trader_plan: StructuredTraderPlan {
+                action: LocalText::new("Sell"),
+                raw_action: "Sell".to_string(),
+                entry_price: "47.40".to_string(),
+                stop_loss: "55.69".to_string(),
+                confirmation_level: "47.40".to_string(),
+                target_reference: "34.97".to_string(),
+                time_horizon: "2-6 weeks".to_string(),
+                position_sizing: "0%".to_string(),
+                ..Default::default()
+            },
+            structured_portfolio_decision: StructuredPortfolioDecision {
+                rating: Rating::Underweight,
+                raw_rating: "Underweight".to_string(),
+                confidence: LocalText::new("70"),
+                executive_summary: LocalText::new(
+                    "Conflicting raw summary: confirm below 44.50 and target 40.00.",
+                ),
+                confirmation_level: "47.40".to_string(),
+                invalidation_level: "55.69".to_string(),
+                price_target: "34.97".to_string(),
+                target_reference: "34.97".to_string(),
+                time_horizon: "2-6 weeks".to_string(),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        artifacts: AnalysisArtifacts {
+            scenario_context: AnalysisScenarioContext::from_market_type("港股"),
+            scenario_data: AnalysisScenarioData {
+                quote_status: "ok".to_string(),
+                candles_status: "ok".to_string(),
+                fundamentals_status: "ok".to_string(),
+                company_news_status: "ok".to_string(),
+                quote: Some(stock_analyzer::types::QuoteSnapshot {
+                    symbol: "09868".to_string(),
+                    date: "2026-07-22".to_string(),
+                    open: 50.75,
+                    high: 51.25,
+                    low: 49.75,
+                    close: 50.25,
+                    volume: 2_000_000,
+                }),
+                candles,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        report: Default::default(),
+        ic_report: Default::default(),
+        created_at: "2026-07-22T00:00:00Z".to_string(),
+    }
+}
+
+#[test]
+fn bearish_report_keeps_market_probabilities_and_trade_levels_semantically_aligned() {
+    let mut result = bearish_report_fixture();
+
+    result.rebuild_report(&CalibrationProfile::default());
+    let report = &result.report;
+
+    assert_eq!(report.probability_view.upside_target, Some(55.69));
+    assert_eq!(report.probability_view.downside_target, Some(34.97));
+    assert_eq!(report.probability_view.profit_target, Some(34.97));
+    assert_eq!(report.probability_view.stop_loss, Some(55.69));
+    assert_eq!(report.profit_risk.calc_entry, Some(47.40));
+    assert_eq!(report.profit_risk.calc_target, Some(34.97));
+    assert_eq!(report.profit_risk.calc_stop, Some(55.69));
+    assert_eq!(report.ic_discipline.confirmation_price, Some(47.40));
+    assert_eq!(report.ic_discipline.invalidation_price, Some(55.69));
+    assert!(
+        !report
+            .ic_discipline
+            .reason_codes
+            .contains(&"invalidation_broken".to_string())
+    );
+    assert_eq!(
+        report.ic_navigator.path_probability_pct,
+        report.probability_view.downside_probability_pct
+    );
+    assert!(
+        !report
+            .portfolio_decision
+            .executive_summary
+            .contains("44.50")
+    );
+    assert_eq!(
+        report.portfolio_decision.executive_summary.key,
+        "executive_summary_authoritative"
+    );
+    assert_eq!(report.summary.key, "executive_summary_authoritative");
+    let evidence_risks = report
+        .risk_controls
+        .iter()
+        .filter(|item| item.risk_name.key == "risk_name_evidence_gap")
+        .collect::<Vec<_>>();
+    assert!(evidence_risks.iter().all(|item| {
+        item.risk_name
+            .params
+            .get("gap")
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|gap| !gap.trim().is_empty())
+    }));
+}
+
+#[test]
+fn bearish_action_guides_never_recommend_long_entry_or_adding_on_breakout() {
+    let result = bearish_report_fixture();
+    let guides = derive_action_guides(
+        &result,
+        &result.agent_state.structured_research_plan,
+        &result.agent_state.structured_trader_plan,
+        &result.agent_state.structured_portfolio_decision,
+        &ConfidenceProfile::default(),
+        &[],
+    );
+
+    assert!(
+        guides
+            .holders
+            .actions
+            .iter()
+            .any(|item| item.key == "action_holder_bearish_reduce")
+    );
+    assert!(
+        guides
+            .buyers
+            .actions
+            .iter()
+            .any(|item| item.key == "action_buyer_bearish_avoid_long")
+    );
+    assert!(
+        guides
+            .watchers
+            .actions
+            .iter()
+            .any(|item| item.key == "action_watcher_bearish_wait")
+    );
+    for guide in [&guides.holders, &guides.buyers, &guides.watchers] {
+        assert!(!guide.actions.iter().any(|item| {
+            matches!(
+                item.key.as_str(),
+                "action_holder_confirm" | "action_buyer_confirm" | "action_buyer_pullback"
+            )
+        }));
+        assert!(guide.scenario_paths.iter().all(|path| {
+            !matches!(
+                path.key.as_str(),
+                "breakout_continuation" | "retest_confirmation"
+            )
+        }));
+    }
 }

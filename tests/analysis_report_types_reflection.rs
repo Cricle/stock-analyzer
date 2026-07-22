@@ -59,6 +59,7 @@ fn structured_trader_plan_serde_roundtrip() {
         blocking_gaps: vec![],
         time_stop_deadline: "2025-02-01".into(),
         time_stop_reason: "earnings".into(),
+        stop_execution_discipline: None,
         markdown: "md".into(),
     };
     let json = serde_json::to_string(&p).unwrap();

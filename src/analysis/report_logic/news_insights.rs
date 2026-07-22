@@ -287,6 +287,9 @@ pub fn news_watch_next_summary(decision: &DecisionView) -> LocalText {
     if matches!(decision.action, DecisionAction::WaitRetest) {
         return LocalText::new("watch_retest_acceptance");
     }
+    if matches!(decision.action, DecisionAction::WaitBreakdown) {
+        return LocalText::new("watch_confirmation_breakdown");
+    }
     LocalText::new("watch_confirmation_breakout")
 }
 

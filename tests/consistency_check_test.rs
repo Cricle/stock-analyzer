@@ -314,7 +314,7 @@ fn fix_risk_reward_low_rr_widens_target() {
     let issues = fix_risk_reward(&mut result);
     assert!(!issues.is_empty());
     let new_target = &result.report.decision_view.target_reference;
-    let val: f64 = new_target.as_str().parse().unwrap();
+    let val: f64 = new_target.value_str().parse().unwrap();
     assert!((val - 107.50).abs() < 0.01);
 }
 

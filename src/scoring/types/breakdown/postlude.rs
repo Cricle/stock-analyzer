@@ -140,10 +140,14 @@ pub fn evaluate_confidence_score(
                 .with_str("consistency_detail", &cross_agent_consistency.rationale.key),
         });
     }
-    if result.artifacts.memory_context.used_setup_filtered_retrieval
-        && (result.artifacts.memory_context.setup_resolved_match_count < 2
-            || result.artifacts.memory_context.setup_match_hit_rate < 0.5
-            || result.artifacts.memory_context.setup_match_avg_alpha_return <= 0.0)
+    let memory = &result.artifacts.memory_context;
+    let thin_fallback_history = memory.used_setup_fallback_calibration
+        && memory.setup_calibration_sample_count < 8;
+    if memory.used_setup_filtered_retrieval
+        && (memory.setup_resolved_match_count < 2
+            || memory.setup_match_hit_rate < 0.5
+            || memory.setup_match_avg_alpha_return <= 0.0
+            || thin_fallback_history)
     {
         caps.push(ConfidenceCap {
             key: "thin_setup_history".to_string(),

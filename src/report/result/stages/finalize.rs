@@ -343,6 +343,7 @@ impl crate::TaskManager {
                 position_sizing: trader.position_sizing.clone().unwrap_or_default(),
                 proposal: crate::LocalText::new(trader.action.trim().to_string()),
                 execution_trigger_checklist: trader.execution_trigger_checklist.clone(),
+                stop_execution_discipline: None,
                 blocking_gaps: trader.blocking_gaps.clone(),
                 time_stop_deadline: trader.time_stop_deadline.clone().unwrap_or_default(),
                 time_stop_reason: trader.time_stop_reason.clone().unwrap_or_default(),

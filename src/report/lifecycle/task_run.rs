@@ -67,6 +67,36 @@ impl TaskManager {
         Ok(())
     }
 
+    /// Execute an existing task in the current future and return only after the
+    /// terminal task state has been persisted. Worker runtimes use this path so
+    /// their concurrency permit and reported load cover the complete analysis.
+    pub async fn execute_existing_task_and_wait(
+        &self,
+        task_id: String,
+        params: TaskRunParams,
+    ) -> anyhow::Result<()> {
+        let this = self.clone();
+        let running_task_id = task_id.clone();
+        let failure_task_id = task_id.clone();
+        let handle = tokio::spawn(async move { this.run_task(task_id, params).await });
+        self.running_tasks
+            .write()
+            .await
+            .insert(running_task_id.clone(), handle.abort_handle());
+        let result = handle.await.context("worker analysis task join failed")?;
+        self.running_tasks.write().await.remove(&running_task_id);
+        if let Err(error) = result {
+            self.publish_failure(
+                &failure_task_id,
+                format!("Analysis task failed: {error:#}"),
+                None,
+            )
+            .await?;
+            return Err(error);
+        }
+        Ok(())
+    }
+
     pub(super) async fn run_task(
         &self,
         task_id: String,
@@ -392,7 +422,7 @@ impl TaskManager {
                         &result.report.portfolio_decision,
                     ),
                     stock_name: result.stock_name.clone(),
-                    summary: result.report.summary.key.clone(),
+                    summary: result.report.summary.fallback_text(),
                     risk_assessment: result.report.risk_assessment.key.clone(),
                     rationale: result.report.rationale.key.clone(),
                     structured_risk: crate::StructuredRiskAssessment::from_text(

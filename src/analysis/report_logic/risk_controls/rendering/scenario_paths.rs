@@ -6,6 +6,15 @@ fn build_scenario_paths(
     blocker_present: bool,
     weak_history: bool,
 ) -> Vec<ActionScenarioPath> {
+    if portfolio_decision.rating.is_bearish() {
+        return build_bearish_scenario_paths(
+            trader_plan,
+            portfolio_decision,
+            audience_mode,
+            blocker_present,
+            weak_history,
+        );
+    }
     let confirm = visible_confirmation_reference(portfolio_decision)
         .or_else(|| {
             let target = portfolio_decision.price_target.trim();
@@ -147,6 +156,77 @@ fn build_scenario_paths(
     paths
 }
 
+fn build_bearish_scenario_paths(
+    trader_plan: &StructuredTraderPlan,
+    portfolio_decision: &StructuredPortfolioDecision,
+    audience_mode: &str,
+    blocker_present: bool,
+    weak_history: bool,
+) -> Vec<ActionScenarioPath> {
+    let confirmation = visible_confirmation_reference(portfolio_decision).unwrap_or_default();
+    let invalidation = visible_invalidation_reference(portfolio_decision, Some(trader_plan))
+        .unwrap_or_else(|| trader_plan.stop_loss.trim().to_string());
+    let target = visible_target_reference(portfolio_decision).unwrap_or_default();
+    let sizing_blocked = blocker_present || weak_history;
+    let sizing = if sizing_blocked {
+        LocalText::new("path_sizing_bearish_blocked")
+    } else {
+        LocalText::new("path_sizing_bearish_conditional")
+    };
+
+    vec![
+        ActionScenarioPath {
+            key: "breakdown_continuation".to_string(),
+            name: LocalText::new("path_name_bearish_breakdown"),
+            trigger: LocalText::new("path_trigger_bearish_breakdown")
+                .with_str("confirmation", &confirmation),
+            action: LocalText::new(match audience_mode {
+                "holder" => "path_action_bearish_breakdown_holder",
+                "buyer" => "path_action_bearish_breakdown_buyer",
+                _ => "path_action_bearish_breakdown_watcher",
+            }),
+            risk_boundary: LocalText::new("path_risk_bearish_invalidation")
+                .with_str("invalidation", &invalidation),
+            position_sizing: sizing.clone(),
+            stop_level: LocalText::new("path_stop_bearish_invalidation")
+                .with_str("invalidation", &invalidation),
+            sizing_blocked,
+        },
+        ActionScenarioPath {
+            key: "failed_breakdown_reclaim".to_string(),
+            name: LocalText::new("path_name_bearish_failed_breakdown"),
+            trigger: LocalText::new("path_trigger_bearish_reclaim")
+                .with_str("confirmation", &confirmation),
+            action: LocalText::new(match audience_mode {
+                "holder" => "path_action_bearish_reclaim_holder",
+                "buyer" => "path_action_bearish_reclaim_buyer",
+                _ => "path_action_bearish_reclaim_watcher",
+            }),
+            risk_boundary: LocalText::new("path_risk_bearish_target_unconfirmed")
+                .with_str("target", &target),
+            position_sizing: LocalText::new("path_sizing_bearish_reclaim"),
+            stop_level: LocalText::new("path_stop_bearish_confirmation")
+                .with_str("confirmation", &confirmation),
+            sizing_blocked: true,
+        },
+        ActionScenarioPath {
+            key: "trend_repair".to_string(),
+            name: LocalText::new("path_name_bearish_trend_repair"),
+            trigger: LocalText::new("path_trigger_bearish_trend_repair")
+                .with_str("invalidation", &invalidation),
+            action: LocalText::new(match audience_mode {
+                "holder" => "path_action_bearish_repair_holder",
+                "buyer" => "path_action_bearish_repair_buyer",
+                _ => "path_action_bearish_repair_watcher",
+            }),
+            risk_boundary: LocalText::new("path_risk_bearish_thesis_cancelled"),
+            position_sizing: LocalText::new("path_sizing_bearish_reassess"),
+            stop_level: LocalText::new("path_stop_bearish_reassess"),
+            sizing_blocked: true,
+        },
+    ]
+}
+
 fn collect_key_review_points(
     research_plan: &StructuredResearchPlan,
     trader_plan: &StructuredTraderPlan,
@@ -184,7 +264,27 @@ fn build_holder_actions(
     trader_plan: &StructuredTraderPlan,
     portfolio_decision: &StructuredPortfolioDecision,
     blocker_present: bool,
+    is_bearish: bool,
 ) -> Vec<LocalText> {
+    if is_bearish {
+        let mut actions = vec![LocalText::new("action_holder_bearish_reduce")];
+        if !portfolio_decision.confirmation_level.trim().is_empty() {
+            actions.push(
+                LocalText::new("action_holder_bearish_confirmation")
+                    .with_str("confirmation", portfolio_decision.confirmation_level.trim()),
+            );
+        }
+        if !trader_plan.stop_loss.trim().is_empty() {
+            actions.push(
+                LocalText::new("action_holder_bearish_invalidation")
+                    .with_str("invalidation", trader_plan.stop_loss.trim()),
+            );
+        }
+        if blocker_present {
+            actions.push(LocalText::new("action_bearish_no_active_short"));
+        }
+        return actions;
+    }
     let mut actions = Vec::new();
     actions.push(LocalText::new("action_holder_base"));
     if !trader_plan.stop_loss.trim().is_empty() {
@@ -205,7 +305,21 @@ fn build_buyer_actions(
     trader_plan: &StructuredTraderPlan,
     portfolio_decision: &StructuredPortfolioDecision,
     blocker_present: bool,
+    is_bearish: bool,
 ) -> Vec<LocalText> {
+    if is_bearish {
+        let mut actions = vec![LocalText::new("action_buyer_bearish_avoid_long")];
+        if !portfolio_decision.invalidation_level.trim().is_empty() {
+            actions.push(
+                LocalText::new("action_buyer_bearish_wait_repair")
+                    .with_str("invalidation", portfolio_decision.invalidation_level.trim()),
+            );
+        }
+        if blocker_present {
+            actions.push(LocalText::new("action_bearish_no_active_short"));
+        }
+        return actions;
+    }
     let mut actions = Vec::new();
     if !portfolio_decision.confirmation_level.trim().is_empty() {
         actions.push(LocalText::new("action_buyer_confirm").with_str("confirmation", portfolio_decision.confirmation_level.trim()));
@@ -228,8 +342,12 @@ fn build_watcher_actions(
     research_plan: &StructuredResearchPlan,
     portfolio_decision: &StructuredPortfolioDecision,
     weak_history: bool,
+    is_bearish: bool,
 ) -> Vec<LocalText> {
     let mut actions = Vec::new();
+    if is_bearish {
+        actions.push(LocalText::new("action_watcher_bearish_wait"));
+    }
     for item in portfolio_decision
         .missing_evidence_ladder
         .blocking_gaps

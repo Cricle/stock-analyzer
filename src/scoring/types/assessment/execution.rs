@@ -266,10 +266,11 @@ pub fn calibrate_recommendation_with_profile(
         action_score.min(profile.min_action_score + 15)
     };
 
-    // Respect PM's Hold decision when direction is not extreme.
-    // Only override Hold when direction is very strong (>= 50).
-    let final_score = if pm_says_hold && direction_score.abs() < 50 {
-        // PM said Hold and direction is not extreme — respect the decision
+    // Hold describes execution posture, not the underlying research direction.
+    // Keep it only when the directional evidence is below the calibrated floor;
+    // otherwise a conditional bearish/bullish thesis must remain visible as
+    // Underweight/Overweight rather than being rewritten to neutral.
+    let final_score = if pm_says_hold && direction_score.abs() < direction_floor_abs {
         0
     } else if confidence_score < profile.min_confidence_score - 15
         || effective_action_score < profile.min_action_score - 10
@@ -289,20 +290,12 @@ pub fn calibrate_recommendation_with_profile(
         && effective_action_score >= (profile.min_action_score + 10)
         && direction_score.abs() >= direction_floor_abs
     {
-        if pm_says_hold {
-            0 // Respect PM's Hold for moderate direction
-        } else {
-            evidence_score.signum()
-        }
+        evidence_score.signum()
     } else if confidence_score >= profile.min_confidence_score - 15
         && effective_action_score >= profile.min_action_score - 10
         && direction_score.abs() >= strong_direction_abs
     {
-        if pm_says_hold {
-            0 // Respect PM's Hold even for strong direction if confidence is low
-        } else {
-            evidence_score.signum()
-        }
+        evidence_score.signum()
     } else {
         0
     };

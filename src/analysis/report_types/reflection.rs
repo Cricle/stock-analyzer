@@ -73,8 +73,10 @@ pub struct StructuredTraderPlan {
     pub position_sizing: String,
     #[serde(default, deserialize_with = "deserialize_local_text_or_string")]
     pub proposal: LocalText,
-        #[serde(default)]
+    #[serde(default)]
     pub execution_trigger_checklist: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop_execution_discipline: Option<StopExecutionDiscipline>,
     #[serde(default)]
     pub blocking_gaps: Vec<String>,
     /// Time-based stop-loss deadline, e.g. "业绩说明会后10个交易日"
@@ -85,6 +87,23 @@ pub struct StructuredTraderPlan {
     pub time_stop_reason: String,
     #[serde(default, skip_serializing)]
     pub markdown: String,
+}
+
+/// Code-generated stop policy. Presentation is owned by the frontend so the
+/// backend exposes only direction and numeric thresholds.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct StopExecutionDiscipline {
+    pub breach_direction: StopExecutionBreachDirection,
+    pub stop_price: f64,
+    pub immediate_exit_threshold_pct: f64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StopExecutionBreachDirection {
+    #[default]
+    Below,
+    Above,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

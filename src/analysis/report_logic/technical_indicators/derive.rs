@@ -10,6 +10,8 @@ fn indicator_value(chart: &ReportMarketChart, key: &str) -> Option<f64> {
 fn derive_technical_indicators(chart: &ReportMarketChart) -> TechnicalIndicatorView {
     let current = chart.candles.last().map(|item| item.close);
     let values = TechnicalValues::from_chart(chart);
+    let weekly_return = timeframe_return_pct(&chart.candles, 5);
+    let monthly_return = timeframe_return_pct(&chart.candles, 21);
     let trend_items = vec![
         indicator_item("ma50", values.ma50, trend_signal(current, values.ma50), "trend", "main_chart", "lagging"),
         indicator_item("ma200", values.ma200, trend_signal(current, values.ma200), "long_trend", "main_chart", "lagging"),
@@ -17,6 +19,8 @@ fn derive_technical_indicators(chart: &ReportMarketChart) -> TechnicalIndicatorV
         indicator_item("macd", values.macd, macd_signal(values.macd, values.macd_signal, values.macd_hist), "momentum_trend", "sub_chart", "lagging"),
         indicator_item("boll_mid", values.boll_mid, boll_signal(current, values.boll_upper, values.boll_lower), "volatility_channel", "main_chart", "lagging"),
         indicator_item("dmi_adx", values.adx, adx_signal(values.adx), "trend_strength", "sub_chart", "lagging"),
+        indicator_item("weekly_return_pct", weekly_return, timeframe_return_signal(weekly_return), "weekly_trend", "main_chart", "lagging"),
+        indicator_item("monthly_return_pct", monthly_return, timeframe_return_signal(monthly_return), "monthly_trend", "main_chart", "lagging"),
     ];
     let momentum_items = vec![
         indicator_item("rsi", values.rsi, rsi_signal(values.rsi), "overbought_oversold", "sub_chart", "leading"),
@@ -43,6 +47,23 @@ fn derive_technical_indicators(chart: &ReportMarketChart) -> TechnicalIndicatorV
     TechnicalIndicatorView {
         categories,
         conclusions,
+    }
+}
+
+/// Derive higher-timeframe context from daily closes without depending on LLM text.
+fn timeframe_return_pct(candles: &[ReportCandle], sessions: usize) -> Option<f64> {
+    let current = candles.last()?.close;
+    let prior = candles.get(candles.len().checked_sub(sessions + 1)?)?.close;
+    (current.is_finite() && prior.is_finite() && prior > 0.0)
+        .then_some(((current / prior) - 1.0) * 100.0)
+}
+
+fn timeframe_return_signal(return_pct: Option<f64>) -> &'static str {
+    match return_pct {
+        Some(value) if value >= 3.0 => "bullish",
+        Some(value) if value <= -3.0 => "bearish",
+        Some(_) => "neutral",
+        None => "unavailable",
     }
 }
 

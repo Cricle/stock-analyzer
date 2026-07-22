@@ -12,79 +12,31 @@ use stock_analyzer::analysis::{
 #[test]
 fn normalize_gap_cash_flow_en() {
     assert_eq!(
-        normalize_gap_to_i18n_key("missing cash flow data"),
+        normalize_gap_to_i18n_key("fundamentals_cashflow_missing"),
         "setup_gap_cash_flow"
     );
-}
-
-#[test]
-fn normalize_gap_cash_flow_zh() {
     assert_eq!(
-        normalize_gap_to_i18n_key("现金流缺失"),
+        normalize_gap_to_i18n_key("cashflow_quality_unresolved"),
         "setup_gap_cash_flow"
-    );
-}
-
-#[test]
-fn normalize_gap_sentiment_en() {
-    assert_eq!(
-        normalize_gap_to_i18n_key("sentiment unclear"),
-        "setup_gap_sentiment"
-    );
-}
-
-#[test]
-fn normalize_gap_sentiment_zh() {
-    assert_eq!(
-        normalize_gap_to_i18n_key("情绪面不佳"),
-        "setup_gap_sentiment"
     );
 }
 
 #[test]
 fn normalize_gap_news_en() {
     assert_eq!(
-        normalize_gap_to_i18n_key("news coverage sparse"),
-        "setup_gap_news_coverage"
-    );
-}
-
-#[test]
-fn normalize_gap_news_zh() {
-    assert_eq!(
-        normalize_gap_to_i18n_key("新闻不足"),
+        normalize_gap_to_i18n_key("hk_news_sparse"),
         "setup_gap_news_coverage"
     );
     assert_eq!(
-        normalize_gap_to_i18n_key("资讯缺失"),
+        normalize_gap_to_i18n_key("news_fetch_coverage_weak"),
         "setup_gap_news_coverage"
-    );
-}
-
-#[test]
-fn normalize_gap_volume_en() {
-    assert_eq!(
-        normalize_gap_to_i18n_key("volume data missing"),
-        "setup_gap_volume_data"
-    );
-}
-
-#[test]
-fn normalize_gap_volume_zh() {
-    assert_eq!(
-        normalize_gap_to_i18n_key("成交量异常"),
-        "setup_gap_volume_data"
     );
 }
 
 #[test]
 fn normalize_gap_technical() {
     assert_eq!(
-        normalize_gap_to_i18n_key("technical confirmation needed"),
-        "setup_gap_technical_confirmation"
-    );
-    assert_eq!(
-        normalize_gap_to_i18n_key("技术面"),
+        normalize_gap_to_i18n_key("indicator_unavailable"),
         "setup_gap_technical_confirmation"
     );
 }
@@ -92,90 +44,20 @@ fn normalize_gap_technical() {
 #[test]
 fn normalize_gap_earnings() {
     assert_eq!(
-        normalize_gap_to_i18n_key("earnings data stale"),
+        normalize_gap_to_i18n_key("fundamentals_sparse"),
         "setup_gap_earnings_data"
     );
     assert_eq!(
-        normalize_gap_to_i18n_key("财报未更新"),
+        normalize_gap_to_i18n_key("fundamentals_period_mixed"),
         "setup_gap_earnings_data"
-    );
-    assert_eq!(
-        normalize_gap_to_i18n_key("盈利下滑"),
-        "setup_gap_earnings_data"
-    );
-}
-
-#[test]
-fn normalize_gap_capital_flow() {
-    assert_eq!(
-        normalize_gap_to_i18n_key("capital flow unclear"),
-        "setup_gap_capital_flow"
-    );
-    assert_eq!(
-        normalize_gap_to_i18n_key("资金流"),
-        "setup_gap_capital_flow"
-    );
-}
-
-#[test]
-fn normalize_gap_insider() {
-    assert_eq!(
-        normalize_gap_to_i18n_key("insider selling detected"),
-        "setup_gap_insider_data"
-    );
-    assert_eq!(normalize_gap_to_i18n_key("减持"), "setup_gap_insider_data");
-    assert_eq!(normalize_gap_to_i18n_key("增持"), "setup_gap_insider_data");
-    assert_eq!(
-        normalize_gap_to_i18n_key("内部人交易"),
-        "setup_gap_insider_data"
-    );
-}
-
-#[test]
-fn normalize_gap_valuation() {
-    assert_eq!(
-        normalize_gap_to_i18n_key("valuation stretched"),
-        "setup_gap_valuation_data"
-    );
-    assert_eq!(
-        normalize_gap_to_i18n_key("估值偏高"),
-        "setup_gap_valuation_data"
-    );
-}
-
-#[test]
-fn normalize_gap_sector() {
-    assert_eq!(
-        normalize_gap_to_i18n_key("sector rotation risk"),
-        "setup_gap_sector_data"
-    );
-    assert_eq!(
-        normalize_gap_to_i18n_key("板块轮动"),
-        "setup_gap_sector_data"
-    );
-    assert_eq!(
-        normalize_gap_to_i18n_key("行业风险"),
-        "setup_gap_sector_data"
     );
 }
 
 #[test]
 fn normalize_gap_unknown_falls_back() {
     assert_eq!(
-        normalize_gap_to_i18n_key("some random gap"),
+        normalize_gap_to_i18n_key("some_random_diagnostic_code"),
         "setup_gap_execution_boundary_incomplete"
-    );
-}
-
-#[test]
-fn normalize_gap_case_insensitive() {
-    assert_eq!(
-        normalize_gap_to_i18n_key("CASH FLOW missing"),
-        "setup_gap_cash_flow"
-    );
-    assert_eq!(
-        normalize_gap_to_i18n_key("NEWS Coverage"),
-        "setup_gap_news_coverage"
     );
 }
 
@@ -295,7 +177,7 @@ fn collect_execution_blocking_gaps_deduplicates() {
                 elevated_to_execution_blocking_gap: false,
             },
             ReportDiagnosticItem {
-                code: "scenario_minimum_2".into(),
+                code: "scenario_minimum_1".into(),
                 message: "missing data".into(),
                 severity: "error".into(),
                 details: vec![],
@@ -307,7 +189,10 @@ fn collect_execution_blocking_gaps_deduplicates() {
         ..Default::default()
     };
     let gaps = collect_execution_blocking_gaps(&research, &trader, &portfolio, &diagnostics);
-    assert_eq!(gaps.iter().filter(|g| *g == "missing data").count(), 1);
+    assert_eq!(
+        gaps.iter().filter(|g| *g == "scenario_minimum_1").count(),
+        1
+    );
 }
 
 #[test]
@@ -328,7 +213,7 @@ fn collect_execution_blocking_gaps_from_diagnostics() {
         ..Default::default()
     };
     let gaps = collect_execution_blocking_gaps(&research, &trader, &portfolio, &diagnostics);
-    assert!(gaps.contains(&"missing scenario data".to_string()));
+    assert!(gaps.contains(&"scenario_minimum_1".to_string()));
 }
 
 // --- scenario_gap_messages ---

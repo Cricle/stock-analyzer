@@ -99,7 +99,9 @@ pub fn derive_action_guides(
     let entry_price_val = parse_first_numeric_local(&raw_entry_ref);
     let invalidation_price_val = parse_first_numeric_local(&invalidation_ref);
     let confirmation_price_val = parse_first_numeric_local(&confirmation_ref);
-    let entry_ref = if entry_price_val.is_some()
+    let entry_ref = if rating.is_bearish() {
+        raw_entry_ref
+    } else if entry_price_val.is_some()
         && entry_price_val == invalidation_price_val
         && entry_price_val != confirmation_price_val
     {
@@ -126,7 +128,12 @@ pub fn derive_action_guides(
     let target_ref = visible_target_reference(portfolio_decision).unwrap_or_default();
     let time_horizon = portfolio_decision.time_horizon.trim().to_string();
 
-    let holder_actions = build_holder_actions(trader_plan, portfolio_decision, blocker_present);
+    let holder_actions = build_holder_actions(
+        trader_plan,
+        portfolio_decision,
+        blocker_present,
+        rating.is_bearish(),
+    );
     let holder_paths = build_scenario_paths(trader_plan, portfolio_decision, "holder", blocker_present, weak_history);
     let holders = AudienceActionGuide {
         audience: LocalText::new("audience_holders"),
@@ -163,7 +170,12 @@ pub fn derive_action_guides(
         scenario_paths: holder_paths,
     };
 
-    let buyer_actions = build_buyer_actions(trader_plan, portfolio_decision, blocker_present);
+    let buyer_actions = build_buyer_actions(
+        trader_plan,
+        portfolio_decision,
+        blocker_present,
+        rating.is_bearish(),
+    );
     let buyer_paths = build_scenario_paths(trader_plan, portfolio_decision, "buyer", blocker_present, weak_history);
     let buyers = AudienceActionGuide {
         audience: LocalText::new("audience_buyers"),
@@ -200,7 +212,12 @@ pub fn derive_action_guides(
         scenario_paths: buyer_paths,
     };
 
-    let watcher_actions = build_watcher_actions(research_plan, portfolio_decision, weak_history);
+    let watcher_actions = build_watcher_actions(
+        research_plan,
+        portfolio_decision,
+        weak_history,
+        rating.is_bearish(),
+    );
     let watcher_paths = build_scenario_paths(trader_plan, portfolio_decision, "watcher", blocker_present, weak_history);
     let watchers = AudienceActionGuide {
         audience: LocalText::new("audience_watchers"),

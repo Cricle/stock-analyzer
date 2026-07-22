@@ -224,7 +224,10 @@ impl StructuredPortfolioDecision {
             format!("**Risk Assessment**: {}", risk_summary),
             String::new(),
             "## Executive Summary".to_string(),
-            format!("**Executive Summary**: {}", self.executive_summary),
+            format!(
+                "**Executive Summary**: {}",
+                self.executive_summary.fallback_text()
+            ),
             String::new(),
             "## Investment Thesis".to_string(),
             format!("**Investment Thesis**: {}", self.investment_thesis),
@@ -288,4 +291,3 @@ impl StructuredPortfolioDecision {
         parts.join("\n")
     }
 }
-

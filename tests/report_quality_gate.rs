@@ -436,6 +436,70 @@ fn provenance_retains_primary_and_empty_fallback_attempts() {
     assert_eq!(provenance.attempts[1]["error"], "empty response");
 }
 
+#[tokio::test]
+async fn execute_existing_task_and_wait_returns_only_after_terminal_state_is_persisted() {
+    let data_dir = tempfile::tempdir().unwrap();
+    let analysis_store: Arc<dyn AnalysisStore> = Arc::new(InMemoryAnalysisStore::new());
+    let manager = stock_analyzer::TaskManager::new(
+        analysis_store,
+        Arc::new(InMemoryCacheStore::new()),
+        None,
+        None,
+        stock_analyzer::data::MarketDataClient::from_config(&stock_analyzer::data::DataConfig {
+            mock_uri: Some("http://127.0.0.1:9".to_string()),
+            tushare_token: None,
+            search_providers: Vec::new(),
+        })
+        .await
+        .unwrap(),
+        data_dir.path().to_str().unwrap().to_string(),
+        stock_analyzer::memory::TradingMemoryLog::new(data_dir.path().to_str().unwrap(), 10)
+            .unwrap(),
+        TaskCheckpointStore::new(Arc::new(InMemoryCheckpointStore::new())),
+        1,
+        1,
+        stock_analyzer::telemetry::init_telemetry(),
+    )
+    .await
+    .unwrap();
+    let task_id = manager
+        .create_task_with_id(
+            "worker-wait-test",
+            stock_analyzer::SingleAnalysisRequest {
+                symbol: Some("000001".to_string()),
+                stock_code: None,
+                stock_name: Some("Worker wait test".to_string()),
+                parameters: Some(stock_analyzer::AnalysisParameters {
+                    market_type: Some("CN".to_string()),
+                    analysis_date: Some("2026-07-22".to_string()),
+                    ..Default::default()
+                }),
+                force_refresh: true,
+            },
+            Some("worker-wait-test".to_string()),
+            false,
+        )
+        .await
+        .unwrap();
+
+    manager
+        .execute_existing_task_and_wait(
+            task_id.clone(),
+            TaskRunParams::for_reflection("2026-07-22".to_string(), "en"),
+        )
+        .await
+        .unwrap();
+
+    let task = manager
+        .analysis_store()
+        .get_task(&task_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(task.status.is_terminal());
+    assert_eq!(task.status, TaskStatus::BlockedData);
+}
+
 #[test]
 fn provenance_preserves_named_provider_retry_diagnostics() {
     let attempts = vec![

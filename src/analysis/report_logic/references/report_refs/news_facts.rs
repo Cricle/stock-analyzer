@@ -328,9 +328,9 @@ fn derive_fundamentals_reference_facts(result: &AnalysisResult) -> Vec<Reference
         ("总市值", "market_cap", "info"),
     ] {
         if let Some(value) = pick(key) {
-            let display_label = if key == "revenues" {
+            let display_label = if key != "market_cap" {
                 if let Some(ref period) = fiscal_period {
-                    format!("营收 ({})", period)
+                    format!("{} ({})", label, period)
                 } else {
                     label.to_string()
                 }
@@ -346,6 +346,70 @@ fn derive_fundamentals_reference_facts(result: &AnalysisResult) -> Vec<Reference
             });
         }
     }
-    facts.truncate(10);
+    let valuation = valuation_metrics(
+        pick("market_cap"),
+        pick("revenues"),
+        pick("net_income"),
+        pick("stockholders_equity"),
+    );
+    for (key, value) in [
+        ("price_to_sales", valuation.price_to_sales),
+        ("price_to_book", valuation.price_to_book),
+        ("price_to_earnings", valuation.price_to_earnings),
+    ] {
+        if let Some(value) = value {
+            facts.push(ReferenceFactItem {
+                key: key.to_string(),
+                label: key.to_string(),
+                value: format!("{value:.2}x"),
+                emphasis: "info".to_string(),
+                ..Default::default()
+            });
+        }
+    }
+    if valuation.earnings_multiple_not_meaningful {
+        facts.push(ReferenceFactItem {
+            key: "price_to_earnings".to_string(),
+            label: "price_to_earnings".to_string(),
+            value: "N/M".to_string(),
+            emphasis: "warning".to_string(),
+            ..Default::default()
+        });
+    }
+    if valuation.price_to_sales.is_some() || valuation.price_to_book.is_some() {
+        facts.push(ReferenceFactItem {
+            key: "valuation_range_status".to_string(),
+            label: "valuation_range_status".to_string(),
+            value: "not_quantified_without_peer_or_forecast".to_string(),
+            emphasis: "warning".to_string(),
+            ..Default::default()
+        });
+    }
+    facts.truncate(14);
     facts
+}
+
+#[derive(Default)]
+struct ValuationMetrics {
+    price_to_sales: Option<f64>,
+    price_to_book: Option<f64>,
+    price_to_earnings: Option<f64>,
+    earnings_multiple_not_meaningful: bool,
+}
+
+fn valuation_metrics(
+    market_cap: Option<f64>,
+    revenue: Option<f64>,
+    net_income: Option<f64>,
+    equity: Option<f64>,
+) -> ValuationMetrics {
+    let valid = |value: Option<f64>| value.filter(|value| value.is_finite() && *value > 0.0);
+    let market_cap = valid(market_cap);
+    ValuationMetrics {
+        price_to_sales: market_cap.zip(valid(revenue)).map(|(value, revenue)| value / revenue),
+        price_to_book: market_cap.zip(valid(equity)).map(|(value, equity)| value / equity),
+        price_to_earnings: market_cap.zip(valid(net_income)).map(|(value, income)| value / income),
+        earnings_multiple_not_meaningful: market_cap.is_some()
+            && net_income.is_some_and(|value| value <= 0.0),
+    }
 }

@@ -755,6 +755,7 @@ impl StructuredReport {
                     LocalText::default()
                 },
             },
+            execution_boundary: Default::default(),
             trade_setup_quality: derive_trade_setup_quality(
                 &trader_plan,
                 &portfolio_decision,

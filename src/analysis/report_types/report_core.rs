@@ -56,6 +56,8 @@ pub struct StructuredReport {
     #[serde(default)]
     pub execution_readiness: ExecutionReadiness,
     #[serde(default)]
+    pub execution_boundary: ExecutionBoundary,
+    #[serde(default)]
     pub trade_setup_quality: TradeSetupQuality,
     #[serde(default)]
     pub calibration_summary: CalibrationSummary,

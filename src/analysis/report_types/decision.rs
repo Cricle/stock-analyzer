@@ -348,6 +348,75 @@ pub enum DecisionViewDirection {
     Bearish,
 }
 
+/// Required market confirmation before an execution boundary becomes actionable.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ConfirmationMode {
+    #[default]
+    None,
+    PriceCross,
+    DailyClose,
+    DailyCloseWithVolume,
+}
+
+/// Typed conditions that must be met before active execution is allowed.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecutionPrerequisite {
+    VolumeConfirmation,
+    BorrowQuantity,
+    BorrowFee,
+    BorrowTerm,
+    BorrowDepth,
+    AccountAuthorization,
+    MinimumRewardRisk,
+    MissingCashFlow,
+}
+
+/// Numeric evidence available when cash-flow data is absent.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct CashFlowSubstituteEvidence {
+    #[serde(default)]
+    pub cash_balance: Option<f64>,
+    #[serde(default)]
+    pub net_debt: Option<f64>,
+    #[serde(default)]
+    pub short_debt_coverage: Option<f64>,
+    #[serde(default)]
+    pub operating_loss_trend: Option<f64>,
+    #[serde(default)]
+    pub replaces_cash_flow: bool,
+}
+
+/// Canonical direction-aware execution levels, prerequisites, and evidence limits.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ExecutionBoundary {
+    #[serde(default)]
+    pub direction: DecisionViewDirection,
+    #[serde(default)]
+    pub confirmation_price: Option<f64>,
+    #[serde(default)]
+    pub entry_price: Option<f64>,
+    #[serde(default)]
+    pub stop_price: Option<f64>,
+    #[serde(default)]
+    pub stage_one_target: Option<f64>,
+    #[serde(default)]
+    pub final_target: Option<f64>,
+    #[serde(default)]
+    pub minimum_reward_risk: f64,
+    #[serde(default)]
+    pub actual_reward_risk: Option<f64>,
+    #[serde(default)]
+    pub active_execution_allowed: bool,
+    #[serde(default)]
+    pub confirmation_mode: ConfirmationMode,
+    #[serde(default)]
+    pub prerequisites: Vec<ExecutionPrerequisite>,
+    #[serde(default)]
+    pub cash_flow_substitute: CashFlowSubstituteEvidence,
+}
+
 /// Execution state of the decision (ready, conditional, watchlist, blocked).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

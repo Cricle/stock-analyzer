@@ -1,4 +1,5 @@
 use stock_analyzer::analysis::{
+    AgentStateSnapshot, AnalysisArtifacts, AnalysisGraph, AnalysisResult,
     CashFlowSubstituteEvidence, ConfirmationMode, DecisionViewDirection, ExecutionBoundary,
     ExecutionPrerequisite, StructuredReport,
 };
@@ -42,6 +43,66 @@ fn execution_boundary_serializes_typed_prerequisites_and_stages() {
     assert_eq!(value["cash_flow_substitute"]["replaces_cash_flow"], false);
 
     let report: StructuredReport = serde_json::from_str("{}").unwrap();
-    assert_eq!(report.execution_boundary.direction, DecisionViewDirection::Neutral);
+    assert_eq!(
+        report.execution_boundary.direction,
+        DecisionViewDirection::Neutral
+    );
     assert!(report.execution_boundary.prerequisites.is_empty());
+}
+
+#[test]
+fn ic_chair_report_preserves_execution_boundary() {
+    let execution_boundary = ExecutionBoundary {
+        direction: DecisionViewDirection::Bearish,
+        confirmation_price: Some(44.50),
+        entry_price: Some(44.28),
+        stop_price: Some(48.71),
+        stage_one_target: Some(38.90),
+        final_target: Some(36.08),
+        minimum_reward_risk: 2.0,
+        actual_reward_risk: Some(2.0),
+        active_execution_allowed: false,
+        confirmation_mode: ConfirmationMode::DailyCloseWithVolume,
+        prerequisites: vec![ExecutionPrerequisite::BorrowQuantity],
+        cash_flow_substitute: CashFlowSubstituteEvidence {
+            cash_balance: Some(1_250.0),
+            net_debt: Some(420.0),
+            short_debt_coverage: Some(1.8),
+            operating_loss_trend: Some(-12.5),
+            replaces_cash_flow: false,
+        },
+    };
+    let report = StructuredReport {
+        execution_boundary: execution_boundary.clone(),
+        ..Default::default()
+    };
+    let result = AnalysisResult {
+        task_id: "task-test".to_string(),
+        report_id: "report-test".to_string(),
+        symbol: "TEST".to_string(),
+        stock_name: "Test".to_string(),
+        analysis_date: "2026-07-23".to_string(),
+        market_type: "US".to_string(),
+        graph: AnalysisGraph::default(),
+        agent_state: AgentStateSnapshot::default(),
+        artifacts: AnalysisArtifacts::default(),
+        report: StructuredReport::default(),
+        ic_report: StructuredReport::default(),
+        created_at: "2026-07-23T00:00:00Z".to_string(),
+    };
+
+    let ic_chair_report = StructuredReport::ic_chair_from_report(&result, &report);
+
+    assert_eq!(
+        ic_chair_report.execution_boundary.direction,
+        execution_boundary.direction
+    );
+    assert_eq!(
+        ic_chair_report.execution_boundary.confirmation_price,
+        execution_boundary.confirmation_price
+    );
+    assert_eq!(
+        ic_chair_report.execution_boundary.prerequisites,
+        execution_boundary.prerequisites
+    );
 }

@@ -25,7 +25,7 @@ impl StructuredReport {
             action_score: report.action_score,
             action_breakdown: report.action_breakdown.clone(),
             execution_readiness: report.execution_readiness.clone(),
-            execution_boundary: Default::default(),
+            execution_boundary: report.execution_boundary.clone(),
             trade_setup_quality: report.trade_setup_quality.clone(),
             calibration_summary: report.calibration_summary.clone(),
             diagnostics: report.diagnostics.clone(),

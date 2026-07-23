@@ -1054,6 +1054,18 @@ fn validate_and_enhance_report(
     }
     ensure_entry_transparency(&mut report.decision_view, &report.trader_plan);
 
+    if matches!(report.decision_view.view, DecisionViewDirection::Bearish)
+        && let (Some(entry), Some(confirm)) = (
+            parse_first_numeric(&report.trader_plan.entry_price),
+            parse_first_numeric(&report.decision_view.confirmation_level),
+        )
+        && (entry - confirm).abs() / confirm < 0.005
+    {
+        let buffered_entry = confirm * 0.995;
+        report.trader_plan.entry_price = format_price_reference(buffered_entry);
+        report.decision_view.entry_reference = format_price_reference(buffered_entry);
+    }
+
     // Sync calc_entry with potentially updated trader_plan.entry_price
     if let Some(new_entry) = parse_first_numeric(&report.trader_plan.entry_price)
         .filter(|v| v.is_finite() && *v > 0.0)
@@ -1065,6 +1077,29 @@ fn validate_and_enhance_report(
             "syncing calc_entry with trader_plan.entry_price"
         );
         report.profit_risk.calc_entry = Some(new_entry);
+    }
+
+    report.execution_boundary.direction = report.decision_view.view.clone();
+    report.execution_boundary.confirmation_price = parse_first_numeric(&report.decision_view.confirmation_level);
+    report.execution_boundary.entry_price = report.profit_risk.calc_entry;
+    report.execution_boundary.stop_price = parse_first_numeric(&report.decision_view.invalidation_price)
+        .or_else(|| parse_first_numeric(&report.decision_view.invalidation_level));
+    report.execution_boundary.final_target = report.profit_risk.calc_target;
+    report.execution_boundary.stage_one_target = report.profit_risk.calc_target;
+    report.execution_boundary.minimum_reward_risk = 2.0;
+    report.execution_boundary.actual_reward_risk = report.profit_risk.reward_risk_ratio;
+    report.execution_boundary.active_execution_allowed = report
+        .profit_risk
+        .reward_risk_ratio
+        .is_some_and(|ratio| ratio >= 2.0)
+        && report.execution_readiness.execution_boundary_complete;
+    if let (Some(current), Some(confirm)) = (
+        report.price_context.current_price
+            .or_else(|| parse_first_numeric(&report.decision_view.current_price))
+            .or_else(|| report.market_chart.candles.last().map(|candle| candle.close).filter(|value| *value > 0.0)),
+        report.execution_boundary.confirmation_price,
+    ) {
+        report.decision_view.distance_to_confirmation_pct = (current - confirm).abs() / current * 100.0;
     }
 
     // Sync probability_view and profit_risk stop/profit levels with enforce_price_consistency

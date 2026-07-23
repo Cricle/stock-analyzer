@@ -156,7 +156,7 @@ fn bearish_low_reward_risk_preserves_target_and_blocks_execution() {
     assert!(
         issues
             .iter()
-            .any(|issue| issue.check_name == "fix_risk_reward")
+            .any(|issue| issue.check_name == "block_low_reward_risk")
     );
     assert_eq!(result.report.trader_plan.target_reference, "50.00");
     assert_eq!(result.report.portfolio_decision.price_target, "50.00");
@@ -214,14 +214,14 @@ fn test_risk_reward_widening() {
     let issues = ConsistencyValidator::validate_and_fix(&mut result);
     let rr_issues: Vec<_> = issues
         .iter()
-        .filter(|i| i.check_name == "fix_risk_reward")
+        .filter(|i| i.check_name == "block_low_reward_risk")
         .collect();
     assert_eq!(rr_issues.len(), 1);
 
     let target = parse_price(result.report.decision_view.target_reference.value_str()).unwrap();
     assert!(
-        (target - 107.5).abs() < 0.1,
-        "target should be ~107.5, got {}",
+        (target - 103.0).abs() < 0.1,
+        "target should be preserved, got {}",
         target
     );
 }

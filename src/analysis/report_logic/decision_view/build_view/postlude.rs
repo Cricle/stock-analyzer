@@ -441,7 +441,7 @@ fn build_decision_view(
 
 fn price_distance_pct(current_price: Option<f64>, target_price: Option<f64>) -> f64 {
     match (current_price, target_price) {
-        (Some(current), Some(target)) if current > 0.0 && target > current => ((target - current) / current) * 100.0,
+        (Some(current), Some(target)) if current > 0.0 => ((target - current).abs() / current) * 100.0,
         _ => 0.0,
     }
 }

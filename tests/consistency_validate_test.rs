@@ -1,3 +1,4 @@
+use stock_analyzer::analysis::ExecutionPrerequisite;
 use stock_analyzer::report::diagnosis::ConsistencyValidator;
 use stock_analyzer::report::diagnosis::consistency::check::parse_price;
 use stock_analyzer::{
@@ -122,7 +123,7 @@ fn bearish_execution_levels_are_not_rewritten_as_a_long_stop() {
 }
 
 #[test]
-fn bearish_low_reward_risk_extends_the_target_below_entry() {
+fn bearish_low_reward_risk_preserves_target_and_blocks_execution() {
     let mut result = default_result();
     result.report.recommendation = "Underweight".into();
     result.report.portfolio_decision.rating = Rating::Underweight;
@@ -157,9 +158,9 @@ fn bearish_low_reward_risk_extends_the_target_below_entry() {
             .iter()
             .any(|issue| issue.check_name == "fix_risk_reward")
     );
-    assert_eq!(result.report.trader_plan.target_reference, "45.00");
-    assert_eq!(result.report.portfolio_decision.price_target, "45.00");
-    assert_eq!(result.report.portfolio_decision.target_reference, "45.00");
+    assert_eq!(result.report.trader_plan.target_reference, "50.00");
+    assert_eq!(result.report.portfolio_decision.price_target, "50.00");
+    assert_eq!(result.report.portfolio_decision.target_reference, "50.00");
     assert_eq!(
         result.report.decision_view.target_reference.key,
         "target_reference_value"
@@ -171,29 +172,35 @@ fn bearish_low_reward_risk_extends_the_target_below_entry() {
             .target_reference
             .params
             .get("value"),
-        Some(&serde_json::Value::String("45.00".to_string()))
+        Some(&serde_json::Value::String("50.00".to_string()))
     );
-    assert_eq!(result.report.decision_view.first_target, "45.00");
+    assert_eq!(result.report.decision_view.first_target, "50.00");
     assert_eq!(result.report.probability_view.upside_target, Some(55.0));
-    assert_eq!(result.report.probability_view.downside_target, Some(45.0));
-    assert_eq!(result.report.probability_view.profit_target, Some(45.0));
+    assert_eq!(result.report.probability_view.downside_target, Some(50.0));
+    assert_eq!(result.report.probability_view.profit_target, Some(50.0));
     assert_eq!(result.report.probability_view.stop_loss, Some(55.0));
-    assert_eq!(result.report.profit_risk.calc_target, Some(45.0));
+    assert_eq!(result.report.profit_risk.calc_target, Some(50.0));
     assert_eq!(result.report.profit_risk.calc_stop, Some(55.0));
-    assert_eq!(result.report.profit_risk.reward_risk_ratio, Some(1.5));
-    assert_eq!(result.report.ic_discipline.reward_risk_ratio, Some(1.5));
+    assert_eq!(result.report.profit_risk.reward_risk_ratio, Some(0.25));
+    assert_eq!(result.report.ic_discipline.reward_risk_ratio, Some(0.25));
+    assert!(!result.report.execution_boundary.active_execution_allowed);
+    assert_eq!(result.report.execution_boundary.minimum_reward_risk, 2.0);
+    assert_eq!(
+        result.report.execution_boundary.prerequisites,
+        vec![ExecutionPrerequisite::MinimumRewardRisk]
+    );
     assert_eq!(result.report.probability_view.risk_probability_pct, 22.0);
     assert_eq!(
         result.report.decision_view.target_condition.key,
-        "target_condition_rr_calibrated"
+        "target_condition_rr_below_minimum"
     );
     assert_eq!(
         result.report.summary.params.get("target"),
-        Some(&serde_json::Value::String("45.00".to_string()))
+        Some(&serde_json::Value::String("50.00".to_string()))
     );
     assert_eq!(
         result.report.summary.params.get("reward_risk"),
-        Some(&serde_json::json!(1.5))
+        Some(&serde_json::json!(0.25))
     );
 }
 

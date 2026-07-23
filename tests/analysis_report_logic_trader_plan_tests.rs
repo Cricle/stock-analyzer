@@ -1,9 +1,10 @@
 use serde_json::json;
 use stock_analyzer::analysis::is_publishable_summary_reference;
 use stock_analyzer::analysis::{
-    TechnicalValues, derive_action_guides, derive_memory_reference_facts, derive_news_diagnostics,
-    derive_news_insights, derive_report_diagnostics, derive_setup_match_explanation,
-    derive_technical_conclusions, detect_disclosure_sequence_complexity, is_semantically_similar,
+    ExecutionPrerequisite, TechnicalValues, derive_action_guides, derive_memory_reference_facts,
+    derive_news_diagnostics, derive_news_insights, derive_report_diagnostics,
+    derive_setup_match_explanation, derive_technical_conclusions,
+    detect_disclosure_sequence_complexity, is_semantically_similar,
 };
 use stock_analyzer::{
     AgentStateSnapshot, AnalysisArtifacts, AnalysisResult, AnalysisScenarioContext,
@@ -781,11 +782,33 @@ fn bearish_report_keeps_market_probabilities_and_trade_levels_semantically_align
     assert_eq!(report.probability_view.downside_target, Some(34.97));
     assert_eq!(report.probability_view.profit_target, Some(34.97));
     assert_eq!(report.probability_view.stop_loss, Some(55.69));
-    assert_eq!(report.profit_risk.calc_entry, Some(47.40));
     assert_eq!(report.profit_risk.calc_target, Some(34.97));
     assert_eq!(report.profit_risk.calc_stop, Some(55.69));
-    assert_eq!(report.ic_discipline.confirmation_price, Some(47.40));
+    let entry = report.profit_risk.calc_entry.unwrap();
+    let confirmation = report.ic_discipline.confirmation_price.unwrap();
+    let stop = report.profit_risk.calc_stop.unwrap();
+    let target = report.profit_risk.calc_target.unwrap();
+    assert!(target < entry && entry < confirmation && confirmation < stop);
+    assert!((entry - 47.163).abs() < 0.001);
+    assert_eq!(confirmation, 47.40);
     assert_eq!(report.ic_discipline.invalidation_price, Some(55.69));
+    assert!((report.decision_view.distance_to_confirmation_pct - 5.6716).abs() < 0.01);
+    assert_eq!(
+        report.execution_boundary.direction,
+        DecisionViewDirection::Bearish
+    );
+    assert_eq!(
+        report.execution_boundary.confirmation_price,
+        Some(confirmation)
+    );
+    assert_eq!(report.execution_boundary.entry_price, Some(entry));
+    assert_eq!(report.execution_boundary.stop_price, Some(stop));
+    assert_eq!(report.execution_boundary.final_target, Some(target));
+    assert!(!report.execution_boundary.active_execution_allowed);
+    assert_eq!(
+        report.execution_boundary.prerequisites,
+        vec![ExecutionPrerequisite::MinimumRewardRisk]
+    );
     assert!(
         !report
             .ic_discipline

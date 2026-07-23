@@ -1,4 +1,6 @@
-use crate::{AnalysisResult, DecisionViewDirection, DiagnosisIssue};
+use crate::{
+    AnalysisResult, DecisionViewDirection, DiagnosisIssue, analysis::ExecutionPrerequisite,
+};
 
 /// Severity of a consistency issue.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -351,91 +353,43 @@ pub fn fix_risk_reward(result: &mut AnalysisResult) -> Vec<DiagnosisIssue> {
     let reward = (target - entry).abs();
     let rr = reward / risk;
 
-    if rr >= 1.5 {
+    const MIN_ACTIVE_REWARD_RISK: f64 = 2.0;
+    if rr >= MIN_ACTIVE_REWARD_RISK {
         return Vec::new();
     }
 
-    let is_bearish = result.report.decision_view.view == DecisionViewDirection::Bearish;
-    let new_target = if is_bearish {
-        round_price(entry - 1.5 * risk)
-    } else {
-        round_price(entry + 1.5 * risk)
-    };
-    let new_rr = 1.5;
-    let target_text = format!("{:.2}", new_target);
-
+    let boundary = &mut result.report.execution_boundary;
+    boundary.minimum_reward_risk = MIN_ACTIVE_REWARD_RISK;
+    boundary.actual_reward_risk = Some(rr);
+    boundary.active_execution_allowed = false;
+    if !boundary
+        .prerequisites
+        .contains(&ExecutionPrerequisite::MinimumRewardRisk)
+    {
+        boundary
+            .prerequisites
+            .push(ExecutionPrerequisite::MinimumRewardRisk);
+    }
+    result.report.profit_risk.reward_risk_ratio = Some(rr);
+    result.report.ic_discipline.reward_risk_ratio = Some(rr);
+    let target_text = format!("{target:.2}");
     result.report.decision_view.target_reference =
         crate::LocalText::new("target_reference_value").with_str("value", target_text.clone());
     result.report.decision_view.first_target = target_text.clone();
     result.report.trader_plan.target_reference = target_text.clone();
     result.report.portfolio_decision.price_target = target_text.clone();
-    result.report.portfolio_decision.target_reference = target_text.clone();
-    result.report.trader_plan.target_condition.clear();
-    result.report.portfolio_decision.target_condition.clear();
-    result.report.decision_view.target_condition =
-        crate::LocalText::new("target_condition_rr_calibrated")
-            .with_str("target", &target_text)
-            .with_f64("reward_risk", new_rr);
-    for guide in [
-        &mut result.report.action_guides.buyers,
-        &mut result.report.action_guides.holders,
-        &mut result.report.action_guides.watchers,
-    ] {
-        guide.target_reference = target_text.clone();
-    }
-    if is_bearish {
-        result.report.probability_view.upside_target = Some(stop);
-        result.report.probability_view.downside_target = Some(new_target);
-    } else {
-        result.report.probability_view.upside_target = Some(new_target);
-        result.report.probability_view.downside_target = Some(stop);
-    }
-    result.report.probability_view.profit_target = Some(new_target);
-    result.report.probability_view.stop_loss = Some(stop);
-    result.report.profit_risk.calc_target = Some(new_target);
+    result.report.portfolio_decision.target_reference = target_text;
+    result.report.profit_risk.calc_target = Some(target);
     result.report.profit_risk.calc_stop = Some(stop);
-    result.report.profit_risk.max_loss_reference = Some(stop);
-    result.report.profit_risk.reward_risk_ratio = Some(new_rr);
-    result.report.ic_discipline.reward_risk_ratio = Some(new_rr);
-    result.report.ic_discipline.invalidation_price = Some(stop);
-    let current = result.report.price_context.current_price.unwrap_or(entry);
-    if current > 0.0 {
-        let (upside_pct, downside_pct) = if is_bearish {
-            (
-                (stop > current).then_some((stop - current) / current * 100.0),
-                (new_target < current).then_some((current - new_target) / current * 100.0),
-            )
-        } else {
-            (
-                (new_target > current).then_some((new_target - current) / current * 100.0),
-                (stop < current).then_some((current - stop) / current * 100.0),
-            )
-        };
-        result.report.probability_view.upside_pct = upside_pct;
-        result.report.probability_view.downside_pct = downside_pct;
-        result.report.profit_risk.upside_pct = upside_pct;
-        result.report.profit_risk.downside_pct = downside_pct;
-        result.report.ic_discipline.upside_pct = upside_pct;
-        result.report.ic_discipline.downside_pct = downside_pct;
-    }
-
-    tracing::warn!(
-        check = "fix_risk_reward",
-        entry = entry,
-        stop = stop,
-        original_target = target,
-        new_target = new_target,
-        original_rr = format!("{:.2}", rr),
-        new_rr = new_rr,
-        "R:R below 1.5, widened target"
-    );
+    result.report.probability_view.profit_target = Some(target);
+    result.report.probability_view.stop_loss = Some(stop);
 
     vec![make_issue(
         IssueSeverity::Warning,
-        "fix_risk_reward",
-        "target_reference",
-        &format!("target={:.2}, R:R={:.2}", target, rr),
-        &format!("target={:.2}, R:R={:.2}", new_target, new_rr),
-        "Risk:reward ratio below 1.5, extended target in the trade direction",
+        "block_low_reward_risk",
+        "execution_boundary.active_execution_allowed",
+        &format!("R:R={rr:.2}"),
+        "false",
+        "Active execution blocked because the real target does not meet the 2.0 reward/risk minimum",
     )]
 }

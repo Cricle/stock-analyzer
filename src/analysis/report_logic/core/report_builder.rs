@@ -1469,12 +1469,15 @@ fn derive_execution_levels(
             let needs_derivation = entry.is_none()
                 || stop.is_none()
                 || entry == stop
+                || entry.is_some_and(|value| value >= confirm)
                 || entry.unwrap_or(0.0) >= stop.unwrap_or(0.0);
 
             if needs_derivation {
                 let anchor = confirm.min(_current_price.unwrap_or(confirm));
-                let derived_entry = anchor - 0.5 * atr_val;  // just below confirmation
-                let derived_stop = anchor + 1.5 * atr_val;   // above confirmation
+                let buffer = (atr_val * 0.1).clamp(confirm * 0.0025, confirm * 0.005);
+                let derived_entry = anchor - buffer;
+                let derived_stop = stop.filter(|value| *value > derived_entry)
+                    .unwrap_or(anchor + 1.5 * atr_val);
 
                 // Enforce minimum 1.5% stop distance
                 let min_stop_pct = derived_entry * 0.015;

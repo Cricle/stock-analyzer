@@ -1,3 +1,4 @@
+use stock_analyzer::analysis::ExecutionPrerequisite;
 use stock_analyzer::report::diagnosis::consistency::check::{
     extract_pct, fix_entry_stop, fix_probabilities, fix_risk_reward, parse_price, round_price,
 };
@@ -305,7 +306,7 @@ fn fix_entry_stop_does_not_update_invalidation_level() {
 // ---- fix_risk_reward ----
 
 #[test]
-fn fix_risk_reward_low_rr_widens_target() {
+fn fix_risk_reward_low_rr_preserves_target_and_blocks_execution() {
     let mut result = make_result();
     result.report.trader_plan.entry_price = "100.00".to_string();
     result.report.trader_plan.stop_loss = "95.00".to_string();
@@ -313,9 +314,21 @@ fn fix_risk_reward_low_rr_widens_target() {
 
     let issues = fix_risk_reward(&mut result);
     assert!(!issues.is_empty());
-    let new_target = &result.report.decision_view.target_reference;
-    let val: f64 = new_target.value_str().parse().unwrap();
-    assert!((val - 107.50).abs() < 0.01);
+    assert_eq!(
+        result.report.decision_view.target_reference.value_str(),
+        "102.00"
+    );
+    assert_eq!(result.report.trader_plan.target_reference, "102.00");
+    assert_eq!(result.report.portfolio_decision.price_target, "102.00");
+    assert_eq!(result.report.portfolio_decision.target_reference, "102.00");
+    assert_eq!(result.report.profit_risk.calc_target, Some(102.00));
+    assert_eq!(result.report.profit_risk.reward_risk_ratio, Some(0.40));
+    assert!(!result.report.execution_boundary.active_execution_allowed);
+    assert_eq!(result.report.execution_boundary.minimum_reward_risk, 2.0);
+    assert_eq!(
+        result.report.execution_boundary.prerequisites,
+        vec![ExecutionPrerequisite::MinimumRewardRisk]
+    );
 }
 
 #[test]
@@ -334,14 +347,20 @@ fn fix_risk_reward_good_rr_noop() {
 }
 
 #[test]
-fn fix_risk_reward_exact_15_noop() {
+fn fix_risk_reward_below_two_blocks_without_rewriting_target() {
     let mut result = make_result();
     result.report.trader_plan.entry_price = "100.00".to_string();
     result.report.trader_plan.stop_loss = "95.00".to_string();
     result.report.decision_view.target_reference = LocalText::new("107.50");
 
     let issues = fix_risk_reward(&mut result);
-    assert!(issues.is_empty());
+    assert_eq!(issues.len(), 1);
+    assert_eq!(
+        result.report.decision_view.target_reference.value_str(),
+        "107.50"
+    );
+    assert_eq!(result.report.profit_risk.reward_risk_ratio, Some(1.5));
+    assert!(!result.report.execution_boundary.active_execution_allowed);
 }
 
 #[test]
